@@ -1,0 +1,10 @@
+[package]
+name = "squashfs-deku"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+deku = "0.13.1"
+hexy = { path = "../hexy" }

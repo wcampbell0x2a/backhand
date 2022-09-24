@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 deku = "0.13.1"
-hexy = { path = "../hexy" }
+flate2 = "1.0.24"
+hxdmp = "0.2.1"

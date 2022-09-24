@@ -1,3 +1,6 @@
+use std::fmt;
+use std::io::Read;
+
 use deku::bitvec::*;
 use deku::ctx::Limit;
 use deku::prelude::*;
@@ -72,7 +75,7 @@ enum Flags {
     ctx = "endian: deku::ctx::Endian, compressor: Compressor"
 )]
 #[deku(id = "compressor")]
-enum CompressionOptions {
+pub enum CompressionOptions {
     #[deku(id = "Compressor::Gzip")]
     Gzip(Gzip),
 
@@ -91,7 +94,7 @@ enum CompressionOptions {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-struct Gzip {
+pub struct Gzip {
     compression_level: u32,
     window_size: u16,
     // TODO: enum
@@ -100,7 +103,7 @@ struct Gzip {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-struct Lzo {
+pub struct Lzo {
     // TODO: enum
     algorithm: u32,
     compression_level: u32,
@@ -108,7 +111,7 @@ struct Lzo {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-struct Xz {
+pub struct Xz {
     dictionary_size: u32,
     // TODO: enum
     filters: u32,
@@ -116,7 +119,7 @@ struct Xz {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-struct Lz4 {
+pub struct Lz4 {
     version: u32,
     //TODO: enum
     flags: u32,
@@ -124,13 +127,22 @@ struct Lz4 {
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-struct Zstd {
+pub struct Zstd {
     compression_level: u32,
+}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+pub struct Metadata {
+    len: u16,
+    #[deku(count = "*len & !(1 << 15)")]
+    pub data: Vec<u8>,
 }
 
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 pub struct FileSystem {
+    // Superblock
     #[deku(assert_eq = "0x73717368")]
     magic: u32,
     inode_count: u32,
@@ -151,26 +163,49 @@ pub struct FileSystem {
     pub dir_table: u64,
     pub frag_table: u64,
     pub export_table: u64,
-    #[deku(
-        reader = "read_offset_count(deku::rest, deku::input_bits, deku::ctx::Endian::Little, *inode_table as usize * 8, (*dir_table - *inode_table) as usize)"
-    )]
-    pub inode_metadata: Vec<u8>,
-    #[deku(
-        reader = "read_offset_count(deku::rest, deku::input_bits, deku::ctx::Endian::Little, *dir_table as usize * 8, (*frag_table - *dir_table) as usize)"
-    )]
-    pub dir_metadata: Vec<u8>,
-    #[deku(
-        reader = "read_offset_count(deku::rest, deku::input_bits, deku::ctx::Endian::Little, *frag_table as usize * 8, (*export_table - *frag_table) as usize)"
-    )]
-    pub frag_metadata: Vec<u8>,
+
+    #[deku(skip, cond = "*compressor == Compressor::None")]
+    pub compressor_option: Option<Metadata>,
+
+    #[deku(count = "*inode_table as usize - deku::byte_offset")]
+    pub data: Vec<u8>,
+
+    //#[deku(
+    //    reader = "read_offset(
+    //        deku::rest, deku::input_bits,
+    //        deku::ctx::Endian::Little,
+    //        *inode_table as usize * 8)"
+    //)]
+    pub inode_metadata: Metadata,
+
+    //#[deku(
+    //    reader = "read_offset(deku::rest,
+    //    deku::input_bits,
+    //    deku::ctx::Endian::Little,
+    //    *dir_table as usize * 8)"
+    //)]
+    pub dir_metadata: Metadata,
+
+    //#[deku(
+    //    reader = "read_offset(deku::rest,
+    //    deku::input_bits,
+    //    deku::ctx::Endian::Little,
+    //    *frag_table as usize * 8)"
+    //)]
+    pub frag_metadata: Metadata,
 }
 
 impl FileSystem {
-    pub fn parse_metadata(bytes: &[u8]) -> (u16, &[u8]) {
-        println!("{:02x?}", &bytes);
-        let len = u16::from_le_bytes([bytes[0], bytes[1]]);
-        let bytes = &bytes[2..];
-        (len, bytes)
+    pub fn decompress(&self, bytes: &[u8]) -> Vec<u8> {
+        match self.compressor {
+            Compressor::Gzip => {
+                let mut out = vec![];
+                let mut decoder = flate2::read::ZlibDecoder::new(std::io::Cursor::new(bytes));
+                decoder.read_to_end(&mut out).unwrap();
+                out
+            }
+            _ => todo!(),
+        }
     }
 }
 
@@ -209,10 +244,42 @@ pub struct BasicDirectory {
 #[derive(Debug, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicFile {
+    header: InodeHeader,
     blocks_start: u32,
     frag_index: u32,
     block_offset: u32,
     file_size: u32,
     #[deku(count = "file_size / 0x2000")]
     block_sizes: Vec<u32>,
+}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct Dir {
+    count: u32,
+    start: u32,
+    inode_num: u32,
+    #[deku(count = "*count + 1")]
+    dir_entries: Vec<DirEntry>,
+}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+pub struct DirEntry {
+    offset: u16,
+    inode_offset: i16,
+    t: u16,
+    name_size: u16,
+
+    // TODO: CString
+    #[deku(count = "*name_size + 1")]
+    name: Vec<u8>,
+}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct Frag {
+    start: u64,
+    size: u32,
+    unused: u32,
 }

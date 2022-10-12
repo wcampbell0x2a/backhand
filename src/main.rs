@@ -1,44 +1,58 @@
-use squashfs_deku::{Dir, FileSystem, Frag, Inode};
-
+use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::path::{Path, PathBuf};
 
-use deku::prelude::*;
-use hxdmp::hexdump;
+use clap::{Parser, Subcommand};
+use squashfs_deku::Squashfs;
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// squashfs file
+    input: PathBuf,
+
+    #[command(subcommand)]
+    cmd: Command,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum Command {
+    ExtractFiles {
+        /// Name of file to extract
+        #[arg(short, long)]
+        filenames: Vec<String>,
+
+        #[arg(short, long, default_value = "output")]
+        output: PathBuf,
+    },
+}
 
 fn main() {
-    let mut file = File::open("out.squashfs").unwrap();
-    let mut buf = vec![];
-    file.read_to_end(&mut buf).unwrap();
+    //simple_logger::SimpleLogger::new().init().unwrap();
+    //
+    let args = Args::parse();
 
-    let file = FileSystem::from_bytes((&buf, 0)).unwrap().1;
-    println!("File: {:#02x?}", file);
-
-    println!("Inode Metadata");
-    let mut inode_bytes = file.decompress(&file.inode_metadata.data);
-    let mut buffer = Vec::new();
-    hexdump(&inode_bytes, &mut buffer);
-    println!("{}", String::from_utf8_lossy(&buffer));
-    while !inode_bytes.is_empty() {
-        let ((rest, _), inode) = Inode::from_bytes((&inode_bytes, 0)).unwrap();
-        println!("Inode: {:02x?}", inode);
-        inode_bytes = rest.to_vec();
+    match args.cmd {
+        Command::ExtractFiles { filenames, output } => extract(&args.input, filenames, &output),
     }
+}
 
-    println!("Dir Metadata");
-    let mut dir_bytes = file.decompress(&file.dir_metadata.data);
-    let mut buffer = Vec::new();
-    hexdump(&dir_bytes, &mut buffer);
-    println!("{}", String::from_utf8_lossy(&buffer));
-    let (_, dir) = Dir::from_bytes((&dir_bytes, 0)).unwrap();
-    println!("Dir: {:#02x?}", dir);
+fn extract(input: &Path, filenames: Vec<String>, output: &Path) {
+    let file = File::open(input).unwrap();
 
-    println!("Frag Metadata");
-    let mut frag_bytes = file.frag_metadata.data;
-    while !frag_bytes.is_empty() {
-        let ((rest, _), frag) = Frag::from_bytes((&frag_bytes, 0)).unwrap();
-        // TODO: 1 << 24 == uncompressed
-        println!("Frag: {:02x?}", frag);
-        frag_bytes = rest.to_vec();
+    let mut squashfs = Squashfs::from_reader(file);
+    println!("SuperBlock: {:#02x?}", squashfs.superblock);
+
+    let dirs = squashfs.dirs();
+    let inodes = squashfs.inodes();
+    let fragments = squashfs.fragments();
+
+    for filename in &filenames {
+        fs::create_dir_all(output).unwrap();
+        let bytes = squashfs.extract_file(filename, &dirs, &inodes, &fragments);
+        let path = format!("{}/{filename}", output.to_str().unwrap());
+        std::fs::write(&path, bytes).unwrap();
+        println!("Success, wrote {path}");
     }
 }

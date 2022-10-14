@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use clap::{Parser, Subcommand};
 use squashfs_deku::{Inode, Squashfs};
 
-/// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {

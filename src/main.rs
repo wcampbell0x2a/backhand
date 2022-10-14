@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use squashfs_deku::Squashfs;
+use squashfs_deku::{Inode, Squashfs};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -29,8 +29,8 @@ pub enum Command {
 }
 
 fn main() {
-    //simple_logger::SimpleLogger::new().init().unwrap();
-    //
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
 
     match args.cmd {
@@ -42,17 +42,27 @@ fn extract(input: &Path, filenames: Vec<String>, output: &Path) {
     let file = File::open(input).unwrap();
 
     let mut squashfs = Squashfs::from_reader(file);
-    println!("SuperBlock: {:#02x?}", squashfs.superblock);
+    tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);
 
-    let dirs = squashfs.dirs();
-    let inodes = squashfs.inodes();
+    let pos_and_inodes = squashfs.inodes();
+    tracing::debug!("Inodes: {:#02x?}", pos_and_inodes);
+
+    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    tracing::debug!("Root inode: {:#02x?}", root_inode);
+
+    let inodes = squashfs.discard_pos(&pos_and_inodes);
+
+    let dir_blocks = squashfs.dir_blocks(&inodes);
     let fragments = squashfs.fragments();
+    tracing::debug!("Fragments {:#02x?}", fragments);
 
     for filename in &filenames {
         fs::create_dir_all(output).unwrap();
-        let bytes = squashfs.extract_file(filename, &dirs, &inodes, &fragments);
+        let (filepath, bytes) =
+            squashfs.extract_file(filename, &dir_blocks, &inodes, &fragments, &root_inode);
         let path = format!("{}/{filename}", output.to_str().unwrap());
         std::fs::write(&path, bytes).unwrap();
-        println!("Success, wrote {path}");
+        println!("[-] squashfs filepath: {}", filepath.display());
+        println!("[-] success, wrote to {path}");
     }
 }

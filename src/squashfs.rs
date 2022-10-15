@@ -32,14 +32,14 @@ pub struct SuperBlock {
     id_count: u16,
     version_major: u16,
     version_minor: u16,
-    pub root_inode: u64,
+    root_inode: u64,
     bytes_used: u64,
-    pub id_table: u64,
-    pub xattr_table: u64,
-    pub inode_table: u64,
-    pub dir_table: u64,
-    pub frag_table: u64,
-    pub export_table: u64,
+    id_table: u64,
+    xattr_table: u64,
+    inode_table: u64,
+    dir_table: u64,
+    frag_table: u64,
+    export_table: u64,
 }
 
 enum Flags {

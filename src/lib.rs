@@ -313,8 +313,6 @@ impl Squashfs {
 
                 all_read += bytes.len() as u64;
                 ret_bytes.append(&mut bytes);
-            } else {
-                break;
             }
         }
 

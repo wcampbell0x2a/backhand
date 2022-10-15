@@ -317,24 +317,16 @@ impl Squashfs {
                 break;
             }
         }
-        //println!("{:02x?}", ret_bytes);
 
         // TODO: with capacity?
         let mut ret_vec = vec![];
         let mut total_read = 0;
-        // TODO: this can be calculate better w.r.t the length of these bytes and the failure.
-        loop {
-            match T::from_bytes((&ret_bytes, 0)) {
-                Ok(((rest, _), t)) => {
-                    // Push the new T to the return, with the position this was read from
-                    ret_vec.push((total_read, t));
-                    total_read += ret_bytes.len() - rest.len();
-                    ret_bytes = rest.to_vec();
-                },
-                Err(_) => {
-                    break;
-                },
-            }
+        // Read until we fail to turn bytes into `T`, keeping track of position of read
+        while let Ok(((rest, _), t)) = T::from_bytes((&ret_bytes, 0)) {
+            // Push the new T to the return, with the position this was read from
+            ret_vec.push((total_read, t));
+            total_read += ret_bytes.len() - rest.len();
+            ret_bytes = rest.to_vec();
         }
 
         ret_vec
@@ -376,17 +368,10 @@ impl Squashfs {
 
         // TODO: with capacity?
         let mut ret_vec = vec![];
-        // TODO: this can be calculate better w.r.t the length of these bytes and the failure.
-        loop {
-            match T::from_bytes((&all_bytes, 0)) {
-                Ok(((rest, _), t)) => {
-                    ret_vec.push(t);
-                    all_bytes = rest.to_vec();
-                },
-                Err(_) => {
-                    break;
-                },
-            }
+        // Read until we fail to turn bytes into `T`
+        while let Ok(((rest, _), t)) = T::from_bytes((&all_bytes, 0)) {
+            ret_vec.push(t);
+            all_bytes = rest.to_vec();
         }
 
         ret_vec

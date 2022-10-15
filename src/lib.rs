@@ -527,11 +527,3 @@ pub struct SuperBlock {
     pub frag_table: u64,
     pub export_table: u64,
 }
-
-//#[derive(Debug, DekuRead, DekuWrite)]
-//#[deku(endian = "little")]
-//pub struct Frag {
-//    start: u64,
-//    size: u32,
-//    unused: u32,
-//}

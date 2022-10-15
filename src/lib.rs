@@ -1,5 +1,6 @@
 pub mod compressor;
 pub mod dir;
+pub mod error;
 pub mod fragment;
 pub mod inode;
 pub mod metadata;

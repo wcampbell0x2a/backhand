@@ -12,3 +12,4 @@ xz2 = "0.1.7"
 clap = { version = "4.0.12", features = ["derive"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+thiserror = "1.0.37"

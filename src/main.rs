@@ -45,19 +45,19 @@ fn main() {
 fn extract(input: &Path, filenames: Vec<String>, output: &Path) {
     let file = File::open(input).unwrap();
 
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
     tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);
 
-    let pos_and_inodes = squashfs.inodes();
+    let pos_and_inodes = squashfs.inodes().unwrap();
     tracing::debug!("Inodes: {:#02x?}", pos_and_inodes);
 
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     tracing::debug!("Root inode: {:#02x?}", root_inode);
 
     let inodes = squashfs.discard_pos(&pos_and_inodes);
 
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
     tracing::debug!("Fragments {:#02x?}", fragments);
 
     for filename in &filenames {
@@ -75,23 +75,25 @@ fn extract(input: &Path, filenames: Vec<String>, output: &Path) {
 fn extract_all(input: &Path, output: &Path) {
     let file = File::open(input).unwrap();
 
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
     tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);
 
-    let pos_and_inodes = squashfs.inodes();
+    let pos_and_inodes = squashfs.inodes().unwrap();
     tracing::debug!("Inodes: {:#02x?}", pos_and_inodes);
 
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     tracing::debug!("Root inode: {:#02x?}", root_inode);
 
     let inodes = squashfs.discard_pos(&pos_and_inodes);
 
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
     tracing::debug!("Fragments {:#02x?}", fragments);
 
     fs::create_dir_all(output).unwrap();
-    let filepath_bytes = squashfs.extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode);
+    let filepath_bytes = squashfs
+        .extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode)
+        .unwrap();
     for (filepath, bytes) in filepath_bytes {
         let filepath = Path::new(output).join(filepath);
         std::fs::write(&filepath, bytes).unwrap();

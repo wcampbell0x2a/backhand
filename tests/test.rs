@@ -7,13 +7,13 @@ use squashfs_deku::Squashfs;
 #[test]
 fn test_00() {
     let file = File::open("./lfs/test_00/out.squashfs").unwrap();
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
 
-    let pos_and_inodes = squashfs.inodes();
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let pos_and_inodes = squashfs.inodes().unwrap();
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     let inodes = squashfs.discard_pos(&pos_and_inodes);
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
 
     let (path, bytes) = squashfs
         .extract_file(
@@ -33,13 +33,13 @@ fn test_00() {
 #[test]
 fn test_01() {
     let file = File::open("./lfs/test_01/out.squashfs").unwrap();
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
 
-    let pos_and_inodes = squashfs.inodes();
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let pos_and_inodes = squashfs.inodes().unwrap();
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     let inodes = squashfs.discard_pos(&pos_and_inodes);
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
 
     let (path, bytes) = squashfs
         .extract_file(
@@ -54,7 +54,9 @@ fn test_01() {
     assert_eq!(path.as_os_str(), "squashfs-deku");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode);
+    let path_bytes = squashfs
+        .extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode)
+        .unwrap();
     for (path, bytes) in path_bytes {
         let filepath = Path::new("./lfs/test_01/").join(path);
         let expected_bytes = fs::read(filepath).unwrap();
@@ -66,13 +68,13 @@ fn test_01() {
 #[test]
 fn test_02() {
     let file = File::open("./lfs/test_02/out.squashfs").unwrap();
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
 
-    let pos_and_inodes = squashfs.inodes();
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let pos_and_inodes = squashfs.inodes().unwrap();
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     let inodes = squashfs.discard_pos(&pos_and_inodes);
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
 
     let (path, bytes) = squashfs
         .extract_file(
@@ -87,7 +89,9 @@ fn test_02() {
     assert_eq!(path.as_os_str(), "squashfs-deku");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode);
+    let path_bytes = squashfs
+        .extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode)
+        .unwrap();
     for (path, bytes) in path_bytes {
         let filepath = Path::new("./lfs/test_02/").join(path);
         let expected_bytes = fs::read(filepath).unwrap();
@@ -99,13 +103,13 @@ fn test_02() {
 #[test]
 fn test_03() {
     let file = File::open("./lfs/test_03/out.squashfs").unwrap();
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
 
-    let pos_and_inodes = squashfs.inodes();
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let pos_and_inodes = squashfs.inodes().unwrap();
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     let inodes = squashfs.discard_pos(&pos_and_inodes);
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
 
     let (path, bytes) = squashfs
         .extract_file(
@@ -127,7 +131,9 @@ fn test_03() {
     assert_eq!(path.as_os_str(), "Cargo.toml");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode);
+    let path_bytes = squashfs
+        .extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode)
+        .unwrap();
     for (path, bytes) in path_bytes {
         let filepath = Path::new("./lfs/test_03/").join(path);
         let expected_bytes = fs::read(filepath).unwrap();
@@ -138,13 +144,13 @@ fn test_03() {
 #[test]
 fn test_04() {
     let file = File::open("./lfs/test_04/out.squashfs").unwrap();
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
 
-    let pos_and_inodes = squashfs.inodes();
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let pos_and_inodes = squashfs.inodes().unwrap();
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     let inodes = squashfs.discard_pos(&pos_and_inodes);
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
 
     let (path, bytes) = squashfs
         .extract_file("01", &dir_blocks, &inodes, &fragments, &root_inode)
@@ -181,7 +187,9 @@ fn test_04() {
     assert_eq!(path.as_os_str(), "woah/05");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode);
+    let path_bytes = squashfs
+        .extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode)
+        .unwrap();
     for (path, bytes) in path_bytes {
         let filepath = Path::new("./lfs/test_04/testing/").join(path);
         println!("{}", filepath.display());
@@ -193,13 +201,13 @@ fn test_04() {
 #[test]
 fn test_05() {
     let file = File::open("./lfs/test_05/out.squashfs").unwrap();
-    let mut squashfs = Squashfs::from_reader(file);
+    let mut squashfs = Squashfs::from_reader(file).unwrap();
 
-    let pos_and_inodes = squashfs.inodes();
-    let root_inode = squashfs.root_inode(&pos_and_inodes);
+    let pos_and_inodes = squashfs.inodes().unwrap();
+    let root_inode = squashfs.root_inode(&pos_and_inodes).unwrap();
     let inodes = squashfs.discard_pos(&pos_and_inodes);
-    let dir_blocks = squashfs.dir_blocks(&inodes);
-    let fragments = squashfs.fragments();
+    let dir_blocks = squashfs.dir_blocks(&inodes).unwrap();
+    let fragments = squashfs.fragments().unwrap();
 
     let (path, bytes) = squashfs
         .extract_file("d", &dir_blocks, &inodes, &fragments, &root_inode)
@@ -208,7 +216,9 @@ fn test_05() {
     assert_eq!(path.as_os_str(), "b/c/d");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode);
+    let path_bytes = squashfs
+        .extract_all_files(&dir_blocks, &inodes, &fragments, &root_inode)
+        .unwrap();
     for (path, bytes) in path_bytes {
         let filepath = Path::new("./lfs/test_05/a/").join(path);
         let expected_bytes = fs::read(filepath).unwrap();

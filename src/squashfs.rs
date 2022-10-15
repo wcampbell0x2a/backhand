@@ -72,10 +72,10 @@ impl Squashfs {
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
     #[instrument(skip_all)]
     pub fn inodes(&mut self) -> Result<Vec<(usize, Inode)>, SquashfsError> {
-        Ok(self.metadatas::<Inode>(
+        self.metadatas::<Inode>(
             SeekFrom::Start(self.superblock.inode_table),
             self.superblock.dir_table - self.superblock.inode_table,
-        )?)
+        )
     }
 
     /// Extract the root `Inode` as a `BasicDirectory`
@@ -94,12 +94,8 @@ impl Squashfs {
 
     /// From `Vec<usize, Inode>` from `inodes`, return `Vec<Inode>`
     #[instrument(skip_all)]
-    pub fn discard_pos(&mut self, inodes: &Vec<(usize, Inode)>) -> Vec<Inode> {
-        inodes
-            .clone()
-            .into_iter()
-            .map(|(_pos, inode)| inode)
-            .collect()
+    pub fn discard_pos(&mut self, inodes: &[(usize, Inode)]) -> Vec<Inode> {
+        inodes.iter().cloned().map(|(_pos, inode)| inode).collect()
     }
 
     /// Parse required number of `Metadata`s uncompressed blocks required for `Dir`s
@@ -127,7 +123,7 @@ impl Squashfs {
         }
         let fragment = self.lookup_table::<Fragment>(
             SeekFrom::Start(self.superblock.frag_table),
-            self.superblock.frag_count as u64 * FRAGMENT_SIZE as u64,
+            u64::from(self.superblock.frag_count) * FRAGMENT_SIZE as u64,
         )?;
 
         Ok(Some(fragment))
@@ -136,7 +132,7 @@ impl Squashfs {
     /// Extract all files
     pub fn extract_all_files(
         &mut self,
-        dir_blocks: &Vec<Vec<u8>>,
+        dir_blocks: &[Vec<u8>],
         inodes: &[Inode],
         fragments: &Option<Vec<Fragment>>,
         root_inode: &BasicDirectory,
@@ -173,7 +169,7 @@ impl Squashfs {
     pub fn extract_file(
         &mut self,
         name: &str,
-        dir_blocks: &Vec<Vec<u8>>,
+        dir_blocks: &[Vec<u8>],
         inodes: &[Inode],
         fragments: &Option<Vec<Fragment>>,
         root_inode: &BasicDirectory,
@@ -371,14 +367,14 @@ impl Squashfs {
         fragments: &Option<Vec<Fragment>>,
     ) -> Result<Vec<u8>, SquashfsError> {
         tracing::debug!("extracting: {basic_file:#02x?}");
-        let start_of_data = basic_file.blocks_start as u64;
+        let start_of_data = u64::from(basic_file.blocks_start);
 
         // seek to start of data
         self.io.seek(SeekFrom::Start(start_of_data))?;
 
         // Add data
         let mut data_bytes = vec![];
-        for block_size in basic_file.block_sizes.iter() {
+        for block_size in &basic_file.block_sizes {
             // TODO: use deku for this?
             let uncompressed = block_size & (1 << 24) != 0;
             let size = block_size & !(1 << 24);
@@ -450,7 +446,7 @@ impl Squashfs {
         found_inode: &Inode,
         found_inode_num: u32,
         found_entry: &DirEntry,
-        dir_blocks: &Vec<Vec<u8>>,
+        dir_blocks: &[Vec<u8>],
         inodes: &[Inode],
         fragments: &Option<Vec<Fragment>>,
         root_inode: &BasicDirectory,

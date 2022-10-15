@@ -12,6 +12,11 @@ pub enum Inode {
 }
 
 impl Inode {
+    /// Returns a reference to the expect dir of this [`Inode`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is not `Inode::BasicDirectory`
     pub fn expect_dir(&self) -> &BasicDirectory {
         if let Self::BasicDirectory(basic_dir) = self {
             basic_dir
@@ -64,7 +69,7 @@ impl BasicFile {
         const BLOCK_LOG: u64 = 0x11;
 
         if fragment == NO_FRAGMENT {
-            ((file_size as u64 + BLOCK_SIZE - 1) >> BLOCK_LOG) as u32
+            ((u64::from(file_size) + BLOCK_SIZE - 1) >> BLOCK_LOG) as u32
         } else {
             file_size >> BLOCK_LOG
         }

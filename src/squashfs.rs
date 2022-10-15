@@ -12,6 +12,36 @@ use crate::{
     Metadata,
 };
 
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little")]
+pub struct SuperBlock {
+    // Superblock
+    #[deku(assert_eq = "0x73717368")]
+    magic: u32,
+    inode_count: u32,
+    mod_time: u32,
+    // TODO: remove assert, see BasicFile::count()
+    #[deku(assert_eq = "0x20000")]
+    block_size: u32,
+    frag_count: u32,
+    compressor: Compressor,
+    // TODO: remove assert, see BasicFile::count()
+    #[deku(assert_eq = "0x11")]
+    block_log: u16,
+    flags: u16,
+    id_count: u16,
+    version_major: u16,
+    version_minor: u16,
+    pub root_inode: u64,
+    bytes_used: u64,
+    pub id_table: u64,
+    pub xattr_table: u64,
+    pub inode_table: u64,
+    pub dir_table: u64,
+    pub frag_table: u64,
+    pub export_table: u64,
+}
+
 enum Flags {
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
     DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
@@ -533,34 +563,4 @@ impl Squashfs {
 
         Err(SquashfsError::FileNotFound)
     }
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-pub struct SuperBlock {
-    // Superblock
-    #[deku(assert_eq = "0x73717368")]
-    magic: u32,
-    inode_count: u32,
-    mod_time: u32,
-    // TODO: remove assert, see BasicFile::count()
-    #[deku(assert_eq = "0x20000")]
-    block_size: u32,
-    frag_count: u32,
-    compressor: Compressor,
-    // TODO: remove assert, see BasicFile::count()
-    #[deku(assert_eq = "0x11")]
-    block_log: u16,
-    flags: u16,
-    id_count: u16,
-    version_major: u16,
-    version_minor: u16,
-    pub root_inode: u64,
-    bytes_used: u64,
-    pub id_table: u64,
-    pub xattr_table: u64,
-    pub inode_table: u64,
-    pub dir_table: u64,
-    pub frag_table: u64,
-    pub export_table: u64,
 }

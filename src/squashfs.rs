@@ -534,7 +534,8 @@ impl Squashfs {
                 }
             }
         }
-        todo!("file not found, did you give me a dir name?");
+
+        Err(SquashfsError::FileNotFound)
     }
 }
 

@@ -4,4 +4,5 @@ hex_literal_case = "Lower"
 match_block_trailing_comma = true
 imports_granularity = "Module"
 group_imports = "StdExternalCrate"
+reorder_modules = true
 use_field_init_shorthand = true

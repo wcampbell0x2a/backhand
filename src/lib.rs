@@ -1,39 +1,24 @@
+pub mod inode;
+pub use inode::{BasicDirectory, BasicFile, Inode};
+
+pub mod compressor;
+pub use compressor::{CompressionOptions, Compressor};
+
+pub mod fragment;
+pub use fragment::Fragment;
+use fragment::FRAGMENT_SIZE;
+
+pub mod metadata;
+pub use metadata::Metadata;
+
+pub mod dir;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
 use deku::prelude::*;
+pub use dir::{Dir, DirEntry};
 use tracing::instrument;
 use xz2::read::XzDecoder;
-
-const FRAGMENT_SIZE: usize =
-    std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-pub struct Fragment {
-    pub start: u64,
-    pub size: u32,
-    pub unused: u32,
-}
-
-impl Fragment {
-    pub fn uncompressed_size(num: u32) -> u32 {
-        1 << 24 | num
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-#[deku(type = "u16")]
-enum Compressor {
-    None = 0,
-    Gzip = 1,
-    Lzo  = 2,
-    Lzma = 3,
-    Xz   = 4,
-    Lz4  = 5,
-    Zstd = 6,
-}
 
 enum Flags {
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
@@ -47,106 +32,6 @@ enum Flags {
     XattrsAreStoredUncompressed = 0b0000_0001_0000_0000,
     NoXattrsInArchive           = 0b0000_0010_0000_0000,
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(
-    endian = "endian",
-    ctx = "endian: deku::ctx::Endian, compressor: Compressor"
-)]
-#[deku(id = "compressor")]
-pub enum CompressionOptions {
-    #[deku(id = "Compressor::Gzip")]
-    Gzip(Gzip),
-
-    #[deku(id = "Compressor::Lzo")]
-    Lzo(Lzo),
-
-    #[deku(id = "Compressor::Xz")]
-    Xz(Xz),
-
-    #[deku(id = "Compressor::Lz4")]
-    Lz4(Lz4),
-
-    #[deku(id = "Compressor::Zstd")]
-    Zstd(Zstd),
-
-    #[deku(id = "Compressor::Lzma")]
-    Lzma,
-}
-
-impl CompressionOptions {
-    pub fn size(&self) -> u64 {
-        match self {
-            Self::Gzip(_) => 8,
-            Self::Lzo(_) => 8,
-            Self::Xz(_) => 8,
-            Self::Lz4(_) => 8,
-            Self::Zstd(_) => 4,
-            Self::Lzma => 0,
-        }
-    }
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct Gzip {
-    compression_level: u32,
-    window_size: u16,
-    // TODO: enum
-    strategies: u16,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct Lzo {
-    // TODO: enum
-    algorithm: u32,
-    compression_level: u32,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct Xz {
-    dictionary_size: u32,
-    // TODO: enum
-    filters: u32,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct Lz4 {
-    version: u32,
-    //TODO: enum
-    flags: u32,
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct Zstd {
-    compression_level: u32,
-}
-
-const METADATA_COMPRESSED: u16 = 1 << 15;
-
-#[derive(Debug, DekuRead, DekuWrite)]
-pub struct Metadata {
-    // TODO; use deku to parse METADATA_COMPRESSED?
-    len: u16,
-    #[deku(count = "Self::len(*len)")]
-    pub data: Vec<u8>,
-}
-
-impl Metadata {
-    /// Check is_compressed bit within raw `len`
-    pub fn is_compressed(len: u16) -> bool {
-        len & METADATA_COMPRESSED == 0
-    }
-
-    /// Get actual length of `data` following `len` from unedited `len`
-    pub fn len(len: u16) -> u16 {
-        len & !(METADATA_COMPRESSED)
-    }
 }
 
 pub trait ReadSeek: Read + Seek {}
@@ -643,111 +528,10 @@ pub struct SuperBlock {
     pub export_table: u64,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
-#[deku(type = "u16")]
-#[deku(endian = "little")]
-pub enum Inode {
-    #[deku(id = "1")]
-    BasicDirectory(BasicDirectory),
-
-    #[deku(id = "2")]
-    BasicFile(BasicFile),
-}
-
-impl Inode {
-    pub fn expect_dir(&self) -> &BasicDirectory {
-        if let Self::BasicDirectory(basic_dir) = self {
-            basic_dir
-        } else {
-            panic!("not a dir");
-        }
-    }
-}
-
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct InodeHeader {
-    permissions: u16,
-    uid: u16,
-    gid: u16,
-    mtime: u32,
-    inode_number: u32,
-}
-
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct BasicDirectory {
-    header: InodeHeader,
-    block_index: u32,
-    link_count: u32,
-    file_size: u16,
-    block_offset: u16,
-    parent_inode: u32,
-}
-
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct BasicFile {
-    pub header: InodeHeader,
-    blocks_start: u32,
-    frag_index: u32,
-    block_offset: u32,
-    file_size: u32,
-    #[deku(count = "Self::count(*frag_index, *file_size)")]
-    block_sizes: Vec<u32>,
-}
-
-impl BasicFile {
-    fn count(fragment: u32, file_size: u32) -> u32 {
-        const NO_FRAGMENT: u32 = 0xffffffff;
-
-        // !!! TODO: this _needs_ to be from the superblock !!!
-        const BLOCK_SIZE: u64 = 0x20000_u64;
-        // !!! TODO: this _needs_ to be from the superblock !!!
-        const BLOCK_LOG: u64 = 0x11;
-
-        if fragment == NO_FRAGMENT {
-            ((file_size as u64 + BLOCK_SIZE - 1) >> BLOCK_LOG) as u32
-        } else {
-            file_size >> BLOCK_LOG
-        }
-    }
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-pub struct Dir {
-    pub count: u32,
-    pub start: u32,
-    pub inode_num: u32,
-    #[deku(count = "*count + 1")]
-    pub dir_entries: Vec<DirEntry>,
-}
-
-// TODO: derive our own Debug, with name()
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct DirEntry {
-    pub offset: u16,
-    pub inode_offset: i16,
-    pub t: u16,
-    pub name_size: u16,
-
-    // TODO: CString
-    #[deku(count = "*name_size + 1")]
-    pub name: Vec<u8>,
-}
-
-impl DirEntry {
-    pub fn name(&self) -> String {
-        std::str::from_utf8(&self.name).unwrap().to_string()
-    }
-}
-
-#[derive(Debug, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
-pub struct Frag {
-    start: u64,
-    size: u32,
-    unused: u32,
-}
+//#[derive(Debug, DekuRead, DekuWrite)]
+//#[deku(endian = "little")]
+//pub struct Frag {
+//    start: u64,
+//    size: u32,
+//    unused: u32,
+//}

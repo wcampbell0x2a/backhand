@@ -6,11 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-deku = { git = "https://github.com/sharksforarms/deku.git", features = ["logging"]}
-log = "0.4.17"
+deku = { git = "https://github.com/sharksforarms/deku.git" }
 flate2 = "1.0.24"
-hxdmp = "0.2.1"
-simple_logger = "2.3.0"
 xz2 = "0.1.7"
 clap = { version = "4.0.12", features = ["derive"] }
 tracing = "0.1.37"

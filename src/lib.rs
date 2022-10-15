@@ -88,10 +88,10 @@ impl Squashfs {
 
     /// Extract the root `Inode` as a `BasicDirectory`
     #[instrument(skip_all)]
-    pub fn root_inode(&mut self, inodes: &Vec<(usize, Inode)>) -> BasicDirectory {
+    pub fn root_inode(&mut self, inodes: &[(usize, Inode)]) -> BasicDirectory {
         let (_, root_inode) = inodes
             .iter()
-            .find(|(pos, inode)| *pos == self.superblock.root_inode as usize)
+            .find(|(pos, _)| *pos == self.superblock.root_inode as usize)
             .unwrap();
         let root_inode = root_inode.expect_dir();
         root_inode.clone()

@@ -1,22 +1,20 @@
 pub mod inode;
-pub use inode::{BasicDirectory, BasicFile, Inode};
-
 pub mod compressor;
-pub use compressor::{CompressionOptions, Compressor};
-
 pub mod fragment;
-pub use fragment::Fragment;
-use fragment::FRAGMENT_SIZE;
+pub mod dir;
 
+pub use inode::{BasicDirectory, BasicFile, Inode};
+pub use compressor::{CompressionOptions, Compressor};
+pub use dir::{Dir, DirEntry};
+pub use fragment::Fragment;
 pub mod metadata;
 pub use metadata::Metadata;
 
-pub mod dir;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
 use deku::prelude::*;
-pub use dir::{Dir, DirEntry};
+use fragment::FRAGMENT_SIZE;
 use tracing::instrument;
 use xz2::read::XzDecoder;
 
@@ -77,7 +75,7 @@ impl Squashfs {
         }
     }
 
-    /// Parse Inodes
+    /// Parse Inode Table into `Vec<(position_read, Inode)>`
     #[instrument(skip_all)]
     pub fn inodes(&mut self) -> Vec<(usize, Inode)> {
         self.metadatas::<Inode>(
@@ -97,7 +95,7 @@ impl Squashfs {
         root_inode.clone()
     }
 
-    /// From `Vec<usize, Inode>`, give `Vec<Inode>
+    /// From `Vec<usize, Inode>` from `inodes`, return `Vec<Inode>`
     #[instrument(skip_all)]
     pub fn discard_pos(&mut self, inodes: &Vec<(usize, Inode)>) -> Vec<Inode> {
         inodes
@@ -138,7 +136,42 @@ impl Squashfs {
         Some(fragment)
     }
 
-    /// Give a file_name from a squashfs filepath, extract the file and the filepath
+    /// Extract all files
+    pub fn extract_all_files(
+        &mut self,
+        dir_blocks: &Vec<Vec<u8>>,
+        inodes: &[Inode],
+        fragments: &Option<Vec<Fragment>>,
+        root_inode: &BasicDirectory,
+    ) -> Vec<(PathBuf, Vec<u8>)> {
+        let mut ret = vec![];
+        for inode in inodes {
+            if let Inode::BasicDirectory(basic_dir) = inode {
+                let block = &dir_blocks[basic_dir.block_index as usize];
+                let bytes = &block[basic_dir.block_offset as usize..];
+                let (_, dir) = Dir::from_bytes((bytes, 0)).unwrap();
+                for entry in &dir.dir_entries {
+                    // TODO: use type enum
+                    if entry.t == 2 {
+                        tracing::debug!("{dir:?}");
+                        ret.push(self.file(
+                            inode,
+                            dir.inode_num,
+                            entry,
+                            dir_blocks,
+                            inodes,
+                            fragments,
+                            root_inode,
+                        ));
+                    }
+                }
+            }
+        }
+
+        ret
+    }
+
+    /// Given a file_name from a squashfs filepath, extract the file and the filepath
     #[instrument(skip_all)]
     pub fn extract_file(
         &mut self,
@@ -147,112 +180,38 @@ impl Squashfs {
         inodes: &[Inode],
         fragments: &Option<Vec<Fragment>>,
         root_inode: &BasicDirectory,
-    ) -> (PathBuf, Vec<u8>) {
-        let mut found_directory = None;
+    ) -> Option<(PathBuf, Vec<u8>)> {
         // Search through inodes and parse directory table at the specified location
         // searching for first file name that matches
-        'outer: for inode in inodes {
+        for inode in inodes {
             tracing::trace!("Searching following inode for filename: {inode:#02x?}");
             if let Inode::BasicDirectory(basic_dir) = inode {
                 let block = &dir_blocks[basic_dir.block_index as usize];
                 let bytes = &block[basic_dir.block_offset as usize..];
                 let (_, dir) = Dir::from_bytes((bytes, 0)).unwrap();
                 tracing::trace!("Searching following dir for filename: {dir:#02x?}");
-                for entry in dir.dir_entries {
-                    let entry_name = std::str::from_utf8(&entry.name).unwrap();
-                    tracing::debug!(entry_name);
-                    if name == entry_name {
-                        found_directory = Some((inode, dir.inode_num, entry));
-                        break 'outer;
-                    }
-                }
-            }
-        }
-        tracing::debug!("found matching inode/dir: {found_directory:#02x?}");
-
-        // We now have the:
-        // (
-        //     directory inode matching the filename,
-        //     base_inode(directory base inode_num)
-        //     entry from dir.entires that matches the filename
-        //  )
-        let (dir_inode, base_inode, entry) = found_directory.unwrap();
-        let dir_inode = dir_inode.expect_dir();
-        // Used for searching for the file later when we want to extract the bytes
-        let looking_inode = base_inode as i16 + entry.inode_offset;
-
-        let root_inode = root_inode.header.inode_number;
-        tracing::debug!("searching for dir path to root inode: {:#02x?}", root_inode);
-
-        let mut path_inodes = vec![];
-        // first check if the dir inode of this file is the root inode
-        if dir_inode.header.inode_number != root_inode {
-            // check every inode and find the matching inode to the current dir_nodes parent
-            // inode, when we find a new inode, check if it's the root inode, and continue on if it
-            // isn't
-            let mut next_inode = dir_inode.parent_inode;
-            'outer: loop {
-                for inode in inodes {
-                    if let Inode::BasicDirectory(basic_dir) = inode {
-                        if basic_dir.header.inode_number == next_inode {
-                            path_inodes.push(basic_dir);
-                            if basic_dir.header.inode_number == root_inode {
-                                break 'outer;
-                            }
-                            next_inode = basic_dir.parent_inode;
+                for entry in &dir.dir_entries {
+                    // TODO: use type enum
+                    if entry.t == 2 {
+                        let entry_name = std::str::from_utf8(&entry.name).unwrap();
+                        tracing::debug!(entry_name);
+                        if name == entry_name {
+                            let file = self.file(
+                                inode,
+                                dir.inode_num,
+                                entry,
+                                dir_blocks,
+                                inodes,
+                                fragments,
+                                root_inode,
+                            );
+                            return Some(file);
                         }
                     }
                 }
             }
         }
-
-        // Insert the first basic file
-        path_inodes.insert(0, dir_inode);
-
-        let mut paths = vec![];
-        // Now we use n as the basic_dir with the inode, and look for that inode in the next
-        // dir at the path directed from the path_inodes, when it matches, save it to the paths
-        for n in 0..path_inodes.len() - 1 {
-            let basic_dir_with_inode = path_inodes[n];
-            let search_inode = basic_dir_with_inode.header.inode_number;
-
-            let basic_dir_with_location = path_inodes[n + 1];
-            let block = &dir_blocks[basic_dir_with_location.block_index as usize];
-            let bytes = &block[basic_dir_with_location.block_offset as usize..];
-
-            let (_, dir) = Dir::from_bytes((bytes, 0)).unwrap();
-            let base_inode = dir.inode_num;
-
-            for entry in &dir.dir_entries {
-                let entry_name = std::str::from_utf8(&entry.name).unwrap();
-                if base_inode as i16 + entry.inode_offset == search_inode as i16 {
-                    let entry_name = String::from_utf8(entry.name.clone()).unwrap();
-                    paths.push(entry_name);
-                }
-            }
-        }
-
-        // reverse the order, since we are looking at the file to the parent dirs
-        let paths: Vec<&String> = paths.iter().rev().collect();
-
-        // create PathBufs
-        let mut pathbuf = PathBuf::new();
-        for path in paths {
-            pathbuf.push(path);
-        }
-        pathbuf.push(name);
-        tracing::debug!("path: {}", pathbuf.display());
-
-        // look through basic file inodes in search of the one true basic_inode and extract the
-        // bytes from the data and fragment sections
-        for inode in inodes {
-            if let Inode::BasicFile(basic_file) = inode {
-                if basic_file.header.inode_number == looking_inode as u32 {
-                    return (pathbuf, self.data(basic_file, fragments));
-                }
-            }
-        }
-        todo!("file not found, did you give me a dir name?");
+        None
     }
 }
 
@@ -478,6 +437,99 @@ impl Squashfs {
             _ => todo!(),
         }
         out
+    }
+
+    #[instrument(skip_all)]
+    fn file(
+        &mut self,
+        found_inode: &Inode,
+        found_inode_num: u32,
+        found_entry: &DirEntry,
+        dir_blocks: &Vec<Vec<u8>>,
+        inodes: &[Inode],
+        fragments: &Option<Vec<Fragment>>,
+        root_inode: &BasicDirectory,
+    ) -> (PathBuf, Vec<u8>) {
+        //  TODO: remove
+        let dir_inode = found_inode;
+        let base_inode = found_inode_num;
+        let entry = found_entry;
+        let entry_name = std::str::from_utf8(&entry.name).unwrap();
+        let dir_inode = dir_inode.expect_dir();
+        // Used for searching for the file later when we want to extract the bytes
+        let looking_inode = base_inode as i16 + entry.inode_offset;
+
+        let root_inode = root_inode.header.inode_number;
+        tracing::debug!("searching for dir path to root inode: {:#02x?}", root_inode);
+
+        let mut path_inodes = vec![];
+        // first check if the dir inode of this file is the root inode
+        if dir_inode.header.inode_number != root_inode {
+            // check every inode and find the matching inode to the current dir_nodes parent
+            // inode, when we find a new inode, check if it's the root inode, and continue on if it
+            // isn't
+            let mut next_inode = dir_inode.parent_inode;
+            'outer: loop {
+                for inode in inodes {
+                    if let Inode::BasicDirectory(basic_dir) = inode {
+                        if basic_dir.header.inode_number == next_inode {
+                            path_inodes.push(basic_dir);
+                            if basic_dir.header.inode_number == root_inode {
+                                break 'outer;
+                            }
+                            next_inode = basic_dir.parent_inode;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Insert the first basic file
+        path_inodes.insert(0, dir_inode);
+
+        let mut paths = vec![];
+        // Now we use n as the basic_dir with the inode, and look for that inode in the next
+        // dir at the path directed from the path_inodes, when it matches, save it to the paths
+        for n in 0..path_inodes.len() - 1 {
+            let basic_dir_with_inode = path_inodes[n];
+            let search_inode = basic_dir_with_inode.header.inode_number;
+
+            let basic_dir_with_location = path_inodes[n + 1];
+            let block = &dir_blocks[basic_dir_with_location.block_index as usize];
+            let bytes = &block[basic_dir_with_location.block_offset as usize..];
+
+            let (_, dir) = Dir::from_bytes((bytes, 0)).unwrap();
+            let base_inode = dir.inode_num;
+
+            for entry in &dir.dir_entries {
+                let entry_name = String::from_utf8(entry.name.clone()).unwrap();
+                if base_inode as i16 + entry.inode_offset == search_inode as i16 {
+                    paths.push(entry_name);
+                }
+            }
+        }
+
+        // reverse the order, since we are looking at the file to the parent dirs
+        let paths: Vec<&String> = paths.iter().rev().collect();
+
+        // create PathBufs
+        let mut pathbuf = PathBuf::new();
+        for path in paths {
+            pathbuf.push(path);
+        }
+        pathbuf.push(entry_name);
+        tracing::debug!("path: {}", pathbuf.display());
+
+        // look through basic file inodes in search of the one true basic_inode and extract the
+        // bytes from the data and fragment sections
+        for inode in inodes {
+            if let Inode::BasicFile(basic_file) = inode {
+                if basic_file.header.inode_number == looking_inode as u32 {
+                    return (pathbuf, self.data(basic_file, fragments));
+                }
+            }
+        }
+        todo!("file not found, did you give me a dir name?");
     }
 }
 

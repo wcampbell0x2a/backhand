@@ -1,6 +1,6 @@
 use deku::prelude::*;
 
-#[derive(Copy, Clone, Debug, PartialEq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(type = "u16")]
 pub enum Compressor {
@@ -37,19 +37,6 @@ pub enum CompressionOptions {
 
     #[deku(id = "Compressor::Lzma")]
     Lzma,
-}
-
-impl CompressionOptions {
-    pub fn size(&self) -> u64 {
-        match self {
-            Self::Gzip(_) => 8,
-            Self::Lzo(_) => 8,
-            Self::Xz(_) => 8,
-            Self::Lz4(_) => 8,
-            Self::Zstd(_) => 4,
-            Self::Lzma => 0,
-        }
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite)]

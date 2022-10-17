@@ -157,11 +157,11 @@ impl Squashfs {
         let fragments = squashfs_io.fragments(&superblock)?;
 
         let squashfs = Squashfs {
-            data_and_fragments,
             superblock,
             compression_options,
-            root_inode,
+            data_and_fragments,
             inodes,
+            root_inode,
             dir_blocks,
             fragments,
         };

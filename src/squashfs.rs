@@ -373,7 +373,7 @@ impl Squashfs {
         for inode in &self.inodes {
             if let Inode::BasicFile(basic_file) = inode {
                 if basic_file.header.inode_number == looking_inode as u32 {
-                    return Ok((pathbuf, self.data(&basic_file)?));
+                    return Ok((pathbuf, self.data(basic_file)?));
                 }
             }
         }

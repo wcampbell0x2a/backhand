@@ -35,17 +35,22 @@ pub struct SuperBlock {
     // TODO: remove assert, see BasicFile::count()
     #[deku(assert_eq = "0x11")]
     block_log: u16,
+    //TODO: read as u16, then map to flags
     flags: u16,
     id_count: u16,
+    //TODO: add assert
     version_major: u16,
+    //TODO: add assert
     version_minor: u16,
     root_inode: u64,
     bytes_used: u64,
     id_table: u64,
+    //TODO: add read into Squashfs
     xattr_table: u64,
     inode_table: u64,
     dir_table: u64,
     frag_table: u64,
+    //TODO: add read into Squashfs
     export_table: u64,
 }
 

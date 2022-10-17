@@ -79,12 +79,12 @@ fn test_03() {
     assert_eq!(path.as_os_str(), "Cargo.toml");
     assert_eq!(bytes, expected_bytes);
 
-    //let path_bytes = io.extract_all_files(&squashfs).unwrap();
-    //for (path, bytes) in path_bytes {
-    //    let filepath = Path::new("./lfs/test_03/").join(path);
-    //    let expected_bytes = fs::read(filepath).unwrap();
-    //    assert_eq!(bytes, expected_bytes);
-    //}
+    let path_bytes = squashfs.extract_all_files().unwrap();
+    for (path, bytes) in path_bytes {
+        let filepath = Path::new("./lfs/test_03/").join(path);
+        let expected_bytes = fs::read(filepath).unwrap();
+        assert_eq!(bytes, expected_bytes);
+    }
 }
 
 #[test]

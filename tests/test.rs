@@ -1,13 +1,23 @@
 use std::fs::{self, File};
 use std::path::Path;
 
-use squashfs_deku::Squashfs;
+use squashfs_deku::compressor::Gzip;
+use squashfs_deku::{CompressionOptions, Squashfs};
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
 #[test]
 fn test_00() {
     let file = File::open("./lfs/test_00/out.squashfs").unwrap();
     let squashfs = Squashfs::from_reader(file).unwrap();
+
+    assert_eq!(
+        squashfs.compression_options,
+        Some(CompressionOptions::Gzip(Gzip {
+            compression_level: 2,
+            window_size: 15,
+            strategies: 0
+        }))
+    );
 
     let (path, bytes) = squashfs.extract_file(&squashfs, "squashfs-deku").unwrap();
     let expected_bytes = fs::read("./lfs/test_00/squashfs-deku").unwrap();

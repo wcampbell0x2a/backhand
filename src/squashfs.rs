@@ -7,6 +7,7 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 use std::path::PathBuf;
 
+use deku::bitvec::BitVec;
 use deku::prelude::*;
 use tracing::instrument;
 use xz2::read::XzDecoder;
@@ -50,7 +51,7 @@ pub struct SuperBlock {
 
 impl SuperBlock {
     // Extract size of optional compression options
-    pub fn compression_options_size(&self) -> usize {
+    pub fn compression_options_size(&self) -> Option<usize> {
         if (self.flags & Flags::CompressorOptionsArePresent as u16) != 0 {
             let size = match self.compressor {
                 Compressor::Lzma => 0,
@@ -62,9 +63,9 @@ impl SuperBlock {
                 Compressor::None => 0,
             };
             // add metadata size
-            size + 2
+            Some(size + 2)
         } else {
-            0
+            None
         }
     }
 }
@@ -102,48 +103,58 @@ pub struct Squashfs {
 
 /// public
 impl Squashfs {
+    /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
+    /// to regenerate the original squashfs and interact with the fs in memory without needing to
+    /// read again from `Read`er.
     #[instrument(skip_all)]
     pub fn from_reader<R: ReadSeek + 'static>(mut reader: R) -> Result<Squashfs, SquashfsError> {
         // Size of metadata + optional compression options metadata block
-        let mut superblock = [0u8; 96 + 8];
+        let mut superblock = [0u8; 96];
         reader.read_exact(&mut superblock)?;
 
+        // Parse SuperBlock
         let (_, superblock) = SuperBlock::from_bytes((&superblock, 0))?;
 
-        // TODO: parse compression options for compression
-        //let compression_options = if superblock.compressor != Compressor::None {
-        //    // into metadata first
-        //    println!("{:02x?}", rest.0);
-        //    let bv = BitVec::from_slice(rest.0).unwrap();
-        //    let (_, m) = Metadata::read(&bv, ()).unwrap();
+        // Parse Compression Options, if any
+        let compression_options = if superblock.compressor != Compressor::None {
+            if let Some(size) = superblock.compression_options_size() {
+                let mut options = vec![0u8; size];
+                reader.read_exact(&mut options)?;
 
-        //    // data -> compression options
-        //    let bv = BitVec::from_slice(&m.data).unwrap();
-        //    let (_, c) =
-        //        CompressionOptions::read(&bv, (deku::ctx::Endian::Little, superblock.compressor))
-        //            .unwrap();
-        //    Some(c)
-        //} else {
-        //    None
-        //};
+                let bv = BitVec::from_slice(&options).unwrap();
+                let (_, m) = Metadata::read(&bv, ()).unwrap();
 
+                // data -> compression options
+                let bv = BitVec::from_slice(&m.data).unwrap();
+                let (_, c) = CompressionOptions::read(
+                    &bv,
+                    (deku::ctx::Endian::Little, superblock.compressor),
+                )?;
+                Some(c)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Create SquashfsReader
         let mut squashfs_io = SquashfsReader {
             io: Box::new(reader),
         };
 
-        let data_and_fragments = squashfs_io.data_and_fragments(&superblock).unwrap();
-        let pos_and_inodes = squashfs_io.inodes(&superblock).unwrap();
-        let root_inode = squashfs_io
-            .root_inode(&superblock, &pos_and_inodes)
-            .unwrap();
+        // Read all fields from filesystem to make a Squashfs
+        let data_and_fragments = squashfs_io.data_and_fragments(&superblock)?;
+        let pos_and_inodes = squashfs_io.inodes(&superblock)?;
+        let root_inode = squashfs_io.root_inode(&superblock, &pos_and_inodes)?;
         let inodes = squashfs_io.discard_pos(&pos_and_inodes);
-        let dir_blocks = squashfs_io.dir_blocks(&superblock, &inodes).unwrap();
-        let fragments = squashfs_io.fragments(&superblock).unwrap();
+        let dir_blocks = squashfs_io.dir_blocks(&superblock, &inodes)?;
+        let fragments = squashfs_io.fragments(&superblock)?;
 
         let squashfs = Squashfs {
             data_and_fragments,
             superblock,
-            compression_options: None,
+            compression_options,
             root_inode,
             inodes,
             dir_blocks,

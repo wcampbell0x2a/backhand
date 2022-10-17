@@ -13,7 +13,7 @@ pub enum Compressor {
     Zstd = 6,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(
     endian = "endian",
     ctx = "endian: deku::ctx::Endian, compressor: Compressor"
@@ -39,41 +39,41 @@ pub enum CompressionOptions {
     Lzma,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Gzip {
-    compression_level: u32,
-    window_size: u16,
+    pub compression_level: u32,
+    pub window_size: u16,
     // TODO: enum
-    strategies: u16,
+    pub strategies: u16,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lzo {
     // TODO: enum
-    algorithm: u32,
-    compression_level: u32,
+    pub algorithm: u32,
+    pub compression_level: u32,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Xz {
-    dictionary_size: u32,
+    pub dictionary_size: u32,
     // TODO: enum
-    filters: u32,
+    pub filters: u32,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lz4 {
-    version: u32,
+    pub version: u32,
     //TODO: enum
-    flags: u32,
+    pub flags: u32,
 }
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Zstd {
-    compression_level: u32,
+    pub compression_level: u32,
 }

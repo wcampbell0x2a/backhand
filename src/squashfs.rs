@@ -4,13 +4,17 @@
 //! Contains both the `SuperBlock` and the parsed fields/sections that are stored in a squashfs image
 //! and are populated with a call to `Squashfs::from_reader(..)`.
 
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
-use deku::bitvec::BitVec;
+use deku::bitvec::{BitVec, Msb0};
+use deku::ctx::Endian;
 use deku::prelude::*;
-use tracing::instrument;
-use xz2::read::XzDecoder;
+use flate2::read::ZlibEncoder;
+use flate2::Compression;
+use tracing::{debug, instrument, trace};
+use xz2::read::{XzDecoder, XzEncoder};
+use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::SquashfsError;
 use crate::fragment::FRAGMENT_SIZE;
@@ -19,7 +23,15 @@ use crate::{
     Metadata,
 };
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
+#[deku(endian = "big")]
+pub struct Export(u64);
+
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
+#[deku(endian = "big")]
+pub struct Id(u32);
+
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 pub struct SuperBlock {
     // Superblock
@@ -57,7 +69,7 @@ pub struct SuperBlock {
 impl SuperBlock {
     // Extract size of optional compression options
     pub fn compression_options_size(&self) -> Option<usize> {
-        if (self.flags & Flags::CompressorOptionsArePresent as u16) != 0 {
+        if self.compressor_options_are_present() {
             let size = match self.compressor {
                 Compressor::Lzma => 0,
                 Compressor::Gzip => 8,
@@ -72,6 +84,46 @@ impl SuperBlock {
         } else {
             None
         }
+    }
+
+    pub fn inodes_uncompressed(&self) -> bool {
+        self.flags & Flags::InodesStoredUncompressed as u16 != 0
+    }
+
+    pub fn data_block_stored_uncompressed(&self) -> bool {
+        self.flags & Flags::DataBlockStoredUncompressed as u16 != 0
+    }
+
+    pub fn fragments_stored_uncompressed(&self) -> bool {
+        self.flags & Flags::FragmentsStoredUncompressed as u16 != 0
+    }
+
+    pub fn fragments_are_not_used(&self) -> bool {
+        self.flags & Flags::FragmentsAreNotUsed as u16 != 0
+    }
+
+    pub fn fragments_are_always_generated(&self) -> bool {
+        self.flags & Flags::FragmentsAreAlwaysGenerated as u16 != 0
+    }
+
+    pub fn data_has_been_duplicated(&self) -> bool {
+        self.flags & Flags::DataHasBeenDeduplicated as u16 != 0
+    }
+
+    pub fn nfs_export_table_exists(&self) -> bool {
+        self.flags & Flags::NFSExportTableExists as u16 != 0
+    }
+
+    pub fn xattrs_are_stored_uncompressed(&self) -> bool {
+        self.flags & Flags::XattrsAreStoredUncompressed as u16 != 0
+    }
+
+    pub fn no_xattrs_in_archive(&self) -> bool {
+        self.flags & Flags::NoXattrsInArchive as u16 != 0
+    }
+
+    pub fn compressor_options_are_present(&self) -> bool {
+        self.flags & Flags::CompressorOptionsArePresent as u16 != 0
     }
 }
 
@@ -104,6 +156,8 @@ pub struct Squashfs {
     pub root_inode: BasicDirectory,
     pub dir_blocks: Vec<Vec<u8>>,
     pub fragments: Option<Vec<Fragment>>,
+    pub export: Option<Vec<Export>>,
+    pub id: Option<Vec<Id>>,
 }
 
 /// public
@@ -119,6 +173,7 @@ impl Squashfs {
 
         // Parse SuperBlock
         let (_, superblock) = SuperBlock::from_bytes((&superblock, 0))?;
+        trace!("{superblock:#08x?}");
 
         // Parse Compression Options, if any
         let compression_options = if superblock.compressor != Compressor::None {
@@ -142,6 +197,7 @@ impl Squashfs {
         } else {
             None
         };
+        trace!("{compression_options:08x?}");
 
         // Create SquashfsReader
         let mut squashfs_io = SquashfsReader {
@@ -155,6 +211,8 @@ impl Squashfs {
         let inodes = squashfs_io.discard_pos(&pos_and_inodes);
         let dir_blocks = squashfs_io.dir_blocks(&superblock, &inodes)?;
         let fragments = squashfs_io.fragments(&superblock)?;
+        let export = squashfs_io.export(&superblock)?;
+        let id = squashfs_io.id(&superblock)?;
 
         let squashfs = Squashfs {
             superblock,
@@ -164,24 +222,114 @@ impl Squashfs {
             root_inode,
             dir_blocks,
             fragments,
+            export,
+            id,
         };
 
         Ok(squashfs)
     }
 
-    //pub fn to_bytes(&self, data_and_fragments: Vec<u8>) -> Vec<u8> {
-    //    let mut v = vec![];
+    /// Serialize `Squashfs` to bytes
+    ///
+    /// Give our current `Squashfs` write all fields to the file, with an updated `Superblock` that
+    /// corrently identifies the position of the fields.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
+        let mut c = Cursor::new(vec![]);
 
-    //    v.append(&mut self.superblock.to_bytes().unwrap());
-    //    // TODO: compression options
-    //    v.append(&mut self.inodes.iter().map(|a| a.to_bytes().unwrap()).flatten().collect());
-    //    v.append(&mut self.dir_blocks.iter().flatten().cloned().collect());
-    //    if let Some(fragments) = &self.fragments {
-    //        v.append(&mut fragments.iter().map(|a| a.to_bytes().unwrap()).flatten().collect());
-    //    }
+        // copy of the superblock to write the new positions, but we don't mutate the one stored in
+        // Squashfs
+        let mut write_superblock = self.superblock;
 
-    //    v
-    //}
+        c.write_all(&[0x00; 96])?;
+        // Compression Options
+        if self.compression_options.is_some() {
+            //TODO: make correct by writing the length and uncompressed Metadata
+            c.write_all(&[0x08, 0x80])?;
+            let mut bv: BitVec<Msb0, u8> = BitVec::new();
+            self.compression_options
+                .write(&mut bv, (Endian::Little, self.superblock.compressor))?;
+            c.write_all(bv.as_raw_slice())?;
+        }
+
+        // Data and Fragment Bytes
+        c.write_all(
+            &self.data_and_fragments
+                [96 + self.superblock.compression_options_size().unwrap_or(0)..],
+        )?;
+
+        // Inode Bytes
+        write_superblock.inode_table = c.position();
+        let inode_bytes = {
+            let bytes = self
+                .inodes
+                .iter()
+                .flat_map(|a| a.to_bytes().unwrap())
+                .collect();
+            if self.superblock.inodes_uncompressed() {
+                bytes
+            } else {
+                compress(bytes, self.superblock.compressor, &self.compression_options).unwrap()
+            }
+        };
+        c.write_all(&(inode_bytes.len() as u16).to_le_bytes())?;
+        c.write_all(&inode_bytes)?;
+
+        // Dir Bytes
+        write_superblock.dir_table = c.position();
+        let dir_bytes: Vec<u8> = self.dir_blocks.iter().flatten().cloned().collect();
+        let metadata_len = Metadata::set_if_compressed(dir_bytes.len() as u16).to_le_bytes();
+        c.write_all(&metadata_len)?;
+        c.write_all(&dir_bytes)?;
+
+        // Fragment Lookup Table Bytes
+        if let Some(fragments) = &self.fragments {
+            let fragment_table_dat = c.position();
+            let bytes: Vec<u8> = fragments
+                .iter()
+                .flat_map(|a| a.to_bytes().unwrap())
+                .collect();
+            let metadata_len = Metadata::set_if_compressed(bytes.len() as u16).to_le_bytes();
+            c.write_all(&metadata_len)?;
+            c.write_all(&bytes)?;
+            write_superblock.frag_table = c.position();
+            c.write_all(&fragment_table_dat.to_le_bytes())?;
+        }
+
+        // Export Lookup Table
+        if let Some(export) = &self.export {
+            let export_table_dat = c.position();
+            let bytes: Vec<u8> = export.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
+            let metadata_len = Metadata::set_if_compressed(bytes.len() as u16).to_le_bytes();
+            c.write_all(&metadata_len)?;
+            c.write_all(&bytes)?;
+            write_superblock.export_table = c.position();
+            c.write_all(&export_table_dat.to_le_bytes())?;
+        }
+
+        // Export Id Table
+        if let Some(id) = &self.id {
+            let id_table_dat = c.position();
+            let bytes: Vec<u8> = id.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
+            let metadata_len = Metadata::set_if_compressed(bytes.len() as u16).to_le_bytes();
+            c.write_all(&metadata_len)?;
+            c.write_all(&bytes)?;
+            write_superblock.id_table = c.position();
+            c.write_all(&id_table_dat.to_le_bytes())?;
+        }
+
+        // Pad out block_size
+        write_superblock.bytes_used = c.position();
+        let blocks_used = write_superblock.bytes_used as u32 / 0x1000;
+        let pad_len = (blocks_used + 1) * 0x1000;
+        let pad_len = pad_len - write_superblock.bytes_used as u32;
+        c.write_all(&vec![0x00; pad_len as usize])?;
+
+        // Seek back the beginning and write the superblock
+        c.seek(SeekFrom::Start(0))?;
+        c.write_all(&write_superblock.to_bytes().unwrap())?;
+
+        Ok(c.into_inner())
+    }
 
     /// Extract all files
     pub fn extract_all_files(&self) -> Result<Vec<(PathBuf, Vec<u8>)>, SquashfsError> {
@@ -194,7 +342,7 @@ impl Squashfs {
                 for entry in &dir.dir_entries {
                     // TODO: use type enum
                     if entry.t == 2 {
-                        tracing::debug!("{dir:?}");
+                        debug!("{dir:?}");
                         ret.push(self.file(inode, dir.inode_num, entry)?);
                     }
                 }
@@ -211,17 +359,17 @@ impl Squashfs {
         // Search through inodes and parse directory table at the specified location
         // searching for first file name that matches
         for inode in &self.inodes {
-            tracing::trace!("Searching following inode for filename: {inode:#02x?}");
+            trace!("Searching following inode for filename: {inode:#02x?}");
             if let Inode::BasicDirectory(basic_dir) = inode {
                 let block = &self.dir_blocks[basic_dir.block_index as usize];
                 let bytes = &block[basic_dir.block_offset as usize..];
                 let (_, dir) = Dir::from_bytes((bytes, 0))?;
-                tracing::trace!("Searching following dir for filename: {dir:#02x?}");
+                trace!("Searching following dir for filename: {dir:#02x?}");
                 for entry in &dir.dir_entries {
                     // TODO: use type enum
                     if entry.t == 2 {
                         let entry_name = std::str::from_utf8(&entry.name)?;
-                        tracing::debug!(entry_name);
+                        debug!(entry_name);
                         if name == entry_name {
                             let file = self.file(inode, dir.inode_num, entry)?;
                             return Ok(file);
@@ -235,7 +383,7 @@ impl Squashfs {
 
     #[instrument(skip_all)]
     fn data(&self, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
-        tracing::debug!("extracting: {basic_file:#02x?}");
+        debug!("extracting: {basic_file:#02x?}");
         let mut bytes = Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
 
         // Add data
@@ -301,7 +449,7 @@ impl Squashfs {
         let looking_inode = base_inode as i16 + entry.inode_offset;
 
         let root_inode = self.root_inode.header.inode_number;
-        tracing::debug!("searching for dir path to root inode: {:#02x?}", root_inode);
+        debug!("searching for dir path to root inode: {:#02x?}", root_inode);
 
         let mut path_inodes = vec![];
         // first check if the dir inode of this file is the root inode
@@ -359,7 +507,7 @@ impl Squashfs {
             pathbuf.push(path);
         }
         pathbuf.push(entry_name);
-        tracing::debug!("path: {}", pathbuf.display());
+        debug!("path: {}", pathbuf.display());
 
         // look through basic file inodes in search of the one true basic_inode and extract the
         // bytes from the data and fragment sections
@@ -390,8 +538,6 @@ impl SquashfsReader {
         &mut self,
         superblock: &SuperBlock,
     ) -> Result<Vec<u8>, SquashfsError> {
-        //let option_size = superblock.compression_options_size() as usize;
-        //self.io.seek(SeekFrom::Start(96 + option_size as u64))?;
         self.io.seek(SeekFrom::Start(0))?;
         let mut buf = vec![0u8; superblock.inode_table as usize];
         self.io.read_exact(&mut buf)?;
@@ -419,7 +565,7 @@ impl SquashfsReader {
         seek: SeekFrom,
         size: u64,
     ) -> Result<Vec<(usize, T)>, SquashfsError> {
-        tracing::debug!("Metadata: seek {:02x?}, size: {:02x?}", seek, size);
+        debug!("Metadata: seek {:02x?}, size: {:02x?}", seek, size);
         self.io.seek(seek)?;
 
         // The directory inodes store the total, uncompressed size of the entire listing, including headers.
@@ -432,8 +578,8 @@ impl SquashfsReader {
 
         while all_read < size {
             // parse into metadata
-            tracing::trace!("read: {:02x?}", all_read);
-            tracing::trace!("reading: {:02x?}", size - all_read);
+            trace!("read: {:02x?}", all_read);
+            trace!("reading: {:02x?}", size - all_read);
             let mut buf = vec![0u8; (size - all_read) as usize];
             self.io.read_exact(&mut buf)?;
             if let Ok((_, m)) = Metadata::from_bytes((&buf, 0)) {
@@ -522,6 +668,35 @@ impl SquashfsReader {
 
         Ok(Some(fragment))
     }
+
+    /// Parse Export Table
+    #[instrument(skip_all)]
+    pub fn export(
+        &mut self,
+        superblock: &SuperBlock,
+    ) -> Result<Option<Vec<Export>>, SquashfsError> {
+        if superblock.nfs_export_table_exists() {
+            let ptr = superblock.export_table;
+            let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
+            let res = self.lookup_table::<Export>(superblock, SeekFrom::Start(ptr), count)?;
+            Ok(Some(res))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Parse ID Table
+    #[instrument(skip_all)]
+    pub fn id(&mut self, superblock: &SuperBlock) -> Result<Option<Vec<Id>>, SquashfsError> {
+        if superblock.nfs_export_table_exists() {
+            let ptr = superblock.id_table;
+            let count = superblock.id_count as u64;
+            let res = self.lookup_table::<Id>(superblock, SeekFrom::Start(ptr), count)?;
+            Ok(Some(res))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /// private
@@ -534,10 +709,9 @@ impl SquashfsReader {
         seek: SeekFrom,
         size: u64,
     ) -> Result<Vec<T>, SquashfsError> {
-        tracing::debug!(
+        debug!(
             "Lookup Table: seek {:02x?}, metadata size: {:02x?}",
-            seek,
-            size
+            seek, size
         );
         // find the pointer at the initial offset
         self.io.seek(seek)?;
@@ -564,10 +738,9 @@ impl SquashfsReader {
         count: u64,
         can_be_compressed: bool,
     ) -> Result<Vec<T>, SquashfsError> {
-        tracing::debug!(
+        debug!(
             "Metadata with count: seek {:02x?}, count: {:02x?}",
-            seek,
-            count
+            seek, count
         );
         self.io.seek(seek)?;
 
@@ -610,7 +783,7 @@ impl SquashfsReader {
         count: u64,
         can_be_compressed: bool,
     ) -> Result<Vec<Vec<u8>>, SquashfsError> {
-        tracing::debug!("Seeking to 0x{seek:02x?}");
+        debug!("Seeking to 0x{seek:02x?}");
         self.io.seek(seek)?;
 
         let mut all_bytes = vec![];
@@ -652,4 +825,72 @@ fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, Squashf
         _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
     }
     Ok(out)
+}
+
+fn compress(
+    bytes: Vec<u8>,
+    compressor: Compressor,
+    options: &Option<CompressionOptions>,
+) -> Result<Vec<u8>, SquashfsError> {
+    match (compressor, options) {
+        (Compressor::Xz, Some(CompressionOptions::Xz(xz))) => {
+            let level = 7;
+            let check = Check::Crc32;
+            let mut opts = LzmaOptions::new_preset(level).unwrap();
+            let dict_size = xz.dictionary_size;
+            opts.dict_size(dict_size);
+
+            let mut filters = Filters::new();
+            filters.lzma2(&opts);
+
+            let stream = MtStreamBuilder::new()
+                .threads(2)
+                .filters(filters)
+                .check(check)
+                .encoder()
+                .unwrap();
+
+            let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        (Compressor::Xz, None) => {
+            let level = 7;
+            let check = Check::Crc32;
+            let mut opts = LzmaOptions::new_preset(level).unwrap();
+            let dict_size = 0x2000;
+            opts.dict_size(dict_size);
+
+            let mut filters = Filters::new();
+            filters.lzma2(&opts);
+
+            let stream = MtStreamBuilder::new()
+                .threads(2)
+                .filters(filters)
+                .check(check)
+                .encoder()
+                .unwrap();
+
+            let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip))) => {
+            // TODO(#8): Use window_size and strategies
+            let mut encoder =
+                ZlibEncoder::new(Cursor::new(bytes), Compression::new(gzip.compression_level));
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        (Compressor::Gzip, None) => {
+            let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        _ => todo!(),
+    }
 }

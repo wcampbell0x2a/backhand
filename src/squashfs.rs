@@ -184,21 +184,18 @@ impl Squashfs {
     //}
 
     /// Extract all files
-    pub fn extract_all_files(
-        &self,
-        squashfs: &Squashfs,
-    ) -> Result<Vec<(PathBuf, Vec<u8>)>, SquashfsError> {
+    pub fn extract_all_files(&self) -> Result<Vec<(PathBuf, Vec<u8>)>, SquashfsError> {
         let mut ret = vec![];
-        for inode in &squashfs.inodes {
+        for inode in &self.inodes {
             if let Inode::BasicDirectory(basic_dir) = inode {
-                let block = &squashfs.dir_blocks[basic_dir.block_index as usize];
+                let block = &self.dir_blocks[basic_dir.block_index as usize];
                 let bytes = &block[basic_dir.block_offset as usize..];
                 let (_, dir) = Dir::from_bytes((bytes, 0))?;
                 for entry in &dir.dir_entries {
                     // TODO: use type enum
                     if entry.t == 2 {
                         tracing::debug!("{dir:?}");
-                        ret.push(squashfs.file(inode, dir.inode_num, entry)?);
+                        ret.push(self.file(inode, dir.inode_num, entry)?);
                     }
                 }
             }
@@ -210,17 +207,13 @@ impl Squashfs {
     /// Given a file_name from a squashfs filepath, extract the file and the filepath from the
     /// internal squashfs stored in the fields
     #[instrument(skip_all)]
-    pub fn extract_file(
-        &self,
-        squashfs: &Squashfs,
-        name: &str,
-    ) -> Result<(PathBuf, Vec<u8>), SquashfsError> {
+    pub fn extract_file(&self, name: &str) -> Result<(PathBuf, Vec<u8>), SquashfsError> {
         // Search through inodes and parse directory table at the specified location
         // searching for first file name that matches
-        for inode in &squashfs.inodes {
+        for inode in &self.inodes {
             tracing::trace!("Searching following inode for filename: {inode:#02x?}");
             if let Inode::BasicDirectory(basic_dir) = inode {
-                let block = &squashfs.dir_blocks[basic_dir.block_index as usize];
+                let block = &self.dir_blocks[basic_dir.block_index as usize];
                 let bytes = &block[basic_dir.block_offset as usize..];
                 let (_, dir) = Dir::from_bytes((bytes, 0))?;
                 tracing::trace!("Searching following dir for filename: {dir:#02x?}");

@@ -1,5 +1,6 @@
 use std::fs;
 use std::fs::File;
+use std::io::{SeekFrom, Seek};
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
@@ -10,6 +11,10 @@ use squashfs_deku::Squashfs;
 struct Args {
     /// squashfs file
     input: PathBuf,
+
+    // Offset in file for Squashfs
+    #[arg(short, long)]
+    offset: Option<u64>,
 
     #[command(subcommand)]
     cmd: Command,
@@ -37,13 +42,16 @@ fn main() {
     let args = Args::parse();
 
     match args.cmd {
-        Command::ExtractFiles { filenames, output } => extract(&args.input, filenames, &output),
-        Command::ExtractAll { output } => extract_all(&args.input, &output),
+        Command::ExtractFiles { filenames, output } => extract(&args.input, args.offset, filenames, &output),
+        Command::ExtractAll { output } => extract_all(&args.input, args.offset, &output),
     }
 }
 
-fn extract(input: &Path, filenames: Vec<String>, output: &Path) {
-    let file = File::open(input).unwrap();
+fn extract(input: &Path, offset: Option<u64>, filenames: Vec<String>, output: &Path) {
+    let mut file = File::open(input).unwrap();
+    if let Some(offset) = offset {
+        file.seek(SeekFrom::Start(offset)).unwrap();
+    }
 
     let squashfs = Squashfs::from_reader(file).unwrap();
     tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);
@@ -61,8 +69,11 @@ fn extract(input: &Path, filenames: Vec<String>, output: &Path) {
     }
 }
 
-fn extract_all(input: &Path, output: &Path) {
-    let file = File::open(input).unwrap();
+fn extract_all(input: &Path, offset: Option<u64>, output: &Path) {
+    let mut file = File::open(input).unwrap();
+    if let Some(offset) = offset {
+        file.seek(SeekFrom::Start(offset)).unwrap();
+    }
 
     let squashfs = Squashfs::from_reader(file).unwrap();
     tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);

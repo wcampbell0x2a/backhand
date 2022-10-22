@@ -164,7 +164,7 @@ pub struct Squashfs {
 impl Squashfs {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
-    /// read again from `Read`er.
+    /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
     #[instrument(skip_all)]
     pub fn from_reader<R: ReadSeek + 'static>(mut reader: R) -> Result<Squashfs, SquashfsError> {
         // Size of metadata + optional compression options metadata block

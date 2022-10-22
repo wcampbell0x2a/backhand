@@ -60,7 +60,7 @@ pub struct BasicFile {
 }
 
 impl BasicFile {
-    fn count(fragment: u32, file_size: u32) -> u32 {
+    fn count(fragment: u32, file_size: u32) -> u64 {
         const NO_FRAGMENT: u32 = 0xffffffff;
 
         // !!! TODO: this _needs_ to be from the superblock !!!
@@ -69,9 +69,9 @@ impl BasicFile {
         const BLOCK_LOG: u64 = 0x11;
 
         if fragment == NO_FRAGMENT {
-            ((u64::from(file_size) + BLOCK_SIZE - 1) >> BLOCK_LOG) as u32
+            (u64::from(file_size) + BLOCK_SIZE - 1) >> BLOCK_LOG
         } else {
-            file_size >> BLOCK_LOG
+            u64::from(file_size) >> BLOCK_LOG
         }
     }
 }

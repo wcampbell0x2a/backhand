@@ -12,7 +12,7 @@ use deku::ctx::Endian;
 use deku::prelude::*;
 use flate2::read::ZlibEncoder;
 use flate2::Compression;
-use tracing::{debug, instrument, trace};
+use tracing::{debug, info, instrument, trace};
 use xz2::read::{XzDecoder, XzEncoder};
 use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
@@ -205,13 +205,19 @@ impl Squashfs {
         };
 
         // Read all fields from filesystem to make a Squashfs
+        info!("Reading Data and Fragments");
         let data_and_fragments = squashfs_io.data_and_fragments(&superblock)?;
-        let pos_and_inodes = squashfs_io.inodes(&superblock)?;
-        let root_inode = squashfs_io.root_inode(&superblock, &pos_and_inodes)?;
-        let inodes = squashfs_io.discard_pos(&pos_and_inodes);
+        info!("Reading Inodes");
+        let inodes = squashfs_io.inodes(&superblock)?;
+        info!("Reading Root Inode");
+        let root_inode = squashfs_io.root_inode(&superblock)?;
+        info!("Reading Dirs");
         let dir_blocks = squashfs_io.dir_blocks(&superblock, &inodes)?;
+        info!("Reading Fragments");
         let fragments = squashfs_io.fragments(&superblock)?;
+        info!("Reading Exports");
         let export = squashfs_io.export(&superblock)?;
+        info!("Reading Ids");
         let id = squashfs_io.id(&superblock)?;
 
         let squashfs = Squashfs {
@@ -242,6 +248,7 @@ impl Squashfs {
 
         c.write_all(&[0x00; 96])?;
         // Compression Options
+        info!("Writing compressions options");
         if self.compression_options.is_some() {
             //TODO: make correct by writing the length and uncompressed Metadata
             c.write_all(&[0x08, 0x80])?;
@@ -258,6 +265,7 @@ impl Squashfs {
         )?;
 
         // Inode Bytes
+        info!("Writing Inodes");
         write_superblock.inode_table = c.position();
         let inode_bytes = {
             let bytes = self
@@ -275,6 +283,7 @@ impl Squashfs {
         c.write_all(&inode_bytes)?;
 
         // Dir Bytes
+        info!("Writing Dirs");
         write_superblock.dir_table = c.position();
         let dir_bytes: Vec<u8> = self.dir_blocks.iter().flatten().cloned().collect();
         let metadata_len = Metadata::set_if_compressed(dir_bytes.len() as u16).to_le_bytes();
@@ -282,6 +291,7 @@ impl Squashfs {
         c.write_all(&dir_bytes)?;
 
         // Fragment Lookup Table Bytes
+        info!("Writing Fragment Lookup Table");
         if let Some(fragments) = &self.fragments {
             let fragment_table_dat = c.position();
             let bytes: Vec<u8> = fragments
@@ -296,6 +306,7 @@ impl Squashfs {
         }
 
         // Export Lookup Table
+        info!("Writing Export Lookup Table");
         if let Some(export) = &self.export {
             let export_table_dat = c.position();
             let bytes: Vec<u8> = export.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
@@ -307,6 +318,7 @@ impl Squashfs {
         }
 
         // Export Id Table
+        info!("Writing Export Id Table");
         if let Some(id) = &self.id {
             let id_table_dat = c.position();
             let bytes: Vec<u8> = id.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
@@ -318,6 +330,7 @@ impl Squashfs {
         }
 
         // Pad out block_size
+        info!("Writing Padding");
         write_superblock.bytes_used = c.position();
         let blocks_used = write_superblock.bytes_used as u32 / 0x1000;
         let pad_len = (blocks_used + 1) * 0x1000;
@@ -325,9 +338,11 @@ impl Squashfs {
         c.write_all(&vec![0x00; pad_len as usize])?;
 
         // Seek back the beginning and write the superblock
+        info!("Writing Superblock");
         c.seek(SeekFrom::Start(0))?;
         c.write_all(&write_superblock.to_bytes().unwrap())?;
 
+        info!("Writing Finished");
         Ok(c.into_inner())
     }
 
@@ -359,12 +374,11 @@ impl Squashfs {
         // Search through inodes and parse directory table at the specified location
         // searching for first file name that matches
         for inode in &self.inodes {
-            trace!("Searching following inode for filename: {inode:#02x?}");
             if let Inode::BasicDirectory(basic_dir) = inode {
                 let block = &self.dir_blocks[basic_dir.block_index as usize];
                 let bytes = &block[basic_dir.block_offset as usize..];
                 let (_, dir) = Dir::from_bytes((bytes, 0))?;
-                trace!("Searching following dir for filename: {dir:#02x?}");
+                trace!("Searching following Dir for filename({name}): {dir:#02x?}");
                 for entry in &dir.dir_entries {
                     // TODO: use type enum
                     if entry.t == 2 {
@@ -383,13 +397,13 @@ impl Squashfs {
 
     #[instrument(skip_all)]
     fn data(&self, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
-        debug!("extracting: {basic_file:#02x?}");
+        debug!("extracting: {:#02x?}", basic_file.header);
         let mut bytes = Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
 
         // Add data
+        info!("Extracting Data");
         let mut data_bytes = vec![];
         for block_size in &basic_file.block_sizes {
-            // TODO: use deku for this?
             let uncompressed = block_size & (1 << 24) != 0;
             let size = block_size & !(1 << 24);
             let mut data = vec![0u8; size as usize];
@@ -405,6 +419,7 @@ impl Squashfs {
 
         // Add fragments
         // TODO: this should be constant
+        info!("Extracting Fragment");
         if basic_file.frag_index != 0xffffffff {
             if let Some(fragments) = &self.fragments {
                 let frag = fragments[basic_file.frag_index as usize];
@@ -546,10 +561,7 @@ impl SquashfsReader {
 
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
     #[instrument(skip_all)]
-    pub fn inodes(
-        &mut self,
-        superblock: &SuperBlock,
-    ) -> Result<Vec<(usize, Inode)>, SquashfsError> {
+    pub fn inodes(&mut self, superblock: &SuperBlock) -> Result<Vec<Inode>, SquashfsError> {
         self.metadatas::<Inode>(
             superblock,
             SeekFrom::Start(superblock.inode_table),
@@ -559,12 +571,12 @@ impl SquashfsReader {
 
     /// Parse multiple `Metadata` block at offset into `T`
     #[instrument(skip_all)]
-    fn metadatas<T: for<'a> DekuContainerRead<'a>>(
+    fn metadatas<T: for<'a> DekuContainerRead<'a> + std::fmt::Debug>(
         &mut self,
         superblock: &SuperBlock,
         seek: SeekFrom,
         size: u64,
-    ) -> Result<Vec<(usize, T)>, SquashfsError> {
+    ) -> Result<Vec<T>, SquashfsError> {
         debug!("Metadata: seek {:02x?}, size: {:02x?}", seek, size);
         self.io.seek(seek)?;
 
@@ -574,15 +586,18 @@ impl SquashfsReader {
 
         // TODO: with capacity?
         let mut ret_bytes = vec![];
-        let mut all_read = 0;
 
-        while all_read < size {
+        let mut buf = vec![0u8; size as usize];
+        self.io.read_exact(&mut buf)?;
+
+        let og_len = buf.len();
+        let mut metadata_offsets = vec![];
+        let mut rest = buf;
+        while !rest.is_empty() {
             // parse into metadata
-            trace!("read: {:02x?}", all_read);
-            trace!("reading: {:02x?}", size - all_read);
-            let mut buf = vec![0u8; (size - all_read) as usize];
-            self.io.read_exact(&mut buf)?;
-            if let Ok((_, m)) = Metadata::from_bytes((&buf, 0)) {
+            if let Ok(((inner_rest, _), m)) = Metadata::from_bytes((&rest, 0)) {
+                metadata_offsets.push(og_len - rest.len());
+                rest = inner_rest.to_vec();
                 // decompress
                 let mut bytes = if Metadata::is_compressed(m.len) {
                     decompress(m.data, superblock.compressor)?
@@ -590,20 +605,23 @@ impl SquashfsReader {
                     m.data
                 };
 
-                all_read += buf.len() as u64;
                 ret_bytes.append(&mut bytes);
             }
         }
 
         // TODO: with capacity?
         let mut ret_vec = vec![];
-        let mut total_read = 0;
-        // Read until we fail to turn bytes into `T`, keeping track of position of read
-        while let Ok(((rest, _), t)) = T::from_bytes((&ret_bytes, 0)) {
-            // Push the new T to the return, with the position this was read from
-            ret_vec.push((total_read, t));
-            total_read += ret_bytes.len() - rest.len();
-            ret_bytes = rest.to_vec();
+        while !ret_bytes.is_empty() {
+            match T::from_bytes((&ret_bytes, 0)) {
+                Ok(((rest, _), t)) => {
+                    // Push the new T to the return, with the position this was read from
+                    ret_vec.push(t);
+                    ret_bytes = rest.to_vec();
+                },
+                Err(e) => {
+                    return Err(e.into());
+                },
+            }
         }
 
         Ok(ret_vec)
@@ -614,20 +632,35 @@ impl SquashfsReader {
     pub fn root_inode(
         &mut self,
         superblock: &SuperBlock,
-        inodes: &[(usize, Inode)],
+        //inodes: &[(usize, usize, Inode)],
     ) -> Result<BasicDirectory, SquashfsError> {
-        let (_, root_inode) = inodes
-            .iter()
-            .find(|(pos, _)| *pos == superblock.root_inode as usize)
-            .unwrap();
-        let root_inode = root_inode.expect_dir();
-        Ok(root_inode.clone())
-    }
+        // I think we can always be in one metadata? This assumption is taken with this following
+        // code
+        let root_inode_start = (superblock.root_inode >> 16) as usize;
+        let root_inode_offset = (superblock.root_inode & 0xfff) as usize;
+        self.io.seek(SeekFrom::Start(
+            superblock.inode_table + root_inode_start as u64,
+        ))?;
+        let mut buf = [0u8; 2];
+        self.io.read_exact(&mut buf)?;
+        let metadata_len = u16::from_le_bytes(buf);
 
-    /// From `Vec<usize, Inode>` from `inodes`, return `Vec<Inode>`
-    #[instrument(skip_all)]
-    pub fn discard_pos(&mut self, inodes: &[(usize, Inode)]) -> Vec<Inode> {
-        inodes.iter().cloned().map(|(_pos, inode)| inode).collect()
+        let byte_len = Metadata::len(metadata_len);
+        let mut buf = vec![0u8; byte_len as usize];
+        self.io.read_exact(&mut buf)?;
+
+        let bytes = if Metadata::is_compressed(metadata_len) {
+            decompress(buf, superblock.compressor)?
+        } else {
+            buf
+        };
+
+        let bytes = &bytes[root_inode_offset..];
+
+        match Inode::from_bytes((bytes, 0)) {
+            Ok((_, inode)) => Ok(inode.expect_dir().clone()),
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Parse required number of `Metadata`s uncompressed blocks required for `Dir`s

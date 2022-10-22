@@ -1,4 +1,15 @@
+//! [`Compressor`], [`CompressionOptions`], [`decompress`], and [`compress`]
+
+use std::io::{Cursor, Read};
+
 use deku::prelude::*;
+use flate2::read::ZlibEncoder;
+use flate2::Compression;
+use tracing::instrument;
+use xz2::read::{XzDecoder, XzEncoder};
+use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
+
+use crate::error::SquashfsError;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
@@ -76,4 +87,91 @@ pub struct Lz4 {
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Zstd {
     pub compression_level: u32,
+}
+
+/// Using the current compressor from the superblock, decompress bytes
+#[instrument(skip_all)]
+pub fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, SquashfsError> {
+    let mut out = vec![];
+    match compressor {
+        Compressor::Gzip => {
+            let mut decoder = flate2::read::ZlibDecoder::new(Cursor::new(bytes));
+            decoder.read_to_end(&mut out)?;
+        },
+        Compressor::Xz => {
+            let mut decoder = XzDecoder::new(Cursor::new(bytes));
+            decoder.read_to_end(&mut out)?;
+        },
+        _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
+    }
+    Ok(out)
+}
+
+#[instrument(skip_all)]
+pub fn compress(
+    bytes: Vec<u8>,
+    compressor: Compressor,
+    options: &Option<CompressionOptions>,
+) -> Result<Vec<u8>, SquashfsError> {
+    match (compressor, options) {
+        (Compressor::Xz, Some(CompressionOptions::Xz(xz))) => {
+            let level = 7;
+            let check = Check::Crc32;
+            let mut opts = LzmaOptions::new_preset(level).unwrap();
+            let dict_size = xz.dictionary_size;
+            opts.dict_size(dict_size);
+
+            let mut filters = Filters::new();
+            filters.lzma2(&opts);
+
+            let stream = MtStreamBuilder::new()
+                .threads(2)
+                .filters(filters)
+                .check(check)
+                .encoder()
+                .unwrap();
+
+            let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        (Compressor::Xz, None) => {
+            let level = 7;
+            let check = Check::Crc32;
+            let mut opts = LzmaOptions::new_preset(level).unwrap();
+            let dict_size = 0x2000;
+            opts.dict_size(dict_size);
+
+            let mut filters = Filters::new();
+            filters.lzma2(&opts);
+
+            let stream = MtStreamBuilder::new()
+                .threads(2)
+                .filters(filters)
+                .check(check)
+                .encoder()
+                .unwrap();
+
+            let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip))) => {
+            // TODO(#8): Use window_size and strategies
+            let mut encoder =
+                ZlibEncoder::new(Cursor::new(bytes), Compression::new(gzip.compression_level));
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        (Compressor::Gzip, None) => {
+            let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
+            let mut buf = vec![];
+            encoder.read_to_end(&mut buf).unwrap();
+            Ok(buf)
+        },
+        _ => todo!(),
+    }
 }

@@ -1,8 +1,12 @@
+// TODO: add test for symlink
+// TODO: add test for empty dir
+
 use std::fs::{self, File};
 use std::path::Path;
 
-use squashfs_deku::compressor::Gzip;
-use squashfs_deku::{CompressionOptions, Squashfs};
+use squashfs_deku::compressor::{CompressionOptions, Gzip};
+use squashfs_deku::squashfs::Unsquashfs;
+use squashfs_deku::Squashfs;
 // use RUST_LOG tracing in test binaries
 use test_log::test;
 use tracing::info;
@@ -48,11 +52,13 @@ fn test_01() {
     assert_eq!(path.as_os_str(), "squashfs-deku");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files().unwrap();
-    for (path, bytes) in path_bytes {
-        let filepath = Path::new("./lfs/test_01/").join(path);
-        let expected_bytes = fs::read(filepath).unwrap();
-        assert_eq!(bytes, expected_bytes);
+    let unsquashfs = squashfs.extract_all_files().unwrap();
+    for u in unsquashfs {
+        if let Unsquashfs::File((path, bytes)) = u {
+            let filepath = Path::new("./lfs/test_01/").join(path);
+            let expected_bytes = fs::read(filepath).unwrap();
+            assert_eq!(bytes, expected_bytes);
+        }
     }
     let _expected_bytes = fs::read("./lfs/test_00/out.squashfs").unwrap();
     let _bytes = squashfs.to_bytes().unwrap();
@@ -73,11 +79,13 @@ fn test_02() {
     assert_eq!(path.as_os_str(), "squashfs-deku");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files().unwrap();
-    for (path, bytes) in path_bytes {
-        let filepath = Path::new("./lfs/test_02/").join(path);
-        let expected_bytes = fs::read(filepath).unwrap();
-        assert_eq!(bytes, expected_bytes);
+    let unsquashfs = squashfs.extract_all_files().unwrap();
+    for u in unsquashfs {
+        if let Unsquashfs::File((path, bytes)) = u {
+            let filepath = Path::new("./lfs/test_02/").join(path);
+            let expected_bytes = fs::read(filepath).unwrap();
+            assert_eq!(bytes, expected_bytes);
+        }
     }
 
     let expected_bytes = fs::read("./lfs/test_02/out.squashfs").unwrap();
@@ -103,11 +111,13 @@ fn test_03() {
     assert_eq!(path.as_os_str(), "Cargo.toml");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files().unwrap();
-    for (path, bytes) in path_bytes {
-        let filepath = Path::new("./lfs/test_03/").join(path);
-        let expected_bytes = fs::read(filepath).unwrap();
-        assert_eq!(bytes, expected_bytes);
+    let unsquashfs = squashfs.extract_all_files().unwrap();
+    for u in unsquashfs {
+        if let Unsquashfs::File((path, bytes)) = u {
+            let filepath = Path::new("./lfs/test_03/").join(path);
+            let expected_bytes = fs::read(filepath).unwrap();
+            assert_eq!(bytes, expected_bytes);
+        }
     }
 
     let expected_bytes = fs::read("./lfs/test_03/out.squashfs").unwrap();
@@ -147,11 +157,13 @@ fn test_04() {
     assert_eq!(path.as_os_str(), "woah/05");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files().unwrap();
-    for (path, bytes) in path_bytes {
-        let filepath = Path::new("./lfs/test_04/testing/").join(path);
-        let expected_bytes = fs::read(filepath).unwrap();
-        assert_eq!(bytes, expected_bytes);
+    let unsquashfs = squashfs.extract_all_files().unwrap();
+    for u in unsquashfs {
+        if let Unsquashfs::File((path, bytes)) = u {
+            let filepath = Path::new("./lfs/test_04/testing").join(path);
+            let expected_bytes = fs::read(filepath).unwrap();
+            assert_eq!(bytes, expected_bytes);
+        }
     }
 
     let expected_bytes = fs::read("./lfs/test_04/out.squashfs").unwrap();
@@ -171,11 +183,13 @@ fn test_05() {
     assert_eq!(path.as_os_str(), "b/c/d");
     assert_eq!(bytes, expected_bytes);
 
-    let path_bytes = squashfs.extract_all_files().unwrap();
-    for (path, bytes) in path_bytes {
-        let filepath = Path::new("./lfs/test_05/a/").join(path);
-        let expected_bytes = fs::read(filepath).unwrap();
-        assert_eq!(bytes, expected_bytes);
+    let unsquashfs = squashfs.extract_all_files().unwrap();
+    for u in unsquashfs {
+        if let Unsquashfs::File((path, bytes)) = u {
+            let filepath = Path::new("./lfs/test_05/a").join(path);
+            let expected_bytes = fs::read(filepath).unwrap();
+            assert_eq!(bytes, expected_bytes);
+        }
     }
 
     let expected_bytes = fs::read("./lfs/test_05/out.squashfs").unwrap();

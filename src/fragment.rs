@@ -1,3 +1,5 @@
+//! [`Fragment`]
+
 use deku::prelude::*;
 
 pub(crate) const FRAGMENT_SIZE: usize =

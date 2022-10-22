@@ -11,5 +11,9 @@ flate2 = "1.0.24"
 xz2 = "0.1.7"
 clap = { version = "4.0.12", features = ["derive"] }
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 thiserror = "1.0.37"
+
+[dev-dependencies]
+test-log = { version = "0.2.11", features = ["trace"] }
+env_logger = "0.9.1"

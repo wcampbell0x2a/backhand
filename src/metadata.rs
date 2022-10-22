@@ -20,4 +20,8 @@ impl Metadata {
     pub fn len(len: u16) -> u16 {
         len & !(METADATA_COMPRESSED)
     }
+
+    pub fn set_if_compressed(len: u16) -> u16 {
+        len | METADATA_COMPRESSED
+    }
 }

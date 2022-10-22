@@ -430,8 +430,10 @@ impl SquashfsReader {
         let mut ret_bytes = vec![];
         let mut all_read = 0;
 
-        while all_read <= size {
+        while all_read < size {
             // parse into metadata
+            tracing::trace!("read: {:02x?}", all_read);
+            tracing::trace!("reading: {:02x?}", size - all_read);
             let mut buf = vec![0u8; (size - all_read) as usize];
             self.io.read_exact(&mut buf)?;
             if let Ok((_, m)) = Metadata::from_bytes((&buf, 0)) {
@@ -442,7 +444,7 @@ impl SquashfsReader {
                     m.data
                 };
 
-                all_read += bytes.len() as u64;
+                all_read += buf.len() as u64;
                 ret_bytes.append(&mut bytes);
             }
         }

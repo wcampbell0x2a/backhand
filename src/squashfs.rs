@@ -205,10 +205,14 @@ impl Squashfs {
                 }
                 // data -> compression options
                 let bv = BitVec::from_slice(&bytes).unwrap();
-                let (_, c) = CompressionOptions::read(
+                let (rest, c) = CompressionOptions::read(
                     &bv,
                     (deku::ctx::Endian::Little, superblock.compressor),
                 )?;
+                if !rest.is_empty() {
+                    let rest = rest.as_raw_slice().to_vec();
+                    tracing::warn!("extra bytes: {rest:02x?}");
+                }
                 Some(c)
             } else {
                 None

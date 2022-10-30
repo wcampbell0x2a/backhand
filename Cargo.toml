@@ -15,5 +15,6 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 thiserror = "1.0.37"
 
 [dev-dependencies]
-test-log = { version = "0.2.11", features = ["trace"] }
 env_logger = "0.9.1"
+test-log = { version = "0.2.11", features = ["trace"] }
+test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "master" }

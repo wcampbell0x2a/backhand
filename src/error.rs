@@ -1,8 +1,10 @@
+//! [`SquashfsError`]
+
 use std::{io, string};
 
 use thiserror::Error;
 
-use crate::Compressor;
+use crate::compressor::Compressor;
 
 #[derive(Error, Debug)]
 pub enum SquashfsError {

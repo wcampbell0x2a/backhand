@@ -1,6 +1,8 @@
+//! [`Dir`], [`DirEntry`], and [`DirectoryIndex`]
+
 use deku::prelude::*;
 
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, Clone)]
 #[deku(endian = "little")]
 pub struct Dir {
     pub(crate) count: u32,
@@ -11,7 +13,7 @@ pub struct Dir {
 }
 
 // TODO: derive our own Debug, with name()
-#[derive(Debug, DekuRead, DekuWrite)]
+#[derive(Debug, DekuRead, DekuWrite, Clone)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct DirEntry {
     pub(crate) offset: u16,
@@ -28,4 +30,14 @@ impl DirEntry {
     pub fn name(&self) -> String {
         std::str::from_utf8(&self.name).unwrap().to_string()
     }
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+pub struct DirectoryIndex {
+    pub(crate) index: u32,
+    pub(crate) start: u32,
+    pub(crate) name_size: u32,
+    #[deku(count = "*name_size + 1")]
+    pub(crate) name: Vec<u8>,
 }

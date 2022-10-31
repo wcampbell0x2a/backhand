@@ -1,10 +1,9 @@
 //! [`Squashfs`], [`Id`], and [`Export`]
 
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{Cursor, Read, SeekFrom};
 use std::path::PathBuf;
 
-use deku::bitvec::{BitVec, Msb0};
-use deku::ctx::Endian;
+use deku::bitvec::BitVec;
 use deku::prelude::*;
 use tracing::{debug, info, instrument, trace};
 
@@ -132,7 +131,7 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Unsquashfs {
     File((PathBuf, Vec<u8>)),
     /// (FilePath, original, link)
@@ -198,21 +197,19 @@ impl Squashfs {
                 // This appears in TP-Link rootfs squashfs.
                 let bytes = metadata::read_block(&mut reader, &superblock)?;
 
+                // TODO: test if this is correct
                 if bytes.len() != size {
                     tracing::warn!(
-                        "Non standard compression options! CompressionOptions might be incorrect"
+                        "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
+                        bytes
                     );
                 }
                 // data -> compression options
                 let bv = BitVec::from_slice(&bytes).unwrap();
-                let (rest, c) = CompressionOptions::read(
+                let (_, c) = CompressionOptions::read(
                     &bv,
                     (deku::ctx::Endian::Little, superblock.compressor),
                 )?;
-                if !rest.is_empty() {
-                    let rest = rest.as_raw_slice().to_vec();
-                    tracing::warn!("extra bytes: {rest:02x?}");
-                }
                 Some(c)
             } else {
                 None
@@ -220,7 +217,7 @@ impl Squashfs {
         } else {
             None
         };
-        trace!("{compression_options:08x?}");
+        trace!("compression_options: {compression_options:08x?}");
 
         // Create SquashfsReader
         let mut squashfs_reader = SquashfsReader::new(reader, offset);
@@ -253,122 +250,26 @@ impl Squashfs {
             id,
         };
 
+        info!("Successful Read");
         Ok(squashfs)
     }
 
-    /// Serialize `Squashfs` to bytes
-    ///
-    /// Given our current `Squashfs`, write all fields to the file, with an updated `Superblock` that
-    /// correctly identifies the position of the fields
-    pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
-        let mut c = Cursor::new(vec![]);
+    pub fn all_dirs(&self) -> Result<Vec<Dir>, SquashfsError> {
+        let bytes: Vec<u8> = self
+            .dir_blocks
+            .iter()
+            .flat_map(|(_, b)| b.clone())
+            .collect();
 
-        // copy of the superblock to write the new positions, but we don't mutate the one stored in
-        // Squashfs
-        let mut write_superblock = self.superblock;
-
-        c.write_all(&[0x00; 96])?;
-        // Compression Options
-        info!("Writing compressions options");
-        if self.compression_options.is_some() {
-            //TODO: make correct by writing the length and uncompressed Metadata
-            c.write_all(&[0x08, 0x80])?;
-            let mut bv: BitVec<Msb0, u8> = BitVec::new();
-            self.compression_options
-                .write(&mut bv, (Endian::Little, self.superblock.compressor))?;
-            c.write_all(bv.as_raw_slice())?;
+        let mut dirs = vec![];
+        let mut rest = bytes;
+        while !rest.is_empty() {
+            let ((r, _), dir) = Dir::from_bytes((&rest, 0)).unwrap();
+            rest = r.to_vec();
+            dirs.push(dir);
         }
 
-        // Data and Fragment Bytes
-        c.write_all(
-            &self.data_and_fragments
-                [96 + self.superblock.compression_options_size().unwrap_or(0)..],
-        )?;
-
-        // Inode Bytes
-        info!("Writing Inodes");
-        write_superblock.inode_table = c.position();
-        let inode_bytes = {
-            let bytes = self
-                .inodes
-                .iter()
-                .flat_map(|a| {
-                    let mut v = BitVec::<Msb0, u8>::new();
-                    a.write(&mut v, (0, 0)).unwrap();
-                    v.as_raw_slice().to_vec()
-                })
-                .collect();
-            if self.superblock.inodes_uncompressed() {
-                bytes
-            } else {
-                compressor::compress(bytes, self.superblock.compressor, &self.compression_options)?
-            }
-        };
-        c.write_all(&(inode_bytes.len() as u16).to_le_bytes())?;
-        c.write_all(&inode_bytes)?;
-
-        // Dir Bytes
-        info!("Writing Dirs");
-        write_superblock.dir_table = c.position();
-        let dir_bytes: Vec<u8> = self.dir_blocks.iter().flat_map(|a| &a.1).cloned().collect();
-        let metadata_len = metadata::set_if_compressed(dir_bytes.len() as u16).to_le_bytes();
-        c.write_all(&metadata_len)?;
-        c.write_all(&dir_bytes)?;
-
-        // Fragment Lookup Table Bytes
-        info!("Writing Fragment Lookup Table");
-        if let Some(fragments) = &self.fragments {
-            let fragment_table_dat = c.position();
-            let bytes: Vec<u8> = fragments
-                .iter()
-                .flat_map(|a| a.to_bytes().unwrap())
-                .collect();
-            let metadata_len = metadata::set_if_compressed(bytes.len() as u16).to_le_bytes();
-            c.write_all(&metadata_len)?;
-            c.write_all(&bytes)?;
-            write_superblock.frag_table = c.position();
-            c.write_all(&fragment_table_dat.to_le_bytes())?;
-        }
-
-        // Export Lookup Table
-        info!("Writing Export Lookup Table");
-        if let Some(export) = &self.export {
-            let export_table_dat = c.position();
-            let bytes: Vec<u8> = export.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
-            let metadata_len = metadata::set_if_compressed(bytes.len() as u16).to_le_bytes();
-            c.write_all(&metadata_len)?;
-            c.write_all(&bytes)?;
-            write_superblock.export_table = c.position();
-            c.write_all(&export_table_dat.to_le_bytes())?;
-        }
-
-        // Export Id Table
-        info!("Writing Export Id Table");
-        if let Some(id) = &self.id {
-            let id_table_dat = c.position();
-            let bytes: Vec<u8> = id.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
-            let metadata_len = metadata::set_if_compressed(bytes.len() as u16).to_le_bytes();
-            c.write_all(&metadata_len)?;
-            c.write_all(&bytes)?;
-            write_superblock.id_table = c.position();
-            c.write_all(&id_table_dat.to_le_bytes())?;
-        }
-
-        // Pad out block_size
-        info!("Writing Padding");
-        write_superblock.bytes_used = c.position();
-        let blocks_used = write_superblock.bytes_used as u32 / 0x1000;
-        let pad_len = (blocks_used + 1) * 0x1000;
-        let pad_len = pad_len - write_superblock.bytes_used as u32;
-        c.write_all(&vec![0x00; pad_len as usize])?;
-
-        // Seek back the beginning and write the superblock
-        info!("Writing Superblock");
-        c.seek(SeekFrom::Start(0))?;
-        c.write_all(&write_superblock.to_bytes().unwrap())?;
-
-        info!("Writing Finished");
-        Ok(c.into_inner())
+        Ok(dirs)
     }
 
     /// From a `block_index`, grab the bytes from that index and next and return the Dirs at that
@@ -378,19 +279,22 @@ impl Squashfs {
     /// - `Ok(Some(Vec<Dir>))` when found dir
     /// - `Ok(None)`           when empty dir
     #[instrument(skip_all)]
-    fn dir_from_index(
+    pub(crate) fn dir_from_index(
         &self,
         block_index: u64,
         file_size: u32,
         block_offset: usize,
     ) -> Result<Option<Vec<Dir>>, SquashfsError> {
+        trace!("block_index: {block_index:02x?}, file_size: {file_size:02x?}, block_offset: {block_offset:02x?}");
         if file_size < 4 {
             return Ok(None);
         }
-        // TODO: we don't really need to grab the whole next block, so maybe perf this later (and
-        // clone)
+        // TODO(perf): we don't really need to grab the whole next block
         //
-        // For now, we grab the next block since that might contain the rest of the metadta
+        // For now, we grab the next block since that might contain the rest of the metadata
+        for b in &self.dir_blocks {
+            trace!("{:02x?}", b.0);
+        }
         let mut iter = self.dir_blocks.iter();
         let mut block = iter.find(|a| a.0 == block_index).unwrap().1.clone();
         if let Some((_, block_1)) = iter.next() {
@@ -405,7 +309,6 @@ impl Squashfs {
             dirs.push(dir);
         }
 
-        trace!("dirs: {:02x?}", dirs);
         Ok(Some(dirs))
     }
 
@@ -414,7 +317,7 @@ impl Squashfs {
     pub fn extract_all_files(&self) -> Result<Vec<Unsquashfs>, SquashfsError> {
         let mut ret = vec![];
         for inode in &self.inodes {
-            trace!("inodes: {:02x?}", inode);
+            //trace!("inodes: {:02x?}", inode);
             if let Inode::BasicDirectory(basic_dir) = inode {
                 if let Some(dirs) = self.dir_from_index(
                     basic_dir.block_index as u64,
@@ -499,10 +402,11 @@ impl Squashfs {
     /// TODO: this should be reworked into "extract_filepath"
     #[instrument(skip_all)]
     pub fn extract_file(&self, name: &str) -> Result<(PathBuf, Vec<u8>), SquashfsError> {
+        trace!("file: {name}");
         // Search through inodes and parse directory table at the specified location
         // searching for first file name that matches
         for inode in &self.inodes {
-            trace!("inodes: {:02x?}", inode);
+            //trace!("inodes: {:02x?}", inode);
             if let Inode::BasicDirectory(basic_dir) = inode {
                 if let Some(dirs) = self.dir_from_index(
                     basic_dir.block_index as u64,
@@ -557,7 +461,7 @@ impl Squashfs {
         debug!("extracting: {:#02x?}", basic_file);
 
         // Add data
-        info!("Extracting Data");
+        info!("extracting data @ offset {:02x?}", basic_file.blocks_start);
         let mut reader = Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
         let mut data_bytes = vec![];
         for block_size in &basic_file.block_sizes {
@@ -565,12 +469,14 @@ impl Squashfs {
             data_bytes.append(&mut bytes);
         }
 
+        trace!("data bytes: {:02x?}", data_bytes.len());
+
         // Add fragments
         // TODO: this should be constant
         if basic_file.frag_index != 0xffffffff {
             if let Some(fragments) = &self.fragments {
                 let frag = fragments[basic_file.frag_index as usize];
-                trace!("Extracing frag: {:02x?}", frag);
+                trace!("Extracting frag: {:02x?}", frag);
                 let mut reader = Cursor::new(&self.data_and_fragments[frag.start as usize..]);
                 let mut bytes = self.read_data(&mut reader, frag.size as usize)?;
                 data_bytes.append(&mut bytes);

@@ -44,15 +44,22 @@ fn test_00() {
         }))
     );
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path, file_bytes) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
     assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(file_bytes, expected_bytes);
 
-    let _expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
-    let _bytes = squashfs.to_bytes().unwrap();
-    // TODO(#8) Don't assert the same bytes, as they won't be (it still works with unsquashfs)
-    //assert_eq!(expected_bytes, bytes);
+    // convert to bytes
+    let bytes = squashfs.to_bytes().unwrap();
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes.clone())).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path, new_path);
+    assert_eq!(file_bytes, new_file_bytes);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
@@ -79,10 +86,10 @@ fn test_01() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path, file_bytes) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
     assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(file_bytes, expected_bytes);
 
     let unsquashfs = squashfs.extract_all_files().unwrap();
     for u in unsquashfs {
@@ -92,10 +99,18 @@ fn test_01() {
             assert_eq!(bytes, expected_bytes);
         }
     }
-    let _expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
-    let _bytes = squashfs.to_bytes().unwrap();
-    // TODO(#8) Don't assert the same bytes, as they won't be (it still works with unsquashfs)
-    //assert_eq!(expected_bytes, bytes);
+
+    // convert to bytes
+    let bytes = squashfs.to_bytes().unwrap();
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path, new_path);
+    assert_eq!(file_bytes, new_file_bytes);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
@@ -122,10 +137,10 @@ fn test_02() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path, file_bytes) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
     assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(file_bytes, expected_bytes);
 
     let unsquashfs = squashfs.extract_all_files().unwrap();
     for u in unsquashfs {
@@ -136,9 +151,17 @@ fn test_02() {
         }
     }
 
-    let expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
+    // convert to bytes
     let bytes = squashfs.to_bytes().unwrap();
-    assert_eq!(expected_bytes, bytes);
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path, new_path);
+    assert_eq!(file_bytes, new_file_bytes);
 }
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
@@ -170,15 +193,15 @@ fn test_03() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path_00, file_bytes_00) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
-    assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_00.as_os_str(), "squashfs-deku");
+    assert_eq!(file_bytes_00, expected_bytes);
 
-    let (path, bytes) = squashfs.extract_file("Cargo.toml").unwrap();
+    let (path_01, file_bytes_01) = squashfs.extract_file("Cargo.toml").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/Cargo.toml")).unwrap();
-    assert_eq!(path.as_os_str(), "Cargo.toml");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_01.as_os_str(), "Cargo.toml");
+    assert_eq!(file_bytes_01, expected_bytes);
 
     let unsquashfs = squashfs.extract_all_files().unwrap();
     for u in unsquashfs {
@@ -189,9 +212,21 @@ fn test_03() {
         }
     }
 
-    let expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
+    // convert to bytes
     let bytes = squashfs.to_bytes().unwrap();
-    assert_eq!(expected_bytes, bytes);
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path_00, new_path);
+    assert_eq!(file_bytes_00, new_file_bytes_00);
+
+    let (new_path, new_file_bytes_01) = new_squashfs.extract_file("Cargo.toml").unwrap();
+    assert_eq!(path_01, new_path);
+    assert_eq!(file_bytes_01, new_file_bytes_01);
 }
 
 #[test]
@@ -237,30 +272,30 @@ fn test_04() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("01").unwrap();
+    let (path_00, file_bytes_00) = squashfs.extract_file("01").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/01")).unwrap();
-    assert_eq!(path.as_os_str(), "what/yikes/01");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_00.as_os_str(), "what/yikes/01");
+    assert_eq!(file_bytes_00, expected_bytes);
 
-    let (path, bytes) = squashfs.extract_file("02").unwrap();
+    let (path_01, file_bytes_01) = squashfs.extract_file("02").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/02")).unwrap();
-    assert_eq!(path.as_os_str(), "what/yikes/02");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_01.as_os_str(), "what/yikes/02");
+    assert_eq!(file_bytes_01, expected_bytes);
 
-    let (path, bytes) = squashfs.extract_file("03").unwrap();
+    let (path_02, file_bytes_02) = squashfs.extract_file("03").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/03")).unwrap();
-    assert_eq!(path.as_os_str(), "03");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_02.as_os_str(), "03");
+    assert_eq!(file_bytes_02, expected_bytes);
 
-    let (path, bytes) = squashfs.extract_file("04").unwrap();
+    let (path_03, file_bytes_03) = squashfs.extract_file("04").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/04")).unwrap();
-    assert_eq!(path.as_os_str(), "what/04");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_03.as_os_str(), "what/04");
+    assert_eq!(file_bytes_03, expected_bytes);
 
-    let (path, bytes) = squashfs.extract_file("05").unwrap();
+    let (path_04, file_bytes_04) = squashfs.extract_file("05").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/05")).unwrap();
-    assert_eq!(path.as_os_str(), "woah/05");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_04.as_os_str(), "woah/05");
+    assert_eq!(file_bytes_04, expected_bytes);
 
     let unsquashfs = squashfs.extract_all_files().unwrap();
     for u in unsquashfs {
@@ -271,9 +306,33 @@ fn test_04() {
         }
     }
 
-    let expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
+    // convert to bytes
     let bytes = squashfs.to_bytes().unwrap();
-    assert_eq!(expected_bytes, bytes);
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes_00) = new_squashfs.extract_file("01").unwrap();
+    assert_eq!(path_00, new_path);
+    assert_eq!(file_bytes_00, new_file_bytes_00);
+
+    let (new_path, new_file_bytes_01) = new_squashfs.extract_file("02").unwrap();
+    assert_eq!(path_01, new_path);
+    assert_eq!(file_bytes_01, new_file_bytes_01);
+
+    let (new_path, new_file_bytes_02) = new_squashfs.extract_file("03").unwrap();
+    assert_eq!(path_02, new_path);
+    assert_eq!(file_bytes_02, new_file_bytes_02);
+
+    let (new_path, new_file_bytes_03) = new_squashfs.extract_file("04").unwrap();
+    assert_eq!(path_03, new_path);
+    assert_eq!(file_bytes_03, new_file_bytes_03);
+
+    let (new_path, new_file_bytes_04) = new_squashfs.extract_file("05").unwrap();
+    assert_eq!(path_04, new_path);
+    assert_eq!(file_bytes_04, new_file_bytes_04);
 }
 
 #[test]
@@ -299,10 +358,10 @@ fn test_05() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("d").unwrap();
+    let (path_00, file_bytes_00) = squashfs.extract_file("d").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/d")).unwrap();
-    assert_eq!(path.as_os_str(), "b/c/d");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_00.as_os_str(), "b/c/d");
+    assert_eq!(file_bytes_00, expected_bytes);
 
     let unsquashfs = squashfs.extract_all_files().unwrap();
     for u in unsquashfs {
@@ -313,9 +372,17 @@ fn test_05() {
         }
     }
 
-    let expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
+    // convert to bytes
     let bytes = squashfs.to_bytes().unwrap();
-    assert_eq!(expected_bytes, bytes);
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes_00) = new_squashfs.extract_file("d").unwrap();
+    assert_eq!(path_00, new_path);
+    assert_eq!(file_bytes_00, new_file_bytes_00);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
@@ -342,15 +409,22 @@ fn test_06() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path_00, file_bytes_00) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
-    assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_00.as_os_str(), "squashfs-deku");
+    assert_eq!(file_bytes_00, expected_bytes);
 
-    let _expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
-    let _bytes = squashfs.to_bytes().unwrap();
-    // TODO(#8) Don't assert the same bytes, as they won't be (it still works with unsquashfs)
-    //assert_eq!(expected_bytes, bytes);
+    // convert to bytes
+    let bytes = squashfs.to_bytes().unwrap();
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path_00, new_path);
+    assert_eq!(file_bytes_00, new_file_bytes_00);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
@@ -377,15 +451,22 @@ fn test_07() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path_00, file_bytes_00) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
-    assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_00.as_os_str(), "squashfs-deku");
+    assert_eq!(file_bytes_00, expected_bytes);
 
-    let _expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
-    let _bytes = squashfs.to_bytes().unwrap();
-    // TODO(#8) Don't assert the same bytes, as they won't be (it still works with unsquashfs)
-    //assert_eq!(expected_bytes, bytes);
+    // convert to bytes
+    let bytes = squashfs.to_bytes().unwrap();
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path_00, new_path);
+    assert_eq!(file_bytes_00, new_file_bytes_00);
 }
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
@@ -412,18 +493,27 @@ fn test_08() {
     let squashfs = Squashfs::from_reader(file).unwrap();
     info!("{:02x?}", squashfs.superblock);
 
-    let (path, bytes) = squashfs.extract_file("squashfs-deku").unwrap();
+    let (path_00, file_bytes_00) = squashfs.extract_file("squashfs-deku").unwrap();
     let expected_bytes = fs::read(format!("{TEST_PATH}/squashfs-deku")).unwrap();
-    assert_eq!(path.as_os_str(), "squashfs-deku");
-    assert_eq!(bytes, expected_bytes);
+    assert_eq!(path_00.as_os_str(), "squashfs-deku");
+    assert_eq!(file_bytes_00, expected_bytes);
 
-    let _expected_bytes = fs::read(format!("{TEST_PATH}/out.squashfs")).unwrap();
-    let _bytes = squashfs.to_bytes().unwrap();
-    // TODO(#7)
-    //assert_eq!(expected_bytes, bytes);
+    // convert to bytes
+    let bytes = squashfs.to_bytes().unwrap();
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+
+    // assert that we can read from this new squashfs image
+    let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
+    assert_eq!(path_00, new_path);
+    assert_eq!(file_bytes_00, new_file_bytes_00);
 }
 
-// test large openwrt fireware image
+// test large openwrt firmware image
+//
+// TODO: unsquashfs still fails this one
 #[test]
 fn test_09() {
     const FILE_NAME: &str =
@@ -440,19 +530,15 @@ fn test_09() {
     let file = File::open(format!("{TEST_PATH}/{FILE_NAME}")).unwrap();
     info!("{file:?}");
     let squashfs = Squashfs::from_reader_with_offset(file, 0x225fd0).unwrap();
-    info!("{:02x?}", squashfs.superblock);
     let unsquashfs = squashfs.extract_all_files().unwrap();
 
-    // 126 directories, 1241 files
-    let mut file_count = 0;
-    let mut dir_count = 0;
-    for u in unsquashfs {
-        match u {
-            Unsquashfs::File(_) => file_count += 1,
-            Unsquashfs::Path(_) => dir_count += 1,
-            Unsquashfs::Symlink(_) => file_count += 1,
-        }
-    }
-    assert_eq!(1241 + 6, file_count);
-    assert_eq!(126 - 5, dir_count);
+    // convert to bytes
+    let bytes = squashfs.to_bytes().unwrap();
+    fs::write(format!("{TEST_PATH}/bytes.squashfs"), &bytes).unwrap();
+
+    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+    let new_unsquashfs = new_squashfs.extract_all_files().unwrap();
+
+    assert_eq!(unsquashfs, new_unsquashfs);
 }

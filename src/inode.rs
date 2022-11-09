@@ -4,7 +4,10 @@ use deku::prelude::*;
 
 use crate::dir::DirectoryIndex;
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+// TODO: change the Inode struct to first read the id, then header (in a struct), then the enum for
+// the type specific information
+
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "block_size: u32, block_log: u16")]
 #[deku(type = "u16")]
 #[deku(endian = "little")]
@@ -46,7 +49,7 @@ impl Inode {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct InodeHeader {
     pub(crate) permissions: u16,
@@ -56,7 +59,7 @@ pub struct InodeHeader {
     pub(crate) inode_number: u32,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDirectory {
     pub(crate) header: InodeHeader,
@@ -80,7 +83,7 @@ impl From<&ExtendedDirectory> for BasicDirectory {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct ExtendedDirectory {
     pub(crate) header: InodeHeader,
@@ -96,7 +99,7 @@ pub struct ExtendedDirectory {
     pub(crate) dir_index: Vec<DirectoryIndex>,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     endian = "endian",
     ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
@@ -124,7 +127,7 @@ impl From<&ExtendedFile> for BasicFile {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     endian = "endian",
     ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
@@ -152,7 +155,7 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicSymlink {
     pub(crate) header: InodeHeader,
@@ -162,7 +165,7 @@ pub struct BasicSymlink {
     pub(crate) target_path: Vec<u8>,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDeviceSpecialFile {
     pub(crate) header: InodeHeader,

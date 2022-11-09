@@ -17,8 +17,8 @@ pub fn read_block<R: Read>(
     reader.read_exact(&mut buf)?;
     let metadata_len = u16::from_le_bytes(buf);
 
-    tracing::trace!("read: 0x{:02x?}", metadata_len);
     let byte_len = len(metadata_len);
+    tracing::trace!("len: 0x{:02x?}", byte_len);
     let mut buf = vec![0u8; byte_len as usize];
     reader.read_exact(&mut buf)?;
 
@@ -26,9 +26,11 @@ pub fn read_block<R: Read>(
         tracing::trace!("compressed");
         compressor::decompress(buf, superblock.compressor)?
     } else {
+        tracing::trace!("uncompressed");
         buf
     };
 
+    tracing::trace!("uncompressed size: 0x{:02x?}", bytes.len());
     Ok(bytes)
 }
 
@@ -42,6 +44,6 @@ pub fn len(len: u16) -> u16 {
     len & !(METDATA_UNCOMPRESSED)
 }
 
-pub fn set_if_compressed(len: u16) -> u16 {
+pub fn set_if_uncompressed(len: u16) -> u16 {
     len | METDATA_UNCOMPRESSED
 }

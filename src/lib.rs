@@ -9,5 +9,6 @@ pub mod inode;
 mod metadata;
 mod reader;
 pub mod squashfs;
+pub mod writer;
 
 pub use crate::squashfs::Squashfs;

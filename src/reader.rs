@@ -103,8 +103,7 @@ impl SquashfsReader {
                 },
                 Err(e) => {
                     // TODO: this should return an error
-                    tracing::error!("{:02x?} - {}", &ret_bytes, e);
-                    break;
+                    panic!("{:02x?} - {}", &ret_bytes, e);
                 },
             }
         }

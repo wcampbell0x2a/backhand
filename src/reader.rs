@@ -1,4 +1,4 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use deku::bitvec::BitView;
 use deku::prelude::*;
@@ -6,7 +6,7 @@ use tracing::{debug, instrument, trace};
 
 use crate::error::SquashfsError;
 use crate::fragment::{Fragment, FRAGMENT_SIZE};
-use crate::inode::{Inode, InodeInner};
+use crate::inode::Inode;
 use crate::metadata;
 use crate::squashfs::{Export, Id, SuperBlock};
 
@@ -39,7 +39,6 @@ impl SquashfsReader {
     }
 
     pub fn seek_from_start(&mut self, seek: u64) -> Result<(), SquashfsError> {
-        trace!("seeking: 0x{:02x?}", seek);
         self.io.seek(SeekFrom::Start(self.addr(seek)?))?;
         Ok(())
     }
@@ -93,11 +92,13 @@ impl SquashfsReader {
         // TODO: with capacity?
         let mut ret_vec = vec![];
         while !ret_bytes.is_empty() {
+            trace!("{:02x?}", ret_bytes);
             let input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
             match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
                 Ok((rest, inode)) => {
                     // Push the new Inode to the return, with the position this was read from
                     //trace!("{inode:02x?}");
+                    trace!("{:02x?}", inode);
                     ret_vec.push(inode);
                     ret_bytes = rest.as_raw_slice().to_vec();
                 },
@@ -114,17 +115,18 @@ impl SquashfsReader {
     /// Extract the root `Inode` as a `BasicDirectory`
     #[instrument(skip_all)]
     pub fn root_inode(&mut self, superblock: &SuperBlock) -> Result<Inode, SquashfsError> {
-        // I think we can always be in one metadata? This assumption is taken with this following
-        // code
         let root_inode_start = (superblock.root_inode >> 16) as usize;
         let root_inode_offset = (superblock.root_inode & 0xffff) as usize;
         trace!("root_inode_start:  0x{root_inode_start:02x?}");
         trace!("root_inode_offset: 0x{root_inode_offset:02x?}");
 
+        // Assumptions are made here that the root inode fits within two metadatas
         let seek = superblock.inode_table + root_inode_start as u64;
         self.seek_from_start(seek)?;
-        let bytes = metadata::read_block(&mut self.io, superblock)?;
-        let new_bytes = &bytes[root_inode_offset..];
+        let mut bytes_01 = metadata::read_block(&mut self.io, superblock)?;
+        let bytes_02 = metadata::read_block(&mut self.io, superblock)?;
+        bytes_01.write_all(&bytes_02)?;
+        let new_bytes = &bytes_01[root_inode_offset..];
 
         let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
         match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
@@ -138,42 +140,13 @@ impl SquashfsReader {
     pub fn dir_blocks(
         &mut self,
         superblock: &SuperBlock,
-        inodes: &Vec<Inode>,
+        end_ptr: u64,
     ) -> Result<Vec<(u64, Vec<u8>)>, SquashfsError> {
-        let mut max_metadata = 0;
-        for inode in inodes {
-            // TODO: use match
-            if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
-                if basic_dir.block_index > max_metadata {
-                    max_metadata = basic_dir.block_index;
-                }
-            }
-            if let InodeInner::ExtendedDirectory(ex_dir) = &inode.inner {
-                if ex_dir.block_index > max_metadata {
-                    max_metadata = ex_dir.block_index;
-                }
-            }
-        }
-
-        let offset = superblock.dir_table;
-
-        self.metadata_blocks(superblock, offset, u64::from(max_metadata) + 1 + offset)
-    }
-
-    /// Parse into Metadata uncompressed blocks
-    #[instrument(skip_all)]
-    fn metadata_blocks(
-        &mut self,
-        superblock: &SuperBlock,
-        seek: u64,
-        max: u64,
-    ) -> Result<Vec<(u64, Vec<u8>)>, SquashfsError> {
+        let seek = superblock.dir_table;
         self.seek_from_start(seek)?;
-
         let mut all_bytes = vec![];
-        while self.stream_position()? < max {
+        while self.io.stream_position()? != self.addr(end_ptr)? {
             let metadata_start = self.stream_position()?;
-            //trace!("{:02x?}", metadata_start - self.addr(self.);
             let bytes = metadata::read_block(&mut self.io, superblock)?;
             all_bytes.push((metadata_start - seek, bytes));
         }
@@ -186,17 +159,17 @@ impl SquashfsReader {
     pub fn fragments(
         &mut self,
         superblock: &SuperBlock,
-    ) -> Result<Option<Vec<Fragment>>, SquashfsError> {
+    ) -> Result<Option<(u64, Vec<Fragment>)>, SquashfsError> {
         if superblock.frag_count == 0 || superblock.frag_table == 0xffffffffffffffff {
             return Ok(None);
         }
-        let fragment = self.lookup_table::<Fragment>(
+        let (ptr, table) = self.lookup_table::<Fragment>(
             superblock,
             superblock.frag_table,
             u64::from(superblock.frag_count) * FRAGMENT_SIZE as u64,
         )?;
 
-        Ok(Some(fragment))
+        Ok(Some((ptr, table)))
     }
 
     /// Parse Export Table
@@ -204,12 +177,12 @@ impl SquashfsReader {
     pub fn export(
         &mut self,
         superblock: &SuperBlock,
-    ) -> Result<Option<Vec<Export>>, SquashfsError> {
+    ) -> Result<Option<(u64, Vec<Export>)>, SquashfsError> {
         if superblock.nfs_export_table_exists() && superblock.export_table != 0xffffffffffffffff {
             let ptr = superblock.export_table;
             let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
-            let res = self.lookup_table::<Export>(superblock, ptr, count)?;
-            Ok(Some(res))
+            let (ptr, table) = self.lookup_table::<Export>(superblock, ptr, count)?;
+            Ok(Some((ptr, table)))
         } else {
             Ok(None)
         }
@@ -217,12 +190,12 @@ impl SquashfsReader {
 
     /// Parse ID Table
     #[instrument(skip_all)]
-    pub fn id(&mut self, superblock: &SuperBlock) -> Result<Option<Vec<Id>>, SquashfsError> {
-        if superblock.nfs_export_table_exists() {
+    pub fn id(&mut self, superblock: &SuperBlock) -> Result<Option<(u64, Vec<Id>)>, SquashfsError> {
+        if superblock.id_count > 0 {
             let ptr = superblock.id_table;
             let count = superblock.id_count as u64;
-            let res = self.lookup_table::<Id>(superblock, ptr, count)?;
-            Ok(Some(res))
+            let (ptr, table) = self.lookup_table::<Id>(superblock, ptr, count)?;
+            Ok(Some((ptr, table)))
         } else {
             Ok(None)
         }
@@ -235,7 +208,7 @@ impl SquashfsReader {
         superblock: &SuperBlock,
         seek: u64,
         size: u64,
-    ) -> Result<Vec<T>, SquashfsError> {
+    ) -> Result<(u64, Vec<T>), SquashfsError> {
         debug!("seek 0x{:02x?}, metadata size: 0x{:02x?}", seek, size);
         // find the pointer at the initial offset
         self.seek_from_start(seek)?;
@@ -245,7 +218,10 @@ impl SquashfsReader {
 
         let block_count = (size as f32 / 8192_f32).ceil() as u64;
 
-        self.metadata_with_count::<T>(superblock, u64::from(ptr), block_count)
+        let ptr = u64::from(ptr);
+        let table = self.metadata_with_count::<T>(superblock, ptr, block_count)?;
+
+        Ok((ptr, table))
     }
 
     /// Parse count of `Metadata` block at offset into `T`

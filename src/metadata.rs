@@ -6,6 +6,8 @@ use crate::compressor;
 use crate::error::SquashfsError;
 use crate::squashfs::SuperBlock;
 
+pub const METADATA_MAXSIZE: usize = 0x2000;
+
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 
 #[instrument(skip_all)]

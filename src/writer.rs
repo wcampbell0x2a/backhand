@@ -9,6 +9,7 @@ use tracing::{info, instrument, trace};
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
 use crate::inode::Inode;
+use crate::metadata::METADATA_MAXSIZE;
 use crate::squashfs::SuperBlock;
 use crate::{metadata, Squashfs};
 
@@ -72,12 +73,12 @@ impl Write for MetadataWriter {
         // add all of buf into uncompressed
         self.uncompressed_bytes.write_all(buf)?;
 
-        if self.uncompressed_bytes.len() > 0x2000 {
+        if self.uncompressed_bytes.len() > METADATA_MAXSIZE {
             trace!("time to compress");
             // "Write" the to the saved metablock
             let b = compressor::compress(
                 // TODO use split_at?
-                self.uncompressed_bytes[..0x2000].to_vec(),
+                self.uncompressed_bytes[..METADATA_MAXSIZE].to_vec(),
                 self.compressor,
                 &self.compression_options,
             )
@@ -86,7 +87,7 @@ impl Write for MetadataWriter {
             // Metadata len + bytes + last metadata_start
             self.metadata_start += 2 + b.len() as u32;
             trace!("new metadata start: {:#02x?}", self.metadata_start);
-            self.uncompressed_bytes = self.uncompressed_bytes[0x2000..].to_vec();
+            self.uncompressed_bytes = self.uncompressed_bytes[METADATA_MAXSIZE..].to_vec();
             self.compressed_bytes.push(b);
         }
 
@@ -441,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_mwriter() {
-        let bytes = [0xffu8; 0x2000 - 3];
+        let bytes = [0xffu8; METADATA_MAXSIZE - 3];
 
         let mut mwriter = MetadataWriter::new(Compressor::Xz, None);
 

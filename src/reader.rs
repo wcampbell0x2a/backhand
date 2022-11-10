@@ -6,7 +6,7 @@ use tracing::{debug, instrument, trace};
 
 use crate::error::SquashfsError;
 use crate::fragment::{Fragment, FRAGMENT_SIZE};
-use crate::inode::{BasicDirectory, Inode, InodeInner};
+use crate::inode::{Inode, InodeInner};
 use crate::metadata;
 use crate::squashfs::{Export, Id, SuperBlock};
 

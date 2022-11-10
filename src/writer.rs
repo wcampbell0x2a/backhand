@@ -8,7 +8,7 @@ use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
-use crate::inode::{Inode, InodeInner};
+use crate::inode::InodeInner;
 use crate::metadata::METADATA_MAXSIZE;
 use crate::squashfs::SuperBlock;
 use crate::{metadata, Squashfs};

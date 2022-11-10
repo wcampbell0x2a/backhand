@@ -8,7 +8,7 @@ use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
-use crate::inode::Inode;
+use crate::inode::{Inode, InodeInner};
 use crate::metadata::METADATA_MAXSIZE;
 use crate::squashfs::SuperBlock;
 use crate::{metadata, Squashfs};
@@ -130,26 +130,27 @@ impl Squashfs {
 
         let mut inode_pos = HashMap::new();
 
-        let inodes = self.inodes.clone();
-        for mut inode in inodes {
-            match &mut inode {
+        let mut inodes = self.inodes.clone();
+        for inode in &mut inodes {
+            if &mut self.root_inode.clone() == inode {
+                let start = inode_writer.metadata_start;
+                let offset = inode_writer.uncompressed_bytes.len();
+                trace!("start: {start:02x?}, offset: {offset:02x?}");
+                write_superblock.root_inode = ((start << 16) as u64) | offset as u64;
+            }
+
+            inode_pos.insert(
+                inode.header.inode_number,
+                (
+                    inode_writer.metadata_start,
+                    inode_writer.uncompressed_bytes.len(),
+                ),
+            );
+
+            match &mut inode.inner {
                 // If directories, we need to write the directory to `dir_bytes` and record the
                 // position
-                Inode::BasicDirectory(basic_dir) => {
-                    //tracing::trace!("{:#02x?}", basic_dir);
-                    inode_pos.insert(
-                        basic_dir.header.inode_number,
-                        (
-                            inode_writer.metadata_start,
-                            inode_writer.uncompressed_bytes.len(),
-                        ),
-                    );
-                    if &self.root_inode == basic_dir {
-                        let start = inode_writer.metadata_start;
-                        let offset = inode_writer.uncompressed_bytes.len();
-                        trace!("start: {start:02x?}, offset: {offset:02x?}");
-                        write_superblock.root_inode = ((start << 16) as u64) | offset as u64;
-                    }
+                InodeInner::BasicDirectory(basic_dir) => {
                     // get the dirs from the dir_table bytes, this only works if the dir_bytes
                     // haven't been changed from initial read
                     trace!("{basic_dir:02x?}");
@@ -191,16 +192,7 @@ impl Squashfs {
                         //panic!("didn't find dirs");
                     }
                 },
-                Inode::ExtendedDirectory(extended_dir) => {
-                    //tracing::trace!("{:#02x?}", basic_dir);
-                    inode_pos.insert(
-                        extended_dir.header.inode_number,
-                        (
-                            inode_writer.metadata_start,
-                            inode_writer.uncompressed_bytes.len(),
-                        ),
-                    );
-
+                InodeInner::ExtendedDirectory(extended_dir) => {
                     // get the dirs from the dir_table bytes, this only works if the dir_bytes
                     // haven't been changed from initial read
                     trace!("{extended_dir:02x?}");
@@ -241,47 +233,7 @@ impl Squashfs {
                         //panic!("didn't find dirs");
                     }
                 },
-                Inode::BasicFile(basic_file) => {
-                    inode_pos.insert(
-                        basic_file.header.inode_number,
-                        (
-                            inode_writer.metadata_start,
-                            inode_writer.uncompressed_bytes.len(),
-                        ),
-                    );
-                    //tracing::trace!("{:#02x?}", basic_file);
-                },
-                Inode::ExtendedFile(_) => todo!(),
-                Inode::BasicSymlink(basic_symlink) => {
-                    inode_pos.insert(
-                        basic_symlink.header.inode_number,
-                        (
-                            inode_writer.metadata_start,
-                            inode_writer.uncompressed_bytes.len(),
-                        ),
-                    );
-                    //tracing::trace!("{:#02x?}", basic_symlink);
-                },
-                Inode::BasicBlockDevice(basic_block) => {
-                    inode_pos.insert(
-                        basic_block.header.inode_number,
-                        (
-                            inode_writer.metadata_start,
-                            inode_writer.uncompressed_bytes.len(),
-                        ),
-                    );
-                    //tracing::trace!("{:#02x?}", basic_block);
-                },
-                Inode::BasicCharacterDevice(basic_char) => {
-                    inode_pos.insert(
-                        basic_char.header.inode_number,
-                        (
-                            inode_writer.metadata_start,
-                            inode_writer.uncompressed_bytes.len(),
-                        ),
-                    );
-                    //tracing::trace!("{:#02x?}", basic_char);
-                },
+                _ => (),
             }
 
             // Convert inode to bytes

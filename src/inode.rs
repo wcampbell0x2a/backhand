@@ -4,14 +4,21 @@ use deku::prelude::*;
 
 use crate::dir::DirectoryIndex;
 
-// TODO: change the Inode struct to first read the id, then header (in a struct), then the enum for
-// the type specific information
-
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "block_size: u32, block_log: u16")]
-#[deku(type = "u16")]
 #[deku(endian = "little")]
-pub enum Inode {
+pub struct Inode {
+    pub(crate) id: u16,
+    pub(crate) header: InodeHeader,
+    #[deku(ctx = "*id, block_size, block_log")]
+    pub(crate) inner: InodeInner,
+}
+
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
+#[deku(ctx = "endian: deku::ctx::Endian, id: u16, block_size: u32, block_log: u16")]
+#[deku(endian = "endian")]
+#[deku(id = "id")]
+pub enum InodeInner {
     #[deku(id = "1")]
     BasicDirectory(BasicDirectory),
 
@@ -41,9 +48,9 @@ impl Inode {
     ///
     /// Panics if `self` is not `Inode::BasicDirectory`
     pub fn expect_dir(&self) -> BasicDirectory {
-        match self {
-            Self::BasicDirectory(basic_dir) => basic_dir.clone(),
-            Self::ExtendedDirectory(ex_dir) => BasicDirectory::from(ex_dir),
+        match &self.inner {
+            InodeInner::BasicDirectory(basic_dir) => basic_dir.clone(),
+            InodeInner::ExtendedDirectory(ex_dir) => BasicDirectory::from(ex_dir),
             _ => panic!("not a dir"),
         }
     }
@@ -62,7 +69,6 @@ pub struct InodeHeader {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDirectory {
-    pub(crate) header: InodeHeader,
     pub(crate) block_index: u32,
     pub(crate) link_count: u32,
     pub(crate) file_size: u16,
@@ -73,7 +79,6 @@ pub struct BasicDirectory {
 impl From<&ExtendedDirectory> for BasicDirectory {
     fn from(ex_dir: &ExtendedDirectory) -> Self {
         Self {
-            header: ex_dir.header,
             block_index: ex_dir.block_index,
             link_count: ex_dir.link_count,
             file_size: ex_dir.file_size as u16,
@@ -86,7 +91,6 @@ impl From<&ExtendedDirectory> for BasicDirectory {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct ExtendedDirectory {
-    pub(crate) header: InodeHeader,
     pub(crate) link_count: u32,
     pub(crate) file_size: u32,
     pub(crate) block_index: u32,
@@ -105,7 +109,6 @@ pub struct ExtendedDirectory {
     ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
 )]
 pub struct BasicFile {
-    pub(crate) header: InodeHeader,
     pub(crate) blocks_start: u32,
     pub(crate) frag_index: u32,
     pub(crate) block_offset: u32,
@@ -117,7 +120,6 @@ pub struct BasicFile {
 impl From<&ExtendedFile> for BasicFile {
     fn from(ex_file: &ExtendedFile) -> Self {
         Self {
-            header: ex_file.header,
             blocks_start: ex_file.blocks_start as u32,
             frag_index: ex_file.frag_index,
             block_offset: ex_file.block_offset,
@@ -133,7 +135,6 @@ impl From<&ExtendedFile> for BasicFile {
     ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
 )]
 pub struct ExtendedFile {
-    pub(crate) header: InodeHeader,
     pub(crate) blocks_start: u64,
     pub(crate) file_size: u64,
     pub(crate) sparse: u64,
@@ -158,7 +159,6 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicSymlink {
-    pub(crate) header: InodeHeader,
     pub(crate) link_count: u32,
     pub(crate) target_size: u32,
     #[deku(count = "target_size")]
@@ -168,7 +168,6 @@ pub struct BasicSymlink {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDeviceSpecialFile {
-    pub(crate) header: InodeHeader,
     pub(crate) link_count: u32,
     pub(crate) device_number: u32,
 }

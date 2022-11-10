@@ -6,7 +6,7 @@ use tracing::{debug, instrument, trace};
 
 use crate::error::SquashfsError;
 use crate::fragment::{Fragment, FRAGMENT_SIZE};
-use crate::inode::{BasicDirectory, Inode};
+use crate::inode::{BasicDirectory, Inode, InodeInner};
 use crate::metadata;
 use crate::squashfs::{Export, Id, SuperBlock};
 
@@ -114,7 +114,7 @@ impl SquashfsReader {
 
     /// Extract the root `Inode` as a `BasicDirectory`
     #[instrument(skip_all)]
-    pub fn root_inode(&mut self, superblock: &SuperBlock) -> Result<BasicDirectory, SquashfsError> {
+    pub fn root_inode(&mut self, superblock: &SuperBlock) -> Result<Inode, SquashfsError> {
         // I think we can always be in one metadata? This assumption is taken with this following
         // code
         let root_inode_start = (superblock.root_inode >> 16) as usize;
@@ -129,10 +129,7 @@ impl SquashfsReader {
 
         let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
         match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
-            Ok((_, inode)) => {
-                //trace!("{inode:02x?}");
-                Ok(inode.expect_dir())
-            },
+            Ok((_, inode)) => Ok(inode),
             Err(e) => Err(e.into()),
         }
     }
@@ -147,12 +144,12 @@ impl SquashfsReader {
         let mut max_metadata = 0;
         for inode in inodes {
             // TODO: use match
-            if let Inode::BasicDirectory(basic_dir) = inode {
+            if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
                 if basic_dir.block_index > max_metadata {
                     max_metadata = basic_dir.block_index;
                 }
             }
-            if let Inode::ExtendedDirectory(ex_dir) = inode {
+            if let InodeInner::ExtendedDirectory(ex_dir) = &inode.inner {
                 if ex_dir.block_index > max_metadata {
                     max_metadata = ex_dir.block_index;
                 }

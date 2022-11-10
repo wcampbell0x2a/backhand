@@ -11,7 +11,7 @@ use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
-use crate::inode::{BasicDirectory, BasicFile, Inode};
+use crate::inode::{BasicDirectory, BasicFile, Inode, InodeInner};
 use crate::metadata;
 use crate::reader::{ReadSeek, SquashfsReader};
 
@@ -151,7 +151,7 @@ pub struct Squashfs {
     // All Inodes
     pub inodes: Vec<Inode>,
     /// Root Inode
-    pub root_inode: BasicDirectory,
+    pub root_inode: Inode,
     /// Bytes containing Directory Table
     pub dir_blocks: Vec<(u64, Vec<u8>)>,
     /// Fragments Lookup Table
@@ -318,7 +318,7 @@ impl Squashfs {
         let mut ret = vec![];
         for inode in &self.inodes {
             //trace!("inodes: {:02x?}", inode);
-            if let Inode::BasicDirectory(basic_dir) = inode {
+            if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
                 if let Some(dirs) = self.dir_from_index(
                     basic_dir.block_index as u64,
                     basic_dir.file_size as u32,
@@ -333,7 +333,7 @@ impl Squashfs {
                     ret.append(&mut files);
                 }
             }
-            if let Inode::ExtendedDirectory(ext_dir) = inode {
+            if let InodeInner::ExtendedDirectory(ext_dir) = &inode.inner {
                 if let Some(dirs) = self.dir_from_index(
                     ext_dir.block_index as u64,
                     ext_dir.file_size,
@@ -407,7 +407,7 @@ impl Squashfs {
         // searching for first file name that matches
         for inode in &self.inodes {
             //trace!("inodes: {:02x?}", inode);
-            if let Inode::BasicDirectory(basic_dir) = inode {
+            if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
                 if let Some(dirs) = self.dir_from_index(
                     basic_dir.block_index as u64,
                     basic_dir.file_size as u32,
@@ -429,7 +429,7 @@ impl Squashfs {
                     }
                 }
             }
-            if let Inode::ExtendedDirectory(ex_dir) = inode {
+            if let InodeInner::ExtendedDirectory(ex_dir) = &inode.inner {
                 if let Some(dirs) = self.dir_from_index(
                     ex_dir.block_index as u64,
                     ex_dir.file_size,
@@ -520,8 +520,8 @@ impl Squashfs {
         let pathbuf = self.path(found_inode, entry)?;
         let link_inode = (dir_inode as i16 + entry.inode_offset) as u32;
         for inode in &self.inodes {
-            if let Inode::BasicSymlink(basic_sym) = inode {
-                if basic_sym.header.inode_number == link_inode {
+            if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
+                if inode.header.inode_number == link_inode {
                     return Ok((
                         pathbuf,
                         String::from_utf8(entry.name.clone())?,
@@ -538,6 +538,7 @@ impl Squashfs {
         let entry_name = std::str::from_utf8(&found_entry.name)?;
         trace!("extracting: {entry_name}");
         let dir_inode = found_inode.expect_dir();
+        let dir_inode_num = found_inode.header.inode_number;
         // Used for searching for the file later when we want to extract the bytes
 
         let root_inode = self.root_inode.header.inode_number;
@@ -545,31 +546,34 @@ impl Squashfs {
 
         let mut path_inodes = vec![];
         // first check if the dir inode of this file is the root inode
-        if dir_inode.header.inode_number != root_inode {
+        if dir_inode_num != root_inode {
             // check every inode and find the matching inode to the current dir_nodes parent
             // inode, when we find a new inode, check if it's the root inode, and continue on if it
             // isn't
             let mut next_inode = dir_inode.parent_inode;
             'outer: loop {
                 for inode in &self.inodes {
-                    if let Inode::BasicDirectory(basic_dir) = inode {
-                        if basic_dir.header.inode_number == next_inode {
-                            path_inodes.push(basic_dir.clone());
-                            if basic_dir.header.inode_number == root_inode {
+                    if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
+                        if inode.header.inode_number == next_inode {
+                            path_inodes.push((basic_dir.clone(), inode.header.inode_number));
+                            if inode.header.inode_number == root_inode {
                                 break 'outer;
                             }
                             next_inode = basic_dir.parent_inode;
                         }
                     }
-                    if let Inode::ExtendedDirectory(ext_dir) = inode {
+                    if let InodeInner::ExtendedDirectory(ext_dir) = &inode.inner {
                         tracing::warn!("CONVERSION: {:02x?}", ext_dir);
                         for a in &ext_dir.dir_index {
                             let name = String::from_utf8(a.name.clone()).unwrap();
                             tracing::warn!("{name}");
                         }
-                        if ext_dir.header.inode_number == next_inode {
-                            path_inodes.push(BasicDirectory::from(ext_dir).clone());
-                            if ext_dir.header.inode_number == root_inode {
+                        if inode.header.inode_number == next_inode {
+                            path_inodes.push((
+                                BasicDirectory::from(ext_dir).clone(),
+                                inode.header.inode_number,
+                            ));
+                            if inode.header.inode_number == root_inode {
                                 break 'outer;
                             }
                             next_inode = ext_dir.parent_inode;
@@ -580,7 +584,7 @@ impl Squashfs {
         }
 
         // Insert the first basic file
-        path_inodes.insert(0, dir_inode);
+        path_inodes.insert(0, (dir_inode, dir_inode_num));
         trace!("path: {:#02x?}", path_inodes);
 
         let mut paths = vec![];
@@ -588,7 +592,7 @@ impl Squashfs {
         // dir at the path directed from the path_inodes, when it matches, save it to the paths
         for n in 0..path_inodes.len() - 1 {
             let curr_basic_dir = &path_inodes[n];
-            let search_inode = curr_basic_dir.header.inode_number;
+            let search_inode = curr_basic_dir.1;
 
             // Used for location
             let next_basic_dir = &path_inodes[n + 1];
@@ -596,9 +600,9 @@ impl Squashfs {
             trace!("next: {:02x?}", next_basic_dir);
 
             if let Some(dirs) = self.dir_from_index(
-                next_basic_dir.block_index as u64,
-                next_basic_dir.file_size as u32,
-                next_basic_dir.block_offset as usize,
+                next_basic_dir.0.block_index as u64,
+                next_basic_dir.0.file_size as u32,
+                next_basic_dir.0.block_offset as usize,
             )? {
                 for dir in dirs {
                     trace!("dir: {dir:02x?}");
@@ -645,16 +649,15 @@ impl Squashfs {
         let looking_inode = found_inode_num as i16 + found_entry.inode_offset;
         trace!("looking for inode: {:02x?}", looking_inode);
         for inode in &self.inodes {
-            if let Inode::BasicFile(basic_file) = inode {
-                if basic_file.header.inode_number == looking_inode as u32 {
+            if inode.header.inode_number == looking_inode as u32 {
+                if let InodeInner::BasicFile(basic_file) = &inode.inner {
                     return Ok((pathbuf, self.data(basic_file)?));
                 }
-            }
-            if let Inode::ExtendedFile(ext_file) = inode {
-                let basic_file = BasicFile::from(ext_file);
-                if basic_file.header.inode_number == looking_inode as u32 {
+                if let InodeInner::ExtendedFile(ext_file) = &inode.inner {
+                    let basic_file = BasicFile::from(ext_file);
                     return Ok((pathbuf, self.data(&basic_file)?));
                 }
+                // TODO: maybe asser that the two previous entries are the only type?
             }
         }
 

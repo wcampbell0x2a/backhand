@@ -9,6 +9,7 @@ use tracing::{info, instrument, trace};
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
 use crate::inode::Inode;
+use crate::squashfs::SuperBlock;
 use crate::{metadata, Squashfs};
 
 // TODO: add the option of not compressing entires
@@ -98,43 +99,28 @@ impl Write for MetadataWriter {
 }
 
 impl Squashfs {
-    /// Serialize `Squashfs` to bytes
-    ///
-    /// Write all fields of `Squashfs`, while updating the following fields w.r.t the new locations
-    /// within the image: `superblock`, `compression_options`, `inodes`, `root_inode`,
-    /// `dir_blocks`, `fragments`, and `id`. The export table is not written to the image.
-    // TODO: this function is a nightmare, each section needs to be a function, and we should move
-    // this to a new module
-    // TODO: support non-compression for some parts
-    #[instrument(skip_all)]
-    pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
-        let mut c = Cursor::new(vec![]);
-
-        // copy of the superblock to write the new positions, but we don't mutate the one stored in
-        // Squashfs
-        let mut write_superblock = self.superblock;
-
-        c.write_all(&[0x00; 96])?;
+    fn write_compression_options(&self, w: &mut Cursor<Vec<u8>>) -> Result<(), SquashfsError> {
         // Compression Options
         info!("Writing compressions options");
         if self.compression_options.is_some() {
             //TODO: make correct by writing the length and uncompressed Metadata
-            c.write_all(&[0x08, 0x80])?;
+            w.write_all(&[0x08, 0x80])?;
             let mut bv: BitVec<Msb0, u8> = BitVec::new();
             self.compression_options
                 .write(&mut bv, (Endian::Little, self.superblock.compressor))?;
-            c.write_all(bv.as_raw_slice())?;
+            w.write_all(bv.as_raw_slice())?;
         }
 
-        // Data and Fragment Bytes
-        c.write_all(
-            &self.data_and_fragments
-                [96 + self.superblock.compression_options_size().unwrap_or(0)..],
-        )?;
+        Ok(())
+    }
 
+    fn write_inode_and_dir(
+        &self,
+        w: &mut Cursor<Vec<u8>>,
+        write_superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
         // Inode Bytes
-        info!("Writing Inodes");
-        write_superblock.inode_table = c.position();
+        write_superblock.inode_table = w.position();
 
         let mut inode_writer =
             MetadataWriter::new(self.superblock.compressor, self.compression_options);
@@ -310,31 +296,43 @@ impl Squashfs {
 
         // Write Inodes
         info!("Writing Inodes");
-        write_superblock.inode_table = c.position();
-        c.write_all(&inode_writer.finalize())?;
+        write_superblock.inode_table = w.position();
+        w.write_all(&inode_writer.finalize())?;
 
         // Write Dir table
         info!("Writing Dirs");
-        write_superblock.dir_table = c.position();
-        c.write_all(&dir_writer.finalize())?;
+        write_superblock.dir_table = w.position();
+        w.write_all(&dir_writer.finalize())?;
 
-        // Fragment Lookup Table Bytes
-        info!("Writing Fragment Lookup Table");
+        Ok(())
+    }
+
+    fn write_fragment_table(
+        &self,
+        w: &mut Cursor<Vec<u8>>,
+        write_superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
         if let Some(fragments) = &self.fragments {
-            let fragment_table_dat = c.position();
+            let fragment_table_dat = w.position();
             let bytes: Vec<u8> = fragments
                 .iter()
                 .flat_map(|a| a.to_bytes().unwrap())
                 .collect();
             let metadata_len = metadata::set_if_uncompressed(bytes.len() as u16).to_le_bytes();
-            c.write_all(&metadata_len)?;
-            c.write_all(&bytes)?;
-            write_superblock.frag_table = c.position();
-            c.write_all(&fragment_table_dat.to_le_bytes())?;
+            w.write_all(&metadata_len)?;
+            w.write_all(&bytes)?;
+            write_superblock.frag_table = w.position();
+            w.write_all(&fragment_table_dat.to_le_bytes())?;
         }
+        Ok(())
+    }
 
-        // Export Lookup Table
-        info!("Writing Export Lookup Table");
+    // TODO: write a export table
+    fn write_export_table(
+        &self,
+        _w: &mut Cursor<Vec<u8>>,
+        write_superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
         write_superblock.export_table = 0xffffffffffffffff;
         //if let Some(export) = &self.export {
         //    let export_table_dat = c.position();
@@ -345,34 +343,94 @@ impl Squashfs {
         //    write_superblock.export_table = c.position();
         //    c.write_all(&export_table_dat.to_le_bytes())?;
         //}
+        Ok(())
+    }
 
-        // Export Id Table
-        info!("Writing Export Id Table");
+    fn write_id_table(
+        &self,
+        w: &mut Cursor<Vec<u8>>,
+        write_superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
         if let Some(id) = &self.id {
-            let id_table_dat = c.position();
+            let id_table_dat = w.position();
             let bytes: Vec<u8> = id.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
             let metadata_len = metadata::set_if_uncompressed(bytes.len() as u16).to_le_bytes();
-            c.write_all(&metadata_len)?;
-            c.write_all(&bytes)?;
-            write_superblock.id_table = c.position();
-            c.write_all(&id_table_dat.to_le_bytes())?;
+            w.write_all(&metadata_len)?;
+            w.write_all(&bytes)?;
+            write_superblock.id_table = w.position();
+            w.write_all(&id_table_dat.to_le_bytes())?;
         }
 
+        Ok(())
+    }
+
+    fn finalize(
+        &self,
+        w: &mut Cursor<Vec<u8>>,
+        write_superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
         // Pad out block_size
         info!("Writing Padding");
-        write_superblock.bytes_used = c.position();
+        write_superblock.bytes_used = w.position();
         let blocks_used = write_superblock.bytes_used as u32 / 0x1000;
         let pad_len = (blocks_used + 1) * 0x1000;
         let pad_len = pad_len - write_superblock.bytes_used as u32;
-        c.write_all(&vec![0x00; pad_len as usize])?;
+        w.write_all(&vec![0x00; pad_len as usize])?;
 
         // Seek back the beginning and write the superblock
         info!("Writing Superblock");
         trace!("{:#02x?}", write_superblock);
-        c.seek(SeekFrom::Start(0))?;
-        c.write_all(&write_superblock.to_bytes().unwrap())?;
+        w.seek(SeekFrom::Start(0))?;
+        w.write_all(&write_superblock.to_bytes().unwrap())?;
 
         info!("Writing Finished");
+
+        Ok(())
+    }
+
+    /// Serialize `Squashfs` to bytes
+    ///
+    /// Write all fields of `Squashfs`, while updating the following fields w.r.t the new locations
+    /// within the image: `superblock`, `compression_options`, `inodes`, `root_inode`,
+    /// `dir_blocks`, `fragments`, and `id`. The export table is not written to the image.
+    ///
+    /// This uses the compressor of `self`.
+    // TODO: support non-compression for some parts
+    #[instrument(skip_all)]
+    pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
+        let mut c = Cursor::new(vec![]);
+
+        // copy of the superblock to write the new positions, but we don't mutate the one stored in
+        // Squashfs
+        let mut write_superblock = self.superblock;
+
+        c.write_all(&[0x00; 96])?;
+
+        info!("Writing Compression Options");
+        self.write_compression_options(&mut c)?;
+
+        // Data and Fragment Bytes
+        c.write_all(
+            &self.data_and_fragments
+                [96 + self.superblock.compression_options_size().unwrap_or(0)..],
+        )?;
+
+        info!("Writing Inodes and Dirs");
+        self.write_inode_and_dir(&mut c, &mut write_superblock)?;
+
+        info!("Writing Fragment Lookup Table");
+        self.write_fragment_table(&mut c, &mut write_superblock)?;
+
+        info!("Writing Export Lookup Table");
+        self.write_export_table(&mut c, &mut write_superblock)?;
+
+        info!("Writing Id Lookup Table");
+        self.write_id_table(&mut c, &mut write_superblock)?;
+
+        info!("Finalize");
+        self.finalize(&mut c, &mut write_superblock)?;
+
+        info!("Success");
         Ok(c.into_inner())
     }
 }

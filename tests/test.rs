@@ -623,21 +623,21 @@ fn test_09() {
     factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x225fd0);
 }
 
-//#[test]
-//fn test_10() {
-//    const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
-//
-//    let asset_defs = [TestAssetDef {
-//        filename: FILE_NAME.to_string(),
-//        hash: "9608a6cb558f1a4aa9659257f7c0b401f94343d10ec6e964fc4a452b4f91bea4".to_string(),
-//        url: format!(
-//            "https://downloads.openwrt.org/releases/22.03.2/targets/ipq40xx/generic/{FILE_NAME}"
-//        ),
-//    }];
-//
-//    const TEST_PATH: &str = "test-assets/test_10";
-//    factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080);
-//}
+#[test]
+fn test_10() {
+    const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
+
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "9608a6cb558f1a4aa9659257f7c0b401f94343d10ec6e964fc4a452b4f91bea4".to_string(),
+        url: format!(
+            "https://downloads.openwrt.org/releases/22.03.2/targets/ipq40xx/generic/{FILE_NAME}"
+        ),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_10";
+    factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080);
+}
 
 #[test]
 fn test_11() {

@@ -1,15 +1,40 @@
-// TODO: add test for symlink
-// TODO: add test for empty dir
-
 use std::fs::{self, File};
 use std::path::Path;
+use std::process::Command;
 
+use assert_cmd::prelude::*;
 use squashfs_deku::compressor::{CompressionOptions, Gzip};
 use squashfs_deku::squashfs::{Id, Node, SquashfsFile};
 use squashfs_deku::Squashfs;
+use tempfile::tempdir;
 use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
+
+fn test_unsquashfs(num: &str) {
+    let control_dir = tempdir().unwrap();
+    Command::new("unsquashfs")
+        .args([
+            "-d",
+            control_dir.path().to_str().unwrap(),
+            &format!("test-assets/test_{num}/out.squashfs"),
+        ])
+        .assert()
+        .code(&[0] as &[i32]);
+
+    let new_dir = tempdir().unwrap();
+    Command::new("unsquashfs")
+        .args([
+            "-d",
+            new_dir.path().to_str().unwrap(),
+            &format!("test-assets/test_{num}/bytes.squashfs"),
+        ])
+        .assert()
+        .code(&[0] as &[i32]);
+
+    let d = dir_diff::is_different(control_dir.path(), new_dir.path());
+    assert!(!d.unwrap());
+}
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
 #[test]
@@ -62,6 +87,8 @@ fn test_00() {
     let (new_path, new_file_bytes) = new_squashfs.extract_file("squashfs-deku").unwrap();
     assert_eq!(path, new_path);
     assert_eq!(file_bytes, new_file_bytes);
+
+    test_unsquashfs("00");
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
@@ -116,6 +143,8 @@ fn test_01() {
     let (new_path, new_file_bytes) = new_squashfs.extract_file("squashfs-deku").unwrap();
     assert_eq!(path, new_path);
     assert_eq!(file_bytes, new_file_bytes);
+
+    test_unsquashfs("01");
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
@@ -170,6 +199,8 @@ fn test_02() {
     let (new_path, new_file_bytes) = new_squashfs.extract_file("squashfs-deku").unwrap();
     assert_eq!(path, new_path);
     assert_eq!(file_bytes, new_file_bytes);
+
+    test_unsquashfs("02");
 }
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
@@ -238,6 +269,8 @@ fn test_03() {
     let (new_path, new_file_bytes_01) = new_squashfs.extract_file("Cargo.toml").unwrap();
     assert_eq!(path_01, new_path);
     assert_eq!(file_bytes_01, new_file_bytes_01);
+
+    test_unsquashfs("03");
 }
 
 #[test]
@@ -348,6 +381,8 @@ fn test_04() {
     let (new_path, new_file_bytes_04) = new_squashfs.extract_file("05").unwrap();
     assert_eq!(path_04, new_path);
     assert_eq!(file_bytes_04, new_file_bytes_04);
+
+    test_unsquashfs("04");
 }
 
 #[test]
@@ -401,6 +436,8 @@ fn test_05() {
     let (new_path, new_file_bytes_00) = new_squashfs.extract_file("d").unwrap();
     assert_eq!(path_00, new_path);
     assert_eq!(file_bytes_00, new_file_bytes_00);
+
+    test_unsquashfs("05");
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
@@ -448,6 +485,8 @@ fn test_06() {
     let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
     assert_eq!(path_00, new_path);
     assert_eq!(file_bytes_00, new_file_bytes_00);
+
+    test_unsquashfs("06");
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
@@ -495,6 +534,8 @@ fn test_07() {
     let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
     assert_eq!(path_00, new_path);
     assert_eq!(file_bytes_00, new_file_bytes_00);
+
+    test_unsquashfs("07");
 }
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
@@ -542,6 +583,8 @@ fn test_08() {
     let (new_path, new_file_bytes_00) = new_squashfs.extract_file("squashfs-deku").unwrap();
     assert_eq!(path_00, new_path);
     assert_eq!(file_bytes_00, new_file_bytes_00);
+
+    test_unsquashfs("08");
 }
 
 fn factory_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offset: u64) {

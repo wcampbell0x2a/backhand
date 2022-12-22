@@ -3,6 +3,7 @@
 use deku::prelude::*;
 
 use crate::dir::DirectoryIndex;
+use crate::squashfs::FilesystemHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "block_size: u32, block_log: u16")]
@@ -64,6 +65,18 @@ pub struct InodeHeader {
     pub(crate) gid: u16,
     pub(crate) mtime: u32,
     pub(crate) inode_number: u32,
+}
+
+impl From<FilesystemHeader> for InodeHeader {
+    fn from(fs_header: FilesystemHeader) -> Self {
+        Self {
+            permissions: fs_header.permissions,
+            uid: fs_header.uid,
+            gid: fs_header.gid,
+            mtime: fs_header.mtime,
+            inode_number: 0,
+        }
+    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

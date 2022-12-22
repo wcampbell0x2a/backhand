@@ -194,7 +194,6 @@ pub enum Node {
     Path(SquashfsPath),
 }
 
-// TODO: We need our own header, without inode_number
 #[derive(PartialEq, Eq, Clone)]
 pub struct SquashfsFile {
     pub header: FilesystemHeader,
@@ -214,7 +213,6 @@ impl fmt::Debug for SquashfsFile {
     }
 }
 
-// TODO: We need our own header, without inode_number
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsSymlink {
     pub header: FilesystemHeader,
@@ -223,7 +221,6 @@ pub struct SquashfsSymlink {
     pub link: String,
 }
 
-// TODO: We need our own header, without inode_number
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsPath {
     pub header: FilesystemHeader,

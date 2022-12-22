@@ -333,11 +333,8 @@ impl Filesystem {
                         let dir_inode = Inode {
                             id: 0x1,
                             header: InodeHeader {
-                                permissions: 0x1ed,
-                                uid: 0x0,
-                                gid: 0x0,
-                                mtime: 0x634761bb,
                                 inode_number: *inode,
+                                ..path.header.into()
                             },
                             inner: InodeInner::BasicDirectory(BasicDirectory {
                                 block_index,
@@ -379,11 +376,8 @@ impl Filesystem {
                         let file_inode = Inode {
                             id: 0x2,
                             header: InodeHeader {
-                                permissions: 0x1ed,
-                                uid: 0x0,
-                                gid: 0x0,
-                                mtime: 0x634761bb,
                                 inode_number: *inode,
+                                ..file.header.into()
                             },
                             inner: InodeInner::BasicFile(BasicFile {
                                 blocks_start: blocks_start + data_start,
@@ -420,11 +414,8 @@ impl Filesystem {
                         let sym_inode = Inode {
                             id: 0x3,
                             header: InodeHeader {
-                                permissions: 0x1ff,
-                                uid: 0x0,
-                                gid: 0x0,
-                                mtime: 0x63882134,
                                 inode_number: *inode,
+                                ..symlink.header.into()
                             },
                             inner: InodeInner::BasicSymlink(BasicSymlink {
                                 link_count: 0x1,

@@ -10,6 +10,7 @@ use tracing::{debug, info, instrument, trace};
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
+use crate::filesystem::{Filesystem, Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
 use crate::fragment::Fragment;
 use crate::inode::{BasicDirectory, BasicFile, Inode, InodeInner};
 use crate::metadata;
@@ -18,19 +19,18 @@ use crate::reader::{ReadSeek, SquashfsReader};
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-pub struct Export(u64);
+pub struct Export(pub u64);
 
 /// 32 bit user and group IDs
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
-pub struct Id(u32);
+pub struct Id(pub u32);
 
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 pub struct SuperBlock {
-    // Superblock
-    #[deku(assert_eq = "0x73717368")]
+    #[deku(assert_eq = "Self::MAGIC")]
     pub magic: u32,
     pub inode_count: u32,
     pub mod_time: u32,
@@ -57,6 +57,37 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
+    const MAGIC: u32 = 0x73717368;
+    const BLOCK_SIZE: u32 = 0x20000;
+    const BLOCK_LOG: u16 = 0x11;
+    const VERSION_MAJ: u16 = 4;
+    const VERSION_MIN: u16 = 0;
+    const NOT_SET: u64 = 0xffffffffffffffff;
+
+    pub fn new(compressor: Compressor) -> Self {
+        Self {
+            magic: Self::MAGIC,
+            inode_count: 0,
+            mod_time: 0,
+            block_size: Self::BLOCK_SIZE, // use const
+            frag_count: 0,
+            compressor,
+            block_log: Self::BLOCK_LOG,
+            flags: 0,
+            id_count: 0,
+            version_major: Self::VERSION_MAJ,
+            version_minor: Self::VERSION_MIN,
+            root_inode: 0,
+            bytes_used: 0,
+            id_table: 0,
+            xattr_table: Self::NOT_SET,
+            inode_table: 0,
+            dir_table: 0,
+            frag_table: Self::NOT_SET,
+            export_table: Self::NOT_SET,
+        }
+    }
+
     // Extract size of optional compression options
     pub fn compression_options_size(&self) -> Option<usize> {
         if self.compressor_options_are_present() {
@@ -131,14 +162,6 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Unsquashfs {
-    File((PathBuf, Vec<u8>)),
-    /// (FilePath, original, link)
-    Symlink((PathBuf, String, String)),
-    Path(PathBuf),
-}
-
 /// Container for a Squashfs Image stored in memory
 pub struct Squashfs {
     pub superblock: SuperBlock,
@@ -185,7 +208,7 @@ impl Squashfs {
 
         // Parse SuperBlock
         let (_, superblock) = SuperBlock::from_bytes((&superblock, 0))?;
-        trace!("{superblock:#08x?}");
+        info!("{superblock:#08x?}");
 
         // Parse Compression Options, if any
         info!("Reading Compression options");
@@ -225,18 +248,43 @@ impl Squashfs {
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Data and Fragments");
         let data_and_fragments = squashfs_reader.data_and_fragments(&superblock)?;
+
         info!("Reading Inodes");
         let inodes = squashfs_reader.inodes(&superblock)?;
+
         info!("Reading Root Inode");
         let root_inode = squashfs_reader.root_inode(&superblock)?;
-        info!("Reading Dirs");
-        let dir_blocks = squashfs_reader.dir_blocks(&superblock, &inodes)?;
+
         info!("Reading Fragments");
-        let fragments = squashfs_reader.fragments(&superblock)?;
+        let fragments = squashfs_reader.fragments(&superblock).unwrap();
+        let fragment_ptr = fragments.clone().map(|a| a.0);
+        let fragment_table = fragments.map(|a| a.1);
+
         info!("Reading Exports");
         let export = squashfs_reader.export(&superblock)?;
+        let export_ptr = export.clone().map(|a| a.0);
+        let export_table = export.map(|a| a.1);
+
         info!("Reading Ids");
         let id = squashfs_reader.id(&superblock)?;
+        let id_ptr = id.clone().map(|a| a.0);
+        let id_table = id.map(|a| a.1);
+
+        let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
+            trace!("using fragment for end of dir");
+            fragment_ptr
+        } else if let Some(export_ptr) = export_ptr {
+            trace!("using export for end of dir");
+            export_ptr
+        } else if let Some(id_ptr) = id_ptr {
+            trace!("using id for end of dir");
+            id_ptr
+        } else {
+            unreachable!();
+        };
+
+        info!("Reading Dirs");
+        let dir_blocks = squashfs_reader.dir_blocks(&superblock, last_dir_position)?;
 
         let squashfs = Squashfs {
             superblock,
@@ -245,9 +293,9 @@ impl Squashfs {
             inodes,
             root_inode,
             dir_blocks,
-            fragments,
-            export,
-            id,
+            fragments: fragment_table,
+            export: export_table,
+            id: id_table,
         };
 
         info!("Successful Read");
@@ -272,8 +320,8 @@ impl Squashfs {
         Ok(dirs)
     }
 
-    /// From a `block_index`, grab the bytes from that index and next and return the Dirs at that
-    /// `block_offset`
+    ///
+    ///
     ///
     /// # Returns
     /// - `Ok(Some(Vec<Dir>))` when found dir
@@ -285,22 +333,27 @@ impl Squashfs {
         file_size: u32,
         block_offset: usize,
     ) -> Result<Option<Vec<Dir>>, SquashfsError> {
-        trace!("block_index: {block_index:02x?}, file_size: {file_size:02x?}, block_offset: {block_offset:02x?}");
+        trace!("- block index : {:02x?}", block_index);
+        trace!("- file_size   : {:02x?}", file_size);
+        trace!("- block offset: {:02x?}", block_offset);
         if file_size < 4 {
             return Ok(None);
         }
-        // TODO(perf): we don't really need to grab the whole next block
-        //
-        // For now, we grab the next block since that might contain the rest of the metadata
-        for b in &self.dir_blocks {
-            trace!("{:02x?}", b.0);
-        }
-        let mut iter = self.dir_blocks.iter();
-        let mut block = iter.find(|a| a.0 == block_index).unwrap().1.clone();
-        if let Some((_, block_1)) = iter.next() {
-            block = [block, block_1.to_vec()].concat();
-        }
 
+        // ignore blocks before our block_index, grab all the rest of the bytes
+        // TODO: perf
+        let block: Vec<u8> = self
+            .dir_blocks
+            .iter()
+            .filter(|(a, _)| a >= &block_index)
+            .map(|(_, b)| b.clone())
+            .collect::<Vec<Vec<u8>>>()
+            .iter()
+            .flatten()
+            .copied()
+            .collect();
+
+        // Parse into Dirs
         let mut bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];
         while !bytes.is_empty() {
@@ -314,55 +367,74 @@ impl Squashfs {
 
     /// Extract all files(File/Symlink/Path) from image
     #[instrument(skip_all)]
-    pub fn extract_all_files(&self) -> Result<Vec<Unsquashfs>, SquashfsError> {
-        let mut ret = vec![];
+    pub fn into_filesystem(&self) -> Result<Filesystem, SquashfsError> {
+        let mut nodes = vec![];
         for inode in &self.inodes {
-            //trace!("inodes: {:02x?}", inode);
-            if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
-                if let Some(dirs) = self.dir_from_index(
-                    basic_dir.block_index as u64,
-                    basic_dir.file_size as u32,
-                    basic_dir.block_offset as usize,
-                )? {
-                    // add dirs found
-                    let mut paths = self.dir_paths(inode, &dirs)?;
-                    ret.append(&mut paths);
+            trace!("inodes: {:02x?}", inode);
+            match &inode.inner {
+                InodeInner::BasicDirectory(basic_dir) => {
+                    trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
+                    if let Some(dirs) = self.dir_from_index(
+                        basic_dir.block_index as u64,
+                        basic_dir.file_size as u32,
+                        basic_dir.block_offset as usize,
+                    )? {
+                        for d in &dirs {
+                            for e in &d.dir_entries {
+                                trace!("name: {:02x?}", e.name());
+                            }
+                        }
+                        // add dirs found
+                        let mut paths = self.dir_paths(inode, &dirs)?;
+                        nodes.append(&mut paths);
 
-                    // add files found
-                    let mut files = self.extract_files_from_dir(dirs, inode)?;
-                    ret.append(&mut files);
-                }
-            }
-            if let InodeInner::ExtendedDirectory(ext_dir) = &inode.inner {
-                if let Some(dirs) = self.dir_from_index(
-                    ext_dir.block_index as u64,
-                    ext_dir.file_size,
-                    ext_dir.block_offset as usize,
-                )? {
-                    // add dirs found
-                    let mut paths = self.dir_paths(inode, &dirs)?;
-                    ret.append(&mut paths);
+                        // add files found
+                        let mut files = self.extract_files_from_dir(dirs, inode)?;
+                        nodes.append(&mut files);
+                    }
+                },
+                InodeInner::ExtendedDirectory(ext_dir) => {
+                    trace!("EXT_DIR: {:#02x?}", ext_dir);
+                    if let Some(dirs) = self.dir_from_index(
+                        ext_dir.block_index as u64,
+                        ext_dir.file_size,
+                        ext_dir.block_offset as usize,
+                    )? {
+                        for d in &dirs {
+                            for e in &d.dir_entries {
+                                trace!("name: {:02x?}", e.name());
+                            }
+                        }
+                        // add dirs found
+                        let mut paths = self.dir_paths(inode, &dirs)?;
+                        nodes.append(&mut paths);
 
-                    // add files found
-                    let mut files = self.extract_files_from_dir(dirs, inode)?;
-                    ret.append(&mut files);
-                }
+                        // add files found
+                        let mut files = self.extract_files_from_dir(dirs, inode)?;
+                        nodes.append(&mut files);
+                    }
+                },
+                _ => (),
             }
         }
 
-        Ok(ret)
+        let filesystem = Filesystem { nodes };
+        Ok(filesystem)
     }
 
     /// From `inode` and it's `dirs`, extract all directories
     #[instrument(skip_all)]
-    fn dir_paths(&self, inode: &Inode, dirs: &Vec<Dir>) -> Result<Vec<Unsquashfs>, SquashfsError> {
+    fn dir_paths(&self, inode: &Inode, dirs: &Vec<Dir>) -> Result<Vec<Node>, SquashfsError> {
         let mut ret = vec![];
         for dir in dirs {
             for entry in &dir.dir_entries {
                 // TODO use enum
                 if entry.t == 1 {
-                    let dir = self.path(inode, entry)?;
-                    ret.push(Unsquashfs::Path(dir));
+                    let path = self.path(inode, entry)?;
+                    ret.push(Node::Path(SquashfsPath {
+                        header: inode.header.into(),
+                        path,
+                    }));
                 }
             }
         }
@@ -375,20 +447,34 @@ impl Squashfs {
         &self,
         dirs: Vec<Dir>,
         inode: &Inode,
-    ) -> Result<Vec<Unsquashfs>, SquashfsError> {
+    ) -> Result<Vec<Node>, SquashfsError> {
         let mut ret = vec![];
         for dir in &dirs {
             for entry in &dir.dir_entries {
                 // TODO: use type enum
                 // file
                 if entry.t == 2 {
-                    let file = Unsquashfs::File(self.file(inode, dir.inode_num, entry)?);
+                    // TODO: self.symlink should give the inode.header
+                    trace!("before_file: {:#02x?}", entry);
+                    let (path, bytes) = self.file(inode, dir.inode_num, entry)?;
+                    let file = Node::File(SquashfsFile {
+                        header: inode.header.into(),
+                        path,
+                        bytes,
+                    });
                     ret.push(file);
                 }
                 // TODO: use type enum
                 // soft link
                 if entry.t == 3 {
-                    let symlink = Unsquashfs::Symlink(self.symlink(inode, dir.inode_num, entry)?);
+                    // TODO: self.symlink should give the inode.header
+                    let (path, original, link) = self.symlink(inode, dir.inode_num, entry)?;
+                    let symlink = Node::Symlink(SquashfsSymlink {
+                        header: inode.header.into(),
+                        path,
+                        original,
+                        link,
+                    });
                     ret.push(symlink);
                 }
             }
@@ -407,49 +493,52 @@ impl Squashfs {
         // searching for first file name that matches
         for inode in &self.inodes {
             //trace!("inodes: {:02x?}", inode);
-            if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
-                if let Some(dirs) = self.dir_from_index(
-                    basic_dir.block_index as u64,
-                    basic_dir.file_size as u32,
-                    basic_dir.block_offset as usize,
-                )? {
-                    for dir in dirs {
-                        trace!("Searching following Dir for filename({name}): {dir:#02x?}");
-                        for entry in &dir.dir_entries {
-                            // TODO: use type enum
-                            if entry.t == 2 {
-                                let entry_name = std::str::from_utf8(&entry.name)?;
-                                debug!(entry_name);
-                                if name == entry_name {
-                                    let file = self.file(inode, dir.inode_num, entry)?;
-                                    return Ok(file);
+            match &inode.inner {
+                InodeInner::BasicDirectory(basic_dir) => {
+                    if let Some(dirs) = self.dir_from_index(
+                        basic_dir.block_index as u64,
+                        basic_dir.file_size as u32,
+                        basic_dir.block_offset as usize,
+                    )? {
+                        for dir in dirs {
+                            trace!("Searching following Dir for filename({name}): {dir:#02x?}");
+                            for entry in &dir.dir_entries {
+                                // TODO: use type enum
+                                if entry.t == 2 {
+                                    let entry_name = std::str::from_utf8(&entry.name)?;
+                                    debug!(entry_name);
+                                    if name == entry_name {
+                                        let file = self.file(inode, dir.inode_num, entry)?;
+                                        return Ok(file);
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            }
-            if let InodeInner::ExtendedDirectory(ex_dir) = &inode.inner {
-                if let Some(dirs) = self.dir_from_index(
-                    ex_dir.block_index as u64,
-                    ex_dir.file_size,
-                    ex_dir.block_offset as usize,
-                )? {
-                    for dir in dirs {
-                        trace!("Searching following Dir for filename({name}): {dir:#02x?}");
-                        for entry in &dir.dir_entries {
-                            // TODO: use type enum
-                            if entry.t == 2 {
-                                let entry_name = std::str::from_utf8(&entry.name)?;
-                                debug!(entry_name);
-                                if name == entry_name {
-                                    let file = self.file(inode, dir.inode_num, entry)?;
-                                    return Ok(file);
+                },
+                InodeInner::ExtendedDirectory(ex_dir) => {
+                    if let Some(dirs) = self.dir_from_index(
+                        ex_dir.block_index as u64,
+                        ex_dir.file_size,
+                        ex_dir.block_offset as usize,
+                    )? {
+                        for dir in dirs {
+                            trace!("Searching following Dir for filename({name}): {dir:#02x?}");
+                            for entry in &dir.dir_entries {
+                                // TODO: use type enum
+                                if entry.t == 2 {
+                                    let entry_name = std::str::from_utf8(&entry.name)?;
+                                    debug!(entry_name);
+                                    if name == entry_name {
+                                        let file = self.file(inode, dir.inode_num, entry)?;
+                                        return Ok(file);
+                                    }
                                 }
                             }
                         }
                     }
-                }
+                },
+                _ => (),
             }
         }
         Err(SquashfsError::FileNotFound)
@@ -461,7 +550,7 @@ impl Squashfs {
         debug!("extracting: {:#02x?}", basic_file);
 
         // Add data
-        info!("extracting data @ offset {:02x?}", basic_file.blocks_start);
+        trace!("extracting data @ offset {:02x?}", basic_file.blocks_start);
         let mut reader = Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
         let mut data_bytes = vec![];
         for block_size in &basic_file.block_sizes {
@@ -479,6 +568,7 @@ impl Squashfs {
                 trace!("Extracting frag: {:02x?}", frag);
                 let mut reader = Cursor::new(&self.data_and_fragments[frag.start as usize..]);
                 let mut bytes = self.read_data(&mut reader, frag.size as usize)?;
+                trace!("uncompressed size: {:02x?}", bytes.len());
                 data_bytes.append(&mut bytes);
             }
         }
@@ -533,51 +623,58 @@ impl Squashfs {
         Err(SquashfsError::FileNotFound)
     }
 
+    #[instrument(skip_all)]
     fn path(&self, found_inode: &Inode, found_entry: &DirEntry) -> Result<PathBuf, SquashfsError> {
         //  TODO: remove
         let entry_name = std::str::from_utf8(&found_entry.name)?;
-        trace!("extracting: {entry_name}");
+        trace!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!extracting: {entry_name}");
+        trace!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!extracting: found_inode: {found_inode:#02x?}\nfound_entry: {found_entry:#02x?}");
         let dir_inode = found_inode.expect_dir();
         let dir_inode_num = found_inode.header.inode_number;
         // Used for searching for the file later when we want to extract the bytes
 
         let root_inode = self.root_inode.header.inode_number;
-        debug!("searching for dir path to root inode: {:#02x?}", root_inode);
+        debug!(
+            "!!! searching for dir path to root inode: {:#02x?}",
+            root_inode
+        );
 
         let mut path_inodes = vec![];
         // first check if the dir inode of this file is the root inode
+        trace!("inode: {dir_inode_num} ?? root: {root_inode}");
         if dir_inode_num != root_inode {
+            trace!("{dir_inode_num} != root inode");
             // check every inode and find the matching inode to the current dir_nodes parent
             // inode, when we find a new inode, check if it's the root inode, and continue on if it
             // isn't
             let mut next_inode = dir_inode.parent_inode;
+            trace!("parent: {next_inode:02x?}");
             'outer: loop {
                 for inode in &self.inodes {
-                    if let InodeInner::BasicDirectory(basic_dir) = &inode.inner {
-                        if inode.header.inode_number == next_inode {
-                            path_inodes.push((basic_dir.clone(), inode.header.inode_number));
-                            if inode.header.inode_number == root_inode {
-                                break 'outer;
+                    match &inode.inner {
+                        InodeInner::BasicDirectory(basic_dir) => {
+                            if inode.header.inode_number == next_inode {
+                                path_inodes.push((basic_dir.clone(), inode.header.inode_number));
+                                if inode.header.inode_number == root_inode {
+                                    break 'outer;
+                                }
+                                next_inode = basic_dir.parent_inode;
                             }
-                            next_inode = basic_dir.parent_inode;
-                        }
-                    }
-                    if let InodeInner::ExtendedDirectory(ext_dir) = &inode.inner {
-                        tracing::warn!("CONVERSION: {:02x?}", ext_dir);
-                        for a in &ext_dir.dir_index {
-                            let name = String::from_utf8(a.name.clone()).unwrap();
-                            tracing::warn!("{name}");
-                        }
-                        if inode.header.inode_number == next_inode {
-                            path_inodes.push((
-                                BasicDirectory::from(ext_dir).clone(),
-                                inode.header.inode_number,
-                            ));
-                            if inode.header.inode_number == root_inode {
-                                break 'outer;
+                        },
+                        InodeInner::ExtendedDirectory(ext_dir) => {
+                            tracing::trace!("CONVERSION: {:02x?}", ext_dir);
+                            if inode.header.inode_number == next_inode {
+                                path_inodes.push((
+                                    BasicDirectory::from(ext_dir).clone(),
+                                    inode.header.inode_number,
+                                ));
+                                if inode.header.inode_number == root_inode {
+                                    break 'outer;
+                                }
+                                next_inode = ext_dir.parent_inode;
                             }
-                            next_inode = ext_dir.parent_inode;
-                        }
+                        },
+                        _ => (),
                     }
                 }
             }
@@ -610,13 +707,19 @@ impl Squashfs {
 
                     for entry in &dir.dir_entries {
                         let entry_name = String::from_utf8(entry.name.clone())?;
-                        trace!("entry: {entry_name}");
+                        trace!(
+                            "entry: {entry_name}, {:02x} ?== {:02x}",
+                            base_inode as i16 + entry.inode_offset,
+                            search_inode as i16
+                        );
                         if base_inode as i16 + entry.inode_offset == search_inode as i16 {
+                            trace!("match");
                             paths.push(entry_name);
                             break;
                         }
                     }
                 }
+            } else {
             }
         }
 
@@ -643,6 +746,7 @@ impl Squashfs {
         found_entry: &DirEntry,
     ) -> Result<(PathBuf, Vec<u8>), SquashfsError> {
         let pathbuf = self.path(found_inode, found_entry)?;
+        trace!("{:?}", pathbuf.display());
 
         // look through basic file inodes in search of the one true basic_inode and extract the
         // bytes from the data and fragment sections
@@ -650,14 +754,16 @@ impl Squashfs {
         trace!("looking for inode: {:02x?}", looking_inode);
         for inode in &self.inodes {
             if inode.header.inode_number == looking_inode as u32 {
-                if let InodeInner::BasicFile(basic_file) = &inode.inner {
-                    return Ok((pathbuf, self.data(basic_file)?));
+                match &inode.inner {
+                    InodeInner::BasicFile(basic_file) => {
+                        return Ok((pathbuf, self.data(basic_file)?));
+                    },
+                    InodeInner::ExtendedFile(ext_file) => {
+                        let basic_file = BasicFile::from(ext_file);
+                        return Ok((pathbuf, self.data(&basic_file)?));
+                    },
+                    _ => panic!(),
                 }
-                if let InodeInner::ExtendedFile(ext_file) = &inode.inner {
-                    let basic_file = BasicFile::from(ext_file);
-                    return Ok((pathbuf, self.data(&basic_file)?));
-                }
-                // TODO: maybe asser that the two previous entries are the only type?
             }
         }
 

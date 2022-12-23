@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use squashfs_deku::squashfs::Unsquashfs;
+use squashfs_deku::filesystem::{Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
 use squashfs_deku::Squashfs;
 
 #[derive(Parser, Debug)]
@@ -78,16 +78,20 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
     let file = File::open(input).unwrap();
     let squashfs = Squashfs::from_reader_with_offset(file, offset).unwrap();
     tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);
-    tracing::debug!("Inodes: {:#02x?}", squashfs.inodes);
-    tracing::debug!("Dir Blocks: {:#02x?}", squashfs.dir_blocks);
-    tracing::debug!("Root inode: {:#02x?}", squashfs.root_inode);
-    tracing::debug!("Fragments {:#02x?}", squashfs.fragments);
+    tracing::info!("Inodes: {:#02x?}", squashfs.inodes);
+    tracing::info!("Dirs: {:#02x?}", squashfs.all_dirs());
+    tracing::info!("Id: {:#02x?}", squashfs.id);
+    tracing::info!("Root inode: {:#02x?}", squashfs.root_inode);
+    tracing::info!("Fragments {:#02x?}", squashfs.fragments);
 
     fs::create_dir_all(output).unwrap();
-    for unsquashfs_file in squashfs.extract_all_files().unwrap() {
-        match unsquashfs_file {
-            Unsquashfs::File((filepath, bytes)) => {
-                let filepath = Path::new(output).join(filepath);
+    let filesystem = squashfs.into_filesystem().unwrap();
+
+    for node in filesystem.nodes {
+        match node {
+            Node::File(SquashfsFile { path, bytes, .. }) => {
+                tracing::debug!("file {}", path.display());
+                let filepath = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(filepath.parent().unwrap());
                 match std::fs::write(&filepath, bytes) {
                     Ok(_) => println!("[-] success, wrote {}", filepath.display()),
@@ -96,8 +100,9 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     },
                 }
             },
-            Unsquashfs::Symlink((filepath, _, link)) => {
-                let filepath = Path::new(output).join(filepath);
+            Node::Symlink(SquashfsSymlink { path, link, .. }) => {
+                tracing::debug!("symlink {} {}", path.display(), link);
+                let filepath = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(filepath.parent().unwrap());
                 if std::os::unix::fs::symlink(&link, &filepath).is_ok() {
                     println!("[-] success, wrote {}->{link}", filepath.display());
@@ -105,7 +110,8 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     println!("[!] failed write: {}->{link}", filepath.display());
                 }
             },
-            Unsquashfs::Path(path) => {
+            Node::Path(SquashfsPath { path, .. }) => {
+                tracing::debug!("path {}", path.display());
                 let path = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(&path);
                 println!("[-] success, wrote {}", &path.display());

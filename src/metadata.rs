@@ -1,14 +1,101 @@
-use std::io::Read;
+use std::io::{self, Read, Write};
 
-use tracing::instrument;
+use tracing::{instrument, trace};
 
-use crate::compressor;
+use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
 use crate::squashfs::SuperBlock;
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
+
+// TODO: add the option of not compressing entires
+// TODO: add docs
+#[derive(Debug)]
+pub(crate) struct MetadataWriter {
+    compressor: Compressor,
+    compression_options: Option<CompressionOptions>,
+    /// Offset from the beginning of the metadata block last written
+    pub(crate) metadata_start: u32,
+    // All current bytes that are uncompressed
+    pub(crate) uncompressed_bytes: Vec<u8>,
+    // All current bytes that are compressed
+    pub(crate) compressed_bytes: Vec<Vec<u8>>,
+}
+
+impl MetadataWriter {
+    #[instrument(skip_all)]
+    pub fn new(compressor: Compressor, compression_options: Option<CompressionOptions>) -> Self {
+        Self {
+            compressor,
+            compression_options,
+            metadata_start: 0,
+            uncompressed_bytes: vec![],
+            compressed_bytes: vec![],
+        }
+    }
+
+    // TODO: add docs
+    #[instrument(skip_all)]
+    pub fn finalize(&mut self) -> Vec<u8> {
+        let mut out = vec![];
+        for cb in &self.compressed_bytes {
+            trace!("len: {:02x?}", cb.len());
+            trace!("total: {:02x?}", out.len());
+            out.write_all(&(cb.len() as u16).to_le_bytes()).unwrap();
+            out.write_all(cb).unwrap();
+        }
+
+        let b = compressor::compress(
+            self.uncompressed_bytes.clone(),
+            self.compressor,
+            &self.compression_options,
+        )
+        .unwrap();
+
+        trace!("len: {:02x?}", b.len());
+        trace!("total: {:02x?}", out.len());
+        out.write_all(&(b.len() as u16).to_le_bytes()).unwrap();
+        out.write_all(&b).unwrap();
+
+        out
+    }
+}
+
+impl Write for MetadataWriter {
+    // TODO: add docs
+    #[instrument(skip_all)]
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // add all of buf into uncompressed
+        self.uncompressed_bytes.write_all(buf)?;
+
+        while self.uncompressed_bytes.len() >= METADATA_MAXSIZE {
+            trace!("time to compress");
+            // "Write" the to the saved metablock
+            let b = compressor::compress(
+                // TODO use split_at?
+                self.uncompressed_bytes[..METADATA_MAXSIZE].to_vec(),
+                self.compressor,
+                &self.compression_options,
+            )
+            .unwrap();
+
+            // Metadata len + bytes + last metadata_start
+            self.metadata_start += 2 + b.len() as u32;
+            trace!("new metadata start: {:#02x?}", self.metadata_start);
+            self.uncompressed_bytes = self.uncompressed_bytes[METADATA_MAXSIZE..].to_vec();
+            self.compressed_bytes.push(b);
+        }
+        trace!("LEN: {:02x?}", self.uncompressed_bytes.len());
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
 
 #[instrument(skip_all)]
 pub fn read_block<R: Read>(

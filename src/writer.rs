@@ -9,140 +9,13 @@ use deku::{DekuContainerWrite, DekuWrite};
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, compress, CompressionOptions, Compressor};
+use crate::data::DataWriter;
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::inode::{BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeInner};
-use crate::metadata;
-use crate::metadata::METADATA_MAXSIZE;
+use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::squashfs::{Filesystem, Id, Node, SuperBlock};
 use crate::tree::TreeNode;
-
-#[derive(Debug)]
-struct DataWriter {
-    compressor: Compressor,
-    compression_options: Option<CompressionOptions>,
-    pub(crate) data_bytes: Vec<u8>,
-}
-
-impl DataWriter {
-    #[instrument(skip_all)]
-    pub fn new(compressor: Compressor, compression_options: Option<CompressionOptions>) -> Self {
-        Self {
-            compressor,
-            compression_options,
-            data_bytes: vec![],
-        }
-    }
-
-    // TODO: support fragments
-    pub(crate) fn add_bytes(&mut self, bytes: &[u8]) -> (u32, Vec<u32>) {
-        // TODO: use const
-        let chunks = bytes.chunks(0x20000);
-
-        // only have one chunk, use fragment
-        //if chunks.len() == 1 {
-        //    todo!();
-        //    self.fragment_bytes.append(&mut chunks[0].to_vec());
-        //}
-
-        let blocks_start = self.data_bytes.len();
-        let mut block_sizes = vec![];
-        for chunk in chunks {
-            let cb = compress(chunk.to_vec(), self.compressor, &self.compression_options).unwrap();
-            block_sizes.push(cb.len() as u32);
-            self.data_bytes.write_all(&cb).unwrap();
-        }
-
-        (blocks_start as u32, block_sizes)
-    }
-}
-
-// TODO: add the option of not compressing entires
-// TODO: add docs
-#[derive(Debug)]
-struct MetadataWriter {
-    compressor: Compressor,
-    compression_options: Option<CompressionOptions>,
-    /// Offset from the beginning of the metadata block last written
-    pub(crate) metadata_start: u32,
-    // All current bytes that are uncompressed
-    pub(crate) uncompressed_bytes: Vec<u8>,
-    // All current bytes that are compressed
-    pub(crate) compressed_bytes: Vec<Vec<u8>>,
-}
-
-impl MetadataWriter {
-    #[instrument(skip_all)]
-    pub fn new(compressor: Compressor, compression_options: Option<CompressionOptions>) -> Self {
-        Self {
-            compressor,
-            compression_options,
-            metadata_start: 0,
-            uncompressed_bytes: vec![],
-            compressed_bytes: vec![],
-        }
-    }
-
-    // TODO: add docs
-    #[instrument(skip_all)]
-    pub fn finalize(&mut self) -> Vec<u8> {
-        let mut out = vec![];
-        for cb in &self.compressed_bytes {
-            trace!("len: {:02x?}", cb.len());
-            trace!("total: {:02x?}", out.len());
-            out.write_all(&(cb.len() as u16).to_le_bytes()).unwrap();
-            out.write_all(cb).unwrap();
-        }
-
-        let b = compressor::compress(
-            self.uncompressed_bytes.clone(),
-            self.compressor,
-            &self.compression_options,
-        )
-        .unwrap();
-
-        trace!("len: {:02x?}", b.len());
-        trace!("total: {:02x?}", out.len());
-        out.write_all(&(b.len() as u16).to_le_bytes()).unwrap();
-        out.write_all(&b).unwrap();
-
-        out
-    }
-}
-
-impl Write for MetadataWriter {
-    // TODO: add docs
-    #[instrument(skip_all)]
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        // add all of buf into uncompressed
-        self.uncompressed_bytes.write_all(buf)?;
-
-        while self.uncompressed_bytes.len() >= METADATA_MAXSIZE {
-            trace!("time to compress");
-            // "Write" the to the saved metablock
-            let b = compressor::compress(
-                // TODO use split_at?
-                self.uncompressed_bytes[..METADATA_MAXSIZE].to_vec(),
-                self.compressor,
-                &self.compression_options,
-            )
-            .unwrap();
-
-            // Metadata len + bytes + last metadata_start
-            self.metadata_start += 2 + b.len() as u32;
-            trace!("new metadata start: {:#02x?}", self.metadata_start);
-            self.uncompressed_bytes = self.uncompressed_bytes[METADATA_MAXSIZE..].to_vec();
-            self.compressed_bytes.push(b);
-        }
-        trace!("LEN: {:02x?}", self.uncompressed_bytes.len());
-
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
 
 #[derive(Clone)]
 pub struct Entry {
@@ -265,6 +138,11 @@ impl Entry {
 }
 
 impl Filesystem {
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     #[instrument(skip_all)]
     fn write_node(
         tree: &TreeNode,

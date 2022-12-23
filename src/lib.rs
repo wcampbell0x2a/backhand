@@ -2,6 +2,7 @@
 //! Read and extract information from a Squashfs image
 
 pub mod compressor;
+mod data;
 pub mod dir;
 pub mod error;
 pub mod fragment;

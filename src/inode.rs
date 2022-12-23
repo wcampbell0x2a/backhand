@@ -3,7 +3,7 @@
 use deku::prelude::*;
 
 use crate::dir::DirectoryIndex;
-use crate::squashfs::FilesystemHeader;
+use crate::filesystem::FilesystemHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "block_size: u32, block_log: u16")]

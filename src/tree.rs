@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
-use crate::squashfs::{Filesystem, Node};
+use crate::filesystem::{Filesystem, Node};
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();

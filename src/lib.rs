@@ -5,6 +5,7 @@ pub mod compressor;
 mod data;
 pub mod dir;
 pub mod error;
+pub mod filesystem;
 pub mod fragment;
 pub mod inode;
 mod metadata;

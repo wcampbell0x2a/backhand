@@ -1,6 +1,5 @@
 //! [`Squashfs`], [`Id`], and [`Export`]
 
-use std::fmt;
 use std::io::{Cursor, Read, SeekFrom};
 use std::path::PathBuf;
 
@@ -11,8 +10,9 @@ use tracing::{debug, info, instrument, trace};
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
+use crate::filesystem::{Filesystem, Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
 use crate::fragment::Fragment;
-use crate::inode::{BasicDirectory, BasicFile, Inode, InodeHeader, InodeInner};
+use crate::inode::{BasicDirectory, BasicFile, Inode, InodeInner};
 use crate::metadata;
 use crate::reader::{ReadSeek, SquashfsReader};
 
@@ -160,71 +160,6 @@ pub enum Flags {
     XattrsAreStoredUncompressed = 0b0000_0001_0000_0000,
     NoXattrsInArchive           = 0b0000_0010_0000_0000,
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
-}
-
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
-pub struct FilesystemHeader {
-    pub permissions: u16,
-    pub uid: u16,
-    pub gid: u16,
-    pub mtime: u32,
-}
-
-impl From<InodeHeader> for FilesystemHeader {
-    fn from(inode_header: InodeHeader) -> Self {
-        Self {
-            permissions: inode_header.permissions,
-            uid: inode_header.uid,
-            gid: inode_header.gid,
-            mtime: inode_header.mtime,
-        }
-    }
-}
-
-/// In-memory representation of a Squashfs Image
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
-pub struct Filesystem {
-    pub nodes: Vec<Node>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Node {
-    File(SquashfsFile),
-    Symlink(SquashfsSymlink),
-    Path(SquashfsPath),
-}
-
-#[derive(PartialEq, Eq, Clone)]
-pub struct SquashfsFile {
-    pub header: FilesystemHeader,
-    pub path: PathBuf,
-    // TODO: Maybe hold a reference to a Reader? so that something could be written to disk and read from
-    // disk instead of loaded into memory
-    pub bytes: Vec<u8>,
-}
-
-impl fmt::Debug for SquashfsFile {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DirEntry")
-            .field("header", &self.header)
-            .field("path", &self.path)
-            .field("bytes", &self.bytes.len())
-            .finish()
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SquashfsSymlink {
-    pub header: FilesystemHeader,
-    pub path: PathBuf,
-    pub original: String,
-    pub link: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SquashfsPath {
-    pub header: FilesystemHeader,
-    pub path: PathBuf,
 }
 
 /// Container for a Squashfs Image stored in memory

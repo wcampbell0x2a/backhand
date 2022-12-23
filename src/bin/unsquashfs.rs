@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
-use squashfs_deku::squashfs::{Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
+use squashfs_deku::filesystem::{Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
 use squashfs_deku::Squashfs;
 
 #[derive(Parser, Debug)]

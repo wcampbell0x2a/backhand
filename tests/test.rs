@@ -4,7 +4,8 @@ use std::process::Command;
 
 use assert_cmd::prelude::*;
 use squashfs_deku::compressor::{CompressionOptions, Gzip};
-use squashfs_deku::squashfs::{Id, Node, SquashfsFile};
+use squashfs_deku::filesystem::{Node, SquashfsFile};
+use squashfs_deku::squashfs::Id;
 use squashfs_deku::Squashfs;
 use tempfile::tempdir;
 use test_assets::TestAssetDef;
@@ -614,7 +615,7 @@ fn factory_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, o
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
-    let new_filesystem = new_squashfs.into_filesystem().unwrap();
+    let _new_filesystem = new_squashfs.into_filesystem().unwrap();
 }
 
 #[test]
@@ -666,5 +667,5 @@ fn test_11() {
     fs::write("bytes.squashfs", &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
-    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
+    let _new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
 }

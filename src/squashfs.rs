@@ -430,9 +430,18 @@ impl Squashfs {
             for entry in &dir.dir_entries {
                 // TODO use enum
                 if entry.t == 1 {
+                    // find header of entry from inode
+                    let mut header = None;
+                    for inode in &self.inodes {
+                        if inode.header.inode_number == entry.inode_offset as u32 + dir.inode_num {
+                            header = Some(inode.header);
+                            break;
+                        }
+                    }
+
                     let path = self.path(inode, entry)?;
                     ret.push(Node::Path(SquashfsPath {
-                        header: inode.header.into(),
+                        header: header.unwrap().into(),
                         path,
                     }));
                 }
@@ -627,8 +636,8 @@ impl Squashfs {
     fn path(&self, found_inode: &Inode, found_entry: &DirEntry) -> Result<PathBuf, SquashfsError> {
         //  TODO: remove
         let entry_name = std::str::from_utf8(&found_entry.name)?;
-        trace!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!extracting: {entry_name}");
-        trace!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!extracting: found_inode: {found_inode:#02x?}\nfound_entry: {found_entry:#02x?}");
+        trace!("{entry_name}");
+        trace!("found_inode: {found_inode:#02x?}\nfound_entry: {found_entry:#02x?}");
         let dir_inode = found_inode.expect_dir();
         let dir_inode_num = found_inode.header.inode_number;
         // Used for searching for the file later when we want to extract the bytes

@@ -1,5 +1,5 @@
-use std::fs;
-use std::fs::File;
+use std::fs::{self, File, Permissions};
+use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
@@ -110,10 +110,12 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     println!("[!] failed write: {}->{link}", filepath.display());
                 }
             },
-            Node::Path(SquashfsPath { path, .. }) => {
+            Node::Path(SquashfsPath { header, path, .. }) => {
                 tracing::debug!("path {}", path.display());
-                let path = Path::new(output).join(path);
+                let path = Path::new(output).join(&path);
                 let _ = std::fs::create_dir_all(&path);
+                let perms = Permissions::from_mode(u32::from(header.permissions));
+                fs::set_permissions(&path, perms).unwrap();
                 println!("[-] success, wrote {}", &path.display());
             },
         }

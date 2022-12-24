@@ -1,10 +1,9 @@
-use std::path::PathBuf;
 use std::fs::File;
-
-use squashfs_deku::filesystem::{Node, SquashfsFile, FilesystemHeader};
-use squashfs_deku::Squashfs;
+use std::path::PathBuf;
 
 use clap::Parser;
+use squashfs_deku::filesystem::{FilesystemHeader, Node, SquashfsFile};
+use squashfs_deku::Squashfs;
 
 /// Binary to add file to squashfs filesystem
 #[derive(Parser, Debug)]

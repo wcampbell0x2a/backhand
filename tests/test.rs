@@ -12,16 +12,32 @@ use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
 
-fn test_unsquashfs(control: &str, new: &str) {
+fn test_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
     let control_dir = tempdir().unwrap();
     Command::new("unsquashfs")
-        .args(["-d", control_dir.path().to_str().unwrap(), control])
+        .args([
+            "-d",
+            control_dir.path().to_str().unwrap(),
+            "-o",
+            &control_offset.unwrap_or(0).to_string(),
+            // we don't run as root, avoid special file errors
+            "-ignore-errors",
+            "-no-exit-code",
+            control,
+        ])
         .assert()
         .code(&[0] as &[i32]);
 
     let new_dir = tempdir().unwrap();
     Command::new("unsquashfs")
-        .args(["-d", new_dir.path().to_str().unwrap(), new])
+        .args([
+            "-d",
+            new_dir.path().to_str().unwrap(),
+            // we don't run as root, avoid special file errors
+            "-ignore-errors",
+            "-no-exit-code",
+            new,
+        ])
         .assert()
         .code(&[0] as &[i32]);
 
@@ -83,7 +99,7 @@ fn test_00() {
     assert_eq!(path, new_pathbuf);
     assert_eq!(file_bytes, new_file_bytes);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
@@ -141,7 +157,7 @@ fn test_01() {
     assert_eq!(path, new_pathbuf);
     assert_eq!(file_bytes, new_file_bytes);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
@@ -199,7 +215,7 @@ fn test_02() {
     assert_eq!(path, new_pathbuf);
     assert_eq!(file_bytes, new_file_bytes);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
@@ -271,7 +287,7 @@ fn test_03() {
     assert_eq!(path_01, new_pathbuf);
     assert_eq!(file_bytes_01, new_file_bytes_01);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 #[test]
@@ -385,7 +401,7 @@ fn test_04() {
     assert_eq!(path_04, new_pathbuf);
     assert_eq!(file_bytes_04, new_file_bytes_04);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 #[test]
@@ -442,7 +458,7 @@ fn test_05() {
     assert_eq!(path_00, new_pathbuf);
     assert_eq!(file_bytes_00, new_file_bytes_00);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
@@ -493,7 +509,7 @@ fn test_06() {
     assert_eq!(path_00, new_pathbuf);
     assert_eq!(file_bytes_00, new_file_bytes_00);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
@@ -544,7 +560,7 @@ fn test_07() {
     assert_eq!(path_00, new_pathbuf);
     assert_eq!(file_bytes_00, new_file_bytes_00);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
@@ -595,13 +611,15 @@ fn test_08() {
     assert_eq!(path_00, new_pathbuf);
     assert_eq!(file_bytes_00, new_file_bytes_00);
 
-    test_unsquashfs(&og_path, &new_path);
+    test_unsquashfs(&og_path, &new_path, None);
 }
 
 fn factory_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offset: u64) {
     test_assets::download_test_files(assets_defs, test_path, true).unwrap();
 
-    let file = File::open(format!("{test_path}/{filepath}")).unwrap();
+    let og_path = format!("{test_path}/{filepath}");
+    let new_path = format!("{test_path}/bytes.squashfs");
+    let file = File::open(&og_path).unwrap();
     info!("{file:?}");
     let squashfs = Squashfs::from_reader_with_offset(file, offset).unwrap();
 
@@ -611,11 +629,13 @@ fn factory_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, o
     let bytes = og_filesystem
         .to_bytes(squashfs.superblock.compressor, id_table)
         .unwrap();
-    fs::write(format!("{test_path}/bytes.squashfs"), &bytes).unwrap();
+    fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
     let _new_filesystem = new_squashfs.into_filesystem().unwrap();
+
+    test_unsquashfs(&og_path, &new_path, Some(offset));
 }
 
 #[test]

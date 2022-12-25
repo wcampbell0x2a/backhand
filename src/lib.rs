@@ -12,6 +12,6 @@ mod metadata;
 mod reader;
 pub mod squashfs;
 mod tree;
-pub mod writer;
+mod writer;
 
 pub use crate::squashfs::Squashfs;

@@ -19,5 +19,5 @@ env_logger = "0.9.1"
 test-log = { version = "0.2.11", features = ["trace"] }
 test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "master" }
 assert_cmd = { version = "2.0.7", features = ["color", "color-auto"] }
-dir-diff = "0.3.2"
+dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.0.0"

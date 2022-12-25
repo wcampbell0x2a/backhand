@@ -26,7 +26,7 @@ fn test_unsquashfs(control: &str, new: &str) {
         .code(&[0] as &[i32]);
 
     let d = dir_diff::is_different(control_dir.path(), new_dir.path());
-    assert!(!d.unwrap());
+    assert!(!d.expect("couldn't compare dirs"));
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments

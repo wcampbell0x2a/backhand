@@ -12,7 +12,7 @@ use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{Filesystem, Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
 use crate::fragment::Fragment;
-use crate::inode::{BasicDirectory, BasicFile, Inode, InodeInner};
+use crate::inode::{BasicDirectory, BasicFile, Inode, InodeHeader, InodeInner};
 use crate::metadata;
 use crate::reader::{ReadSeek, SquashfsReader};
 
@@ -465,9 +465,9 @@ impl Squashfs {
                 if entry.t == 2 {
                     // TODO: self.symlink should give the inode.header
                     trace!("before_file: {:#02x?}", entry);
-                    let (path, bytes) = self.file(inode, dir.inode_num, entry)?;
+                    let (header, path, bytes) = self.file(inode, dir.inode_num, entry)?;
                     let file = Node::File(SquashfsFile {
-                        header: inode.header.into(),
+                        header: header.into(),
                         path,
                         bytes,
                     });
@@ -517,8 +517,9 @@ impl Squashfs {
                                     let entry_name = std::str::from_utf8(&entry.name)?;
                                     debug!(entry_name);
                                     if name == entry_name {
-                                        let file = self.file(inode, dir.inode_num, entry)?;
-                                        return Ok(file);
+                                        let (_, path, file) =
+                                            self.file(inode, dir.inode_num, entry)?;
+                                        return Ok((path, file));
                                     }
                                 }
                             }
@@ -539,8 +540,9 @@ impl Squashfs {
                                     let entry_name = std::str::from_utf8(&entry.name)?;
                                     debug!(entry_name);
                                     if name == entry_name {
-                                        let file = self.file(inode, dir.inode_num, entry)?;
-                                        return Ok(file);
+                                        let (_, path, file) =
+                                            self.file(inode, dir.inode_num, entry)?;
+                                        return Ok((path, file));
                                     }
                                 }
                             }
@@ -753,7 +755,7 @@ impl Squashfs {
         found_inode: &Inode,
         found_inode_num: u32,
         found_entry: &DirEntry,
-    ) -> Result<(PathBuf, Vec<u8>), SquashfsError> {
+    ) -> Result<(InodeHeader, PathBuf, Vec<u8>), SquashfsError> {
         let pathbuf = self.path(found_inode, found_entry)?;
         trace!("{:?}", pathbuf.display());
 
@@ -765,11 +767,11 @@ impl Squashfs {
             if inode.header.inode_number == looking_inode as u32 {
                 match &inode.inner {
                     InodeInner::BasicFile(basic_file) => {
-                        return Ok((pathbuf, self.data(basic_file)?));
+                        return Ok((inode.header, pathbuf, self.data(basic_file)?));
                     },
                     InodeInner::ExtendedFile(ext_file) => {
                         let basic_file = BasicFile::from(ext_file);
-                        return Ok((pathbuf, self.data(&basic_file)?));
+                        return Ok((inode.header, pathbuf, self.data(&basic_file)?));
                     },
                     _ => panic!(),
                 }

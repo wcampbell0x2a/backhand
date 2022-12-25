@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::fmt;
 
 use tracing::{instrument, trace};
@@ -6,7 +5,7 @@ use tracing::{instrument, trace};
 use crate::dir::{Dir, DirEntry};
 
 #[derive(Clone)]
-pub struct Entry {
+pub(crate) struct Entry {
     pub start: u32,
     pub offset: u16,
     pub inode: u32,
@@ -18,28 +17,6 @@ pub struct Entry {
 impl Entry {
     pub fn name(&self) -> String {
         std::str::from_utf8(&self.name).unwrap().to_string()
-    }
-
-    pub fn value(v: &[u8]) -> u32 {
-        v.iter().map(|a| *a as u32).sum()
-    }
-
-    pub fn cmp(a: &[u8], b: &[u8]) -> Ordering {
-        if a.len() == a.len() {
-            if Self::value(a) > Self::value(b) {
-                Ordering::Greater
-            } else if Self::value(a) > Self::value(b) {
-                Ordering::Less
-            } else {
-                Ordering::Equal
-            }
-        } else if a.len() > b.len() {
-            Ordering::Greater
-        } else if a.len() < b.len() {
-            Ordering::Less
-        } else {
-            panic!();
-        }
     }
 }
 

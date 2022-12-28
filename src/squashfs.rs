@@ -418,7 +418,12 @@ impl Squashfs {
             }
         }
 
-        let filesystem = Filesystem { nodes };
+        let root_inode = SquashfsPath {
+            header: self.root_inode.header.into(),
+            path: "/".into(),
+        };
+
+        let filesystem = Filesystem { root_inode, nodes };
         Ok(filesystem)
     }
 

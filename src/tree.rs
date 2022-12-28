@@ -42,6 +42,7 @@ impl TreeNode {
 
     fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &Node) {
         if let Some((first, rest)) = components.split_first() {
+            println!("{first:?}, {rest:?}");
             fullpath.push(first);
 
             // no rest, we have the file
@@ -50,14 +51,17 @@ impl TreeNode {
             } else {
                 None
             };
-            self.children
+            let entry = self
+                .children
                 .entry(fullpath.to_path_buf())
                 .or_insert(TreeNode {
                     fullpath: fullpath.clone(),
                     node,
                     children: BTreeMap::new(),
-                })
-                .insert(fullpath, rest, og_node);
+                });
+            entry.node = Some(og_node.clone());
+
+            entry.insert(fullpath, rest, og_node);
         }
     }
 }
@@ -82,9 +86,11 @@ impl From<&Filesystem> for TreeNode {
                     tree.insert(&mut PathBuf::new(), &comp, node);
                 },
                 Node::Path(path) => {
+                    tracing::trace!("PPPPP{:#x?}", path);
                     let path = path.path.as_path();
                     let comp = normalized_components(path);
                     tree.insert(&mut PathBuf::new(), &comp, node);
+                    tracing::trace!("tree{:#x?}", tree);
                 },
             }
         }

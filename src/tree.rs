@@ -42,7 +42,6 @@ impl TreeNode {
 
     fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &Node) {
         if let Some((first, rest)) = components.split_first() {
-            println!("{first:?}, {rest:?}");
             fullpath.push(first);
 
             // no rest, we have the file

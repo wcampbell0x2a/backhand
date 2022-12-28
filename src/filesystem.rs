@@ -297,7 +297,7 @@ impl Filesystem {
         id_table: Option<Vec<Id>>,
     ) -> Result<Vec<u8>, SquashfsError> {
         let mut superblock = SuperBlock::new(compressor);
-        info!("{:#02x?}", self.nodes);
+        trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
         let tree = TreeNode::from(self);
         info!("Tree Created");

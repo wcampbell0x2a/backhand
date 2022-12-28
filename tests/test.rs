@@ -669,23 +669,3 @@ fn test_10() {
     const TEST_PATH: &str = "test-assets/test_10";
     factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080);
 }
-
-#[test]
-fn test_11() {
-    let file = File::open("out.squashfs").unwrap();
-    info!("{file:?}");
-    let squashfs = Squashfs::from_reader(file).unwrap();
-    info!("{:02x?}", squashfs.superblock);
-
-    let filesystem = squashfs.into_filesystem().unwrap();
-
-    // convert to bytes
-    let id_table = Some(vec![Id(0x1879a), Id(0x186a0)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
-    fs::write("bytes.squashfs", &bytes).unwrap();
-
-    // assert that our library can atleast read the output, use unsquashfs to really assert this
-    let _new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
-}

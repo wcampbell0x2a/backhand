@@ -11,7 +11,7 @@ name: ci
 
 jobs:
   # build, test all supported targets
-  build-test-stable:
+  build-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:

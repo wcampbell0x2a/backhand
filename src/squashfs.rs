@@ -228,7 +228,7 @@ impl Squashfs {
                     );
                 }
                 // data -> compression options
-                let bv = BitVec::from_slice(&bytes).unwrap();
+                let bv = BitVec::from_slice(&bytes);
                 let (_, c) = CompressionOptions::read(
                     &bv,
                     (deku::ctx::Endian::Little, superblock.compressor),

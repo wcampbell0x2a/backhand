@@ -146,7 +146,7 @@ impl Filesystem {
             }),
         };
 
-        let mut v = BitVec::<Msb0, u8>::new();
+        let mut v = BitVec::<u8, Msb0>::new();
         dir_inode.write(&mut v, (0, 0)).unwrap();
         let bytes = v.as_raw_slice().to_vec();
         inode_writer.write_all(&bytes).unwrap();
@@ -185,7 +185,7 @@ impl Filesystem {
         };
         *inode += 1;
 
-        let mut v = BitVec::<Msb0, u8>::new();
+        let mut v = BitVec::<u8, Msb0>::new();
         dir_inode.write(&mut v, (0, 0)).unwrap();
         let bytes = v.as_raw_slice().to_vec();
         let start = inode_writer.metadata_start;
@@ -230,7 +230,7 @@ impl Filesystem {
         };
         *inode += 1;
 
-        let mut v = BitVec::<Msb0, u8>::new();
+        let mut v = BitVec::<u8, Msb0>::new();
         file_inode.write(&mut v, (0, 0)).unwrap();
         let bytes = v.as_raw_slice().to_vec();
         let start = inode_writer.metadata_start;
@@ -271,7 +271,7 @@ impl Filesystem {
         };
         *inode += 1;
 
-        let mut v = BitVec::<Msb0, u8>::new();
+        let mut v = BitVec::<u8, Msb0>::new();
         sym_inode.write(&mut v, (0, 0)).unwrap();
         let bytes = v.as_raw_slice().to_vec();
         let start = inode_writer.metadata_start;

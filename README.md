@@ -1,8 +1,8 @@
 Squashfs-deku
 ===============================
 
-[<img alt="github" src="https://img.shields.io/badge/github-wcampbell0x2a/squashfs-deku-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/wcampbell0x2a/squashfs-deku)
-[<img alt="build status" src="https://img.shields.io/github/workflow/status/wcampbell0x2a/squashfs-deku/ci/master?style=for-the-badge" height="20">](https://github.com/wcampbell0x2a/squashfs-deku/actions?query=branch%3Amaster)
+[<img alt="github" src="https://img.shields.io/badge/github-wcampbell0x2a/squashfs--deku-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/wcampbell0x2a/squashfs-deku)
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/wcampbell0x2a/squashfs-deku/main.yml?branch=master&style=for-the-badge" height="20">](https://github.com/wcampbell0x2a/squashfs-deku/actions?query=branch%3Amaster)
 
 Library and collection of binaries for the reading, creation, and modification 
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
@@ -14,9 +14,13 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 ## Library
 See `cargo doc`, but here are some examples
 ### Reading + Writing Firmware
-```rust
+```rust, ignore
+use std::fs::File;
+use std::env::args;
+use squashfs_deku::Squashfs;
+
 // read
-let file = File::open(args.input).unwrap();
+let file = File::open("file.squashfs").unwrap();
 let squashfs = Squashfs::from_reader(file).unwrap();
 let filesystem = squashfs.into_filesystem().unwrap();
 
@@ -27,11 +31,15 @@ let bytes = filesystem.to_bytes().unwrap();
 ### Modifying Firmware
 See the `add` binary.
 
+## Testing
+This library is tested with unpacking and packing SquashFS firmwares and testing that result with `unsquashfs`.
+`openwrt` binaries are primarily being tested.
+
 ## Binaries
-These are currently under developement and are missing features, MR's welcome!
+These are currently under development and are missing features, MR's welcome!
 
 ### unsquashfs
-```
+```console
 Usage: unsquashfs [OPTIONS] <INPUT> <COMMAND>
 
 Commands:
@@ -48,7 +56,7 @@ Options:
   -V, --version          Print version information
 ```
 ### add
-```
+```console
 Binary to add file to squashfs filesystem
 
 Usage: add <INPUT> <FILE> <FILE_PATH>

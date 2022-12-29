@@ -1,5 +1,4 @@
-//! # Squashfs-deku
-//! Read and extract information from a Squashfs image
+#![doc = include_str!("../README.md")]
 
 pub mod compressor;
 mod data;
@@ -14,4 +13,5 @@ pub mod squashfs;
 mod tree;
 mod writer;
 
+pub use crate::filesystem::Filesystem;
 pub use crate::squashfs::Squashfs;

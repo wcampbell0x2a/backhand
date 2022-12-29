@@ -1,4 +1,9 @@
-# Squashfs-deku
+Squashfs-deku
+===============================
+
+[<img alt="github" src="https://img.shields.io/badge/github-wcampbell0x2a/squashfs-deku-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/wcampbell0x2a/squashfs-deku)
+[<img alt="build status" src="https://img.shields.io/github/workflow/status/wcampbell0x2a/squashfs-deku/ci/master?style=for-the-badge" height="20">](https://github.com/wcampbell0x2a/squashfs-deku/actions?query=branch%3Amaster)
+
 Library and collection of binaries for the reading, creation, and modification 
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 

@@ -37,6 +37,7 @@ impl Filesystem {
     // This works my recursively creating Inodes and Dirs for each node in the tree. This also
     // keeps track of parent directories by calling this function on all nodes of a dir to get only
     // the nodes, but going into the child dirs in the case that it contains a child dir.
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
     fn write_node(
         tree: &TreeNode,

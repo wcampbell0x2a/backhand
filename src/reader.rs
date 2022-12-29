@@ -100,7 +100,7 @@ impl SquashfsReader {
                     //trace!("{inode:02x?}");
                     trace!("{:02x?}", inode);
                     ret_vec.push(inode);
-                    ret_bytes = rest.as_raw_slice().to_vec();
+                    ret_bytes = rest.domain().region().unwrap().1.to_vec();
                 },
                 Err(e) => {
                     // TODO: this should return an error

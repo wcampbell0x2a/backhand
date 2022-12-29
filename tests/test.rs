@@ -84,11 +84,7 @@ fn test_00() {
 
     // convert to bytes
     let filesystem = squashfs.into_filesystem().unwrap();
-    let id_table = Some(vec![Id(0x3e8)]);
-
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -143,10 +139,7 @@ fn test_01() {
     }
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -201,10 +194,7 @@ fn test_02() {
     }
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -269,10 +259,7 @@ fn test_03() {
     }
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -369,10 +356,7 @@ fn test_04() {
         }
     }
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
 
     fs::write(&new_path, &bytes).unwrap();
 
@@ -444,10 +428,7 @@ fn test_05() {
     }
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -495,10 +476,7 @@ fn test_06() {
     let filesystem = squashfs.into_filesystem().unwrap();
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -546,10 +524,7 @@ fn test_07() {
     let filesystem = squashfs.into_filesystem().unwrap();
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -597,10 +572,7 @@ fn test_08() {
     let filesystem = squashfs.into_filesystem().unwrap();
 
     // convert to bytes
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -625,10 +597,7 @@ fn factory_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, o
 
     // convert to bytes
     let og_filesystem = squashfs.into_filesystem().unwrap();
-    let id_table = Some(vec![Id(0x3e8)]);
-    let bytes = og_filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
+    let bytes = og_filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
@@ -668,24 +637,4 @@ fn test_10() {
 
     const TEST_PATH: &str = "test-assets/test_10";
     factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080);
-}
-
-#[test]
-fn test_11() {
-    let file = File::open("out.squashfs").unwrap();
-    info!("{file:?}");
-    let squashfs = Squashfs::from_reader(file).unwrap();
-    info!("{:02x?}", squashfs.superblock);
-
-    let filesystem = squashfs.into_filesystem().unwrap();
-
-    // convert to bytes
-    let id_table = Some(vec![Id(0x1879a), Id(0x186a0)]);
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, id_table)
-        .unwrap();
-    fs::write("bytes.squashfs", &bytes).unwrap();
-
-    // assert that our library can atleast read the output, use unsquashfs to really assert this
-    let _new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
 }

@@ -1,0 +1,50 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule: [cron: "40 1 * * *"]
+
+name: ci
+
+jobs:
+  # build, test all supported targets
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+            # msrv
+          - 1.64.0
+
+    steps:
+      - run: sudo apt-get install -y squashfs-tools
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build
+      - run: RUST_LOG=info cargo test
+
+  # fmt and clippy on nightly builds
+  fmt-clippy-nightly:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      # fmt
+      - run: cargo fmt --all -- --check
+
+      # clippy
+      - run: cargo clippy -- -D warnings

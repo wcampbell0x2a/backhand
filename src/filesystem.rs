@@ -1,3 +1,5 @@
+//! In-memory representation of SquashFS used for writing to image
+
 use core::fmt;
 use std::ffi::OsString;
 use std::io::{Cursor, Seek, Write};
@@ -341,6 +343,12 @@ impl Filesystem {
         info!("Writing Dirs");
         superblock.dir_table = c.position();
         c.write_all(&dir_writer.finalize())?;
+
+        // TODO(#24): Add fragment support
+        //
+        // This is written to the position of the dir_table to support older versions of unsquashfs
+        // that don't support the empty 0xffff_ffff_ffff_ffff
+        superblock.frag_table = c.position();
 
         info!("Writing Id Lookup Table");
         Self::write_id_table(&mut c, id_table, &mut superblock)?;

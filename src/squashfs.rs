@@ -17,12 +17,12 @@ use crate::metadata;
 use crate::reader::{ReadSeek, SquashfsReader};
 
 /// NFS export support
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "little")]
 pub struct Export(pub u64);
 
 /// 32 bit user and group IDs
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "little")]
 pub struct Id(pub u32);
 
@@ -423,7 +423,13 @@ impl Squashfs {
             path: "/".into(),
         };
 
-        let filesystem = Filesystem { root_inode, nodes };
+        let filesystem = Filesystem {
+            compressor: self.superblock.compressor,
+            compression_options: self.compression_options,
+            id_table: self.id.clone(),
+            root_inode,
+            nodes,
+        };
         Ok(filesystem)
     }
 

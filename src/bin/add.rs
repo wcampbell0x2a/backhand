@@ -41,9 +41,7 @@ fn main() {
     filesystem.nodes.push(Node::File(new_file));
 
     // write new file
-    let bytes = filesystem
-        .to_bytes(squashfs.superblock.compressor, squashfs.id)
-        .unwrap();
+    let bytes = filesystem.to_bytes().unwrap();
     std::fs::write("added.squashfs", bytes).unwrap();
     println!("added file and wrote to added.squashfs");
 }

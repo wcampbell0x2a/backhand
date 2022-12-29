@@ -10,7 +10,7 @@ use deku::bitvec::{BitVec, Msb0};
 use deku::{DekuContainerWrite, DekuWrite};
 use tracing::{info, instrument, trace};
 
-use crate::compressor::Compressor;
+use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataWriter;
 use crate::error::SquashfsError;
 use crate::inode::{BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeInner};
@@ -22,6 +22,9 @@ use crate::writer::Entry;
 /// In-memory representation of a Squashfs Image
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Filesystem {
+    pub compressor: Compressor,
+    pub compression_options: Option<CompressionOptions>,
+    pub id_table: Option<Vec<Id>>,
     /// "/" node
     pub root_inode: SquashfsPath,
     /// All other nodes
@@ -293,12 +296,8 @@ impl Filesystem {
     }
 
     #[instrument(skip_all)]
-    pub fn to_bytes(
-        &self,
-        compressor: Compressor,
-        id_table: Option<Vec<Id>>,
-    ) -> Result<Vec<u8>, SquashfsError> {
-        let mut superblock = SuperBlock::new(compressor);
+    pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
+        let mut superblock = SuperBlock::new(self.compressor);
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
         let tree = TreeNode::from(self);
@@ -306,10 +305,11 @@ impl Filesystem {
 
         let mut c = Cursor::new(vec![]);
 
-        let mut data_writer = DataWriter::new(compressor, None);
-        let mut inode_writer = MetadataWriter::new(compressor, None);
-        let mut dir_writer = MetadataWriter::new(compressor, None);
-        //let mut fragment_writer = MetadataWriter::new(compressor, None);
+        let mut data_writer = DataWriter::new(self.compressor, None);
+        let mut inode_writer = MetadataWriter::new(self.compressor, None);
+        let mut dir_writer = MetadataWriter::new(self.compressor, None);
+        // TODO(#24): Add fragment support
+        //let mut fragment_writer = MetadataWriter::new(self.compressor, None);
         //let mut fragment_table = vec![];
 
         // Empty Squashfs
@@ -351,7 +351,7 @@ impl Filesystem {
         superblock.frag_table = c.position();
 
         info!("Writing Id Lookup Table");
-        Self::write_id_table(&mut c, id_table, &mut superblock)?;
+        Self::write_id_table(&mut c, &self.id_table, &mut superblock)?;
 
         info!("Finalize Superblock and End Bytes");
         Self::finalize(&mut c, &mut superblock)?;
@@ -383,7 +383,7 @@ impl Filesystem {
 
     fn write_id_table(
         w: &mut Cursor<Vec<u8>>,
-        id_table: Option<Vec<Id>>,
+        id_table: &Option<Vec<Id>>,
         write_superblock: &mut SuperBlock,
     ) -> Result<(), SquashfsError> {
         if let Some(id) = id_table {

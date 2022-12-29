@@ -16,10 +16,7 @@ let squashfs = Squashfs::from_reader(file).unwrap();
 let filesystem = squashfs.into_filesystem().unwrap();
 
 // write
-let id_table = Some(vec![Id(0x3e8)]);
-let bytes = filesystem
-    .to_bytes(squashfs.superblock.compressor, id_table)
-    .unwrap();
+let bytes = filesystem.to_bytes().unwrap();
 ```
 
 ### Modifying Firmware

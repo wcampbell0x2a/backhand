@@ -22,15 +22,15 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Extract single file from image
-    ExtractFiles {
-        /// Filepath to extract
-        #[arg(short, long)]
-        filepath: Vec<String>,
+    ///// Extract single file from image
+    //ExtractFiles {
+    //    /// Filepath to extract
+    //    #[arg(short, long)]
+    //    filepath: Vec<String>,
 
-        #[arg(short, long, default_value = "output")]
-        output: PathBuf,
-    },
+    //    #[arg(short, long, default_value = "output")]
+    //    output: PathBuf,
+    //},
     /// Extract all files(Symlink/Files/Dirs) from image
     ExtractAll {
         #[arg(short, long, default_value = "output")]
@@ -44,33 +44,10 @@ fn main() {
     let args = Args::parse();
 
     match args.cmd {
-        Command::ExtractFiles { filepath, output } => {
-            extract(&args.input, args.offset, filepath, &output)
-        },
+        //Command::ExtractFiles { filepath, output } => {
+        //    extract(&args.input, args.offset, filepath, &output)
+        //},
         Command::ExtractAll { output } => extract_all(&args.input, args.offset, &output),
-    }
-}
-
-fn extract(input: &Path, offset: u64, filepath: Vec<String>, output: &Path) {
-    let file = File::open(input).unwrap();
-    let squashfs = Squashfs::from_reader_with_offset(file, offset).unwrap();
-    tracing::info!("SuperBlock: {:#02x?}", squashfs.superblock);
-    tracing::debug!("Inodes: {:#02x?}", squashfs.inodes);
-    tracing::debug!("Dir Blocks: {:#02x?}", squashfs.dir_blocks);
-    tracing::debug!("Root inode: {:#02x?}", squashfs.root_inode);
-    tracing::debug!("Fragments {:#02x?}", squashfs.fragments);
-
-    for filepath in &filepath {
-        let (filepath, bytes) = squashfs.extract_file(filepath).unwrap();
-        let filepath = Path::new(output).join(filepath);
-        //println!("[-] {}", filepath.parent().unwrap().display());
-        let _ = std::fs::create_dir_all(filepath.parent().unwrap());
-        match std::fs::write(&filepath, bytes) {
-            Ok(_) => println!("[-] success, wrote to {}", filepath.display()),
-            Err(e) => {
-                println!("[!] failed to write: {} : {e}", filepath.display())
-            },
-        }
     }
 }
 

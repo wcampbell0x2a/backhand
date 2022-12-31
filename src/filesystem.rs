@@ -115,7 +115,7 @@ impl Filesystem {
             dir_writer.write_all(&bytes).unwrap();
         }
 
-        trace!("BEFORE: {:#02x?}", child);
+        //trace!("BEFORE: {:#02x?}", child);
         let offset = inode_writer.uncompressed_bytes.len() as u16;
         let start = inode_writer.metadata_start;
         let entry = Entry {
@@ -320,7 +320,7 @@ impl Filesystem {
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
-        trace!("TREE: {:#02x?}", tree);
+        //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(
             &tree,
             &tree,

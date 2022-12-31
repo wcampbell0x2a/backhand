@@ -85,7 +85,6 @@ impl From<&Filesystem> for TreeNode {
                     tree.insert(&mut PathBuf::new(), &comp, node);
                 },
                 Node::Path(path) => {
-                    tracing::trace!("PPPPP{:#x?}", path);
                     let path = path.path.as_path();
                     let comp = normalized_components(path);
                     tree.insert(&mut PathBuf::new(), &comp, node);

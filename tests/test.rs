@@ -607,7 +607,7 @@ fn factory_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, o
 }
 
 #[test]
-fn test_09() {
+fn test_openwrt_tplink_archera7v5() {
     const FILE_NAME: &str =
         "openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin";
     let asset_defs = [TestAssetDef {
@@ -618,12 +618,12 @@ fn test_09() {
         ),
     }];
 
-    const TEST_PATH: &str = "test-assets/test_09";
+    const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
     factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x225fd0);
 }
 
 #[test]
-fn test_10() {
+fn test_openwrt_netgear_ex6100v2() {
     const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
 
     let asset_defs = [TestAssetDef {
@@ -634,6 +634,34 @@ fn test_10() {
         ),
     }];
 
-    const TEST_PATH: &str = "test-assets/test_10";
+    const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
     factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080);
+}
+
+#[test]
+fn test_appimage_plexamp() {
+    const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "6d2a3fba571da54e6869c2f7e1f7e6ca22f380a9a6f7a44a5ac675d1c656b584".to_string(),
+        url: format!("https://plexamp.plex.tv/plexamp.plex.tv/desktop/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_appimage_plexamp";
+    factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8);
+}
+
+#[test]
+fn test_appimage_firefox() {
+    const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "b635ffdd24ecde8991cbc829773ca049994145cb2194c7c3987a87591153e58b".to_string(),
+        url: format!(
+            "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox/{FILE_NAME}"
+        ),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_appimage_firefox";
+    factory_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0);
 }

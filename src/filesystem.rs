@@ -12,12 +12,14 @@ use tracing::{info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataWriter;
+use crate::entry::Entry;
 use crate::error::SquashfsError;
-use crate::inode::{BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeInner};
+use crate::inode::{
+    BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId, InodeInner,
+};
 use crate::metadata::{self, MetadataWriter};
 use crate::squashfs::{Id, SuperBlock};
 use crate::tree::TreeNode;
-use crate::writer::Entry;
 
 /// In-memory representation of a Squashfs Image
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -135,7 +137,7 @@ impl Filesystem {
 
         // write parent_inode
         let dir_inode = Inode {
-            id: 0x1,
+            id: InodeId::BasicDirectory,
             header: InodeHeader {
                 permissions: path_node.header.permissions,
                 uid: path_node.header.uid,
@@ -175,7 +177,7 @@ impl Filesystem {
         let block_offset = dir_writer.uncompressed_bytes.len() as u16;
         let block_index = dir_writer.metadata_start;
         let dir_inode = Inode {
-            id: 0x1,
+            id: InodeId::BasicDirectory,
             header: InodeHeader {
                 inode_number: *inode,
                 ..path.header.into()
@@ -221,7 +223,7 @@ impl Filesystem {
         let file_size = file.bytes.len() as u32;
         let (blocks_start, block_sizes) = data_writer.add_bytes(&file.bytes);
         let file_inode = Inode {
-            id: 0x2,
+            id: InodeId::BasicFile,
             header: InodeHeader {
                 inode_number: *inode,
                 ..file.header.into()
@@ -264,7 +266,7 @@ impl Filesystem {
     ) -> Entry {
         let link = symlink.link.as_bytes();
         let sym_inode = Inode {
-            id: 0x3,
+            id: InodeId::BasicSymlink,
             header: InodeHeader {
                 inode_number: *inode,
                 ..symlink.header.into()

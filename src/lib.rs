@@ -3,6 +3,7 @@
 pub mod compressor;
 mod data;
 pub mod dir;
+mod entry;
 pub mod error;
 pub mod filesystem;
 pub mod fragment;
@@ -11,7 +12,6 @@ mod metadata;
 mod reader;
 pub mod squashfs;
 mod tree;
-mod writer;
 
 pub use crate::filesystem::Filesystem;
 pub use crate::squashfs::Squashfs;

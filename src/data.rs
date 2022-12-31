@@ -1,3 +1,5 @@
+//! File Data
+
 use std::io::Write;
 
 use tracing::instrument;

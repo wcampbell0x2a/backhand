@@ -5,40 +5,53 @@ use deku::prelude::*;
 use crate::dir::DirectoryIndex;
 use crate::filesystem::FilesystemHeader;
 
+#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
+#[deku(type = "u16")]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+pub enum InodeId {
+    BasicDirectory       = 1,
+    BasicFile            = 2,
+    BasicSymlink         = 3,
+    BasicBlockDevice     = 4,
+    BasicCharacterDevice = 5,
+    ExtendedDirectory    = 8,
+    ExtendedFile         = 9,
+}
+
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "block_size: u32, block_log: u16")]
 #[deku(endian = "little")]
 pub struct Inode {
-    pub(crate) id: u16,
+    pub(crate) id: InodeId,
     pub(crate) header: InodeHeader,
     #[deku(ctx = "*id, block_size, block_log")]
     pub(crate) inner: InodeInner,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "endian: deku::ctx::Endian, id: u16, block_size: u32, block_log: u16")]
+#[deku(ctx = "endian: deku::ctx::Endian, id: InodeId, block_size: u32, block_log: u16")]
 #[deku(endian = "endian")]
 #[deku(id = "id")]
 pub enum InodeInner {
-    #[deku(id = "1")]
+    #[deku(id = "InodeId::BasicDirectory")]
     BasicDirectory(BasicDirectory),
 
-    #[deku(id = "2")]
+    #[deku(id = "InodeId::BasicFile")]
     BasicFile(#[deku(ctx = "block_size, block_log")] BasicFile),
 
-    #[deku(id = "3")]
+    #[deku(id = "InodeId::BasicSymlink")]
     BasicSymlink(BasicSymlink),
 
-    #[deku(id = "4")]
+    #[deku(id = "InodeId::BasicBlockDevice")]
     BasicBlockDevice(BasicDeviceSpecialFile),
 
-    #[deku(id = "5")]
+    #[deku(id = "InodeId::BasicCharacterDevice")]
     BasicCharacterDevice(BasicDeviceSpecialFile),
 
-    #[deku(id = "8")]
+    #[deku(id = "InodeId::ExtendedDirectory")]
     ExtendedDirectory(ExtendedDirectory),
 
-    #[deku(id = "9")]
+    #[deku(id = "InodeId::ExtendedFile")]
     ExtendedFile(#[deku(ctx = "block_size, block_log")] ExtendedFile),
 }
 

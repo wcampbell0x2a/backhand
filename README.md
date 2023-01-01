@@ -9,7 +9,7 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
 | :warning: WARNING                                                                          |
 |:-------------------------------------------------------------------------------------------|
-| The API for this libary **isn't** complete. I will most likely break this for improvements |
+| The API for this library **isn't** complete. I will most likely break this for improvements |
 
 ## Library
 See `cargo doc`, but here are some examples
@@ -43,7 +43,6 @@ These are currently under development and are missing features, MR's welcome!
 Usage: unsquashfs [OPTIONS] <INPUT> <COMMAND>
 
 Commands:
-  extract-files  Extract single file from image
   extract-all    Extract all files(Symlink/Files/Dirs) from image
   help           Print this message or the help of the given subcommand(s)
 

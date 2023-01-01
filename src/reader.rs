@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use deku::bitvec::BitView;
@@ -62,7 +64,10 @@ impl SquashfsReader {
     /// TODO: in the future instead of reacing all the metadatas in this section, we should parse
     /// the dir table ( I think ) that has all inode offset information
     #[instrument(skip_all)]
-    pub fn inodes(&mut self, superblock: &SuperBlock) -> Result<Vec<Inode>, SquashfsError> {
+    pub fn inodes(
+        &mut self,
+        superblock: &SuperBlock,
+    ) -> Result<HashMap<u32, Inode, BuildHasherDefault<twox_hash::XxHash64>>, SquashfsError> {
         self.seek_from_start(superblock.inode_table)?;
 
         // The directory inodes store the total, uncompressed size of the entire listing, including headers.
@@ -90,21 +95,20 @@ impl SquashfsReader {
         //tracing::trace!("TRACE: TOTAL BYTES: {02x?}", ret_bytes.len());
 
         // TODO: with capacity?
-        let mut ret_vec = vec![];
+        let mut ret_vec = HashMap::default();
         while !ret_bytes.is_empty() {
-            trace!("{:02x?}", ret_bytes);
             let input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
             match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
                 Ok((rest, inode)) => {
                     // Push the new Inode to the return, with the position this was read from
                     //trace!("{inode:02x?}");
                     trace!("{:02x?}", inode);
-                    ret_vec.push(inode);
+                    ret_vec.insert(inode.header.inode_number, inode);
                     ret_bytes = rest.domain().region().unwrap().1.to_vec();
                 },
                 Err(e) => {
                     // TODO: this should return an error
-                    panic!("{:02x?} - {}", &ret_bytes, e);
+                    panic!("{:02x?} - {e}", &ret_bytes);
                 },
             }
         }

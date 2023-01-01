@@ -1,10 +1,12 @@
-Squashfs-deku
+backhand
 ===============================
 
-[<img alt="github" src="https://img.shields.io/badge/github-wcampbell0x2a/squashfs--deku-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/wcampbell0x2a/squashfs-deku)
-[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/wcampbell0x2a/squashfs-deku/main.yml?branch=master&style=for-the-badge" height="20">](https://github.com/wcampbell0x2a/squashfs-deku/actions?query=branch%3Amaster)
+[<img alt="github" src="https://img.shields.io/badge/github-wcampbell0x2a/backhand-8da0cb?style=for-the-badge&labelColor=555555&logo=github" height="20">](https://github.com/wcampbell0x2a/backhand)
+[<img alt="crates.io" src="https://img.shields.io/crates/v/backhand.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/backhand)
+[<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-backhand-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/backhand)
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/wcampbell0x2a/backhand/main.yml?branch=master&style=for-the-badge" height="20">](https://github.com/wcampbell0x2a/backhand/actions?query=branch%3Amaster)
 
-Library and collection of binaries for the reading, creation, and modification 
+Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
 | :warning: WARNING                                                                          |
@@ -17,7 +19,7 @@ See `cargo doc`, but here are some examples
 ```rust, ignore
 use std::fs::File;
 use std::env::args;
-use squashfs_deku::Squashfs;
+use backhand::Squashfs;
 
 // read
 let file = File::open("file.squashfs").unwrap();

@@ -2,9 +2,9 @@ use std::fs::{self, File, Permissions};
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+use backhand::filesystem::{Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
+use backhand::Squashfs;
 use clap::{Parser, Subcommand};
-use squashfs_deku::filesystem::{Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
-use squashfs_deku::Squashfs;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

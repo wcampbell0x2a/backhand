@@ -1,5 +1,7 @@
 //! [`Inode`], and other inode types
 
+use core::fmt;
+
 use deku::prelude::*;
 
 use crate::dir::DirectoryIndex;
@@ -182,13 +184,28 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
+#[derive(DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicSymlink {
     pub(crate) link_count: u32,
     pub(crate) target_size: u32,
     #[deku(count = "target_size")]
     pub(crate) target_path: Vec<u8>,
+}
+
+impl fmt::Debug for BasicSymlink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BasicSymlink")
+            .field("link_count", &self.link_count)
+            .field("target_size", &self.target_size)
+            .field("target_path", &self.target())
+            .finish()
+    }
+}
+impl BasicSymlink {
+    pub fn target(&self) -> String {
+        std::str::from_utf8(&self.target_path).unwrap().to_string()
+    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

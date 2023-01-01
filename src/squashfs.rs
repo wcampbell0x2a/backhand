@@ -164,6 +164,12 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
+// TODO: add data cache?
+#[derive(Default)]
+struct Cache {
+    pub fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
+}
+
 /// Container for a Squashfs Image stored in memory
 pub struct Squashfs {
     pub superblock: SuperBlock,
@@ -370,10 +376,11 @@ impl Squashfs {
     /// Extract all files(File/Symlink/Path) from image
     #[instrument(skip_all)]
     pub fn into_filesystem(&self) -> Result<Filesystem, SquashfsError> {
-        let mut nodes = vec![];
+        let mut cache = Cache::default();
+        let mut nodes = Vec::with_capacity(self.superblock.inode_count as usize);
         let path: PathBuf = "/".into();
 
-        self.extract_dir(&mut nodes, &self.root_inode, &path)?;
+        self.extract_dir(&mut cache, &mut nodes, &self.root_inode, &path)?;
 
         let root_inode = SquashfsPath {
             header: self.root_inode.header.into(),
@@ -390,13 +397,15 @@ impl Squashfs {
         Ok(filesystem)
     }
 
+    #[instrument(skip_all)]
     fn extract_dir(
         &self,
+        cache: &mut Cache,
         nodes: &mut Vec<Node>,
-        inode: &Inode,
+        dir_inode: &Inode,
         path: &Path,
     ) -> Result<(), SquashfsError> {
-        let dirs = match &inode.inner {
+        let dirs = match &dir_inode.inner {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
                 self.dir_from_index(
@@ -437,12 +446,12 @@ impl Squashfs {
                             }));
 
                             // its a dir, extract all inodes
-                            self.extract_dir(nodes, found_inode, &new_path)?;
+                            self.extract_dir(cache, nodes, found_inode, &new_path)?;
                         },
                         // BasicFile
                         2 => {
                             trace!("before_file: {:#02x?}", entry);
-                            let (header, bytes) = self.file(found_inode)?;
+                            let (header, bytes) = self.file(cache, found_inode)?;
                             let file = Node::File(SquashfsFile {
                                 header: header.into(),
                                 path: new_path,
@@ -454,7 +463,7 @@ impl Squashfs {
                         3 => {
                             let (original, link) = self.symlink(found_inode, entry)?;
                             let symlink = Node::Symlink(SquashfsSymlink {
-                                header: inode.header.into(),
+                                header: header.into(),
                                 path: new_path,
                                 original,
                                 link,
@@ -472,30 +481,48 @@ impl Squashfs {
 
     // From `basic_file`, extract total data including from data blocks and data fragments
     #[instrument(skip_all)]
-    fn data(&self, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
-        debug!("extracting: {:#02x?}", basic_file);
+    fn data(&self, cache: &mut Cache, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
+        trace!("extracting: {:#02x?}", basic_file);
 
         // Add data
         trace!("extracting data @ offset {:02x?}", basic_file.blocks_start);
-        let mut reader = Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
-        let mut data_bytes = vec![];
-        for block_size in &basic_file.block_sizes {
-            let mut bytes = self.read_data(&mut reader, *block_size as usize)?;
-            data_bytes.append(&mut bytes);
+
+        let mut data_bytes = Vec::with_capacity(basic_file.file_size as usize);
+
+        // Extract Data
+        if !basic_file.block_sizes.is_empty() {
+            let mut reader =
+                Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
+            let og_position = reader.position();
+            debug!("og: {:02x?}", og_position);
+            for block_size in &basic_file.block_sizes {
+                let mut bytes = self.read_data(&mut reader, *block_size as usize)?;
+                data_bytes.append(&mut bytes);
+            }
         }
 
         trace!("data bytes: {:02x?}", data_bytes.len());
 
-        // Add fragments
+        // Extract Fragment
         // TODO: this should be constant
         if basic_file.frag_index != 0xffffffff {
             if let Some(fragments) = &self.fragments {
                 let frag = fragments[basic_file.frag_index as usize];
-                trace!("Extracting frag: {:02x?}", frag);
-                let mut reader = Cursor::new(&self.data_and_fragments[frag.start as usize..]);
-                let mut bytes = self.read_data(&mut reader, frag.size as usize)?;
-                trace!("uncompressed size: {:02x?}", bytes.len());
-                data_bytes.append(&mut bytes);
+                debug!("Extracting frag: {:02x?}", frag);
+
+                // use fragment cache if possible
+                match cache.fragment_cache.get(&(frag.start)) {
+                    Some(cache_bytes) => {
+                        data_bytes.append(&mut cache_bytes.clone());
+                    },
+                    None => {
+                        let mut reader =
+                            Cursor::new(&self.data_and_fragments[frag.start as usize..]);
+                        let mut bytes = self.read_data(&mut reader, frag.size as usize)?;
+                        cache.fragment_cache.insert(frag.start, bytes.clone());
+                        data_bytes.append(&mut bytes);
+                    },
+                }
             }
         }
 
@@ -528,6 +555,7 @@ impl Squashfs {
     /// `Ok(original, link)
     #[instrument(skip_all)]
     fn symlink(&self, inode: &Inode, entry: &DirEntry) -> Result<(String, String), SquashfsError> {
+        debug!("{:#?}", inode);
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
             return Ok((
                 String::from_utf8(entry.name.clone())?,
@@ -541,16 +569,20 @@ impl Squashfs {
 
     /// From file details, extract (PathBuf, FileBytes)
     #[instrument(skip_all)]
-    fn file(&self, inode: &Inode) -> Result<(InodeHeader, Vec<u8>), SquashfsError> {
+    fn file(
+        &self,
+        cache: &mut Cache,
+        inode: &Inode,
+    ) -> Result<(InodeHeader, Vec<u8>), SquashfsError> {
         // look through basic file inodes in search of the one true basic_inode and extract the
         // bytes from the data and fragment sections
         match &inode.inner {
             InodeInner::BasicFile(basic_file) => {
-                return Ok((inode.header, self.data(basic_file)?));
+                return Ok((inode.header, self.data(cache, basic_file)?));
             },
             InodeInner::ExtendedFile(ext_file) => {
                 let basic_file = BasicFile::from(ext_file);
-                return Ok((inode.header, self.data(&basic_file)?));
+                return Ok((inode.header, self.data(cache, &basic_file)?));
             },
             _ => (),
         }

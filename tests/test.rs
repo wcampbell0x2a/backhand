@@ -3,9 +3,9 @@ use std::path::Path;
 use std::process::Command;
 
 use assert_cmd::prelude::*;
-use squashfs_deku::compressor::{CompressionOptions, Gzip};
-use squashfs_deku::filesystem::{Node, SquashfsFile};
-use squashfs_deku::Squashfs;
+use backhand::compressor::{CompressionOptions, Gzip};
+use backhand::filesystem::{Node, SquashfsFile};
+use backhand::Squashfs;
 use tempfile::tempdir;
 use test_assets::TestAssetDef;
 use test_log::test;

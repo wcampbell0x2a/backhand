@@ -3,13 +3,14 @@ use std::fmt;
 use tracing::{instrument, trace};
 
 use crate::dir::{Dir, DirEntry};
+use crate::inode::InodeId;
 
 #[derive(Clone)]
 pub(crate) struct Entry {
     pub start: u32,
     pub offset: u16,
     pub inode: u32,
-    pub t: u16,
+    pub t: InodeId,
     pub name_size: u16,
     pub name: Vec<u8>,
 }
@@ -136,7 +137,7 @@ mod tests {
                 start: 0,
                 offset: 0x100,
                 inode: 1,
-                t: 1,
+                t: InodeId::BasicDirectory,
                 name_size: 0x01,
                 name: [b'a', b'a'].to_vec(),
             },
@@ -144,7 +145,7 @@ mod tests {
                 start: 1,
                 offset: 0x200,
                 inode: 6,
-                t: 1,
+                t: InodeId::BasicDirectory,
                 name_size: 0x01,
                 name: [b'z', b'z'].to_vec(),
             },
@@ -152,7 +153,7 @@ mod tests {
                 start: 1,
                 offset: 0x300,
                 inode: 5,
-                t: 1,
+                t: InodeId::BasicDirectory,
                 name_size: 0x01,
                 name: [b'b', b'b'].to_vec(),
             },
@@ -168,7 +169,7 @@ mod tests {
                     dir_entries: vec![DirEntry {
                         offset: 0x100,
                         inode_offset: 0x0,
-                        t: 0x1,
+                        t: InodeId::BasicDirectory,
                         name_size: 0x1,
                         name: b"aa".to_vec(),
                     },],
@@ -181,14 +182,14 @@ mod tests {
                         DirEntry {
                             offset: 0x300,
                             inode_offset: 0x0,
-                            t: 0x1,
+                            t: InodeId::BasicDirectory,
                             name_size: 0x1,
                             name: b"bb".to_vec(),
                         },
                         DirEntry {
                             offset: 0x200,
                             inode_offset: 0x1,
-                            t: 0x1,
+                            t: InodeId::BasicDirectory,
                             name_size: 0x1,
                             name: b"zz".to_vec(),
                         },

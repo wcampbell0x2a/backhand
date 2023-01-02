@@ -7,6 +7,8 @@ use core::fmt;
 
 use deku::prelude::*;
 
+use crate::inode::InodeId;
+
 #[derive(Debug, DekuRead, DekuWrite, Clone, Default, PartialEq, Eq)]
 #[deku(endian = "little")]
 pub struct Dir {
@@ -45,7 +47,7 @@ pub struct DirEntry {
     /// The difference of this inode’s number to the reference stored in the header.
     pub(crate) inode_offset: i16,
     /// The inode type. For extended inodes, the basic type is stored here instead.
-    pub(crate) t: u16,
+    pub(crate) t: InodeId,
     /// One less than the size of the entry name.
     pub(crate) name_size: u16,
     // TODO: CString

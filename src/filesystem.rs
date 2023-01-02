@@ -122,7 +122,7 @@ impl Filesystem {
             start,
             offset,
             inode: parent_inode,
-            t: 0x01,
+            t: InodeId::BasicDirectory,
             name_size: child.name().len() as u16 - 1,
             name: child.name().as_bytes().to_vec(),
         };
@@ -204,7 +204,7 @@ impl Filesystem {
             start,
             offset,
             inode: dir_inode.header.inode_number,
-            t: 0x01,
+            t: InodeId::BasicDirectory,
             name_size: name.len() as u16 - 1,
             name: name.as_bytes().to_vec(),
         };
@@ -250,7 +250,7 @@ impl Filesystem {
             start,
             offset,
             inode: file_inode.header.inode_number,
-            t: 0x02,
+            t: InodeId::BasicFile,
             name_size: file_name.len() as u16 - 1,
             name: file_name.as_bytes().to_vec(),
         };
@@ -290,7 +290,7 @@ impl Filesystem {
             start,
             offset,
             inode: sym_inode.header.inode_number,
-            t: 0x03,
+            t: InodeId::BasicSymlink,
             name_size: symlink.original.len() as u16 - 1,
             name: symlink.original.as_bytes().to_vec(),
         };

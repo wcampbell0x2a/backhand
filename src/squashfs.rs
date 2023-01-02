@@ -14,7 +14,7 @@ use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{Filesystem, Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
 use crate::fragment::Fragment;
-use crate::inode::{BasicFile, Inode, InodeHeader, InodeInner};
+use crate::inode::{BasicFile, Inode, InodeHeader, InodeId, InodeInner};
 use crate::metadata;
 use crate::reader::{ReadSeek, SquashfsReader};
 
@@ -439,7 +439,7 @@ impl Squashfs {
 
                     match entry.t {
                         // BasicDirectory, ExtendedDirectory
-                        1 | 8 => {
+                        InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             nodes.push(Node::Path(SquashfsPath {
                                 header: header.into(),
                                 path: new_path.clone(),
@@ -449,7 +449,7 @@ impl Squashfs {
                             self.extract_dir(cache, nodes, found_inode, &new_path)?;
                         },
                         // BasicFile
-                        2 => {
+                        InodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
                             let (header, bytes) = self.file(cache, found_inode)?;
                             let file = Node::File(SquashfsFile {
@@ -460,7 +460,7 @@ impl Squashfs {
                             nodes.push(file);
                         },
                         // Basic Symlink
-                        3 => {
+                        InodeId::BasicSymlink => {
                             let (original, link) = self.symlink(found_inode, entry)?;
                             let symlink = Node::Symlink(SquashfsSymlink {
                                 header: header.into(),

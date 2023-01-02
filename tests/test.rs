@@ -244,3 +244,17 @@ fn test_appimage_firefox() {
     const TEST_PATH: &str = "test-assets/test_appimage_firefox";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0);
 }
+
+/// Archer\ AX1800\(US\)_V3_221016.zip from https://www.tp-link.com/us/support/download/archer-ax1800/#Firmware
+/// (after ubi_extract_image)
+#[test]
+fn test_tplink_ax1800() {
+    const FILE_NAME: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+}

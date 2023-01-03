@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use deku::bitvec::BitVec;
 use deku::prelude::*;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
@@ -388,6 +388,8 @@ impl Squashfs {
         };
 
         let filesystem = Filesystem {
+            block_size: self.superblock.block_size,
+            block_log: self.superblock.block_log,
             compressor: self.superblock.compressor,
             compression_options: self.compression_options,
             id_table: self.id.clone(),
@@ -493,8 +495,6 @@ impl Squashfs {
         if !basic_file.block_sizes.is_empty() {
             let mut reader =
                 Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
-            let og_position = reader.position();
-            debug!("og: {:02x?}", og_position);
             for block_size in &basic_file.block_sizes {
                 let mut bytes = self.read_data(&mut reader, *block_size as usize)?;
                 data_bytes.append(&mut bytes);
@@ -508,7 +508,6 @@ impl Squashfs {
         if basic_file.frag_index != 0xffffffff {
             if let Some(fragments) = &self.fragments {
                 let frag = fragments[basic_file.frag_index as usize];
-                debug!("Extracting frag: {:02x?}", frag);
 
                 // use fragment cache if possible
                 match cache.fragment_cache.get(&(frag.start)) {
@@ -537,7 +536,6 @@ impl Squashfs {
     fn read_data<R: Read>(&self, reader: &mut R, size: usize) -> Result<Vec<u8>, SquashfsError> {
         let uncompressed = size & (1 << 24) != 0;
         let size = size & !(1 << 24);
-
         let mut buf = vec![0u8; size];
         reader.read_exact(&mut buf)?;
 
@@ -555,7 +553,6 @@ impl Squashfs {
     /// `Ok(original, link)
     #[instrument(skip_all)]
     fn symlink(&self, inode: &Inode, entry: &DirEntry) -> Result<(String, String), SquashfsError> {
-        debug!("{:#?}", inode);
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
             return Ok((
                 String::from_utf8(entry.name.clone())?,

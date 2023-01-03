@@ -4,7 +4,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 
 use deku::bitvec::BitView;
 use deku::prelude::*;
-use tracing::{debug, instrument, trace};
+use tracing::{instrument, trace};
 
 use crate::error::SquashfsError;
 use crate::fragment::{Fragment, FRAGMENT_SIZE};
@@ -101,14 +101,12 @@ impl SquashfsReader {
             match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
                 Ok((rest, inode)) => {
                     // Push the new Inode to the return, with the position this was read from
-                    //trace!("{inode:02x?}");
-                    trace!("{:02x?}", inode);
                     ret_vec.insert(inode.header.inode_number, inode);
                     ret_bytes = rest.domain().region().unwrap().1.to_vec();
                 },
                 Err(e) => {
                     // TODO: this should return an error
-                    panic!("{:02x?} - {e}", &ret_bytes);
+                    panic!("{e}");
                 },
             }
         }
@@ -213,7 +211,6 @@ impl SquashfsReader {
         seek: u64,
         size: u64,
     ) -> Result<(u64, Vec<T>), SquashfsError> {
-        debug!("seek 0x{:02x?}, metadata size: 0x{:02x?}", seek, size);
         // find the pointer at the initial offset
         self.seek_from_start(seek)?;
         let mut buf = [0u8; 4];
@@ -237,7 +234,6 @@ impl SquashfsReader {
         count: u64,
         //TODO: remove?
     ) -> Result<Vec<T>, SquashfsError> {
-        debug!("seek 0x{:02x?}, count: 0x{:02x?}", seek, count);
         self.seek_from_start(seek)?;
 
         let mut all_bytes = vec![];

@@ -190,6 +190,30 @@ fn test_08() {
 }
 
 #[test]
+fn test_19() {
+    const FILE_NAME: &str = "out.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "4dc83c3eea0d7ae2a23c891798d485ba0eded862db5e1528a984e08b35255b0f".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_19/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_19";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+}
+
+#[test]
+fn test_20() {
+    const FILE_NAME: &str = "out.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "4f00c0debb2d40ecb45f8d5d176a97699a8e07727713883899e6720331d67078".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_20/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_20";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+}
+
+#[test]
 fn test_openwrt_tplink_archera7v5() {
     const FILE_NAME: &str =
         "openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin";

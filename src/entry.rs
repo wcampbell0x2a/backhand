@@ -84,7 +84,8 @@ impl Entry {
 
             // last entry
             if let Some(next) = &iter.peek() {
-                if next.start != creating_start {
+                // make sure entires have the correct start and amount of directories
+                if next.start != creating_start || creating_dir.len() >= 255 {
                     let dir = Self::create_dir(&creating_dir, creating_start);
                     dirs.push(dir);
                     creating_dir = vec![];

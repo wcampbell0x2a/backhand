@@ -48,7 +48,7 @@ impl MetadataWriter {
         }
 
         let b = compressor::compress(
-            self.uncompressed_bytes.clone(),
+            &self.uncompressed_bytes,
             self.compressor,
             &self.compression_options,
         )
@@ -75,7 +75,7 @@ impl Write for MetadataWriter {
             // "Write" the to the saved metablock
             let b = compressor::compress(
                 // TODO use split_at?
-                self.uncompressed_bytes[..METADATA_MAXSIZE].to_vec(),
+                &self.uncompressed_bytes[..METADATA_MAXSIZE],
                 self.compressor,
                 &self.compression_options,
             )

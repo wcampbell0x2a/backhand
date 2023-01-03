@@ -109,7 +109,7 @@ pub fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, Squ
 
 #[instrument(skip_all)]
 pub fn compress(
-    bytes: Vec<u8>,
+    bytes: &[u8],
     compressor: Compressor,
     options: &Option<CompressionOptions>,
 ) -> Result<Vec<u8>, SquashfsError> {

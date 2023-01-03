@@ -11,9 +11,10 @@ use deku::{DekuContainerWrite, DekuWrite};
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
-use crate::data::DataWriter;
+use crate::data::{Added, DataWriter};
 use crate::entry::Entry;
 use crate::error::SquashfsError;
+use crate::fragment::Fragment;
 use crate::inode::{
     BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId, InodeInner,
 };
@@ -24,6 +25,8 @@ use crate::tree::TreeNode;
 /// In-memory representation of a Squashfs Image
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Filesystem {
+    pub block_size: u32,
+    pub block_log: u16,
     pub compressor: Compressor,
     pub compression_options: Option<CompressionOptions>,
     pub id_table: Option<Vec<Id>>,
@@ -49,7 +52,6 @@ impl Filesystem {
         inode_writer: &mut MetadataWriter,
         dir_writer: &mut MetadataWriter,
         data_writer: &mut DataWriter,
-        data_start: u32,
         dir_parent_inode: u32,
     ) -> (Vec<Entry>, Vec<(OsString, Node)>, u64) {
         let mut nodes = vec![];
@@ -83,7 +85,6 @@ impl Filesystem {
                 inode_writer,
                 dir_writer,
                 data_writer,
-                data_start,
                 parent_inode,
             );
             child_dir_entries.append(&mut l_dir_entries);
@@ -97,7 +98,7 @@ impl Filesystem {
                 Node::Path(path) => {
                     Self::path(name, path, inode, parent_inode, dir_writer, inode_writer)
                 },
-                Node::File(file) => Self::file(file, inode, data_writer, data_start, inode_writer),
+                Node::File(file) => Self::file(file, inode, data_writer, inode_writer),
                 Node::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
             };
             write_entries.push(entry);
@@ -217,24 +218,43 @@ impl Filesystem {
         file: SquashfsFile,
         inode: &mut u32,
         data_writer: &mut DataWriter,
-        data_start: u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
         let file_size = file.bytes.len() as u32;
-        let (blocks_start, block_sizes) = data_writer.add_bytes(&file.bytes);
+        let added = data_writer.add_bytes(&file.bytes);
+
+        let basic_file = match added {
+            Added::Data {
+                blocks_start,
+                block_sizes,
+            } => {
+                BasicFile {
+                    blocks_start,
+                    frag_index: 0xffffffff, // <- no fragment
+                    block_offset: 0x0,      // <- no fragment
+                    file_size,
+                    block_sizes,
+                }
+            },
+            Added::Fragment {
+                frag_index,
+                block_offset,
+            } => BasicFile {
+                blocks_start: 0,
+                frag_index,
+                block_offset,
+                file_size,
+                block_sizes: vec![],
+            },
+        };
+
         let file_inode = Inode {
             id: InodeId::BasicFile,
             header: InodeHeader {
                 inode_number: *inode,
                 ..file.header.into()
             },
-            inner: InodeInner::BasicFile(BasicFile {
-                blocks_start: blocks_start + data_start,
-                frag_index: 0xffffffff, // <- no fragment
-                block_offset: 0x0,      // <- no fragment
-                file_size,
-                block_sizes,
-            }),
+            inner: InodeInner::BasicFile(basic_file),
         };
         *inode += 1;
 
@@ -307,16 +327,14 @@ impl Filesystem {
         info!("Tree Created");
 
         let mut c = Cursor::new(vec![]);
+        let data_start = 96;
 
-        let mut data_writer = DataWriter::new(self.compressor, None);
+        let mut data_writer = DataWriter::new(self.compressor, None, data_start, self.block_size);
         let mut inode_writer = MetadataWriter::new(self.compressor, None);
         let mut dir_writer = MetadataWriter::new(self.compressor, None);
-        // TODO(#24): Add fragment support
-        //let mut fragment_writer = MetadataWriter::new(self.compressor, None);
-        //let mut fragment_table = vec![];
 
         // Empty Squashfs
-        c.write_all(&[0x00; 96])?;
+        c.write_all(&vec![0x00; data_start as usize])?;
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
@@ -329,12 +347,15 @@ impl Filesystem {
             &mut inode_writer,
             &mut dir_writer,
             &mut data_writer,
-            96,
             0,
         );
 
+        data_writer.finalize();
+
         superblock.root_inode = root_inode;
         superblock.inode_count = inode;
+        superblock.block_size = self.block_size;
+        superblock.block_log = self.block_log;
 
         info!("Writing Data");
         c.write_all(&data_writer.data_bytes)?;
@@ -347,11 +368,8 @@ impl Filesystem {
         superblock.dir_table = c.position();
         c.write_all(&dir_writer.finalize())?;
 
-        // TODO(#24): Add fragment support
-        //
-        // This is written to the position of the dir_table to support older versions of unsquashfs
-        // that don't support the empty 0xffff_ffff_ffff_ffff
-        superblock.frag_table = c.position();
+        info!("Writing Frag Lookup Table");
+        Self::write_frag_table(&mut c, data_writer.fragment_table, &mut superblock)?;
 
         info!("Writing Id Lookup Table");
         Self::write_id_table(&mut c, &self.id_table, &mut superblock)?;
@@ -399,6 +417,26 @@ impl Filesystem {
             write_superblock.id_count = id.len() as u16;
             w.write_all(&id_table_dat.to_le_bytes())?;
         }
+
+        Ok(())
+    }
+
+    fn write_frag_table(
+        w: &mut Cursor<Vec<u8>>,
+        frag_table: Vec<Fragment>,
+        write_superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
+        let frag_table_dat = w.position();
+        let bytes: Vec<u8> = frag_table
+            .iter()
+            .flat_map(|a| a.to_bytes().unwrap())
+            .collect();
+        let metadata_len = metadata::set_if_uncompressed(bytes.len() as u16).to_le_bytes();
+        w.write_all(&metadata_len)?;
+        w.write_all(&bytes)?;
+        write_superblock.frag_table = w.position();
+        write_superblock.frag_count = frag_table.len() as u32;
+        w.write_all(&frag_table_dat.to_le_bytes())?;
 
         Ok(())
     }

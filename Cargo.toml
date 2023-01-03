@@ -1,10 +1,11 @@
 [package]
 name = "backhand"
+repository = "https://github.com/wcampbell0x2a/backhand"
 version = "0.2.0"
 edition = "2021"
 rust-version = "1.60.0"
 license = "MIT/Apache-2.0"
-authors = ["wcampbell0x2a <wcampbell0x2a@wcampbell1995.gmail>"]
+authors = ["wcampbell <wcampbell1995@gmail.com>"]
 description = "Library for the reading, creating, and modification of SquashFS file systems"
 keywords = ["filesystem", "deku", "squashfs", "linux"]
 categories = ["filesystem", "parsing"]

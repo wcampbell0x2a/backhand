@@ -1,4 +1,4 @@
-//! [`SquashfsError`]
+//! Errors
 
 use std::{io, string};
 

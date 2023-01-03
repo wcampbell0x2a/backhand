@@ -1,4 +1,4 @@
-//! In-memory representation of SquashFS used for writing to image
+//! In-memory representation of SquashFS filesystem tree used for writing to image
 
 use core::fmt;
 use std::ffi::OsString;
@@ -25,14 +25,19 @@ use crate::tree::TreeNode;
 /// In-memory representation of a Squashfs Image
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Filesystem {
+    /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
+    /// See [`SuperBlock`].`block_log`
     pub block_log: u16,
+    /// See [`SuperBlock`].`compressor`
     pub compressor: Compressor,
+    /// See [`crate::squashfs::Squashfs`].`compression_options`
     pub compression_options: Option<CompressionOptions>,
+    /// See [`crate::squashfs::Squashfs`].`id`
     pub id_table: Option<Vec<Id>>,
     /// "/" node
     pub root_inode: SquashfsPath,
-    /// All other nodes
+    /// All other nodes of filesystem
     pub nodes: Vec<Node>,
 }
 
@@ -318,6 +323,9 @@ impl Filesystem {
         entry
     }
 
+    /// Convert into bytes that can be stored on disk and used as a read-only
+    /// filesystem. This generates the Superblock with the correct fields from `Filesystem`, and
+    /// the data after that contains the nodes.
     #[instrument(skip_all)]
     pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
         let mut superblock = SuperBlock::new(self.compressor);
@@ -461,6 +469,7 @@ impl From<InodeHeader> for FilesystemHeader {
     }
 }
 
+/// Nodes that are converted into filesystem tree during writing to bytes
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Node {
     File(SquashfsFile),

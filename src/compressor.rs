@@ -1,4 +1,4 @@
-//! [`Compressor`], [`CompressionOptions`], [`decompress`], and [`compress`]
+//! Types of supported compression algorithms
 
 use std::io::{Cursor, Read};
 
@@ -91,7 +91,7 @@ pub struct Zstd {
 
 /// Using the current compressor from the superblock, decompress bytes
 #[instrument(skip_all)]
-pub fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, SquashfsError> {
+pub(crate) fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, SquashfsError> {
     let mut out = vec![];
     match compressor {
         Compressor::Gzip => {
@@ -108,7 +108,7 @@ pub fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, Squ
 }
 
 #[instrument(skip_all)]
-pub fn compress(
+pub(crate) fn compress(
     bytes: &[u8],
     compressor: Compressor,
     options: &Option<CompressionOptions>,

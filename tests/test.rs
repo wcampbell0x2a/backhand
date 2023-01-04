@@ -344,3 +344,18 @@ fn test_re815xe() {
     const TEST_PATH: &str = "test-assets/test_re815_xev160";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
 }
+
+#[test]
+fn test_archlinux_iso_rootfs() {
+    const FILE_NAME: &str = "airootfs.sfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "faa5cecaa23943a3412a4d6938994708fb9ffa33a622704e29c13a34fc1f0e28".to_string(),
+        url: format!(
+            "http://mirrors.edge.kernel.org/archlinux/iso/2023.03.01/arch/x86_64/{FILE_NAME}"
+        ),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_archlinux_iso_rootfs";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+}

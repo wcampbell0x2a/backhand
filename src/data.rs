@@ -3,7 +3,7 @@
 use std::io::{Read, Seek, Write};
 
 use deku::prelude::*;
-use tracing::instrument;
+use tracing::{instrument, trace};
 
 use crate::compressor::compress;
 use crate::error::BackhandError;

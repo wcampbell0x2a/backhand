@@ -408,6 +408,7 @@ impl Squashfs {
             block_log: self.superblock.block_log,
             compressor: self.superblock.compressor,
             compression_options: self.compression_options,
+            mod_time: self.superblock.mod_time,
             id_table: self.id.clone(),
             root_inode,
             nodes: nodes.to_vec(),

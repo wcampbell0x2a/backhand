@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use backhand::filesystem::{FilesystemHeader, Node, SquashfsFile};
+use backhand::filesystem::FilesystemHeader;
 use backhand::Squashfs;
 use clap::Parser;
 
@@ -31,14 +31,7 @@ fn main() {
 
     // create new file
     let bytes = std::fs::read(&args.file).unwrap();
-    let new_file = SquashfsFile {
-        header: FilesystemHeader::default(),
-        path: args.file_path,
-        bytes,
-    };
-
-    // insert new file
-    filesystem.nodes.push(Node::File(new_file));
+    filesystem.push_file(bytes, args.file_path, FilesystemHeader::default());
 
     // write new file
     let bytes = filesystem.to_bytes().unwrap();

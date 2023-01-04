@@ -31,7 +31,19 @@ let bytes = filesystem.to_bytes().unwrap();
 ```
 
 ### Modifying Firmware
-See the `add` binary.
+```rust, ignore
+// add files
+let d = FilesystemHeader::default();
+filesystem.push_file("Fear is the mind-killer.", "a/d/e/new_file", d);
+filesystem.push_file("It is by will alone I set my mind in motion.", "root_file", d);
+
+// modify file
+let file = filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
+file.bytes = b"The sleeper must awaken.\n".to_vec();
+
+// write
+let bytes = filesystem.to_bytes().unwrap();
+```
 
 ## Testing
 This library is tested with unpacking and packing SquashFS firmwares and testing that result with `unsquashfs`.

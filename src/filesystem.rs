@@ -42,11 +42,71 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
-    // Create SquashFS file system from each node of Tree
-    //
-    // This works my recursively creating Inodes and Dirs for each node in the tree. This also
-    // keeps track of parent directories by calling this function on all nodes of a dir to get only
-    // the nodes, but going into the child dirs in the case that it contains a child dir.
+    /// Insert file `bytes` into `path` with metadata `header`.
+    ///
+    /// This will create dirs for every directory in the path that doesn't exist in `nodes` with
+    /// the metadata of `header`.
+    pub fn push_file<B: Into<Vec<u8>>, P: Into<PathBuf>>(
+        &mut self,
+        bytes: B,
+        path: P,
+        header: FilesystemHeader,
+    ) {
+        let path = path.into();
+        if path.parent().is_some() {
+            let mut full_path = "".to_string();
+            let components: Vec<_> = path.components().map(|comp| comp.as_os_str()).collect();
+            'component: for dir in components.iter().take(components.len() - 1) {
+                // add to path
+                full_path.push('/');
+                full_path.push_str(dir.to_str().unwrap());
+
+                // check if exists
+                for node in &mut self.nodes {
+                    if let Node::Path(path) = node {
+                        if path.path.as_os_str().to_str() == Some(dir.to_str().unwrap()) {
+                            break 'component;
+                        }
+                    }
+                }
+
+                // not found, add to dir
+                let new_dir = SquashfsPath {
+                    header,
+                    path: full_path.clone().into(),
+                };
+                self.nodes.push(Node::Path(new_dir));
+            }
+        }
+
+        let new_file = SquashfsFile {
+            header,
+            path,
+            bytes: bytes.into(),
+        };
+        self.nodes.push(Node::File(new_file));
+    }
+
+    /// Take a mutable reference to existing file at `find_path`
+    pub fn mut_file<S: Into<PathBuf>>(&mut self, find_path: S) -> Option<&mut SquashfsFile> {
+        let find_path = find_path.into();
+        find_path.strip_prefix("/").unwrap();
+        for node in &mut self.nodes {
+            if let Node::File(file) = node {
+                if file.path == find_path {
+                    return Some(file);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Create SquashFS file system from each node of Tree
+    ///
+    /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
+    /// keeps track of parent directories by calling this function on all nodes of a dir to get only
+    /// the nodes, but going into the child dirs in the case that it contains a child dir.
     #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
     fn write_node(
@@ -450,7 +510,7 @@ impl Filesystem {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct FilesystemHeader {
     pub permissions: u16,
     pub uid: u16,

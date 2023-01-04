@@ -14,7 +14,11 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 | The API for this library **isn't** complete. I will most likely break this for improvements |
 
 ## Library
-See `cargo doc`, but here are some examples
+Add the following to your `Cargo.toml` file:
+```toml, ignore
+[dependencies]
+backhand = "0.3.0"
+```
 ### Reading + Writing Firmware
 ```rust, ignore
 use std::fs::File;

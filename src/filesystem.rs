@@ -33,6 +33,8 @@ pub struct Filesystem {
     pub compressor: Compressor,
     /// See [`crate::squashfs::Squashfs`].`compression_options`
     pub compression_options: Option<CompressionOptions>,
+    /// See [`SuperBlock`].`mod_time`
+    pub mod_time: u32,
     /// See [`crate::squashfs::Squashfs`].`id`
     pub id_table: Option<Vec<Id>>,
     /// "/" node
@@ -389,6 +391,7 @@ impl Filesystem {
     #[instrument(skip_all)]
     pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
         let mut superblock = SuperBlock::new(self.compressor);
+
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
         let tree = TreeNode::from(self);
@@ -424,6 +427,7 @@ impl Filesystem {
         superblock.inode_count = inode;
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
+        superblock.mod_time = self.mod_time;
 
         info!("Writing Data");
         c.write_all(&data_writer.data_bytes)?;

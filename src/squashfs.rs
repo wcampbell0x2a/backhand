@@ -1,4 +1,4 @@
-//! [`Squashfs`], [`Id`], and [`Export`]
+//! Read from on-disk image
 
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
@@ -32,21 +32,36 @@ pub struct Id(pub u32);
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 pub struct SuperBlock {
+    /// Must be set to 0x73717368 ("hsqs" on disk).
     #[deku(assert_eq = "Self::MAGIC")]
     pub magic: u32,
+    /// The number of inodes stored in the archive.
     pub inode_count: u32,
+    /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
+    /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
     pub mod_time: u32,
+    /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub block_size: u32,
+    /// The number of entries in the fragment table.
     pub frag_count: u32,
+    /// Compressor used for data
     pub compressor: Compressor,
+    /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub block_log: u16,
+    /// Bit wise OR of the flag bits
     pub flags: u16,
+    /// The number of entries in the ID lookup table.
     pub id_count: u16,
     #[deku(assert_eq = "4")]
+    /// Major version of the format. Must be set to 4.
     pub version_major: u16,
     #[deku(assert_eq = "0")]
+    /// Minor version of the format. Must be set to 0.
     pub version_minor: u16,
+    /// A reference to the inode of the root directory.
     pub root_inode: u64,
+    /// The number of bytes used by the archive.
+    /// Because SquashFS archives must be padded to a multiple of the underlying device block size, this can be less than the actual file size.
     pub bytes_used: u64,
     pub id_table: u64,
     //TODO: add read into Squashfs
@@ -173,6 +188,7 @@ struct Cache {
 /// Container for a Squashfs Image stored in memory
 pub struct Squashfs {
     pub superblock: SuperBlock,
+    /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
     /// Section containing Data and Fragments.
     ///

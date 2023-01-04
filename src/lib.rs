@@ -2,12 +2,12 @@
 
 pub mod compressor;
 mod data;
-pub mod dir;
+mod dir;
 mod entry;
 pub mod error;
 pub mod filesystem;
-pub mod fragment;
-pub mod inode;
+mod fragment;
+mod inode;
 mod metadata;
 mod reader;
 pub mod squashfs;

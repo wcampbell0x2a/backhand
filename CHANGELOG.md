@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 - Fix warning when compression options isn't standard size
+- In `from_reader(..)`, show info about flags used
 
 ## [v0.4.0] - 2021-01-04
 - Add `mod_time` from `Squashfs` to `Filesystem` used in creation of new image with `to_bytes(..)`

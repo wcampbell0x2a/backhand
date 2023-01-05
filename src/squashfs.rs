@@ -318,6 +318,43 @@ impl Squashfs {
             id: id_table,
         };
 
+        // show info about flags
+        if superblock.inodes_uncompressed() {
+            info!("flags: inodes uncompressed");
+        }
+
+        if superblock.data_block_stored_uncompressed() {
+            info!("flag: data blocks stored uncompressed");
+        }
+
+        if superblock.fragments_stored_uncompressed() {
+            info!("flag: fragments stored uncompressed");
+        }
+
+        if superblock.fragments_are_not_used() {
+            info!("flag: fragments are not used");
+        }
+
+        if superblock.fragments_are_always_generated() {
+            info!("flag: fragments are always generated");
+        }
+
+        if superblock.data_has_been_duplicated() {
+            info!("flag: data has been duplicated");
+        }
+
+        if superblock.nfs_export_table_exists() {
+            info!("flag: nfs export table exists");
+        }
+
+        if superblock.xattrs_are_stored_uncompressed() {
+            info!("flag: xattrs are stored uncompressed");
+        }
+
+        if superblock.compressor_options_are_present() {
+            info!("flag: compressor options are present");
+        }
+
         info!("Successful Read");
         Ok(squashfs)
     }
@@ -340,9 +377,6 @@ impl Squashfs {
         Ok(dirs)
     }
 
-    ///
-    ///
-    ///
     /// # Returns
     /// - `Ok(Some(Vec<Dir>))` when found dir
     /// - `Ok(None)`           when empty dir

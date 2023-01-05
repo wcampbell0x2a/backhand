@@ -15,25 +15,19 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
 ## Library
 Add the following to your `Cargo.toml` file:
-```toml, ignore
+```toml
 [dependencies]
 backhand = "0.4.0"
 ```
-### Reading + Writing Firmware
+### Reading/Writing/Modifying Firmware
 ```rust, ignore
 use std::fs::File;
-use backhand::Filesystem;
+use backhand::{Filesystem, FilesystemHeader};
 
 // read
 let file = File::open("file.squashfs").unwrap();
-let filesystem = Fileystem::from_reader(file).unwrap();
+let mut filesystem = Filesystem::from_reader(file).unwrap();
 
-// write
-let bytes = filesystem.to_bytes().unwrap();
-```
-
-### Modifying Firmware
-```rust, ignore
 // add files
 let d = FilesystemHeader::default();
 filesystem.push_file("Fear is the mind-killer.", "a/d/e/new_file", d);

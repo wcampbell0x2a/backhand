@@ -117,8 +117,7 @@ impl SuperBlock {
                 Compressor::Zstd => 4,
                 Compressor::None => 0,
             };
-            // add metadata size
-            Some(size + 2)
+            Some(size)
         } else {
             None
         }
@@ -238,13 +237,10 @@ impl Squashfs {
         info!("Reading Compression options");
         let compression_options = if superblock.compressor != Compressor::None {
             if let Some(size) = superblock.compression_options_size() {
-                // ingore the size above, that is just a warning that some other information is in
-                // the Option that isn't in the squashfs spec.
-                //
-                // This appears in TP-Link rootfs squashfs.
                 let bytes = metadata::read_block(&mut reader, &superblock)?;
 
-                // TODO: test if this is correct
+                // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
+                // squashfs-tools/unsquashfs complains about this also
                 if bytes.len() != size {
                     tracing::warn!(
                         "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",

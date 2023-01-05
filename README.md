@@ -22,8 +22,7 @@ backhand = "0.4.0"
 ### Reading + Writing Firmware
 ```rust, ignore
 use std::fs::File;
-use std::env::args;
-use backhand::Squashfs;
+use backhand::Filesystem;
 
 // read
 let file = File::open("file.squashfs").unwrap();

@@ -19,8 +19,10 @@ use crate::inode::{
     BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId, InodeInner,
 };
 use crate::metadata::{self, MetadataWriter};
+use crate::reader::ReadSeek;
 use crate::squashfs::{Id, SuperBlock};
 use crate::tree::TreeNode;
+use crate::Squashfs;
 
 /// In-memory representation of a Squashfs Image
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -44,6 +46,21 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
+    /// First call `Squashfs::from_reader(..)`, then call `Squashfs::into_filesystem(..)`
+    pub fn from_reader<R: ReadSeek + 'static>(reader: R) -> Result<Self, SquashfsError> {
+        let squashfs = Squashfs::from_reader(reader)?;
+        squashfs.into_filesystem()
+    }
+
+    /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
+    pub fn from_reader_with_offset<R: ReadSeek + 'static>(
+        reader: R,
+        offset: u64,
+    ) -> Result<Self, SquashfsError> {
+        let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
+        squashfs.into_filesystem()
+    }
+
     /// Insert file `bytes` into `path` with metadata `header`.
     ///
     /// This will create dirs for every directory in the path that doesn't exist in `nodes` with

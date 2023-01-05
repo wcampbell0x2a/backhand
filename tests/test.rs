@@ -1,7 +1,7 @@
 mod common;
 use std::fs::{self, File};
 
-use backhand::Squashfs;
+use backhand::Filesystem;
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -21,20 +21,16 @@ fn full_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offs
     let new_path = format!("{test_path}/bytes.squashfs");
     let file = File::open(&og_path).unwrap();
     info!("calling from_reader");
-    let squashfs = Squashfs::from_reader_with_offset(file, offset).unwrap();
+    let og_filesystem = Filesystem::from_reader_with_offset(file, offset).unwrap();
 
     // convert to bytes
-    info!("calling into_filesystem");
-    let og_filesystem = squashfs.into_filesystem().unwrap();
     info!("calling to_bytes");
     let bytes = og_filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     info!("calling from_reader");
-    let new_squashfs = Squashfs::from_reader(std::io::Cursor::new(bytes)).unwrap();
-    info!("calling into_filesystem");
-    let _new_filesystem = new_squashfs.into_filesystem().unwrap();
+    let _new_filesystem = Filesystem::from_reader(std::io::Cursor::new(bytes)).unwrap();
 
     info!("starting unsquashfs test");
     test_unsquashfs(&og_path, &new_path, Some(offset));

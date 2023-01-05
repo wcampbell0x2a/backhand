@@ -27,8 +27,7 @@ use backhand::Squashfs;
 
 // read
 let file = File::open("file.squashfs").unwrap();
-let squashfs = Squashfs::from_reader(file).unwrap();
-let filesystem = squashfs.into_filesystem().unwrap();
+let filesystem = Fileystem::from_reader(file).unwrap();
 
 // write
 let bytes = filesystem.to_bytes().unwrap();

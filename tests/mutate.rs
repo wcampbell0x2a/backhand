@@ -2,7 +2,7 @@ mod common;
 use std::fs::{self, File};
 
 use backhand::filesystem::FilesystemHeader;
-use backhand::Squashfs;
+use backhand::Filesystem;
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -48,9 +48,7 @@ fn test_add_00() {
 
     test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
     let file = File::open(og_path).unwrap();
-    let squashfs = Squashfs::from_reader(file).unwrap();
-
-    let mut og_filesystem = squashfs.into_filesystem().unwrap();
+    let mut og_filesystem = Filesystem::from_reader(file).unwrap();
 
     // Add file
     og_filesystem.push_file(

@@ -46,7 +46,7 @@ impl DataWriter {
             compressor,
             compression_options,
             data_bytes: vec![],
-            fragment_bytes: vec![],
+            fragment_bytes: Vec::with_capacity(block_size as usize),
             fragment_table: vec![],
         }
     }
@@ -79,7 +79,7 @@ impl DataWriter {
                 self.fragment_table.push(frag);
                 self.data_bytes.write_all(&cb).unwrap();
 
-                self.fragment_bytes = vec![];
+                self.fragment_bytes = Vec::with_capacity(self.block_size as usize);
             }
 
             // add to fragment bytes

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In `from_reader(..)`, show info about flags used
 - Add `Filesystem::from_reader(..)` and `Filesystem::from_reader_with_offset(..)`
   which calls `Squashfs::from_reader(..)` and `Squashfs::from_reader_with_offset(..)` and `Squashfs::into_filesystem(..)`.
+- 5% Performance increases due to using `Vec::with_capacity(..)` for `fragment_bytes`
 
 ## [v0.4.0] - 2021-01-04
 - Add `mod_time` from `Squashfs` to `Filesystem` used in creation of new image with `to_bytes(..)`

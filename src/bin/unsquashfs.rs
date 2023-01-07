@@ -2,7 +2,9 @@ use std::fs::{self, File, Permissions};
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use backhand::filesystem::{Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
+use backhand::filesystem::{
+    Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath, SquashfsSymlink,
+};
 use backhand::Squashfs;
 use clap::{Parser, Subcommand};
 
@@ -97,6 +99,20 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                 let perms = Permissions::from_mode(u32::from(header.permissions));
                 fs::set_permissions(&path, perms).unwrap();
                 println!("[-] success, wrote {}", &path.display());
+            },
+            Node::CharacterDevice(SquashfsCharacterDevice {
+                header: _,
+                device_number: _,
+                path: _,
+            }) => {
+                println!("[-] character device not supported");
+            },
+            Node::BlockDevice(SquashfsBlockDevice {
+                header: _,
+                device_number: _,
+                path: _,
+            }) => {
+                println!("[-] block device not supported");
             },
         }
     }

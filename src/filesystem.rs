@@ -16,7 +16,8 @@ use crate::entry::Entry;
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::{
-    BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId, InodeInner,
+    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
+    InodeInner,
 };
 use crate::metadata::{self, MetadataWriter};
 use crate::reader::ReadSeek;
@@ -184,6 +185,8 @@ impl Filesystem {
                 },
                 Node::File(file) => Self::file(file, inode, data_writer, inode_writer),
                 Node::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
+                Node::CharacterDevice(char) => Self::char(char, inode, inode_writer),
+                Node::BlockDevice(block) => Self::block_device(block, inode, inode_writer),
             };
             write_entries.push(entry);
         }
@@ -402,6 +405,82 @@ impl Filesystem {
         entry
     }
 
+    /// Write data and metadata for char device node
+    fn char(
+        char_device: SquashfsCharacterDevice,
+        inode: &mut u32,
+        inode_writer: &mut MetadataWriter,
+    ) -> Entry {
+        let sym_inode = Inode {
+            id: InodeId::BasicCharacterDevice,
+            header: InodeHeader {
+                inode_number: *inode,
+                ..char_device.header.into()
+            },
+            inner: InodeInner::BasicCharacterDevice(BasicDeviceSpecialFile {
+                link_count: 0x1,
+                device_number: char_device.device_number,
+            }),
+        };
+        *inode += 1;
+
+        let mut v = BitVec::<u8, Msb0>::new();
+        sym_inode.write(&mut v, (0, 0)).unwrap();
+        let bytes = v.as_raw_slice().to_vec();
+        let start = inode_writer.metadata_start;
+        let offset = inode_writer.uncompressed_bytes.len() as u16;
+        inode_writer.write_all(&bytes).unwrap();
+
+        let entry = Entry {
+            start,
+            offset,
+            inode: sym_inode.header.inode_number,
+            t: InodeId::BasicCharacterDevice,
+            name_size: char_device.path.as_os_str().len() as u16 - 1,
+            name: char_device.path.as_os_str().as_bytes().to_vec(),
+        };
+
+        entry
+    }
+
+    /// Write data and metadata for block device node
+    fn block_device(
+        block_device: SquashfsBlockDevice,
+        inode: &mut u32,
+        inode_writer: &mut MetadataWriter,
+    ) -> Entry {
+        let sym_inode = Inode {
+            id: InodeId::BasicBlockDevice,
+            header: InodeHeader {
+                inode_number: *inode,
+                ..block_device.header.into()
+            },
+            inner: InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
+                link_count: 0x1,
+                device_number: block_device.device_number,
+            }),
+        };
+        *inode += 1;
+
+        let mut v = BitVec::<u8, Msb0>::new();
+        sym_inode.write(&mut v, (0, 0)).unwrap();
+        let bytes = v.as_raw_slice().to_vec();
+        let start = inode_writer.metadata_start;
+        let offset = inode_writer.uncompressed_bytes.len() as u16;
+        inode_writer.write_all(&bytes).unwrap();
+
+        let entry = Entry {
+            start,
+            offset,
+            inode: sym_inode.header.inode_number,
+            t: InodeId::BasicBlockDevice,
+            name_size: block_device.path.as_os_str().len() as u16 - 1,
+            name: block_device.path.as_os_str().as_bytes().to_vec(),
+        };
+
+        entry
+    }
+
     /// Convert into bytes that can be stored on disk and used as a read-only
     /// filesystem. This generates the Superblock with the correct fields from `Filesystem`, and
     /// the data after that contains the nodes.
@@ -556,6 +635,8 @@ pub enum Node {
     File(SquashfsFile),
     Symlink(SquashfsSymlink),
     Path(SquashfsPath),
+    CharacterDevice(SquashfsCharacterDevice),
+    BlockDevice(SquashfsBlockDevice),
 }
 
 impl Node {
@@ -610,5 +691,19 @@ pub struct SquashfsSymlink {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsPath {
     pub header: FilesystemHeader,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SquashfsCharacterDevice {
+    pub header: FilesystemHeader,
+    pub device_number: u32,
+    pub path: PathBuf,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct SquashfsBlockDevice {
+    pub header: FilesystemHeader,
+    pub device_number: u32,
     pub path: PathBuf,
 }

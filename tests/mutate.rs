@@ -66,7 +66,7 @@ fn test_add_00() {
     file.bytes = b"MODIFIEDfirst file!\n".to_vec();
 
     let bytes = og_filesystem.to_bytes().unwrap();
-    fs::write(&new_path, &bytes).unwrap();
+    fs::write(new_path, bytes).unwrap();
 
     let new_path = format!("{TEST_PATH}/new.squashfs");
     test_unsquashfs(&new_path, &new_path, None);

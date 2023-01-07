@@ -67,6 +67,7 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
     for node in filesystem.nodes {
         match node {
             Node::File(SquashfsFile { path, bytes, .. }) => {
+                let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("file {}", path.display());
                 let filepath = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(filepath.parent().unwrap());
@@ -78,6 +79,7 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                 }
             },
             Node::Symlink(SquashfsSymlink { path, link, .. }) => {
+                let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("symlink {} {}", path.display(), link);
                 let filepath = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(filepath.parent().unwrap());
@@ -88,8 +90,9 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                 }
             },
             Node::Path(SquashfsPath { header, path, .. }) => {
-                tracing::debug!("path {}", path.display());
+                let path: PathBuf = path.iter().skip(1).collect();
                 let path = Path::new(output).join(&path);
+                tracing::debug!("path {}", path.display());
                 let _ = std::fs::create_dir_all(&path);
                 let perms = Permissions::from_mode(u32::from(header.permissions));
                 fs::set_permissions(&path, perms).unwrap();

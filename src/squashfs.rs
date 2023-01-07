@@ -559,23 +559,23 @@ impl Squashfs {
                 // use fragment cache if possible
                 match cache.fragment_cache.get(&(frag.start)) {
                     Some(cache_bytes) => {
-                        data_bytes.append(&mut cache_bytes.clone());
+                        let bytes = &cache_bytes.clone();
+                        let bytes = &bytes[basic_file.block_offset as usize..];
+                        data_bytes.append(&mut bytes.to_vec());
                     },
                     None => {
                         let mut reader =
                             Cursor::new(&self.data_and_fragments[frag.start as usize..]);
                         let mut bytes = self.read_data(&mut reader, frag.size as usize)?;
                         cache.fragment_cache.insert(frag.start, bytes.clone());
+                        bytes = bytes[basic_file.block_offset as usize..].to_vec();
                         data_bytes.append(&mut bytes);
                     },
                 }
             }
         }
 
-        data_bytes = data_bytes[basic_file.block_offset as usize..]
-            [..basic_file.file_size as usize]
-            .to_vec();
-
+        data_bytes = data_bytes[..basic_file.file_size as usize].to_vec();
         Ok(data_bytes)
     }
 

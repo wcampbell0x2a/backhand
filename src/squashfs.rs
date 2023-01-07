@@ -12,7 +12,10 @@ use tracing::{error, info, instrument, trace};
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
-use crate::filesystem::{Filesystem, Node, SquashfsFile, SquashfsPath, SquashfsSymlink};
+use crate::filesystem::{
+    Filesystem, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath,
+    SquashfsSymlink,
+};
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, Inode, InodeHeader, InodeId, InodeInner};
 use crate::metadata;
@@ -500,9 +503,9 @@ impl Squashfs {
                         // BasicFile
                         InodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
-                            let (header, bytes) = self.file(cache, found_inode)?;
+                            let (file_header, bytes) = self.file(cache, found_inode)?;
                             let file = Node::File(SquashfsFile {
-                                header: header.into(),
+                                header: file_header.into(),
                                 path: new_path,
                                 bytes,
                             });
@@ -519,7 +522,27 @@ impl Squashfs {
                             });
                             nodes.push(symlink);
                         },
-                        _ => (),
+                        // Basic CharacterDevice
+                        InodeId::BasicCharacterDevice => {
+                            let (device_number, path) = self.char_device(found_inode, entry)?;
+                            let char_dev = Node::CharacterDevice(SquashfsCharacterDevice {
+                                header: header.into(),
+                                device_number,
+                                path,
+                            });
+                            nodes.push(char_dev);
+                        },
+                        // Basic CharacterDevice
+                        InodeId::BasicBlockDevice => {
+                            let (device_number, path) = self.block_device(found_inode, entry)?;
+                            let char_dev = Node::BlockDevice(SquashfsBlockDevice {
+                                header: header.into(),
+                                device_number,
+                                path,
+                            });
+                            nodes.push(char_dev);
+                        },
+                        _ => panic!("{entry:?}"),
                     }
                 }
             }
@@ -608,6 +631,42 @@ impl Squashfs {
         }
 
         error!("symlink not found");
+        Err(SquashfsError::FileNotFound)
+    }
+
+    /// Char Device Details
+    ///
+    /// # Returns
+    /// `Ok(dev_num, path)
+    #[instrument(skip_all)]
+    fn char_device(
+        &self,
+        inode: &Inode,
+        entry: &DirEntry,
+    ) -> Result<(u32, PathBuf), SquashfsError> {
+        if let InodeInner::BasicCharacterDevice(spc_file) = &inode.inner {
+            return Ok((spc_file.device_number, entry.name().into()));
+        }
+
+        error!("char dev not found");
+        Err(SquashfsError::FileNotFound)
+    }
+
+    /// Block Device Details
+    ///
+    /// # Returns
+    /// `Ok(dev_num, path)
+    #[instrument(skip_all)]
+    fn block_device(
+        &self,
+        inode: &Inode,
+        entry: &DirEntry,
+    ) -> Result<(u32, PathBuf), SquashfsError> {
+        if let InodeInner::BasicBlockDevice(spc_file) = &inode.inner {
+            return Ok((spc_file.device_number, entry.name().into()));
+        }
+
+        error!("block dev not found");
         Err(SquashfsError::FileNotFound)
     }
 

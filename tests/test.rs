@@ -223,9 +223,7 @@ fn test_appimage_firefox() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "b635ffdd24ecde8991cbc829773ca049994145cb2194c7c3987a87591153e58b".to_string(),
-        url: format!(
-            "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage"
-        ),
+        url: "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_firefox";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0);

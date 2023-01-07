@@ -88,7 +88,16 @@ impl From<&Filesystem> for TreeNode {
                     let path = path.path.as_path();
                     let comp = normalized_components(path);
                     tree.insert(&mut PathBuf::new(), &comp, node);
-                    tracing::trace!("tree{:#x?}", tree);
+                },
+                Node::CharacterDevice(char_device) => {
+                    let path = char_device.path.as_path();
+                    let comp = normalized_components(path);
+                    tree.insert(&mut PathBuf::new(), &comp, node);
+                },
+                Node::BlockDevice(block_device) => {
+                    let path = block_device.path.as_path();
+                    let comp = normalized_components(path);
+                    tree.insert(&mut PathBuf::new(), &comp, node);
                 },
             }
         }

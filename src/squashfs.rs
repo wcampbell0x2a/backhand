@@ -524,21 +524,21 @@ impl Squashfs {
                         },
                         // Basic CharacterDevice
                         InodeId::BasicCharacterDevice => {
-                            let (device_number, path) = self.char_device(found_inode, entry)?;
+                            let device_number = self.char_device(found_inode)?;
                             let char_dev = Node::CharacterDevice(SquashfsCharacterDevice {
                                 header: header.into(),
                                 device_number,
-                                path,
+                                path: new_path,
                             });
                             nodes.push(char_dev);
                         },
                         // Basic CharacterDevice
                         InodeId::BasicBlockDevice => {
-                            let (device_number, path) = self.block_device(found_inode, entry)?;
+                            let device_number = self.block_device(found_inode)?;
                             let char_dev = Node::BlockDevice(SquashfsBlockDevice {
                                 header: header.into(),
                                 device_number,
-                                path,
+                                path: new_path,
                             });
                             nodes.push(char_dev);
                         },
@@ -637,15 +637,11 @@ impl Squashfs {
     /// Char Device Details
     ///
     /// # Returns
-    /// `Ok(dev_num, path)
+    /// `Ok(dev_num)`
     #[instrument(skip_all)]
-    fn char_device(
-        &self,
-        inode: &Inode,
-        entry: &DirEntry,
-    ) -> Result<(u32, PathBuf), SquashfsError> {
+    fn char_device(&self, inode: &Inode) -> Result<u32, SquashfsError> {
         if let InodeInner::BasicCharacterDevice(spc_file) = &inode.inner {
-            return Ok((spc_file.device_number, entry.name().into()));
+            return Ok(spc_file.device_number);
         }
 
         error!("char dev not found");
@@ -655,15 +651,11 @@ impl Squashfs {
     /// Block Device Details
     ///
     /// # Returns
-    /// `Ok(dev_num, path)
+    /// `Ok(dev_num)`
     #[instrument(skip_all)]
-    fn block_device(
-        &self,
-        inode: &Inode,
-        entry: &DirEntry,
-    ) -> Result<(u32, PathBuf), SquashfsError> {
+    fn block_device(&self, inode: &Inode) -> Result<u32, SquashfsError> {
         if let InodeInner::BasicBlockDevice(spc_file) = &inode.inner {
-            return Ok((spc_file.device_number, entry.name().into()));
+            return Ok(spc_file.device_number);
         }
 
         error!("block dev not found");

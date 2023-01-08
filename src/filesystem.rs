@@ -431,13 +431,15 @@ impl Filesystem {
         let offset = inode_writer.uncompressed_bytes.len() as u16;
         inode_writer.write_all(&bytes).unwrap();
 
+        let name = char_device.path.file_name().unwrap().to_str().unwrap();
+
         let entry = Entry {
             start,
             offset,
             inode: sym_inode.header.inode_number,
             t: InodeId::BasicCharacterDevice,
-            name_size: char_device.path.as_os_str().len() as u16 - 1,
-            name: char_device.path.as_os_str().as_bytes().to_vec(),
+            name_size: name.len() as u16 - 1,
+            name: name.as_bytes().to_vec(),
         };
 
         entry
@@ -469,13 +471,15 @@ impl Filesystem {
         let offset = inode_writer.uncompressed_bytes.len() as u16;
         inode_writer.write_all(&bytes).unwrap();
 
+        let name = block_device.path.file_name().unwrap().to_str().unwrap();
+
         let entry = Entry {
             start,
             offset,
             inode: sym_inode.header.inode_number,
             t: InodeId::BasicBlockDevice,
-            name_size: block_device.path.as_os_str().len() as u16 - 1,
-            name: block_device.path.as_os_str().as_bytes().to_vec(),
+            name_size: name.len() as u16 - 1,
+            name: name.as_bytes().to_vec(),
         };
 
         entry

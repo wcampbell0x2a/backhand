@@ -273,3 +273,16 @@ fn test_21() {
     const TEST_PATH: &str = "test-assets/test_21";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
 }
+
+/// This has a char device (/dev/console), so we can only test the list
+#[test]
+fn test_er605() {
+    const FILE_NAME: &str = "2611E3.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "8f69958e5e25a7b9162342739305361dcd6b5a56970e342d85060f9f3be6313c".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_er605_v2_2.0.1/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_er605_v2_2";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+}

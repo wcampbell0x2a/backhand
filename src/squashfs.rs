@@ -481,7 +481,7 @@ impl Squashfs {
             for d in &dirs {
                 trace!("extracing entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
-                    let inode_key = (d.inode_num as i16 + entry.inode_offset) as u32;
+                    let inode_key = (d.inode_num as i32 + entry.inode_offset as i32) as u32;
                     trace!("extracing inode: {inode_key}");
                     let found_inode = &self.inodes[&inode_key];
                     trace!("extracing inode: {found_inode:?}");

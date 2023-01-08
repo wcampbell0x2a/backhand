@@ -2,10 +2,15 @@ mod common;
 use std::fs::{self, File};
 
 use backhand::Filesystem;
-use common::test_unsquashfs;
+use common::{test_unsquashfs, test_unsquashfs_list};
 use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
+
+enum Verify {
+    Extract,
+    List,
+}
 
 /// - Download file
 /// - Read into Squashfs
@@ -14,7 +19,13 @@ use tracing::info;
 /// - - Into Squashfs
 /// - - Into Filesystem
 /// - unsquashfs-tools/unsquashfs both and assert to diff in files
-fn full_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offset: u64) {
+fn full_test(
+    assets_defs: &[TestAssetDef],
+    filepath: &str,
+    test_path: &str,
+    offset: u64,
+    verify: Verify,
+) {
     test_assets::download_test_files(assets_defs, test_path, true).unwrap();
 
     let og_path = format!("{test_path}/{filepath}");
@@ -33,7 +44,14 @@ fn full_test(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offs
     let _new_filesystem = Filesystem::from_reader(std::io::Cursor::new(bytes)).unwrap();
 
     info!("starting unsquashfs test");
-    test_unsquashfs(&og_path, &new_path, Some(offset));
+    match verify {
+        Verify::Extract => {
+            test_unsquashfs(&og_path, &new_path, Some(offset));
+        },
+        Verify::List => {
+            test_unsquashfs_list(&og_path, &new_path, Some(offset));
+        },
+    }
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
@@ -46,7 +64,7 @@ fn test_00() {
         url: format!("wcampbell.dev/squashfs/testing/test_00/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_00";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
@@ -59,7 +77,7 @@ fn test_01() {
         url: format!("wcampbell.dev/squashfs/testing/test_01/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_01";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
@@ -72,7 +90,7 @@ fn test_02() {
         url: format!("wcampbell.dev/squashfs/testing/test_02/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_02";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
@@ -85,7 +103,7 @@ fn test_03() {
         url: format!("wcampbell.dev/squashfs/testing/test_03/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_03";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 #[test]
@@ -97,7 +115,7 @@ fn test_04() {
         url: format!("wcampbell.dev/squashfs/testing/test_04/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_04";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 #[test]
@@ -109,7 +127,7 @@ fn test_05() {
         url: format!("wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_05";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
@@ -122,7 +140,7 @@ fn test_06() {
         url: format!("wcampbell.dev/squashfs/testing/test_06/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_06";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
@@ -135,7 +153,7 @@ fn test_07() {
         url: format!("wcampbell.dev/squashfs/testing/test_07/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_07";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
@@ -148,7 +166,7 @@ fn test_08() {
         url: format!("wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_08";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 #[test]
@@ -160,7 +178,7 @@ fn test_19() {
         url: format!("wcampbell.dev/squashfs/testing/test_19/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_19";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 #[test]
@@ -172,7 +190,7 @@ fn test_20() {
         url: format!("wcampbell.dev/squashfs/testing/test_20/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_20";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
 }
 
 #[test]
@@ -187,7 +205,7 @@ fn test_openwrt_tplink_archera7v5() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x225fd0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x225fd0, Verify::Extract);
 }
 
 #[test]
@@ -202,7 +220,7 @@ fn test_openwrt_netgear_ex6100v2() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080, Verify::Extract);
 }
 
 #[test]
@@ -214,7 +232,7 @@ fn test_appimage_plexamp() {
         url: format!("https://plexamp.plex.tv/plexamp.plex.tv/desktop/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_plexamp";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8, Verify::Extract);
 }
 
 #[test]
@@ -226,7 +244,7 @@ fn test_appimage_firefox() {
         url: "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_firefox";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0, Verify::Extract);
 }
 
 /// Archer\ AX1800\(US\)_V3_221016.zip from https://www.tp-link.com/us/support/download/archer-ax1800/#Firmware
@@ -240,5 +258,18 @@ fn test_tplink_ax1800() {
         url: format!("wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+}
+
+/// one /console char device
+#[test]
+fn test_21() {
+    const FILE_NAME: &str = "out.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "8fe23229be6c3e24b9565007f9f9a25e8e796270cf7ce8518da131e95bb90bad".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_21/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_21";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
 }

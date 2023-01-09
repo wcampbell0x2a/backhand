@@ -17,7 +17,7 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-backhand = "0.4.0"
+backhand = "0.5.0"
 ```
 ### Reading/Writing/Modifying Firmware
 ```rust, ignore

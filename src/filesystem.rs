@@ -127,11 +127,9 @@ impl Filesystem {
     /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
     fn write_node(
         tree: &TreeNode,
-        root_node: &SquashfsPath,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
         dir_writer: &mut MetadataWriter,
@@ -163,7 +161,6 @@ impl Filesystem {
         for (_, child) in tree.children.iter() {
             let (mut l_dir_entries, mut l_dir_nodes, _) = Self::write_node(
                 child,
-                root_node,
                 inode,
                 inode_writer,
                 dir_writer,
@@ -218,7 +215,7 @@ impl Filesystem {
         let path_node = if let Some(Node::Path(node)) = &tree.node {
             node.clone()
         } else {
-            root_node.clone()
+            panic!();
         };
 
         // write parent_inode
@@ -492,7 +489,7 @@ impl Filesystem {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let tree = TreeNode::from(self);
+        let mut tree = TreeNode::from(self);
         info!("Tree Created");
 
         let mut c = Cursor::new(vec![]);
@@ -507,10 +504,13 @@ impl Filesystem {
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
+
+        // Add the "/" entry
+        tree.node = Some(Node::Path(self.root_inode.clone()));
+
         //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(
             &tree,
-            &self.root_inode,
             &mut inode,
             &mut inode_writer,
             &mut dir_writer,

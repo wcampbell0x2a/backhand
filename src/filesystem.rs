@@ -131,7 +131,6 @@ impl Filesystem {
     #[instrument(skip_all)]
     fn write_node(
         tree: &TreeNode,
-        child: &TreeNode,
         root_node: &SquashfsPath,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
@@ -145,8 +144,8 @@ impl Filesystem {
 
         // If no children, just return this entry since it doesn't have anything recursive/new
         // directories
-        if child.children.is_empty() {
-            nodes.push((child.name(), child.node.as_ref().unwrap().clone()));
+        if tree.children.is_empty() {
+            nodes.push((tree.name(), tree.node.as_ref().unwrap().clone()));
             return (ret_entries, nodes, root_inode);
         }
 
@@ -161,9 +160,8 @@ impl Filesystem {
         *inode += 1;
 
         // tree has children, this is a Dir, get information of every child node
-        for (_, child) in child.children.iter() {
+        for (_, child) in tree.children.iter() {
             let (mut l_dir_entries, mut l_dir_nodes, _) = Self::write_node(
-                tree,
                 child,
                 root_node,
                 inode,
@@ -211,16 +209,16 @@ impl Filesystem {
             offset,
             inode: parent_inode,
             t: InodeId::BasicDirectory,
-            name_size: child.name().len() as u16 - 1,
-            name: child.name().as_bytes().to_vec(),
+            name_size: tree.name().len() as u16 - 1,
+            name: tree.name().as_bytes().to_vec(),
         };
         trace!("ENTRY: {entry:#02x?}");
         ret_entries.push(entry);
 
-        let path_node = if let Some(node) = tree.node.as_ref() {
-            node.expect_path()
+        let path_node = if let Some(Node::Path(node)) = &tree.node {
+            node.clone()
         } else {
-            root_node
+            root_node.clone()
         };
 
         // write parent_inode
@@ -248,8 +246,8 @@ impl Filesystem {
         inode_writer.write_all(&bytes).unwrap();
         root_inode = ((start as u64) << 16) | ((offset as u64) & 0xffff);
 
-        trace!("[{:?}] entries: {ret_entries:#02x?}", child.name());
-        trace!("[{:?}] nodes: {nodes:#02x?}", child.name());
+        trace!("[{:?}] entries: {ret_entries:#02x?}", tree.name());
+        trace!("[{:?}] nodes: {nodes:#02x?}", tree.name());
         (ret_entries, nodes, root_inode)
     }
 
@@ -511,7 +509,6 @@ impl Filesystem {
         let mut inode = 1;
         //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(
-            &tree,
             &tree,
             &self.root_inode,
             &mut inode,

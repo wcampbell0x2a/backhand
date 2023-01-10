@@ -3,7 +3,8 @@ use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use backhand::filesystem::{
-    Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath, SquashfsSymlink,
+    InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath,
+    SquashfsSymlink,
 };
 use backhand::Squashfs;
 use clap::{Parser, Subcommand};
@@ -67,8 +68,9 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
     let filesystem = squashfs.into_filesystem().unwrap();
 
     for node in filesystem.nodes {
-        match node {
-            Node::File(SquashfsFile { path, bytes, .. }) => {
+        let path = node.path;
+        match node.inner {
+            InnerNode::File(SquashfsFile { bytes, .. }) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("file {}", path.display());
                 let filepath = Path::new(output).join(path);
@@ -80,7 +82,7 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     },
                 }
             },
-            Node::Symlink(SquashfsSymlink { path, link, .. }) => {
+            InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("symlink {} {}", path.display(), link);
                 let filepath = Path::new(output).join(path);
@@ -91,7 +93,7 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     println!("[!] failed write: {}->{link}", filepath.display());
                 }
             },
-            Node::Path(SquashfsPath { header, path, .. }) => {
+            InnerNode::Path(SquashfsPath { header, .. }) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 let path = Path::new(output).join(&path);
                 tracing::debug!("path {}", path.display());
@@ -100,17 +102,15 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                 fs::set_permissions(&path, perms).unwrap();
                 println!("[-] success, wrote {}", &path.display());
             },
-            Node::CharacterDevice(SquashfsCharacterDevice {
+            InnerNode::CharacterDevice(SquashfsCharacterDevice {
                 header: _,
                 device_number: _,
-                path: _,
             }) => {
                 println!("[-] character device not supported");
             },
-            Node::BlockDevice(SquashfsBlockDevice {
+            InnerNode::BlockDevice(SquashfsBlockDevice {
                 header: _,
                 device_number: _,
-                path: _,
             }) => {
                 println!("[-] block device not supported");
             },

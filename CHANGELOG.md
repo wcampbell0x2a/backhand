@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 - Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)
   to not be saved in resulting filesystem when calling `Filesystem::to_bytes(..)`.
+- Rework `filesystem::Node` to be a struct containing the path and `InnerNode`.
+  This cleans up the inner implementation of the file system tree.
 
 ## [v0.5.0] - 2021-01-08
 - Fix warning when compression options isn't standard size

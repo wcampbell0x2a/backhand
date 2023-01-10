@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
-use crate::filesystem::{Filesystem, Node};
+use crate::filesystem::{Filesystem, InnerNode};
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();
@@ -27,7 +27,7 @@ fn normalized_components(path: &Path) -> Vec<&OsStr> {
 #[derive(Debug)]
 pub(crate) struct TreeNode {
     pub fullpath: PathBuf,
-    pub node: Option<Node>,
+    pub node: Option<InnerNode>,
     pub children: BTreeMap<PathBuf, TreeNode>,
 }
 
@@ -40,7 +40,7 @@ impl TreeNode {
         }
     }
 
-    fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &Node) {
+    fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &InnerNode) {
         if let Some((first, rest)) = components.split_first() {
             fullpath.push(first);
 
@@ -70,34 +70,10 @@ impl From<&Filesystem> for TreeNode {
             node: None,
             children: BTreeMap::new(),
         };
-        for node in fs.nodes.iter() {
-            match node {
-                Node::File(file) => {
-                    let path = file.path.as_path();
-                    let comp = normalized_components(path);
-                    tree.insert(&mut PathBuf::new(), &comp, node);
-                },
-                Node::Symlink(symlink) => {
-                    let path = symlink.path.as_path();
-                    let comp = normalized_components(path);
-                    tree.insert(&mut PathBuf::new(), &comp, node);
-                },
-                Node::Path(path) => {
-                    let path = path.path.as_path();
-                    let comp = normalized_components(path);
-                    tree.insert(&mut PathBuf::new(), &comp, node);
-                },
-                Node::CharacterDevice(char_device) => {
-                    let path = char_device.path.as_path();
-                    let comp = normalized_components(path);
-                    tree.insert(&mut PathBuf::new(), &comp, node);
-                },
-                Node::BlockDevice(block_device) => {
-                    let path = block_device.path.as_path();
-                    let comp = normalized_components(path);
-                    tree.insert(&mut PathBuf::new(), &comp, node);
-                },
-            }
+        for node in &fs.nodes {
+            let path = node.path.as_path();
+            let comp = normalized_components(path);
+            tree.insert(&mut PathBuf::new(), &comp, &node.inner);
         }
 
         tree

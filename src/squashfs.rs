@@ -13,8 +13,8 @@ use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{
-    Filesystem, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath,
-    SquashfsSymlink,
+    Filesystem, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile,
+    SquashfsPath, SquashfsSymlink,
 };
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, Inode, InodeHeader, InodeId, InodeInner};
@@ -433,7 +433,6 @@ impl Squashfs {
 
         let root_inode = SquashfsPath {
             header: self.root_inode.header.into(),
-            path: "/".into(),
         };
 
         let filesystem = Filesystem {
@@ -492,10 +491,12 @@ impl Squashfs {
                     match entry.t {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
-                            nodes.push(Node::Path(SquashfsPath {
+                            let path = new_path.clone();
+                            let inner = InnerNode::Path(SquashfsPath {
                                 header: header.into(),
-                                path: new_path.clone(),
-                            }));
+                            });
+                            let node = Node::new(path, inner);
+                            nodes.push(node);
 
                             // its a dir, extract all inodes
                             self.extract_dir(cache, nodes, found_inode, &new_path)?;
@@ -504,43 +505,47 @@ impl Squashfs {
                         InodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
                             let (file_header, bytes) = self.file(cache, found_inode)?;
-                            let file = Node::File(SquashfsFile {
+                            let path = new_path.clone();
+                            let inner = InnerNode::File(SquashfsFile {
                                 header: file_header.into(),
-                                path: new_path,
                                 bytes,
                             });
-                            nodes.push(file);
+                            let node = Node::new(path, inner);
+                            nodes.push(node);
                         },
                         // Basic Symlink
                         InodeId::BasicSymlink => {
                             let (original, link) = self.symlink(found_inode, entry)?;
-                            let symlink = Node::Symlink(SquashfsSymlink {
+                            let path = new_path;
+                            let inner = InnerNode::Symlink(SquashfsSymlink {
                                 header: header.into(),
-                                path: new_path,
                                 original,
                                 link,
                             });
-                            nodes.push(symlink);
+                            let node = Node::new(path, inner);
+                            nodes.push(node);
                         },
                         // Basic CharacterDevice
                         InodeId::BasicCharacterDevice => {
                             let device_number = self.char_device(found_inode)?;
-                            let char_dev = Node::CharacterDevice(SquashfsCharacterDevice {
+                            let path = new_path;
+                            let inner = InnerNode::CharacterDevice(SquashfsCharacterDevice {
                                 header: header.into(),
                                 device_number,
-                                path: new_path,
                             });
-                            nodes.push(char_dev);
+                            let node = Node::new(path, inner);
+                            nodes.push(node);
                         },
                         // Basic CharacterDevice
                         InodeId::BasicBlockDevice => {
                             let device_number = self.block_device(found_inode)?;
-                            let char_dev = Node::BlockDevice(SquashfsBlockDevice {
+                            let path = new_path;
+                            let inner = InnerNode::BlockDevice(SquashfsBlockDevice {
                                 header: header.into(),
                                 device_number,
-                                path: new_path,
                             });
-                            nodes.push(char_dev);
+                            let node = Node::new(path, inner);
+                            nodes.push(node);
                         },
                         _ => panic!("{entry:?}"),
                     }

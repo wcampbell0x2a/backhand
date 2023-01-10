@@ -83,28 +83,26 @@ impl Filesystem {
 
                 // check if exists
                 for node in &mut self.nodes {
-                    if let Node::Path(path) = node {
-                        if path.path.as_os_str().to_str() == Some(dir.to_str().unwrap()) {
+                    if let InnerNode::Path(_) = &node.inner {
+                        if node.path.as_os_str().to_str() == Some(dir.to_str().unwrap()) {
                             break 'component;
                         }
                     }
                 }
 
                 // not found, add to dir
-                let new_dir = SquashfsPath {
-                    header,
-                    path: full_path.clone().into(),
-                };
-                self.nodes.push(Node::Path(new_dir));
+                let new_dir = InnerNode::Path(SquashfsPath { header });
+                let node = Node::new(PathBuf::from(full_path.clone()), new_dir);
+                self.nodes.push(node);
             }
         }
 
-        let new_file = SquashfsFile {
+        let new_file = InnerNode::File(SquashfsFile {
             header,
-            path,
             bytes: bytes.into(),
-        };
-        self.nodes.push(Node::File(new_file));
+        });
+        let node = Node::new(path, new_file);
+        self.nodes.push(node);
     }
 
     /// Take a mutable reference to existing file at `find_path`
@@ -112,8 +110,8 @@ impl Filesystem {
         let find_path = find_path.into();
         find_path.strip_prefix("/").unwrap();
         for node in &mut self.nodes {
-            if let Node::File(file) = node {
-                if file.path == find_path {
+            if let InnerNode::File(file) = &mut node.inner {
+                if node.path == find_path {
                     return Some(file);
                 }
             }
@@ -135,7 +133,7 @@ impl Filesystem {
         dir_writer: &mut MetadataWriter,
         data_writer: &mut DataWriter,
         dir_parent_inode: u32,
-    ) -> (Vec<Entry>, Vec<(OsString, Node)>, u64) {
+    ) -> (Vec<Entry>, Vec<(OsString, InnerNode)>, u64) {
         let mut nodes = vec![];
         let mut ret_entries = vec![];
         let mut root_inode = 0;
@@ -174,14 +172,26 @@ impl Filesystem {
 
         // write child inodes
         for (name, node) in child_dir_nodes {
+            let node_path = PathBuf::from(name.clone());
             let entry = match node {
-                Node::Path(path) => {
-                    Self::path(name, path, inode, parent_inode, dir_writer, inode_writer)
+                InnerNode::Path(path) => Self::path(
+                    name,
+                    path.clone(),
+                    inode,
+                    parent_inode,
+                    dir_writer,
+                    inode_writer,
+                ),
+                InnerNode::File(file) => {
+                    Self::file(node_path, file, inode, data_writer, inode_writer)
                 },
-                Node::File(file) => Self::file(file, inode, data_writer, inode_writer),
-                Node::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
-                Node::CharacterDevice(char) => Self::char(char, inode, inode_writer),
-                Node::BlockDevice(block) => Self::block_device(block, inode, inode_writer),
+                InnerNode::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
+                InnerNode::CharacterDevice(char) => {
+                    Self::char(node_path, char, inode, inode_writer)
+                },
+                InnerNode::BlockDevice(block) => {
+                    Self::block_device(node_path, block, inode, inode_writer)
+                },
             };
             write_entries.push(entry);
         }
@@ -212,7 +222,7 @@ impl Filesystem {
         trace!("ENTRY: {entry:#02x?}");
         ret_entries.push(entry);
 
-        let path_node = if let Some(Node::Path(node)) = &tree.node {
+        let path_node = if let Some(InnerNode::Path(node)) = &tree.node {
             node.clone()
         } else {
             panic!();
@@ -297,6 +307,7 @@ impl Filesystem {
 
     /// Write data and metadata for file node
     fn file(
+        node_path: PathBuf,
         file: SquashfsFile,
         inode: &mut u32,
         data_writer: &mut DataWriter,
@@ -347,7 +358,7 @@ impl Filesystem {
         let offset = inode_writer.uncompressed_bytes.len() as u16;
         inode_writer.write_all(&bytes).unwrap();
 
-        let file_name = file.path.file_name().unwrap();
+        let file_name = node_path.file_name().unwrap();
         let entry = Entry {
             start,
             offset,
@@ -402,6 +413,7 @@ impl Filesystem {
 
     /// Write data and metadata for char device node
     fn char(
+        node_path: PathBuf,
         char_device: SquashfsCharacterDevice,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
@@ -426,7 +438,7 @@ impl Filesystem {
         let offset = inode_writer.uncompressed_bytes.len() as u16;
         inode_writer.write_all(&bytes).unwrap();
 
-        let name = char_device.path.file_name().unwrap().to_str().unwrap();
+        let name = node_path.file_name().unwrap().to_str().unwrap();
 
         let entry = Entry {
             start,
@@ -442,6 +454,7 @@ impl Filesystem {
 
     /// Write data and metadata for block device node
     fn block_device(
+        node_path: PathBuf,
         block_device: SquashfsBlockDevice,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
@@ -466,7 +479,7 @@ impl Filesystem {
         let offset = inode_writer.uncompressed_bytes.len() as u16;
         inode_writer.write_all(&bytes).unwrap();
 
-        let name = block_device.path.file_name().unwrap().to_str().unwrap();
+        let name = node_path.file_name().unwrap().to_str().unwrap();
 
         let entry = Entry {
             start,
@@ -506,7 +519,8 @@ impl Filesystem {
         let mut inode = 1;
 
         // Add the "/" entry
-        tree.node = Some(Node::Path(self.root_inode.clone()));
+        let inner = InnerNode::Path(self.root_inode.clone());
+        tree.node = Some(inner);
 
         //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(
@@ -632,7 +646,19 @@ impl From<InodeHeader> for FilesystemHeader {
 
 /// Nodes that are converted into filesystem tree during writing to bytes
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Node {
+pub struct Node {
+    pub path: PathBuf,
+    pub inner: InnerNode,
+}
+
+impl Node {
+    pub fn new(path: PathBuf, inner: InnerNode) -> Self {
+        Node { path, inner }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum InnerNode {
     File(SquashfsFile),
     Symlink(SquashfsSymlink),
     Path(SquashfsPath),
@@ -642,30 +668,17 @@ pub enum Node {
 
 impl Node {
     pub fn expect_path(&self) -> &SquashfsPath {
-        if let Self::Path(path) = self {
+        if let InnerNode::Path(path) = &self.inner {
             path
         } else {
             panic!("not a path")
         }
-    }
-
-    pub fn is_file(&self) -> bool {
-        matches!(self, Node::File(_))
-    }
-
-    pub fn is_symlink(&self) -> bool {
-        matches!(self, Node::Symlink(_))
-    }
-
-    pub fn is_path(&self) -> bool {
-        matches!(self, Node::Path(_))
     }
 }
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct SquashfsFile {
     pub header: FilesystemHeader,
-    pub path: PathBuf,
     // TODO: Maybe hold a reference to a Reader? so that something could be written to disk and read from
     // disk instead of loaded into memory
     pub bytes: Vec<u8>,
@@ -675,7 +688,6 @@ impl fmt::Debug for SquashfsFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DirEntry")
             .field("header", &self.header)
-            .field("path", &self.path)
             .field("bytes", &self.bytes.len())
             .finish()
     }
@@ -684,7 +696,6 @@ impl fmt::Debug for SquashfsFile {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsSymlink {
     pub header: FilesystemHeader,
-    pub path: PathBuf,
     pub original: String,
     pub link: String,
 }
@@ -692,19 +703,16 @@ pub struct SquashfsSymlink {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsPath {
     pub header: FilesystemHeader,
-    pub path: PathBuf,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsCharacterDevice {
     pub header: FilesystemHeader,
     pub device_number: u32,
-    pub path: PathBuf,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsBlockDevice {
     pub header: FilesystemHeader,
     pub device_number: u32,
-    pub path: PathBuf,
 }

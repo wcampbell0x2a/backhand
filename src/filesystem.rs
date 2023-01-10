@@ -127,12 +127,9 @@ impl Filesystem {
     /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
     fn write_node(
         tree: &TreeNode,
-        child: &TreeNode,
-        root_node: &SquashfsPath,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
         dir_writer: &mut MetadataWriter,
@@ -145,8 +142,8 @@ impl Filesystem {
 
         // If no children, just return this entry since it doesn't have anything recursive/new
         // directories
-        if child.children.is_empty() {
-            nodes.push((child.name(), child.node.as_ref().unwrap().clone()));
+        if tree.children.is_empty() {
+            nodes.push((tree.name(), tree.node.as_ref().unwrap().clone()));
             return (ret_entries, nodes, root_inode);
         }
 
@@ -161,11 +158,9 @@ impl Filesystem {
         *inode += 1;
 
         // tree has children, this is a Dir, get information of every child node
-        for (_, child) in child.children.iter() {
+        for (_, child) in tree.children.iter() {
             let (mut l_dir_entries, mut l_dir_nodes, _) = Self::write_node(
-                tree,
                 child,
-                root_node,
                 inode,
                 inode_writer,
                 dir_writer,
@@ -211,16 +206,16 @@ impl Filesystem {
             offset,
             inode: parent_inode,
             t: InodeId::BasicDirectory,
-            name_size: child.name().len() as u16 - 1,
-            name: child.name().as_bytes().to_vec(),
+            name_size: tree.name().len() as u16 - 1,
+            name: tree.name().as_bytes().to_vec(),
         };
         trace!("ENTRY: {entry:#02x?}");
         ret_entries.push(entry);
 
-        let path_node = if let Some(node) = tree.node.as_ref() {
-            node.expect_path()
+        let path_node = if let Some(Node::Path(node)) = &tree.node {
+            node.clone()
         } else {
-            root_node
+            panic!();
         };
 
         // write parent_inode
@@ -248,8 +243,8 @@ impl Filesystem {
         inode_writer.write_all(&bytes).unwrap();
         root_inode = ((start as u64) << 16) | ((offset as u64) & 0xffff);
 
-        trace!("[{:?}] entries: {ret_entries:#02x?}", child.name());
-        trace!("[{:?}] nodes: {nodes:#02x?}", child.name());
+        trace!("[{:?}] entries: {ret_entries:#02x?}", tree.name());
+        trace!("[{:?}] nodes: {nodes:#02x?}", tree.name());
         (ret_entries, nodes, root_inode)
     }
 
@@ -494,7 +489,7 @@ impl Filesystem {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let tree = TreeNode::from(self);
+        let mut tree = TreeNode::from(self);
         info!("Tree Created");
 
         let mut c = Cursor::new(vec![]);
@@ -509,11 +504,13 @@ impl Filesystem {
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
+
+        // Add the "/" entry
+        tree.node = Some(Node::Path(self.root_inode.clone()));
+
         //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(
             &tree,
-            &tree,
-            &self.root_inode,
             &mut inode,
             &mut inode_writer,
             &mut dir_writer,

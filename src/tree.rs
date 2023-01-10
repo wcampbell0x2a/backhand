@@ -58,8 +58,6 @@ impl TreeNode {
                     node,
                     children: BTreeMap::new(),
                 });
-            entry.node = Some(og_node.clone());
-
             entry.insert(fullpath, rest, og_node);
         }
     }

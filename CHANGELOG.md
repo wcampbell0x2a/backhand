@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)
+  to not be saved in resulting filesystem when calling `Filesystem::to_bytes(..)`.
 
 ## [v0.5.0] - 2021-01-08
 - Fix warning when compression options isn't standard size

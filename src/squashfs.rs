@@ -36,8 +36,8 @@ pub struct Id(pub u32);
 #[deku(endian = "little")]
 pub struct SuperBlock {
     /// Must be set to 0x73717368 ("hsqs" on disk).
-    #[deku(assert_eq = "Self::MAGIC")]
-    pub magic: u32,
+    #[deku(assert_eq = "*Self::MAGIC")]
+    pub magic: [u8; 4],
     /// The number of inodes stored in the archive.
     pub inode_count: u32,
     /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
@@ -77,22 +77,22 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
-    const MAGIC: u32 = 0x73717368;
-    const BLOCK_SIZE: u32 = 0x20000;
-    const BLOCK_LOG: u16 = 0x11;
+    const MAGIC: &'static [u8; 4] = b"hsqs";
+    const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
+    const DEFAULT_BLOCK_LOG: u16 = 0x11;
     const VERSION_MAJ: u16 = 4;
     const VERSION_MIN: u16 = 0;
-    const NOT_SET: u64 = 0xffffffffffffffff;
+    const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
     pub fn new(compressor: Compressor) -> Self {
         Self {
-            magic: Self::MAGIC,
+            magic: *Self::MAGIC,
             inode_count: 0,
             mod_time: 0,
-            block_size: Self::BLOCK_SIZE, // use const
+            block_size: Self::DEFAULT_BLOCK_SIZE,
             frag_count: 0,
             compressor,
-            block_log: Self::BLOCK_LOG,
+            block_log: Self::DEFAULT_BLOCK_LOG,
             flags: 0,
             id_count: 0,
             version_major: Self::VERSION_MAJ,

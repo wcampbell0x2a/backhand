@@ -195,6 +195,7 @@ impl Filesystem {
                 },
             };
             write_entries.push(entry);
+            *inode += 1;
         }
 
         // write dir
@@ -279,13 +280,12 @@ impl Filesystem {
             inner: InodeInner::BasicDirectory(BasicDirectory {
                 block_index,
                 link_count: 2,
-                //TODO: assume this is empty and use 3?
+                // Empty path
                 file_size: 3,
                 block_offset,
                 parent_inode,
             }),
         };
-        *inode += 1;
 
         dir_inode.to_bytes(name.as_bytes(), inode_writer)
     }
@@ -334,7 +334,6 @@ impl Filesystem {
             },
             inner: InodeInner::BasicFile(basic_file),
         };
-        *inode += 1;
 
         let file_name = node_path.file_name().unwrap();
         file_inode.to_bytes(file_name.as_bytes(), inode_writer)
@@ -359,7 +358,6 @@ impl Filesystem {
                 target_path: link.to_vec(),
             }),
         };
-        *inode += 1;
 
         sym_inode.to_bytes(symlink.original.as_bytes(), inode_writer)
     }
@@ -382,7 +380,6 @@ impl Filesystem {
                 device_number: char_device.device_number,
             }),
         };
-        *inode += 1;
 
         let name = node_path.file_name().unwrap().to_str().unwrap();
         char_inode.to_bytes(name.as_bytes(), inode_writer)
@@ -406,7 +403,6 @@ impl Filesystem {
                 device_number: block_device.device_number,
             }),
         };
-        *inode += 1;
 
         let name = node_path.file_name().unwrap().to_str().unwrap();
         block_inode.to_bytes(name.as_bytes(), inode_writer)
@@ -451,6 +447,7 @@ impl Filesystem {
             0,
         );
 
+        // Compress everything
         data_writer.finalize();
 
         superblock.root_inode = root_inode;
@@ -583,16 +580,6 @@ pub enum InnerNode {
     Path(SquashfsPath),
     CharacterDevice(SquashfsCharacterDevice),
     BlockDevice(SquashfsBlockDevice),
-}
-
-impl Node {
-    pub fn expect_path(&self) -> &SquashfsPath {
-        if let InnerNode::Path(path) = &self.inner {
-            path
-        } else {
-            panic!("not a path")
-        }
-    }
 }
 
 #[derive(PartialEq, Eq, Clone)]

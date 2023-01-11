@@ -1,4 +1,4 @@
-//! [`Dir`], [`DirEntry`], and [`DirectoryIndex`]
+//! Storage of directories with references to inodes
 //!
 //! For each directory inode, the directory table stores a linear list of all entries,
 //! with references back to the inodes that describe those entries.

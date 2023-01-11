@@ -1,4 +1,4 @@
-//! [`Fragment`]
+//! Data Fragment support
 
 use deku::prelude::*;
 

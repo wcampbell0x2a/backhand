@@ -1,4 +1,4 @@
-//! [`Inode`], and other inode types
+//! Index Node for file or directory
 
 use core::fmt;
 
@@ -24,10 +24,10 @@ pub enum InodeId {
 #[deku(ctx = "block_size: u32, block_log: u16")]
 #[deku(endian = "little")]
 pub struct Inode {
-    pub(crate) id: InodeId,
-    pub(crate) header: InodeHeader,
+    pub id: InodeId,
+    pub header: InodeHeader,
     #[deku(ctx = "*id, block_size, block_log")]
-    pub(crate) inner: InodeInner,
+    pub inner: InodeInner,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
@@ -75,11 +75,11 @@ impl Inode {
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct InodeHeader {
-    pub(crate) permissions: u16,
-    pub(crate) uid: u16,
-    pub(crate) gid: u16,
-    pub(crate) mtime: u32,
-    pub(crate) inode_number: u32,
+    pub permissions: u16,
+    pub uid: u16,
+    pub gid: u16,
+    pub mtime: u32,
+    pub inode_number: u32,
 }
 
 impl From<FilesystemHeader> for InodeHeader {
@@ -97,11 +97,11 @@ impl From<FilesystemHeader> for InodeHeader {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDirectory {
-    pub(crate) block_index: u32,
-    pub(crate) link_count: u32,
-    pub(crate) file_size: u16,
-    pub(crate) block_offset: u16,
-    pub(crate) parent_inode: u32,
+    pub block_index: u32,
+    pub link_count: u32,
+    pub file_size: u16,
+    pub block_offset: u16,
+    pub parent_inode: u32,
 }
 
 impl From<&ExtendedDirectory> for BasicDirectory {
@@ -119,16 +119,16 @@ impl From<&ExtendedDirectory> for BasicDirectory {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct ExtendedDirectory {
-    pub(crate) link_count: u32,
-    pub(crate) file_size: u32,
-    pub(crate) block_index: u32,
-    pub(crate) parent_inode: u32,
-    pub(crate) index_count: u16,
-    pub(crate) block_offset: u16,
-    pub(crate) xattr_index: u32,
+    pub link_count: u32,
+    pub file_size: u32,
+    pub block_index: u32,
+    pub parent_inode: u32,
+    pub index_count: u16,
+    pub block_offset: u16,
+    pub xattr_index: u32,
     // TODO: this has a type
     #[deku(count = "*index_count")]
-    pub(crate) dir_index: Vec<DirectoryIndex>,
+    pub dir_index: Vec<DirectoryIndex>,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
@@ -137,12 +137,12 @@ pub struct ExtendedDirectory {
     ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
 )]
 pub struct BasicFile {
-    pub(crate) blocks_start: u32,
-    pub(crate) frag_index: u32,
-    pub(crate) block_offset: u32,
-    pub(crate) file_size: u32,
+    pub blocks_start: u32,
+    pub frag_index: u32,
+    pub block_offset: u32,
+    pub file_size: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
-    pub(crate) block_sizes: Vec<u32>,
+    pub block_sizes: Vec<u32>,
 }
 
 impl From<&ExtendedFile> for BasicFile {
@@ -163,15 +163,15 @@ impl From<&ExtendedFile> for BasicFile {
     ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
 )]
 pub struct ExtendedFile {
-    pub(crate) blocks_start: u64,
-    pub(crate) file_size: u64,
-    pub(crate) sparse: u64,
-    pub(crate) link_count: u32,
-    pub(crate) frag_index: u32,
-    pub(crate) block_offset: u32,
-    pub(crate) xattr_index: u32,
+    pub blocks_start: u64,
+    pub file_size: u64,
+    pub sparse: u64,
+    pub link_count: u32,
+    pub frag_index: u32,
+    pub block_offset: u32,
+    pub xattr_index: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size)")]
-    pub(crate) block_sizes: Vec<u32>,
+    pub block_sizes: Vec<u32>,
 }
 
 fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -> u64 {
@@ -187,10 +187,10 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
 #[derive(DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicSymlink {
-    pub(crate) link_count: u32,
-    pub(crate) target_size: u32,
+    pub link_count: u32,
+    pub target_size: u32,
     #[deku(count = "target_size")]
-    pub(crate) target_path: Vec<u8>,
+    pub target_path: Vec<u8>,
 }
 
 impl fmt::Debug for BasicSymlink {
@@ -211,6 +211,6 @@ impl BasicSymlink {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDeviceSpecialFile {
-    pub(crate) link_count: u32,
-    pub(crate) device_number: u32,
+    pub link_count: u32,
+    pub device_number: u32,
 }

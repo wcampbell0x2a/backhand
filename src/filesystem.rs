@@ -25,7 +25,8 @@ use crate::squashfs::{Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::Squashfs;
 
-/// In-memory representation of a Squashfs Image
+/// In-memory representation of a Squashfs image with extracted files and other information needed
+/// to create an on-disk image
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Filesystem {
     /// See [`SuperBlock`].`block_size`
@@ -34,15 +35,15 @@ pub struct Filesystem {
     pub block_log: u16,
     /// See [`SuperBlock`].`compressor`
     pub compressor: Compressor,
-    /// See [`crate::squashfs::Squashfs`].`compression_options`
+    /// See [`Squashfs`].`compression_options`
     pub compression_options: Option<CompressionOptions>,
     /// See [`SuperBlock`].`mod_time`
     pub mod_time: u32,
-    /// See [`crate::squashfs::Squashfs`].`id`
+    /// See [`Squashfs`].`id`
     pub id_table: Option<Vec<Id>>,
-    /// "/" node
+    /// Information for the `/` node
     pub root_inode: SquashfsPath,
-    /// All other nodes of filesystem
+    /// All files and directories in filesystem. This will be convert into a filesystem tree with [`Filesystem::to_bytes`]
     pub nodes: Vec<Node>,
 }
 
@@ -493,7 +494,7 @@ impl Filesystem {
         entry
     }
 
-    /// Convert into bytes that can be stored on disk and used as a read-only
+    /// Convert into bytes that can be stored on disk and used as a completed and correct read-only
     /// filesystem. This generates the Superblock with the correct fields from `Filesystem`, and
     /// the data after that contains the nodes.
     #[instrument(skip_all)]

@@ -187,21 +187,24 @@ struct Cache {
     pub fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
 }
 
-/// Container for a Squashfs Image stored in memory
+/// Representation of Squashfs image in memory. Tables such as Inodes and Dirs are extracted into
+/// the struct types, while data stays compressed.
+///
+/// See [`Filesystem`] for a representation with the data extracted and uncompressed.
 pub struct Squashfs {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
-    /// Section containing Data and Fragments.
+    /// Section containing compressed/uncompressed file data and fragments.
     ///
-    /// This also contains the superblock and option bytes b/c that is how BasicFile uses its
-    /// blocks_starts.
+    /// This also contains the superblock and option bytes b/c that is how [`BasicFile`] uses its
+    /// `blocks_starts`.
     pub data_and_fragments: Vec<u8>,
     // All Inodes
     pub inodes: HashMap<u32, Inode, BuildHasherDefault<twox_hash::XxHash64>>,
     /// Root Inode
     pub root_inode: Inode,
-    /// Bytes containing Directory Table
+    /// Bytes containing Directory Table, this is converted into [`Dir`]'s with [`Squashfs::all_dirs`].
     pub dir_blocks: Vec<(u64, Vec<u8>)>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
@@ -422,7 +425,8 @@ impl Squashfs {
         Ok(Some(dirs))
     }
 
-    /// Extract all files(File/Symlink/Path) from image
+    /// Convert into [`Filesystem`] by extracting all file bytes and converting into a filesystem
+    /// like structure in-memory
     #[instrument(skip_all)]
     pub fn into_filesystem(&self) -> Result<Filesystem, SquashfsError> {
         let mut cache = Cache::default();

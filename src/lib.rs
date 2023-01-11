@@ -5,7 +5,7 @@
 //! Add the following to your `Cargo.toml` file:
 //! ```toml
 //! [dependencies]
-//! backhand = "0.5.0"
+//! backhand = "0.6.0"
 //! ```
 //!
 //! Most usage of this library just requires the usage of [`Filesystem`], although this library gives

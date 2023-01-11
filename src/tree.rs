@@ -25,13 +25,13 @@ fn normalized_components(path: &Path) -> Vec<&OsStr> {
 
 // TODO this can be either have a node or children not both, can be a Enum?
 #[derive(Debug)]
-pub(crate) struct TreeNode {
+pub(crate) struct TreeNode<'a> {
     pub fullpath: PathBuf,
-    pub node: Option<InnerNode>,
-    pub children: BTreeMap<PathBuf, TreeNode>,
+    pub node: Option<&'a InnerNode>,
+    pub children: BTreeMap<PathBuf, TreeNode<'a>>,
 }
 
-impl TreeNode {
+impl<'a> TreeNode<'a> {
     pub(crate) fn name(&self) -> OsString {
         if let Some(path) = self.fullpath.as_path().file_name() {
             path.into()
@@ -40,16 +40,12 @@ impl TreeNode {
         }
     }
 
-    fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &InnerNode) {
+    fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &'a InnerNode) {
         if let Some((first, rest)) = components.split_first() {
             fullpath.push(first);
 
             // no rest, we have the file
-            let node = if rest.is_empty() {
-                Some(og_node.clone())
-            } else {
-                None
-            };
+            let node = if rest.is_empty() { Some(og_node) } else { None };
             let entry = self
                 .children
                 .entry(fullpath.to_path_buf())
@@ -63,8 +59,8 @@ impl TreeNode {
     }
 }
 
-impl From<&Filesystem> for TreeNode {
-    fn from(fs: &Filesystem) -> Self {
+impl<'a> From<&'a Filesystem> for TreeNode<'a> {
+    fn from(fs: &'a Filesystem) -> Self {
         let mut tree = TreeNode {
             fullpath: "/".into(),
             node: None,

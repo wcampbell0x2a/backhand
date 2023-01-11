@@ -70,11 +70,15 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
     for node in filesystem.nodes {
         let path = node.path;
         match node.inner {
-            InnerNode::File(SquashfsFile { bytes, .. }) => {
+            InnerNode::File(SquashfsFile { reader, .. }) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("file {}", path.display());
                 let filepath = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(filepath.parent().unwrap());
+                //TODO use the reader instead of the reading bytes to memory
+                let mut bytes = vec![];
+                let mut reader = reader.borrow_mut();
+                reader.read_to_end(&mut bytes).unwrap();
                 match std::fs::write(&filepath, bytes) {
                     Ok(_) => println!("[-] success, wrote {}", filepath.display()),
                     Err(e) => {

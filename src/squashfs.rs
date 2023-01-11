@@ -1,5 +1,6 @@
 //! Read from on-disk image
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::io::{Cursor, Read, SeekFrom};
@@ -449,7 +450,7 @@ impl Squashfs {
             mod_time: self.superblock.mod_time,
             id_table: self.id.clone(),
             root_inode,
-            nodes: nodes.to_vec(),
+            nodes,
         };
         Ok(filesystem)
     }
@@ -514,7 +515,7 @@ impl Squashfs {
                             let path = new_path.clone();
                             let inner = InnerNode::File(SquashfsFile {
                                 header: file_header.into(),
-                                bytes,
+                                reader: RefCell::new(Box::new(Cursor::new(bytes))),
                             });
                             let node = Node::new(path, inner);
                             nodes.push(node);

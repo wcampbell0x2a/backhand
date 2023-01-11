@@ -1,5 +1,7 @@
 mod common;
 use std::fs::{self, File};
+use std::cell::RefCell;
+use std::io::Cursor;
 
 use backhand::filesystem::FilesystemHeader;
 use backhand::Filesystem;
@@ -63,7 +65,7 @@ fn test_add_00() {
 
     // Modify file
     let file = og_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
-    file.bytes = b"MODIFIEDfirst file!\n".to_vec();
+    file.reader = RefCell::new(Box::new(Cursor::new(b"MODIFIEDfirst file!\n")));
 
     let bytes = og_filesystem.to_bytes().unwrap();
     fs::write(new_path, bytes).unwrap();

@@ -1,8 +1,9 @@
 //! In-memory representation of SquashFS filesystem tree used for writing to image
 
 use core::fmt;
+use std::cell::RefCell;
 use std::ffi::OsString;
-use std::io::{Cursor, Seek, Write};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
@@ -27,7 +28,7 @@ use crate::Squashfs;
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
 /// to create an on-disk image
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug)]
 pub struct Filesystem {
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
@@ -100,7 +101,7 @@ impl Filesystem {
 
         let new_file = InnerNode::File(SquashfsFile {
             header,
-            bytes: bytes.into(),
+            reader: RefCell::new(Box::new(Cursor::new(bytes.into()))),
         });
         let node = Node::new(path, new_file);
         self.nodes.push(node);
@@ -127,14 +128,14 @@ impl Filesystem {
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
     #[instrument(skip_all)]
-    fn write_node(
-        tree: &TreeNode,
+    fn write_node<'a>(
+        tree: &'a TreeNode,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
         dir_writer: &mut MetadataWriter,
         data_writer: &mut DataWriter,
         dir_parent_inode: u32,
-    ) -> (Vec<Entry>, Vec<(OsString, InnerNode)>, u64) {
+    ) -> (Vec<Entry>, Vec<(OsString, &'a InnerNode)>, u64) {
         let mut nodes = vec![];
         let mut ret_entries = vec![];
         let mut root_inode = 0;
@@ -142,7 +143,7 @@ impl Filesystem {
         // If no children, just return this entry since it doesn't have anything recursive/new
         // directories
         if tree.children.is_empty() {
-            nodes.push((tree.name(), tree.node.as_ref().unwrap().clone()));
+            nodes.push((tree.name(), tree.node.unwrap()));
             return (ret_entries, nodes, root_inode);
         }
 
@@ -293,13 +294,14 @@ impl Filesystem {
     /// Write data and metadata for file node
     fn file(
         node_path: PathBuf,
-        file: SquashfsFile,
+        file: &SquashfsFile,
         inode: &mut u32,
         data_writer: &mut DataWriter,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
-        let file_size = file.bytes.len() as u32;
-        let added = data_writer.add_bytes(&file.bytes);
+        let mut reader = file.reader.borrow_mut();
+        let file_size = reader.seek(SeekFrom::End(0)).unwrap() as u32;
+        let added = data_writer.add_bytes(&mut *reader);
 
         let basic_file = match added {
             Added::Data {
@@ -341,7 +343,7 @@ impl Filesystem {
 
     /// Write data and metadata for symlink node
     fn symlink(
-        symlink: SquashfsSymlink,
+        symlink: &SquashfsSymlink,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
@@ -365,7 +367,7 @@ impl Filesystem {
     /// Write data and metadata for char device node
     fn char(
         node_path: PathBuf,
-        char_device: SquashfsCharacterDevice,
+        char_device: &SquashfsCharacterDevice,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
@@ -388,7 +390,7 @@ impl Filesystem {
     /// Write data and metadata for block device node
     fn block_device(
         node_path: PathBuf,
-        block_device: SquashfsBlockDevice,
+        block_device: &SquashfsBlockDevice,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
@@ -435,7 +437,7 @@ impl Filesystem {
 
         // Add the "/" entry
         let inner = InnerNode::Path(self.root_inode.clone());
-        tree.node = Some(inner);
+        tree.node = Some(&inner);
 
         //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(
@@ -561,7 +563,7 @@ impl From<InodeHeader> for FilesystemHeader {
 }
 
 /// Nodes that are converted into filesystem tree during writing to bytes
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug)]
 pub struct Node {
     pub path: PathBuf,
     pub inner: InnerNode,
@@ -573,7 +575,7 @@ impl Node {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug)]
 pub enum InnerNode {
     File(SquashfsFile),
     Symlink(SquashfsSymlink),
@@ -582,19 +584,22 @@ pub enum InnerNode {
     BlockDevice(SquashfsBlockDevice),
 }
 
-#[derive(PartialEq, Eq, Clone)]
+pub trait SquashfsFileReader: Seek + Read {}
+impl<T> SquashfsFileReader for T where T: Seek + Read {}
+//#[derive(PartialEq, Eq)]
 pub struct SquashfsFile {
     pub header: FilesystemHeader,
-    // TODO: Maybe hold a reference to a Reader? so that something could be written to disk and read from
-    // disk instead of loaded into memory
-    pub bytes: Vec<u8>,
+    pub reader: RefCell<Box<dyn SquashfsFileReader>>,
 }
 
 impl fmt::Debug for SquashfsFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DirEntry")
             .field("header", &self.header)
-            .field("bytes", &self.bytes.len())
+            .field(
+                "bytes",
+                &self.reader.borrow_mut().seek(SeekFrom::End(0)).unwrap(),
+            )
             .finish()
     }
 }

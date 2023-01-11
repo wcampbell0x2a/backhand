@@ -424,8 +424,8 @@ impl Filesystem {
         let data_start = 96;
 
         let mut data_writer = DataWriter::new(self.compressor, None, data_start, self.block_size);
-        let mut inode_writer = MetadataWriter::new(self.compressor, None);
-        let mut dir_writer = MetadataWriter::new(self.compressor, None);
+        let mut inode_writer = MetadataWriter::new(self.compressor, None, self.block_size);
+        let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
 
         // Empty Squashfs
         c.write_all(&vec![0x00; data_start as usize])?;

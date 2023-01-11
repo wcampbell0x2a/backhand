@@ -16,6 +16,7 @@ const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 pub(crate) struct MetadataWriter {
     compressor: Compressor,
     compression_options: Option<CompressionOptions>,
+    block_size: u32,
     /// Offset from the beginning of the metadata block last written
     pub(crate) metadata_start: u32,
     // All current bytes that are uncompressed
@@ -26,10 +27,15 @@ pub(crate) struct MetadataWriter {
 
 impl MetadataWriter {
     #[instrument(skip_all)]
-    pub fn new(compressor: Compressor, compression_options: Option<CompressionOptions>) -> Self {
+    pub fn new(
+        compressor: Compressor,
+        compression_options: Option<CompressionOptions>,
+        block_size: u32,
+    ) -> Self {
         Self {
             compressor,
             compression_options,
+            block_size,
             metadata_start: 0,
             uncompressed_bytes: vec![],
             compressed_bytes: vec![],
@@ -51,6 +57,7 @@ impl MetadataWriter {
             &self.uncompressed_bytes,
             self.compressor,
             &self.compression_options,
+            self.block_size,
         )
         .unwrap();
 
@@ -78,6 +85,7 @@ impl Write for MetadataWriter {
                 &self.uncompressed_bytes[..METADATA_MAXSIZE],
                 self.compressor,
                 &self.compression_options,
+                self.block_size,
             )
             .unwrap();
 

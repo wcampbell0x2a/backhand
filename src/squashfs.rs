@@ -36,8 +36,8 @@ pub struct Id(pub u32);
 #[deku(endian = "little")]
 pub struct SuperBlock {
     /// Must be set to 0x73717368 ("hsqs" on disk).
-    #[deku(assert_eq = "Self::MAGIC")]
-    pub magic: u32,
+    #[deku(assert_eq = "*Self::MAGIC")]
+    pub magic: [u8; 4],
     /// The number of inodes stored in the archive.
     pub inode_count: u32,
     /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
@@ -77,22 +77,22 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
-    const MAGIC: u32 = 0x73717368;
-    const BLOCK_SIZE: u32 = 0x20000;
-    const BLOCK_LOG: u16 = 0x11;
+    const MAGIC: &'static [u8; 4] = b"hsqs";
+    const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
+    const DEFAULT_BLOCK_LOG: u16 = 0x11;
     const VERSION_MAJ: u16 = 4;
     const VERSION_MIN: u16 = 0;
-    const NOT_SET: u64 = 0xffffffffffffffff;
+    const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
     pub fn new(compressor: Compressor) -> Self {
         Self {
-            magic: Self::MAGIC,
+            magic: *Self::MAGIC,
             inode_count: 0,
             mod_time: 0,
-            block_size: Self::BLOCK_SIZE, // use const
+            block_size: Self::DEFAULT_BLOCK_SIZE,
             frag_count: 0,
             compressor,
-            block_log: Self::BLOCK_LOG,
+            block_log: Self::DEFAULT_BLOCK_LOG,
             flags: 0,
             id_count: 0,
             version_major: Self::VERSION_MAJ,
@@ -181,9 +181,10 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
-// TODO: add data cache?
 #[derive(Default)]
 struct Cache {
+    /// The first time a fragment bytes is read, those bytes are added to this map with the key
+    /// representing the start position
     pub fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
 }
 
@@ -282,7 +283,7 @@ impl Squashfs {
         let root_inode = squashfs_reader.root_inode(&superblock)?;
 
         info!("Reading Fragments");
-        let fragments = squashfs_reader.fragments(&superblock).unwrap();
+        let fragments = squashfs_reader.fragments(&superblock)?;
         let fragment_ptr = fragments.clone().map(|a| a.0);
         let fragment_table = fragments.map(|a| a.1);
 
@@ -365,6 +366,7 @@ impl Squashfs {
         Ok(squashfs)
     }
 
+    /// Convert `self.dir_blocks` into `Vec<Dir>`
     pub fn all_dirs(&self) -> Result<Vec<Dir>, SquashfsError> {
         let bytes: Vec<u8> = self
             .dir_blocks
@@ -375,7 +377,7 @@ impl Squashfs {
         let mut dirs = vec![];
         let mut rest = bytes;
         while !rest.is_empty() {
-            let ((r, _), dir) = Dir::from_bytes((&rest, 0)).unwrap();
+            let ((r, _), dir) = Dir::from_bytes((&rest, 0))?;
             rest = r.to_vec();
             dirs.push(dir);
         }

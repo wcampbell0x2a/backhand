@@ -1,11 +1,46 @@
 //! Index Node for file or directory
 
 use core::fmt;
+use std::io::Write;
 
+use deku::bitvec::{BitVec, Msb0};
 use deku::prelude::*;
 
 use crate::dir::DirectoryIndex;
+use crate::entry::Entry;
 use crate::filesystem::FilesystemHeader;
+use crate::metadata::MetadataWriter;
+
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
+#[deku(ctx = "block_size: u32, block_log: u16")]
+#[deku(endian = "little")]
+pub struct Inode {
+    pub id: InodeId,
+    pub header: InodeHeader,
+    #[deku(ctx = "*id, block_size, block_log")]
+    pub inner: InodeInner,
+}
+
+impl Inode {
+    /// Write to `m_writer`, creating Entry
+    pub(crate) fn to_bytes(&self, name_bytes: &[u8], m_writer: &mut MetadataWriter) -> Entry {
+        let mut v = BitVec::<u8, Msb0>::new();
+        self.write(&mut v, (0, 0)).unwrap();
+        let bytes = v.as_raw_slice().to_vec();
+        let start = m_writer.metadata_start;
+        let offset = m_writer.uncompressed_bytes.len() as u16;
+        m_writer.write_all(&bytes).unwrap();
+
+        Entry {
+            start,
+            offset,
+            inode: self.header.inode_number,
+            t: self.id,
+            name_size: name_bytes.len() as u16 - 1,
+            name: name_bytes.to_vec(),
+        }
+    }
+}
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
 #[deku(type = "u16")]
@@ -18,16 +53,6 @@ pub enum InodeId {
     BasicCharacterDevice = 5,
     ExtendedDirectory    = 8,
     ExtendedFile         = 9,
-}
-
-#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "block_size: u32, block_log: u16")]
-#[deku(endian = "little")]
-pub struct Inode {
-    pub id: InodeId,
-    pub header: InodeHeader,
-    #[deku(ctx = "*id, block_size, block_log")]
-    pub inner: InodeInner,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
@@ -55,21 +80,6 @@ pub enum InodeInner {
 
     #[deku(id = "InodeId::ExtendedFile")]
     ExtendedFile(#[deku(ctx = "block_size, block_log")] ExtendedFile),
-}
-
-impl Inode {
-    /// Returns a reference to the expect dir of this [`Inode`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if `self` is not `Inode::BasicDirectory`
-    pub fn expect_dir(&self) -> BasicDirectory {
-        match &self.inner {
-            InodeInner::BasicDirectory(basic_dir) => basic_dir.clone(),
-            InodeInner::ExtendedDirectory(ex_dir) => BasicDirectory::from(ex_dir),
-            _ => panic!("not a dir"),
-        }
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]

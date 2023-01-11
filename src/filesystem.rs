@@ -195,6 +195,7 @@ impl Filesystem {
                 },
             };
             write_entries.push(entry);
+            *inode += 1;
         }
 
         // write dir
@@ -279,31 +280,14 @@ impl Filesystem {
             inner: InodeInner::BasicDirectory(BasicDirectory {
                 block_index,
                 link_count: 2,
-                //TODO: assume this is empty and use 3?
+                // Empty path
                 file_size: 3,
                 block_offset,
                 parent_inode,
             }),
         };
-        *inode += 1;
 
-        let mut v = BitVec::<u8, Msb0>::new();
-        dir_inode.write(&mut v, (0, 0)).unwrap();
-        let bytes = v.as_raw_slice().to_vec();
-        let start = inode_writer.metadata_start;
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        inode_writer.write_all(&bytes).unwrap();
-
-        let entry = Entry {
-            start,
-            offset,
-            inode: dir_inode.header.inode_number,
-            t: InodeId::BasicDirectory,
-            name_size: name.len() as u16 - 1,
-            name: name.as_bytes().to_vec(),
-        };
-
-        entry
+        dir_inode.to_bytes(name.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for file node
@@ -350,26 +334,9 @@ impl Filesystem {
             },
             inner: InodeInner::BasicFile(basic_file),
         };
-        *inode += 1;
-
-        let mut v = BitVec::<u8, Msb0>::new();
-        file_inode.write(&mut v, (0, 0)).unwrap();
-        let bytes = v.as_raw_slice().to_vec();
-        let start = inode_writer.metadata_start;
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        inode_writer.write_all(&bytes).unwrap();
 
         let file_name = node_path.file_name().unwrap();
-        let entry = Entry {
-            start,
-            offset,
-            inode: file_inode.header.inode_number,
-            t: InodeId::BasicFile,
-            name_size: file_name.len() as u16 - 1,
-            name: file_name.as_bytes().to_vec(),
-        };
-
-        entry
+        file_inode.to_bytes(file_name.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for symlink node
@@ -391,25 +358,8 @@ impl Filesystem {
                 target_path: link.to_vec(),
             }),
         };
-        *inode += 1;
 
-        let mut v = BitVec::<u8, Msb0>::new();
-        sym_inode.write(&mut v, (0, 0)).unwrap();
-        let bytes = v.as_raw_slice().to_vec();
-        let start = inode_writer.metadata_start;
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        inode_writer.write_all(&bytes).unwrap();
-
-        let entry = Entry {
-            start,
-            offset,
-            inode: sym_inode.header.inode_number,
-            t: InodeId::BasicSymlink,
-            name_size: symlink.original.len() as u16 - 1,
-            name: symlink.original.as_bytes().to_vec(),
-        };
-
-        entry
+        sym_inode.to_bytes(symlink.original.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for char device node
@@ -419,7 +369,7 @@ impl Filesystem {
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
-        let sym_inode = Inode {
+        let char_inode = Inode {
             id: InodeId::BasicCharacterDevice,
             header: InodeHeader {
                 inode_number: *inode,
@@ -430,27 +380,9 @@ impl Filesystem {
                 device_number: char_device.device_number,
             }),
         };
-        *inode += 1;
-
-        let mut v = BitVec::<u8, Msb0>::new();
-        sym_inode.write(&mut v, (0, 0)).unwrap();
-        let bytes = v.as_raw_slice().to_vec();
-        let start = inode_writer.metadata_start;
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        inode_writer.write_all(&bytes).unwrap();
 
         let name = node_path.file_name().unwrap().to_str().unwrap();
-
-        let entry = Entry {
-            start,
-            offset,
-            inode: sym_inode.header.inode_number,
-            t: InodeId::BasicCharacterDevice,
-            name_size: name.len() as u16 - 1,
-            name: name.as_bytes().to_vec(),
-        };
-
-        entry
+        char_inode.to_bytes(name.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for block device node
@@ -460,7 +392,7 @@ impl Filesystem {
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
-        let sym_inode = Inode {
+        let block_inode = Inode {
             id: InodeId::BasicBlockDevice,
             header: InodeHeader {
                 inode_number: *inode,
@@ -471,27 +403,9 @@ impl Filesystem {
                 device_number: block_device.device_number,
             }),
         };
-        *inode += 1;
-
-        let mut v = BitVec::<u8, Msb0>::new();
-        sym_inode.write(&mut v, (0, 0)).unwrap();
-        let bytes = v.as_raw_slice().to_vec();
-        let start = inode_writer.metadata_start;
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        inode_writer.write_all(&bytes).unwrap();
 
         let name = node_path.file_name().unwrap().to_str().unwrap();
-
-        let entry = Entry {
-            start,
-            offset,
-            inode: sym_inode.header.inode_number,
-            t: InodeId::BasicBlockDevice,
-            name_size: name.len() as u16 - 1,
-            name: name.as_bytes().to_vec(),
-        };
-
-        entry
+        block_inode.to_bytes(name.as_bytes(), inode_writer)
     }
 
     /// Convert into bytes that can be stored on disk and used as a completed and correct read-only
@@ -533,6 +447,7 @@ impl Filesystem {
             0,
         );
 
+        // Compress everything
         data_writer.finalize();
 
         superblock.root_inode = root_inode;
@@ -665,16 +580,6 @@ pub enum InnerNode {
     Path(SquashfsPath),
     CharacterDevice(SquashfsCharacterDevice),
     BlockDevice(SquashfsBlockDevice),
-}
-
-impl Node {
-    pub fn expect_path(&self) -> &SquashfsPath {
-        if let InnerNode::Path(path) = &self.inner {
-            path
-        } else {
-            panic!("not a path")
-        }
-    }
 }
 
 #[derive(PartialEq, Eq, Clone)]

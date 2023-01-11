@@ -133,7 +133,7 @@ pub(crate) fn compress(
 
             let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
             let mut buf = vec![];
-            encoder.read_to_end(&mut buf).unwrap();
+            encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
         (Compressor::Xz, None) => {
@@ -155,7 +155,7 @@ pub(crate) fn compress(
 
             let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
             let mut buf = vec![];
-            encoder.read_to_end(&mut buf).unwrap();
+            encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
         (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip))) => {
@@ -163,13 +163,13 @@ pub(crate) fn compress(
             let mut encoder =
                 ZlibEncoder::new(Cursor::new(bytes), Compression::new(gzip.compression_level));
             let mut buf = vec![];
-            encoder.read_to_end(&mut buf).unwrap();
+            encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
         (Compressor::Gzip, None) => {
             let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
             let mut buf = vec![];
-            encoder.read_to_end(&mut buf).unwrap();
+            encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
         _ => todo!(),

@@ -181,9 +181,10 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
-// TODO: add data cache?
 #[derive(Default)]
 struct Cache {
+    /// The first time a fragment bytes is read, those bytes are added to this map with the key
+    /// representing the start position
     pub fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
 }
 
@@ -282,7 +283,7 @@ impl Squashfs {
         let root_inode = squashfs_reader.root_inode(&superblock)?;
 
         info!("Reading Fragments");
-        let fragments = squashfs_reader.fragments(&superblock).unwrap();
+        let fragments = squashfs_reader.fragments(&superblock)?;
         let fragment_ptr = fragments.clone().map(|a| a.0);
         let fragment_table = fragments.map(|a| a.1);
 
@@ -365,6 +366,7 @@ impl Squashfs {
         Ok(squashfs)
     }
 
+    /// Convert `self.dir_blocks` into `Vec<Dir>`
     pub fn all_dirs(&self) -> Result<Vec<Dir>, SquashfsError> {
         let bytes: Vec<u8> = self
             .dir_blocks
@@ -375,7 +377,7 @@ impl Squashfs {
         let mut dirs = vec![];
         let mut rest = bytes;
         while !rest.is_empty() {
-            let ((r, _), dir) = Dir::from_bytes((&rest, 0)).unwrap();
+            let ((r, _), dir) = Dir::from_bytes((&rest, 0))?;
             rest = r.to_vec();
             dirs.push(dir);
         }

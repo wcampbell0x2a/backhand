@@ -5,8 +5,8 @@ use std::io::{SeekFrom, Write};
 use tracing::instrument;
 
 use crate::compressor::{compress, CompressionOptions, Compressor};
-use crate::filesystem::SquashfsFileReader;
 use crate::fragment::Fragment;
+use crate::reader::ReadSeek;
 
 pub(crate) enum Added {
     // Only Data was added
@@ -54,7 +54,7 @@ impl DataWriter {
 
     /// Add to data writer, either a Data or Fragment
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
-    pub(crate) fn add_bytes(&mut self, reader: &mut dyn SquashfsFileReader) -> Added {
+    pub(crate) fn add_bytes(&mut self, reader: &mut dyn ReadSeek) -> Added {
         //go to the end, calculating the file len
         let len = reader.seek(SeekFrom::End(0)).unwrap();
         //go back to the start

@@ -1,6 +1,6 @@
 mod common;
-use std::fs::{self, File};
 use std::cell::RefCell;
+use std::fs::{self, File};
 use std::io::Cursor;
 
 use backhand::filesystem::FilesystemHeader;

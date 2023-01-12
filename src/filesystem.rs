@@ -3,7 +3,7 @@
 use core::fmt;
 use std::cell::RefCell;
 use std::ffi::OsString;
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{Cursor, Seek, SeekFrom, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
@@ -584,12 +584,10 @@ pub enum InnerNode {
     BlockDevice(SquashfsBlockDevice),
 }
 
-pub trait SquashfsFileReader: Seek + Read {}
-impl<T> SquashfsFileReader for T where T: Seek + Read {}
 //#[derive(PartialEq, Eq)]
 pub struct SquashfsFile {
     pub header: FilesystemHeader,
-    pub reader: RefCell<Box<dyn SquashfsFileReader>>,
+    pub reader: RefCell<Box<dyn ReadSeek>>,
 }
 
 impl fmt::Debug for SquashfsFile {

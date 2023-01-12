@@ -10,6 +10,7 @@ use deku::prelude::*;
 use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
+use crate::data::DATA_STORED_UNCOMPRESSED;
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{
@@ -267,7 +268,7 @@ impl Squashfs {
         } else {
             None
         };
-        trace!("compression_options: {compression_options:08x?}");
+        info!("compression_options: {compression_options:02x?}");
 
         // Create SquashfsReader
         let mut squashfs_reader = SquashfsReader::new(reader, offset);
@@ -615,8 +616,8 @@ impl Squashfs {
 
     /// Read from either Data blocks or Fragments blocks
     fn read_data<R: Read>(&self, reader: &mut R, size: usize) -> Result<Vec<u8>, SquashfsError> {
-        let uncompressed = size & (1 << 24) != 0;
-        let size = size & !(1 << 24);
+        let uncompressed = size & (DATA_STORED_UNCOMPRESSED as usize) != 0;
+        let size = size & !(DATA_STORED_UNCOMPRESSED as usize);
         let mut buf = vec![0u8; size];
         reader.read_exact(&mut buf)?;
 

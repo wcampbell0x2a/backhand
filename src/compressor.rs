@@ -112,6 +112,7 @@ pub(crate) fn compress(
     bytes: &[u8],
     compressor: Compressor,
     options: &Option<CompressionOptions>,
+    block_size: u32,
 ) -> Result<Vec<u8>, SquashfsError> {
     match (compressor, options) {
         (Compressor::Xz, Some(CompressionOptions::Xz(xz))) => {
@@ -140,8 +141,7 @@ pub(crate) fn compress(
             let level = 7;
             let check = Check::Crc32;
             let mut opts = LzmaOptions::new_preset(level).unwrap();
-            let dict_size = 0x2000;
-            opts.dict_size(dict_size);
+            opts.dict_size(block_size);
 
             let mut filters = Filters::new();
             filters.lzma2(&opts);
@@ -156,6 +156,7 @@ pub(crate) fn compress(
             let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
             let mut buf = vec![];
             encoder.read_to_end(&mut buf)?;
+
             Ok(buf)
         },
         (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip))) => {

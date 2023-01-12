@@ -7,6 +7,9 @@ use tracing::instrument;
 use crate::compressor::{compress, CompressionOptions, Compressor};
 use crate::fragment::Fragment;
 
+// bitflag for data size field in inode for signifying that the data is uncompressed
+pub(crate) const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
+
 pub(crate) enum Added {
     // Only Data was added
     Data {
@@ -68,6 +71,7 @@ impl DataWriter {
                     &self.fragment_bytes,
                     self.compressor,
                     &self.compression_options,
+                    self.block_size,
                 )
                 .unwrap();
                 let size = cb.len() as u32;
@@ -96,9 +100,24 @@ impl DataWriter {
             let blocks_start = self.data_bytes.len() as u32 + self.data_start;
             let mut block_sizes = vec![];
             for chunk in chunks {
-                let cb = compress(chunk, self.compressor, &self.compression_options).unwrap();
-                block_sizes.push(cb.len() as u32);
-                self.data_bytes.write_all(&cb).unwrap();
+                let cb = compress(
+                    chunk,
+                    self.compressor,
+                    &self.compression_options,
+                    self.block_size,
+                )
+                .unwrap();
+
+                // compression didn't reduce size
+                if cb.len() > chunk.len() {
+                    // store uncompressed
+                    block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
+                    self.data_bytes.write_all(chunk).unwrap();
+                } else {
+                    // store compressed
+                    block_sizes.push(cb.len() as u32);
+                    self.data_bytes.write_all(&cb).unwrap();
+                }
             }
 
             Added::Data {
@@ -115,6 +134,7 @@ impl DataWriter {
             &self.fragment_bytes,
             self.compressor,
             &self.compression_options,
+            self.block_size,
         )
         .unwrap();
         let size = cb.len() as u32;

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 - Use `block_size` as XZ default `dict_size` when compressing data
 - Correctly choose between storing uncompressed and compressed data on which takes the least space
+- Improve and change `unsquashfs` and `add` cli to match `squashfs-tools/unsquashfs` cli
 
 ## [v0.6.0] - 2023-01-10
 - Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)

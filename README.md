@@ -48,6 +48,8 @@ This library is tested with unpacking and packing SquashFS firmwares and testing
 ## Binaries
 These are currently under development and are missing features, MR's welcome!
 
+To install, run `cargo install backhand`.
+
 ### unsquashfs
 ```console
 tool to uncompress, extract and list squashfs filesystems

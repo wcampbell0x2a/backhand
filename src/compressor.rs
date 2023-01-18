@@ -3,10 +3,14 @@
 use std::io::{Cursor, Read};
 
 use deku::prelude::*;
+#[cfg(feature = "gzip")]
 use flate2::read::ZlibEncoder;
+#[cfg(feature = "gzip")]
 use flate2::Compression;
 use tracing::instrument;
+#[cfg(feature = "xz")]
 use xz2::read::{XzDecoder, XzEncoder};
+#[cfg(feature = "xz")]
 use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::SquashfsError;
@@ -98,10 +102,12 @@ pub(crate) fn decompress(
     compressor: Compressor,
 ) -> Result<(), SquashfsError> {
     match compressor {
+        #[cfg(feature = "gzip")]
         Compressor::Gzip => {
             let mut decoder = flate2::read::ZlibDecoder::new(bytes);
             decoder.read_to_end(out)?;
         },
+        #[cfg(feature = "xz")]
         Compressor::Xz => {
             let mut decoder = XzDecoder::new(bytes);
             decoder.read_to_end(out)?;
@@ -119,6 +125,7 @@ pub(crate) fn compress(
     block_size: u32,
 ) -> Result<Vec<u8>, SquashfsError> {
     match (compressor, options) {
+        #[cfg(feature = "xz")]
         (Compressor::Xz, Some(CompressionOptions::Xz(xz))) => {
             let level = 7;
             let check = Check::Crc32;
@@ -141,6 +148,7 @@ pub(crate) fn compress(
             encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
+        #[cfg(feature = "xz")]
         (Compressor::Xz, None) => {
             let level = 7;
             let check = Check::Crc32;
@@ -163,6 +171,7 @@ pub(crate) fn compress(
 
             Ok(buf)
         },
+        #[cfg(feature = "gzip")]
         (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip))) => {
             // TODO(#8): Use window_size and strategies
             let mut encoder =
@@ -171,6 +180,7 @@ pub(crate) fn compress(
             encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
+        #[cfg(feature = "gzip")]
         (Compressor::Gzip, None) => {
             let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
             let mut buf = vec![];

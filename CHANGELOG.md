@@ -6,11 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+  Thanks [@rbran](https://github.com/rbran/) for the incredible work on the performance of the library.
 ### Added
 - Add `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
   These are all returned by the public API of filesystem and more panics were removed.
 - unsquashfs: Add `--stat`, `--force`, `--info` flags.
 - unsquashfs: Add support for Char and Block device file creation when superuser.
+- features: `xz` and `gzip`. By default both are enabled, but conditionally you may compile only one type of decompressor.
 
 ### Fixed
 - `inode_count` is fixed, previously was +1 the actual inode count.
@@ -31,7 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
   ```
 
-  Thanks [@rbran](https://github.com/rbran/) for the MR!
+  ```diff
+  -FilesystemHeader
+  +NodeHeader
+  ```
 
 ## [v0.7.0] - 2023-01-23
 ### Added

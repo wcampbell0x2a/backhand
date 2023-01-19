@@ -173,6 +173,6 @@ pub(crate) fn compress(
             encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
-        _ => todo!(),
+        _ => Err(SquashfsError::UnsupportedCompression(compressor)),
     }
 }

@@ -2,7 +2,7 @@
 
 use core::fmt;
 use std::ffi::OsString;
-use std::io::{Cursor, Seek, Write};
+use std::io::{Cursor, Read, Seek, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
@@ -63,16 +63,15 @@ impl Filesystem {
         squashfs.into_filesystem()
     }
 
-    /// Insert file `bytes` into `path` with metadata `header`.
+    /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
-    /// This will create dirs for every directory in the path that doesn't exist in `nodes` with
-    /// the metadata of `header`.
-    pub fn push_file<B: Into<Vec<u8>>, P: Into<PathBuf>>(
+    /// This will make parent directories as needed with the same metadata of `header`
+    pub fn push_file<P: Into<PathBuf>>(
         &mut self,
-        bytes: B,
+        reader: &mut impl Read,
         path: P,
         header: FilesystemHeader,
-    ) {
+    ) -> Result<(), SquashfsError> {
         let path = path.into();
         if path.parent().is_some() {
             let mut full_path = "".to_string();
@@ -80,12 +79,14 @@ impl Filesystem {
             'component: for dir in components.iter().take(components.len() - 1) {
                 // add to path
                 full_path.push('/');
-                full_path.push_str(dir.to_str().unwrap());
+                full_path.push_str(dir.to_str().ok_or(SquashfsError::OsStringToStr)?);
 
                 // check if exists
                 for node in &mut self.nodes {
                     if let InnerNode::Path(_) = &node.inner {
-                        if node.path.as_os_str().to_str() == Some(dir.to_str().unwrap()) {
+                        if node.path.as_os_str().to_str()
+                            == Some(dir.to_str().ok_or(SquashfsError::OsStringToStr)?)
+                        {
                             break 'component;
                         }
                     }
@@ -98,12 +99,14 @@ impl Filesystem {
             }
         }
 
-        let new_file = InnerNode::File(SquashfsFile {
-            header,
-            bytes: bytes.into(),
-        });
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes)?;
+
+        let new_file = InnerNode::File(SquashfsFile { header, bytes });
         let node = Node::new(path, new_file);
         self.nodes.push(node);
+
+        Ok(())
     }
 
     /// Take a mutable reference to existing file at `find_path`

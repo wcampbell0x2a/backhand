@@ -30,8 +30,10 @@ fn main() {
     let mut filesystem = squashfs.into_filesystem().unwrap();
 
     // create new file
-    let bytes = std::fs::read(&args.file).unwrap();
-    filesystem.push_file(bytes, args.file_path, FilesystemHeader::default());
+    let mut new_file = File::open(&args.file).unwrap();
+    filesystem
+        .push_file(&mut new_file, args.file_path, FilesystemHeader::default())
+        .unwrap();
 
     // write new file
     let bytes = filesystem.to_bytes().unwrap();

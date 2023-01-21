@@ -6,9 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+### Added
 - Use `block_size` as XZ default `dict_size` when compressing data
+
+### Fixed
 - Correctly choose between storing uncompressed and compressed data on which takes the least space
-- Improve and change `unsquashfs` and `add` cli to match `squashfs-tools/unsquashfs` cli
+
+### Changed
+- Improve `unsquashfs` and `add` cli args to match `squashfs-tools/unsquashfs` cli
+- `Filesystem::push_file(..)` now takes for bytes anything that is `into Read` instead of `into Vec<u8>`
 
 ## [v0.6.0] - 2023-01-10
 - Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)

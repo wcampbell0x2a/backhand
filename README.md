@@ -17,7 +17,7 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-backhand = "0.6.0"
+backhand = "0.7.0"
 ```
 ### Reading/Writing/Modifying Firmware
 ```rust, ignore
@@ -28,10 +28,14 @@ use backhand::{Filesystem, FilesystemHeader};
 let file = File::open("file.squashfs").unwrap();
 let mut filesystem = Filesystem::from_reader(file).unwrap();
 
-// add files
+// add file with data from slice
 let d = FilesystemHeader::default();
-filesystem.push_file("Fear is the mind-killer.", "a/d/e/new_file", d);
-filesystem.push_file("It is by will alone I set my mind in motion.", "root_file", d);
+let bytes = &mut b"Fear is the mind-killer.".as_slice();
+filesystem.push_file(bytes, "a/d/e/new_file", d);
+
+// add file with data from file
+let mut new_file = File::open("dune").unwrap();
+filesystem.push_file(&mut new_file, "/root/dune", d);
 
 // modify file
 let file = filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
@@ -48,30 +52,32 @@ This library is tested with unpacking and packing SquashFS firmwares and testing
 ## Binaries
 These are currently under development and are missing features, MR's welcome!
 
+To install, run `cargo install backhand`.
+
 ### unsquashfs
 ```console
-Usage: unsquashfs [OPTIONS] <INPUT> <COMMAND>
+tool to uncompress, extract and list squashfs filesystems
 
-Commands:
-  extract-all    Extract all files(Symlink/Files/Dirs) from image
-  help           Print this message or the help of the given subcommand(s)
+Usage: unsquashfs [OPTIONS] <FILESYSTEM>
 
 Arguments:
-  <INPUT>  squashfs file
+  <FILESYSTEM>  Squashfs file
 
 Options:
-  -o, --offset <OFFSET>  [default: 0]
+  -o, --offset <BYTES>   Skip BYTES at the start of FILESYSTEM [default: 0]
+  -l, --list             List filesystem, do not write to DEST
+  -d, --dest <PATHNAME>  Extract to [PATHNAME] [default: squashfs-root]
   -h, --help             Print help information
   -V, --version          Print version information
 ```
 ### add
 ```console
-Binary to add file to squashfs filesystem
+tool to add files to squashfs filesystems
 
-Usage: add <INPUT> <FILE> <FILE_PATH>
+Usage: add <FILESYSTEM> <FILE> <FILE_PATH>
 
 Arguments:
-  <INPUT>      Squashfs file
+  <FILESYSTEM>  Squashfs file
   <FILE>
   <FILE_PATH>
 

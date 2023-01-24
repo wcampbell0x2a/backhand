@@ -1,5 +1,6 @@
 mod common;
 use std::fs::{self, File};
+use std::io::Cursor;
 
 use backhand::filesystem::{FilesystemHeader, FilesystemReader};
 use backhand::FilesystemWriter;
@@ -52,15 +53,26 @@ fn test_add_00() {
     let mut new_filesystem = FilesystemWriter::same_as_existing(&og_filesystem).unwrap();
 
     // Add file
-    new_filesystem.push_file(
-        "his is a new file, wowo!",
-        "a/d/e/new_file",
-        FilesystemHeader::default(),
-    );
+    let bytes = &mut b"this is a new file, wowo!".as_slice();
+    new_filesystem
+        .push_file(bytes, "a/d/e/new_file", FilesystemHeader::default())
+        .unwrap();
     // Add file
-    new_filesystem.push_file("i am (g)root", "root_file", FilesystemHeader::default());
+    new_filesystem
+        .push_file(
+            &mut Cursor::new("i am (g)root"),
+            "root_file",
+            FilesystemHeader::default(),
+        )
+        .unwrap();
     // Add file
-    new_filesystem.push_file("dude", "a/b/c/d/dude", FilesystemHeader::default());
+    new_filesystem
+        .push_file(
+            &mut Cursor::new("dude"),
+            "a/b/c/d/dude",
+            FilesystemHeader::default(),
+        )
+        .unwrap();
 
     // Modify file
     let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();

@@ -28,4 +28,7 @@ pub enum SquashfsError {
 
     #[error("squashfs field not initialized")]
     FieldNotInitialized,
+
+    #[error("os string cannot convert into str")]
+    OsStringToStr,
 }

@@ -116,7 +116,7 @@ mod tests {
     fn test_mwriter() {
         let bytes = [0xffu8; METADATA_MAXSIZE - 3];
 
-        let mut mwriter = MetadataWriter::new(Compressor::Xz, None);
+        let mut mwriter = MetadataWriter::new(Compressor::Xz, None, 0x2000);
 
         mwriter.write_all(&bytes).unwrap();
         assert_eq!(0, mwriter.metadata_start);

@@ -15,7 +15,7 @@ use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{
     FilesystemReader, InnerNodeReader, NodeReader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsFileReader, SquashfsPath, SquashfsSymlink,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
@@ -277,7 +277,7 @@ impl<R: SquashFsReader> Squashfs<R> {
         } else {
             None
         };
-        trace!("compression_options: {compression_options:08x?}");
+        info!("compression_options: {compression_options:02x?}");
 
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Data and Fragments");
@@ -444,7 +444,7 @@ impl<R: SquashFsReader> Squashfs<R> {
 
         self.extract_dir(&mut nodes, &self.root_inode, &path)?;
 
-        let root_inode = SquashfsPath {
+        let root_inode = SquashfsDir {
             header: self.root_inode.header.into(),
         };
 
@@ -507,7 +507,7 @@ impl<R: SquashFsReader> Squashfs<R> {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             let path = new_path.clone();
-                            let inner = InnerNodeReader::Path(SquashfsPath {
+                            let inner = InnerNodeReader::Dir(SquashfsDir {
                                 header: header.into(),
                             });
                             let node = NodeReader::new(path, inner);

@@ -16,14 +16,19 @@
 //!```rust,ignore
 //! # use std::fs::File;
 //! # use backhand::{Filesystem, FilesystemHeader};
+//!
 //! // read
 //! let file = File::open("file.squashfs").unwrap();
 //! let mut filesystem = Filesystem::from_reader(file).unwrap();
 //!
-//! // add files
+//! // add file with data from slice
 //! let d = FilesystemHeader::default();
-//! filesystem.push_file("Fear is the mind-killer.", "a/d/e/new_file", d);
-//! filesystem.push_file("It is by will alone I set my mind in motion.", "root_file", d);
+//! let bytes = &mut b"Fear is the mind-killer.".as_slice();
+//! filesystem.push_file(bytes, "a/d/e/new_file", d);
+//!
+//! // add file with data from file
+//! let mut new_file = File::open("dune").unwrap();
+//! filesystem.push_file(&mut new_file, "/root/dune", d);
 //!
 //! // modify file
 //! let file = filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.7.0] - 2023-01-23
+### Added
+- Use `block_size` as XZ default `dict_size` when compressing data
+- Add `Filesystem::push_symlink(..)`
+- Add `Filesystem::push_dir(..)`
+- Add `Filesystem::push_char_device(..)`
+- Add `Filesystem::push_block_device(..)`
+
+### Fixed
+- Correctly choose between storing uncompressed and compressed data on which takes the least space
+
+### Changed
+- Improve `unsquashfs` and `add` cli args to match `squashfs-tools/unsquashfs` cli
+- `Filesystem::push_file(..)` now takes for bytes anything that is `into Read` instead of `into Vec<u8>`
+- `Node::Path` renamed to `Node::Dir`
+- `SquashfsPath` renamed to `SquashfsDir`
+- `Filesystem::from_reader(..)`, `R` now takes `Read + Seek` instead our own `ReadSeek`
+- `Filesystem::from_reader_with_offset(..)`, `R` now takes `Read + Seek` instead our own `ReadSeek`
+
 ## [v0.6.0] - 2023-01-10
 - Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)
   to not be saved in resulting filesystem when calling `Filesystem::to_bytes(..)`.

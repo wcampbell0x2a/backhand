@@ -28,10 +28,10 @@ use backhand::{Filesystem, FilesystemHeader};
 let file = File::open("file.squashfs").unwrap();
 let mut filesystem = Filesystem::from_reader(file).unwrap();
 
-// add file with data from bytes
+// add file with data from slice
 let d = FilesystemHeader::default();
-let mut bytes = Cursor::new("Fear is the mind-killer.");
-filesystem.push_file(&mut bytes, "a/d/e/new_file", d);
+let bytes = &mut b"Fear is the mind-killer.".as_slice();
+filesystem.push_file(bytes, "a/d/e/new_file", d);
 
 // add file with data from file
 let mut new_file = File::open("dune").unwrap();

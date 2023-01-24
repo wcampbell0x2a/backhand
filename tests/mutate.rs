@@ -52,12 +52,9 @@ fn test_add_00() {
     let mut og_filesystem = Filesystem::from_reader(file).unwrap();
 
     // Add file
+    let bytes = &mut b"this is a new file, wowo!".as_slice();
     og_filesystem
-        .push_file(
-            &mut Cursor::new("this is a new file, wowo!"),
-            "a/d/e/new_file",
-            FilesystemHeader::default(),
-        )
+        .push_file(bytes, "a/d/e/new_file", FilesystemHeader::default())
         .unwrap();
     // Add file
     og_filesystem

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.7.0] - 2023-01-23
 ### Added
 - Use `block_size` as XZ default `dict_size` when compressing data
 - Add `Filesystem::push_symlink(..)`

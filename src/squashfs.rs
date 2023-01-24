@@ -1,25 +1,26 @@
 //! Read from on-disk image
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
-use std::io::{Cursor, Read, SeekFrom};
+use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
 
 use deku::bitvec::BitVec;
 use deku::prelude::*;
 use tracing::{error, info, instrument, trace};
 
-use crate::compressor::{self, CompressionOptions, Compressor};
+use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{
-    Filesystem, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile,
-    SquashfsPath, SquashfsSymlink,
+    FilesystemReader, InnerNodeReader, NodeReader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsFileReader, SquashfsPath, SquashfsSymlink,
 };
 use crate::fragment::Fragment;
-use crate::inode::{BasicFile, Inode, InodeHeader, InodeId, InodeInner};
+use crate::inode::{Inode, InodeId, InodeInner};
 use crate::metadata;
-use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
+use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
 
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
@@ -182,8 +183,8 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
-#[derive(Default)]
-struct Cache {
+#[derive(Default, Clone, Debug)]
+pub struct Cache {
     /// The first time a fragment bytes is read, those bytes are added to this map with the key
     /// representing the start position
     pub fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
@@ -193,7 +194,7 @@ struct Cache {
 /// the struct types, while data stays compressed.
 ///
 /// See [`Filesystem`] for a representation with the data extracted and uncompressed.
-pub struct Squashfs<R: ReadSeek> {
+pub struct Squashfs<R: SquashFsReader> {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
@@ -218,22 +219,28 @@ pub struct Squashfs<R: ReadSeek> {
     file: R,
 }
 
-impl<R: ReadSeek> Squashfs<R> {
+impl<R: SquashFsReader> Squashfs<R> {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
-    #[instrument(skip_all)]
     pub fn from_reader(reader: R) -> Result<Squashfs<R>, SquashfsError> {
-        Self::from_reader_with_offset(reader, 0)
+        Self::inner_from_reader(reader)
     }
+}
 
+impl<R: SquashFsReader> Squashfs<SquashfsReaderWithOffset<R>> {
     /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
     pub fn from_reader_with_offset(
-        mut reader: R,
+        reader: R,
         offset: u64,
-    ) -> Result<Squashfs<R>, SquashfsError> {
-        // do the initial seek from the start of `reader`
-        reader.seek(SeekFrom::Start(offset))?;
+    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, SquashfsError> {
+        Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset))
+    }
+}
+impl<R: SquashFsReader> Squashfs<R> {
+    #[instrument(skip_all)]
+    fn inner_from_reader(mut reader: R) -> Result<Squashfs<R>, SquashfsError> {
+        reader.seek(SeekFrom::Start(0))?;
 
         // Size of metadata + optional compression options metadata block
         let mut superblock = [0u8; 96];
@@ -272,31 +279,28 @@ impl<R: ReadSeek> Squashfs<R> {
         };
         trace!("compression_options: {compression_options:08x?}");
 
-        // Create SquashfsReader
-        let mut squashfs_reader = SquashfsReaderWithOffset::new(&mut reader, offset);
-
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Data and Fragments");
-        let data_and_fragments = squashfs_reader.data_and_fragments(&superblock)?;
+        let data_and_fragments = reader.data_and_fragments(&superblock)?;
 
         info!("Reading Inodes");
-        let inodes = squashfs_reader.inodes(&superblock)?;
+        let inodes = reader.inodes(&superblock)?;
 
         info!("Reading Root Inode");
-        let root_inode = squashfs_reader.root_inode(&superblock)?;
+        let root_inode = reader.root_inode(&superblock)?;
 
         info!("Reading Fragments");
-        let fragments = squashfs_reader.fragments(&superblock)?;
+        let fragments = reader.fragments(&superblock)?;
         let fragment_ptr = fragments.clone().map(|a| a.0);
         let fragment_table = fragments.map(|a| a.1);
 
         info!("Reading Exports");
-        let export = squashfs_reader.export(&superblock)?;
+        let export = reader.export(&superblock)?;
         let export_ptr = export.clone().map(|a| a.0);
         let export_table = export.map(|a| a.1);
 
         info!("Reading Ids");
-        let id = squashfs_reader.id(&superblock)?;
+        let id = reader.id(&superblock)?;
         let id_ptr = id.clone().map(|a| a.0);
         let id_table = id.map(|a| a.1);
 
@@ -314,7 +318,7 @@ impl<R: ReadSeek> Squashfs<R> {
         };
 
         info!("Reading Dirs");
-        let dir_blocks = squashfs_reader.dir_blocks(&superblock, last_dir_position)?;
+        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position)?;
 
         let squashfs = Squashfs {
             superblock,
@@ -434,26 +438,28 @@ impl<R: ReadSeek> Squashfs<R> {
     /// Convert into [`Filesystem`] by extracting all file bytes and converting into a filesystem
     /// like structure in-memory
     #[instrument(skip_all)]
-    pub fn into_filesystem(&self) -> Result<Filesystem, SquashfsError> {
-        let mut cache = Cache::default();
+    pub fn into_filesystem_reader(self) -> Result<FilesystemReader<R>, SquashfsError> {
         let mut nodes = Vec::with_capacity(self.superblock.inode_count as usize);
         let path: PathBuf = "/".into();
 
-        self.extract_dir(&mut cache, &mut nodes, &self.root_inode, &path)?;
+        self.extract_dir(&mut nodes, &self.root_inode, &path)?;
 
         let root_inode = SquashfsPath {
             header: self.root_inode.header.into(),
         };
 
-        let filesystem = Filesystem {
+        let filesystem = FilesystemReader {
             block_size: self.superblock.block_size,
             block_log: self.superblock.block_log,
             compressor: self.superblock.compressor,
             compression_options: self.compression_options,
             mod_time: self.superblock.mod_time,
             id_table: self.id.clone(),
+            fragments: self.fragments,
             root_inode,
             nodes: nodes.to_vec(),
+            file: RefCell::new(self.file),
+            cache: RefCell::new(Cache::default()),
         };
         Ok(filesystem)
     }
@@ -461,8 +467,7 @@ impl<R: ReadSeek> Squashfs<R> {
     #[instrument(skip_all)]
     fn extract_dir(
         &self,
-        cache: &mut Cache,
-        nodes: &mut Vec<Node>,
+        nodes: &mut Vec<NodeReader>,
         dir_inode: &Inode,
         path: &Path,
     ) -> Result<(), SquashfsError> {
@@ -502,59 +507,61 @@ impl<R: ReadSeek> Squashfs<R> {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             let path = new_path.clone();
-                            let inner = InnerNode::Path(SquashfsPath {
+                            let inner = InnerNodeReader::Path(SquashfsPath {
                                 header: header.into(),
                             });
-                            let node = Node::new(path, inner);
+                            let node = NodeReader::new(path, inner);
                             nodes.push(node);
 
                             // its a dir, extract all inodes
-                            self.extract_dir(cache, nodes, found_inode, &new_path)?;
+                            self.extract_dir(nodes, found_inode, &new_path)?;
                         },
                         // BasicFile
                         InodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
-                            let (file_header, bytes) = self.file(cache, found_inode)?;
                             let path = new_path.clone();
-                            let inner = InnerNode::File(SquashfsFile {
-                                header: file_header.into(),
-                                bytes,
-                            });
-                            let node = Node::new(path, inner);
+                            let header = header.into();
+                            let basic = match &found_inode.inner {
+                                InodeInner::BasicFile(file) => file.clone(),
+                                InodeInner::ExtendedFile(file) => file.into(),
+                                _ => todo!(),
+                            };
+                            let inner = InnerNodeReader::File(SquashfsFileReader { header, basic });
+                            let node = NodeReader::new(path, inner);
                             nodes.push(node);
                         },
                         // Basic Symlink
                         InodeId::BasicSymlink => {
                             let (original, link) = self.symlink(found_inode, entry)?;
                             let path = new_path;
-                            let inner = InnerNode::Symlink(SquashfsSymlink {
+                            let inner = InnerNodeReader::Symlink(SquashfsSymlink {
                                 header: header.into(),
                                 original,
                                 link,
                             });
-                            let node = Node::new(path, inner);
+                            let node = NodeReader::new(path, inner);
                             nodes.push(node);
                         },
                         // Basic CharacterDevice
                         InodeId::BasicCharacterDevice => {
                             let device_number = self.char_device(found_inode)?;
                             let path = new_path;
-                            let inner = InnerNode::CharacterDevice(SquashfsCharacterDevice {
+                            let inner = InnerNodeReader::CharacterDevice(SquashfsCharacterDevice {
                                 header: header.into(),
                                 device_number,
                             });
-                            let node = Node::new(path, inner);
+                            let node = NodeReader::new(path, inner);
                             nodes.push(node);
                         },
                         // Basic CharacterDevice
                         InodeId::BasicBlockDevice => {
                             let device_number = self.block_device(found_inode)?;
                             let path = new_path;
-                            let inner = InnerNode::BlockDevice(SquashfsBlockDevice {
+                            let inner = InnerNodeReader::BlockDevice(SquashfsBlockDevice {
                                 header: header.into(),
                                 device_number,
                             });
-                            let node = Node::new(path, inner);
+                            let node = NodeReader::new(path, inner);
                             nodes.push(node);
                         },
                         _ => panic!("{entry:?}"),
@@ -564,72 +571,6 @@ impl<R: ReadSeek> Squashfs<R> {
         }
 
         Ok(())
-    }
-
-    // From `basic_file`, extract total data including from data blocks and data fragments
-    #[instrument(skip_all)]
-    fn data(&self, cache: &mut Cache, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
-        trace!("extracting: {:#02x?}", basic_file);
-
-        // Add data
-        trace!("extracting data @ offset {:02x?}", basic_file.blocks_start);
-
-        let mut data_bytes = Vec::with_capacity(basic_file.file_size as usize);
-
-        // Extract Data
-        if !basic_file.block_sizes.is_empty() {
-            let mut reader =
-                Cursor::new(&self.data_and_fragments[basic_file.blocks_start as usize..]);
-            for block_size in &basic_file.block_sizes {
-                let mut bytes = self.read_data(&mut reader, *block_size as usize)?;
-                data_bytes.append(&mut bytes);
-            }
-        }
-
-        trace!("data bytes: {:02x?}", data_bytes.len());
-
-        // Extract Fragment
-        // TODO: this should be constant
-        if basic_file.frag_index != 0xffffffff {
-            if let Some(fragments) = &self.fragments {
-                let frag = fragments[basic_file.frag_index as usize];
-
-                // use fragment cache if possible
-                match cache.fragment_cache.get(&(frag.start)) {
-                    Some(cache_bytes) => {
-                        let bytes = &cache_bytes.clone();
-                        let bytes = &bytes[basic_file.block_offset as usize..];
-                        data_bytes.append(&mut bytes.to_vec());
-                    },
-                    None => {
-                        let mut reader =
-                            Cursor::new(&self.data_and_fragments[frag.start as usize..]);
-                        let mut bytes = self.read_data(&mut reader, frag.size as usize)?;
-                        cache.fragment_cache.insert(frag.start, bytes.clone());
-                        bytes = bytes[basic_file.block_offset as usize..].to_vec();
-                        data_bytes.append(&mut bytes);
-                    },
-                }
-            }
-        }
-
-        data_bytes = data_bytes[..basic_file.file_size as usize].to_vec();
-        Ok(data_bytes)
-    }
-
-    /// Read from either Data blocks or Fragments blocks
-    fn read_data<T: Read>(&self, reader: &mut T, size: usize) -> Result<Vec<u8>, SquashfsError> {
-        let uncompressed = size & (1 << 24) != 0;
-        let size = size & !(1 << 24);
-        let mut buf = vec![0u8; size];
-        reader.read_exact(&mut buf)?;
-
-        let bytes = if uncompressed {
-            buf
-        } else {
-            compressor::decompress(buf, self.superblock.compressor)?
-        };
-        Ok(bytes)
     }
 
     /// Symlink Details
@@ -674,30 +615,6 @@ impl<R: ReadSeek> Squashfs<R> {
         }
 
         error!("block dev not found");
-        Err(SquashfsError::FileNotFound)
-    }
-
-    /// From file details, extract (PathBuf, FileBytes)
-    #[instrument(skip_all)]
-    fn file(
-        &self,
-        cache: &mut Cache,
-        inode: &Inode,
-    ) -> Result<(InodeHeader, Vec<u8>), SquashfsError> {
-        // look through basic file inodes in search of the one true basic_inode and extract the
-        // bytes from the data and fragment sections
-        match &inode.inner {
-            InodeInner::BasicFile(basic_file) => {
-                return Ok((inode.header, self.data(cache, basic_file)?));
-            },
-            InodeInner::ExtendedFile(ext_file) => {
-                let basic_file = BasicFile::from(ext_file);
-                return Ok((inode.header, self.data(cache, &basic_file)?));
-            },
-            _ => (),
-        }
-
-        error!("file not found");
         Err(SquashfsError::FileNotFound)
     }
 }

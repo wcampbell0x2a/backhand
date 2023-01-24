@@ -1,7 +1,7 @@
 mod common;
 use std::fs::{self, File};
 
-use backhand::Filesystem;
+use backhand::{filesystem::FilesystemReader, FilesystemWriter};
 use common::{test_unsquashfs, test_unsquashfs_list};
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -32,16 +32,17 @@ fn full_test(
     let new_path = format!("{test_path}/bytes.squashfs");
     let file = File::open(&og_path).unwrap();
     info!("calling from_reader");
-    let og_filesystem = Filesystem::from_reader_with_offset(file, offset).unwrap();
+    let og_filesystem = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
+    let new_filesystem = FilesystemWriter::same_as_existing(&og_filesystem).unwrap();
 
     // convert to bytes
     info!("calling to_bytes");
-    let bytes = og_filesystem.to_bytes().unwrap();
+    let bytes = new_filesystem.to_bytes().unwrap();
     fs::write(&new_path, &bytes).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     info!("calling from_reader");
-    let _new_filesystem = Filesystem::from_reader(std::io::Cursor::new(bytes)).unwrap();
+    let _new_filesystem = FilesystemReader::from_reader(std::io::Cursor::new(bytes)).unwrap();
 
     info!("starting unsquashfs test");
     match verify {

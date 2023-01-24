@@ -1,11 +1,11 @@
 use std::fs::File;
 
-use backhand::Filesystem;
+use backhand::FilesystemWriter;
 use criterion::*;
 use test_assets::TestAssetDef;
 
 fn bench_tplink_ax1800(file: File, offset: u64) {
-    let og_filesystem = Filesystem::from_reader_with_offset(file, offset).unwrap();
+    let og_filesystem = FilesystemWriter::from_reader_with_offset(file, offset).unwrap();
 
     // convert to bytes
     black_box(og_filesystem.to_bytes().unwrap());

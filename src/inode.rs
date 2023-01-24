@@ -45,6 +45,7 @@ impl Inode {
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
 #[deku(type = "u16")]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[rustfmt::skip]
 pub enum InodeId {
     BasicDirectory       = 1,
     BasicFile            = 2,

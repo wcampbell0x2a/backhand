@@ -3,8 +3,7 @@ use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use backhand::filesystem::{
-    InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath,
-    SquashfsSymlink,
+    InnerNodeReader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsPath, SquashfsSymlink,
 };
 use backhand::Squashfs;
 use clap::{Parser, Subcommand};
@@ -65,16 +64,17 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
     tracing::info!("Fragments {:#02x?}", squashfs.fragments);
 
     fs::create_dir_all(output).unwrap();
-    let filesystem = squashfs.into_filesystem().unwrap();
+    let filesystem = squashfs.into_filesystem_reader().unwrap();
 
-    for node in filesystem.nodes {
-        let path = node.path;
-        match node.inner {
-            InnerNode::File(SquashfsFile { bytes, .. }) => {
+    for node in &filesystem.nodes {
+        let path = &node.path;
+        match &node.inner {
+            InnerNodeReader::File(file) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("file {}", path.display());
                 let filepath = Path::new(output).join(path);
                 let _ = std::fs::create_dir_all(filepath.parent().unwrap());
+                let bytes = filesystem.file(&file.basic).unwrap();
                 match std::fs::write(&filepath, bytes) {
                     Ok(_) => println!("[-] success, wrote {}", filepath.display()),
                     Err(e) => {
@@ -82,7 +82,7 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     },
                 }
             },
-            InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
+            InnerNodeReader::Symlink(SquashfsSymlink { link, .. }) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 tracing::debug!("symlink {} {}", path.display(), link);
                 let filepath = Path::new(output).join(path);
@@ -93,7 +93,7 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                     println!("[!] failed write: {}->{link}", filepath.display());
                 }
             },
-            InnerNode::Path(SquashfsPath { header, .. }) => {
+            InnerNodeReader::Path(SquashfsPath { header, .. }) => {
                 let path: PathBuf = path.iter().skip(1).collect();
                 let path = Path::new(output).join(&path);
                 tracing::debug!("path {}", path.display());
@@ -102,13 +102,13 @@ fn extract_all(input: &Path, offset: u64, output: &Path) {
                 fs::set_permissions(&path, perms).unwrap();
                 println!("[-] success, wrote {}", &path.display());
             },
-            InnerNode::CharacterDevice(SquashfsCharacterDevice {
+            InnerNodeReader::CharacterDevice(SquashfsCharacterDevice {
                 header: _,
                 device_number: _,
             }) => {
                 println!("[-] character device not supported");
             },
-            InnerNode::BlockDevice(SquashfsBlockDevice {
+            InnerNodeReader::BlockDevice(SquashfsBlockDevice {
                 header: _,
                 device_number: _,
             }) => {

@@ -1,8 +1,8 @@
 mod common;
 use std::fs::{self, File};
 
-use backhand::filesystem::FilesystemHeader;
-use backhand::Filesystem;
+use backhand::filesystem::{FilesystemHeader, FilesystemReader};
+use backhand::FilesystemWriter;
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -48,24 +48,25 @@ fn test_add_00() {
 
     test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
     let file = File::open(og_path).unwrap();
-    let mut og_filesystem = Filesystem::from_reader(file).unwrap();
+    let og_filesystem = FilesystemReader::from_reader(file).unwrap();
+    let mut new_filesystem = FilesystemWriter::same_as_existing(&og_filesystem).unwrap();
 
     // Add file
-    og_filesystem.push_file(
+    new_filesystem.push_file(
         "his is a new file, wowo!",
         "a/d/e/new_file",
         FilesystemHeader::default(),
     );
     // Add file
-    og_filesystem.push_file("i am (g)root", "root_file", FilesystemHeader::default());
+    new_filesystem.push_file("i am (g)root", "root_file", FilesystemHeader::default());
     // Add file
-    og_filesystem.push_file("dude", "a/b/c/d/dude", FilesystemHeader::default());
+    new_filesystem.push_file("dude", "a/b/c/d/dude", FilesystemHeader::default());
 
     // Modify file
-    let file = og_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
+    let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
     file.bytes = b"MODIFIEDfirst file!\n".to_vec();
 
-    let bytes = og_filesystem.to_bytes().unwrap();
+    let bytes = new_filesystem.to_bytes().unwrap();
     fs::write(new_path, bytes).unwrap();
 
     let new_path = format!("{TEST_PATH}/new.squashfs");

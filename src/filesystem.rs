@@ -20,7 +20,6 @@ use crate::inode::{
     InodeInner,
 };
 use crate::metadata::{self, MetadataWriter};
-use crate::reader::ReadSeek;
 use crate::squashfs::{Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::Squashfs;
@@ -48,14 +47,15 @@ pub struct Filesystem {
 }
 
 impl Filesystem {
+    /// Read filesystem from source `reader` implementing `Read + Seek`
     /// First call `Squashfs::from_reader(..)`, then call `Squashfs::into_filesystem(..)`
-    pub fn from_reader<R: ReadSeek + 'static>(reader: R) -> Result<Self, SquashfsError> {
+    pub fn from_reader<R: Read + Seek + 'static>(reader: R) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader(reader)?;
         squashfs.into_filesystem()
     }
 
     /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
-    pub fn from_reader_with_offset<R: ReadSeek + 'static>(
+    pub fn from_reader_with_offset<R: Read + Seek + 'static>(
         reader: R,
         offset: u64,
     ) -> Result<Self, SquashfsError> {

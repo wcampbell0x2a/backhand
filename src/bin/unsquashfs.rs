@@ -3,7 +3,7 @@ use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use backhand::filesystem::{
-    InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile, SquashfsPath,
+    InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsFile,
     SquashfsSymlink,
 };
 use backhand::Squashfs;
@@ -70,7 +70,7 @@ fn extract_all(args: &Args) {
                         println!("[!] failed write: {}->{link}", filepath.display());
                     }
                 },
-                InnerNode::Path(SquashfsPath { header, .. }) => {
+                InnerNode::Dir(SquashfsDir { header, .. }) => {
                     let path: PathBuf = path.iter().skip(1).collect();
                     let path = Path::new(&args.dest).join(&path);
                     tracing::debug!("path {}", path.display());

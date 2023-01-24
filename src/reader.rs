@@ -23,7 +23,7 @@ pub struct SquashfsReader {
 }
 
 impl SquashfsReader {
-    pub fn new<R: ReadSeek + 'static>(reader: R, offset: u64) -> Self {
+    pub fn new<R: Read + Seek + 'static>(reader: R, offset: u64) -> Self {
         Self {
             io: Box::new(reader),
             start: offset,

@@ -41,13 +41,14 @@ pub struct Filesystem {
     /// See [`Squashfs`].`id`
     pub id_table: Option<Vec<Id>>,
     /// Information for the `/` node
-    pub root_inode: SquashfsPath,
+    pub root_inode: SquashfsDir,
     /// All files and directories in filesystem. This will be convert into a filesystem tree with [`Filesystem::to_bytes`]
     pub nodes: Vec<Node>,
 }
 
 impl Filesystem {
     /// Read filesystem from source `reader` implementing `Read + Seek`
+    ///
     /// First call `Squashfs::from_reader(..)`, then call `Squashfs::into_filesystem(..)`
     pub fn from_reader<R: Read + Seek + 'static>(reader: R) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader(reader)?;
@@ -83,7 +84,7 @@ impl Filesystem {
 
                 // check if exists
                 for node in &mut self.nodes {
-                    if let InnerNode::Path(_) = &node.inner {
+                    if let InnerNode::Dir(_) = &node.inner {
                         if node.path.as_os_str().to_str()
                             == Some(dir.to_str().ok_or(SquashfsError::OsStringToStr)?)
                         {
@@ -93,7 +94,7 @@ impl Filesystem {
                 }
 
                 // not found, add to dir
-                let new_dir = InnerNode::Path(SquashfsPath { header });
+                let new_dir = InnerNode::Dir(SquashfsDir { header });
                 let node = Node::new(PathBuf::from(full_path.clone()), new_dir);
                 self.nodes.push(node);
             }
@@ -122,6 +123,80 @@ impl Filesystem {
         }
 
         None
+    }
+
+    /// Insert symlink from `original` to `link`
+    pub fn push_symlink<P: Into<PathBuf>, S: Into<String>>(
+        &mut self,
+        original: S,
+        link: S,
+        path: P,
+        header: FilesystemHeader,
+    ) -> Result<(), SquashfsError> {
+        let path = path.into();
+
+        let new_symlink = InnerNode::Symlink(SquashfsSymlink {
+            header,
+            original: original.into(),
+            link: link.into(),
+        });
+        let node = Node::new(path, new_symlink);
+        self.nodes.push(node);
+
+        Ok(())
+    }
+
+    /// Insert empty `dir` at `path`
+    pub fn push_dir<P: Into<PathBuf>>(
+        &mut self,
+        path: P,
+        header: FilesystemHeader,
+    ) -> Result<(), SquashfsError> {
+        let path = path.into();
+
+        let new_dir = InnerNode::Dir(SquashfsDir { header });
+        let node = Node::new(path, new_dir);
+        self.nodes.push(node);
+
+        Ok(())
+    }
+
+    /// Insert character device with `device_number` at `path`
+    pub fn push_char_device<P: Into<PathBuf>>(
+        &mut self,
+        device_number: u32,
+        path: P,
+        header: FilesystemHeader,
+    ) -> Result<(), SquashfsError> {
+        let path = path.into();
+
+        let new_device = InnerNode::CharacterDevice(SquashfsCharacterDevice {
+            header,
+            device_number,
+        });
+        let node = Node::new(path, new_device);
+        self.nodes.push(node);
+
+        Ok(())
+    }
+
+    /// Insert block device with `device_number` at `path`
+    pub fn push_block_device<P: Into<PathBuf>>(
+        &mut self,
+        device_number: u32,
+        path: P,
+        header: FilesystemHeader,
+    ) -> Result<(), SquashfsError> {
+        let path = path.into();
+
+        let new_device = InnerNode::BlockDevice(SquashfsBlockDevice {
+            header,
+            device_number,
+        });
+        let node = Node::new(path, new_device);
+        self.nodes.push(node);
+
+        Ok(())
     }
 
     /// Create SquashFS file system from each node of Tree
@@ -178,7 +253,7 @@ impl Filesystem {
         for (name, node) in child_dir_nodes {
             let node_path = PathBuf::from(name.clone());
             let entry = match node {
-                InnerNode::Path(path) => Self::path(
+                InnerNode::Dir(path) => Self::path(
                     name,
                     path.clone(),
                     inode,
@@ -227,7 +302,7 @@ impl Filesystem {
         trace!("ENTRY: {entry:#02x?}");
         ret_entries.push(entry);
 
-        let path_node = if let Some(InnerNode::Path(node)) = &tree.node {
+        let path_node = if let Some(InnerNode::Dir(node)) = &tree.node {
             node.clone()
         } else {
             panic!();
@@ -266,7 +341,7 @@ impl Filesystem {
     /// Write data and metadata for path node
     fn path(
         name: OsString,
-        path: SquashfsPath,
+        path: SquashfsDir,
         inode: &mut u32,
         parent_inode: u32,
         dir_writer: &MetadataWriter,
@@ -437,7 +512,7 @@ impl Filesystem {
         let mut inode = 1;
 
         // Add the "/" entry
-        let inner = InnerNode::Path(self.root_inode.clone());
+        let inner = InnerNode::Dir(self.root_inode.clone());
         tree.node = Some(inner);
 
         //trace!("TREE: {:#02x?}", tree);
@@ -580,7 +655,7 @@ impl Node {
 pub enum InnerNode {
     File(SquashfsFile),
     Symlink(SquashfsSymlink),
-    Path(SquashfsPath),
+    Dir(SquashfsDir),
     CharacterDevice(SquashfsCharacterDevice),
     BlockDevice(SquashfsBlockDevice),
 }
@@ -610,7 +685,7 @@ pub struct SquashfsSymlink {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SquashfsPath {
+pub struct SquashfsDir {
     pub header: FilesystemHeader,
 }
 

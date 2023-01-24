@@ -14,8 +14,8 @@ use crate::data::DATA_STORED_UNCOMPRESSED;
 use crate::dir::{Dir, DirEntry};
 use crate::error::SquashfsError;
 use crate::filesystem::{
-    Filesystem, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsFile,
-    SquashfsPath, SquashfsSymlink,
+    Filesystem, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
+    SquashfsFile, SquashfsSymlink,
 };
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, Inode, InodeHeader, InodeId, InodeInner};
@@ -438,7 +438,7 @@ impl Squashfs {
 
         self.extract_dir(&mut cache, &mut nodes, &self.root_inode, &path)?;
 
-        let root_inode = SquashfsPath {
+        let root_inode = SquashfsDir {
             header: self.root_inode.header.into(),
         };
 
@@ -499,7 +499,7 @@ impl Squashfs {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             let path = new_path.clone();
-                            let inner = InnerNode::Path(SquashfsPath {
+                            let inner = InnerNode::Dir(SquashfsDir {
                                 header: header.into(),
                             });
                             let node = Node::new(path, inner);

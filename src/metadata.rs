@@ -98,7 +98,7 @@ impl Write for MetadataWriter {
 }
 
 #[instrument(skip_all)]
-pub fn read_block<R: Read>(
+pub fn read_block<R: Read + ?Sized>(
     reader: &mut R,
     superblock: &SuperBlock,
 ) -> Result<Vec<u8>, SquashfsError> {

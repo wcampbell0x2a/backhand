@@ -19,7 +19,7 @@ use crate::filesystem::{
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, Inode, InodeHeader, InodeId, InodeInner};
 use crate::metadata;
-use crate::reader::{ReadSeek, SquashfsReader};
+use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
 
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
@@ -167,6 +167,7 @@ impl SuperBlock {
     }
 }
 
+#[rustfmt::skip]
 pub enum Flags {
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
     DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
@@ -192,7 +193,7 @@ struct Cache {
 /// the struct types, while data stays compressed.
 ///
 /// See [`Filesystem`] for a representation with the data extracted and uncompressed.
-pub struct Squashfs {
+pub struct Squashfs<R: ReadSeek> {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
@@ -213,22 +214,24 @@ pub struct Squashfs {
     pub export: Option<Vec<Export>>,
     /// Id Lookup Table
     pub id: Option<Vec<Id>>,
+    //file reader
+    file: R,
 }
 
-impl Squashfs {
+impl<R: ReadSeek> Squashfs<R> {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
     #[instrument(skip_all)]
-    pub fn from_reader<R: ReadSeek + 'static>(reader: R) -> Result<Squashfs, SquashfsError> {
+    pub fn from_reader(reader: R) -> Result<Squashfs<R>, SquashfsError> {
         Self::from_reader_with_offset(reader, 0)
     }
 
     /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
-    pub fn from_reader_with_offset<R: ReadSeek + 'static>(
+    pub fn from_reader_with_offset(
         mut reader: R,
         offset: u64,
-    ) -> Result<Squashfs, SquashfsError> {
+    ) -> Result<Squashfs<R>, SquashfsError> {
         // do the initial seek from the start of `reader`
         reader.seek(SeekFrom::Start(offset))?;
 
@@ -270,7 +273,7 @@ impl Squashfs {
         trace!("compression_options: {compression_options:08x?}");
 
         // Create SquashfsReader
-        let mut squashfs_reader = SquashfsReader::new(reader, offset);
+        let mut squashfs_reader = SquashfsReaderWithOffset::new(&mut reader, offset);
 
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Data and Fragments");
@@ -323,6 +326,7 @@ impl Squashfs {
             fragments: fragment_table,
             export: export_table,
             id: id_table,
+            file: reader,
         };
 
         // show info about flags
@@ -614,7 +618,7 @@ impl Squashfs {
     }
 
     /// Read from either Data blocks or Fragments blocks
-    fn read_data<R: Read>(&self, reader: &mut R, size: usize) -> Result<Vec<u8>, SquashfsError> {
+    fn read_data<T: Read>(&self, reader: &mut T, size: usize) -> Result<Vec<u8>, SquashfsError> {
         let uncompressed = size & (1 << 24) != 0;
         let size = size & !(1 << 24);
         let mut buf = vec![0u8; size];

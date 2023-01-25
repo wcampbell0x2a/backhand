@@ -50,7 +50,7 @@ fn test_add_00() {
     test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
     let file = File::open(og_path).unwrap();
     let og_filesystem = FilesystemReader::from_reader(file).unwrap();
-    let mut new_filesystem = FilesystemWriter::same_as_existing(&og_filesystem).unwrap();
+    let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // Add file
     let bytes = &mut b"this is a new file, wowo!".as_slice();

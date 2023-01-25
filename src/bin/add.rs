@@ -26,7 +26,7 @@ fn main() {
     // read of squashfs
     let file = File::open(args.filesystem).unwrap();
     let filesystem = FilesystemReader::from_reader(file).unwrap();
-    let mut filesystem = FilesystemWriter::same_as_existing(&filesystem).unwrap();
+    let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 
     // create new file
     let mut new_file = File::open(&args.file).unwrap();

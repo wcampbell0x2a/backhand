@@ -168,7 +168,7 @@ pub struct FilesystemWriter {
 
 impl FilesystemWriter {
     /// use the same confifuration then an existing SquashFsFile
-    pub fn same_as_existing<R: SquashFsReader>(
+    pub fn from_fs_reader<R: SquashFsReader>(
         reader: &FilesystemReader<R>,
     ) -> Result<Self, SquashfsError> {
         let nodes = reader

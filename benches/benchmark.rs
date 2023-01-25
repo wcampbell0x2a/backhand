@@ -6,7 +6,7 @@ use test_assets::TestAssetDef;
 
 fn read_write(file: File, offset: u64) {
     let og_filesystem = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
-    let new_filesystem = FilesystemWriter::same_as_existing(&og_filesystem).unwrap();
+    let new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // convert to bytes
     black_box(new_filesystem.to_bytes().unwrap());

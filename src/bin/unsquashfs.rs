@@ -64,7 +64,7 @@ fn extract_all(args: &Args) {
                     tracing::debug!("symlink {} {}", path.display(), link);
                     let filepath = Path::new(&args.dest).join(path);
                     let _ = std::fs::create_dir_all(filepath.parent().unwrap());
-                    if std::os::unix::fs::symlink(&link, &filepath).is_ok() {
+                    if std::os::unix::fs::symlink(link, &filepath).is_ok() {
                         println!("[-] success, wrote {}->{link}", filepath.display());
                     } else {
                         println!("[!] failed write: {}->{link}", filepath.display());

@@ -108,9 +108,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
                         data_bytes.append(&mut bytes.to_vec());
                     },
                     None => {
-                        self.reader
-                            .borrow_mut()
-                            .seek(SeekFrom::Start(frag.start.into()))?;
+                        self.reader.borrow_mut().seek(SeekFrom::Start(frag.start))?;
                         let mut bytes = self.read_data(frag.size as usize)?;
                         drop(cache);
                         self.cache
@@ -247,10 +245,7 @@ impl FilesystemWriter {
 
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes)?;
-        let new_file = InnerNodeWriter::File(SquashfsFile {
-            header,
-            bytes: bytes.into(),
-        });
+        let new_file = InnerNodeWriter::File(SquashfsFile { header, bytes });
         let node = NodeWriter::new(path, new_file);
         self.nodes.push(node);
 

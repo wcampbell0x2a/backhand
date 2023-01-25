@@ -74,7 +74,7 @@ pub trait SquashFsReader: Read + Seek {
         //let mut rest = buf;
         let start = self.stream_position()?;
         while self.stream_position()? < superblock.dir_table {
-            trace!("offset: {:02x?}", self.seek(SeekFrom::Current(0))?);
+            trace!("offset: {:02x?}", self.stream_position());
             metadata_offsets.push(self.stream_position()? - start);
             // parse into metadata
             let mut bytes = metadata::read_block(self, superblock)?;

@@ -1,4 +1,5 @@
 use std::fs::{self, File, Permissions};
+use std::io::Read;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
@@ -51,7 +52,9 @@ fn extract_all(args: &Args) {
                     tracing::debug!("file {}", path.display());
                     let filepath = Path::new(&args.dest).join(path);
                     let _ = std::fs::create_dir_all(filepath.parent().unwrap());
-                    let bytes = filesystem.file(&file.basic).unwrap();
+                    let mut bytes = Vec::with_capacity(file.basic.file_size as usize);
+                    let mut reader = filesystem.file(&file.basic);
+                    reader.read_to_end(&mut bytes).unwrap();
                     match std::fs::write(&filepath, bytes) {
                         Ok(_) => println!("[-] success, wrote {}", filepath.display()),
                         Err(e) => {

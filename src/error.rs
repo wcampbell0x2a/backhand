@@ -32,3 +32,20 @@ pub enum SquashfsError {
     #[error("os string cannot convert into str")]
     OsStringToStr,
 }
+
+impl From<SquashfsError> for io::Error {
+    fn from(value: SquashfsError) -> Self {
+        match value {
+            SquashfsError::StdIo(io) => io,
+            SquashfsError::Deku(e) => e.into(),
+            SquashfsError::StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            SquashfsError::StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ SquashfsError::UnsupportedCompression(_) => {
+                Self::new(io::ErrorKind::Unsupported, e)
+            },
+            e @ SquashfsError::FileNotFound => Self::new(io::ErrorKind::NotFound, e),
+            e @ SquashfsError::FieldNotInitialized => Self::new(io::ErrorKind::InvalidData, e),
+            e @ SquashfsError::OsStringToStr => Self::new(io::ErrorKind::InvalidData, e),
+        }
+    }
+}

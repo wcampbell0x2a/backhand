@@ -26,7 +26,7 @@ use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
 
 // read
 let file = File::open("file.squashfs").unwrap();
-let read_filesystem = FilesystemReader::from_reader_with_offset(file, 0).unwrap();
+let read_filesystem = FilesystemReader::from_reader(file).unwrap();
 
 // convert to writer
 let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).unwrap();

@@ -63,7 +63,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
 }
 
 impl<R: SquashFsReader> FilesystemReader<SquashfsReaderWithOffset<R>> {
-    /// Same as [`Self::from_reader`], but with a starting `offset` to the image in the `reader`
+    /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
     pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
         squashfs.into_filesystem_reader()

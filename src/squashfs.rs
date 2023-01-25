@@ -229,7 +229,7 @@ impl<R: SquashFsReader> Squashfs<R> {
 }
 
 impl<R: SquashFsReader> Squashfs<SquashfsReaderWithOffset<R>> {
-    /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
+    /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
     pub fn from_reader_with_offset(
         reader: R,
         offset: u64,

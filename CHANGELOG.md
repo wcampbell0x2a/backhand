@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+### Fixed
+### Changed
+- Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.
+  This speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.
+  The following diff will cover most common API upgrades from `v0.7.0`
+  ```diff
+  -let squashfs = Squashfs::from_reader(file).unwrap();
+  -let mut filesystem = squashfs.into_filesystem().unwrap();
+  +let filesystem = FilesystemReader::from_reader(file).unwrap();
+  +let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
+  ```
+  ```diff
+  -let filesystem = Filesystem::from_reader(file).unwrap();
+  +let filesystem = FilesystemReader::from_reader(file).unwrap();
+  +let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
+  ```
+  ```diff
+  -InnerNode
+  +InnerNodeReader
+  ```
+
+  Thanks [@rbran](https://github.com/rbran/) for the MR!
 
 ## [v0.7.0] - 2023-01-23
 ### Added

@@ -51,5 +51,5 @@ mod reader;
 pub mod squashfs;
 mod tree;
 
-pub use crate::filesystem::{FilesystemHeader, FilesystemWriter};
+pub use crate::filesystem::{FilesystemHeader, FilesystemWriter, FilesystemReader};
 pub use crate::squashfs::Squashfs;

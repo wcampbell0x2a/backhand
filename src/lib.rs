@@ -8,35 +8,43 @@
 //! backhand = "0.6.0"
 //! ```
 //!
-//! Most usage of this library just requires the usage of [`Filesystem`], although this library gives
-//! you access to some of the innner workings of the reading and writing Squashfs through the
-//! [`Squashfs`] struct.
+//! For reading an image and extracting its details and contents, use
+//! [`FilesystemReader::from_reader`].
+//! For creating a modified or new image, use [`FilesystemWriter::from_fs_reader`].
+//! [`FilesystemWriter`] can also be created from scratch, without a previous image to base itself
+//! on.
 //!
 //!### Reading/Writing/Modifying Firmware
-//!```rust,ignore
+//!```rust,no_run
 //! # use std::fs::File;
-//! # use backhand::{Filesystem, FilesystemHeader};
+//! # use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
 //!
 //! // read
 //! let file = File::open("file.squashfs").unwrap();
-//! let mut filesystem = Filesystem::from_reader(file).unwrap();
+//! let read_filesystem = FilesystemReader::from_reader_with_offset(file, 0).unwrap();
+//!
+//! // convert to writer
+//! let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).unwrap();
 //!
 //! // add file with data from slice
 //! let d = FilesystemHeader::default();
 //! let bytes = &mut b"Fear is the mind-killer.".as_slice();
-//! filesystem.push_file(bytes, "a/d/e/new_file", d);
+//! write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 //!
 //! // add file with data from file
 //! let mut new_file = File::open("dune").unwrap();
-//! filesystem.push_file(&mut new_file, "/root/dune", d);
+//! write_filesystem.push_file(&mut new_file, "/root/dune", d);
 //!
 //! // modify file
-//! let file = filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
+//! let file = write_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
 //! file.bytes = b"The sleeper must awaken.\n".to_vec();
 //!
-//! // write
-//! let bytes = filesystem.to_bytes().unwrap();
+//! // convert into bytes
+//! let bytes = write_filesystem.to_bytes().unwrap();
 //! ```
+
+#[doc = include_str!("../README.md")]
+type _ReadmeTest = ();
 
 pub mod compressor;
 mod data;
@@ -47,9 +55,9 @@ pub mod filesystem;
 pub mod fragment;
 pub mod inode;
 mod metadata;
-mod reader;
+pub mod reader;
 pub mod squashfs;
 mod tree;
 
-pub use crate::filesystem::{FilesystemHeader, FilesystemWriter, FilesystemReader};
+pub use crate::filesystem::{FilesystemHeader, FilesystemReader, FilesystemWriter};
 pub use crate::squashfs::Squashfs;

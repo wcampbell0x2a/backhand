@@ -193,14 +193,14 @@ pub struct Cache {
 /// Representation of Squashfs image in memory. Tables such as Inodes and Dirs are extracted into
 /// the struct types, while data stays compressed.
 ///
-/// See [`Filesystem`] for a representation with the data extracted and uncompressed.
+/// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
 pub struct Squashfs<R: SquashFsReader> {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
     /// Section containing compressed/uncompressed file data and fragments.
     ///
-    /// This also contains the superblock and option bytes b/c that is how [`BasicFile`] uses its
+    /// This also contains the superblock and option bytes b/c that is how [`crate::inode::BasicFile`] uses its
     /// `blocks_starts`.
     pub data_and_fragments: Vec<u8>,
     // All Inodes
@@ -435,7 +435,7 @@ impl<R: SquashFsReader> Squashfs<R> {
         Ok(Some(dirs))
     }
 
-    /// Convert into [`Filesystem`] by extracting all file bytes and converting into a filesystem
+    /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
     /// like structure in-memory
     #[instrument(skip_all)]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<R>, SquashfsError> {

@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use backhand::{FilesystemWriter, FilesystemReader};
+use backhand::{FilesystemReader, FilesystemWriter};
 use criterion::*;
 use test_assets::TestAssetDef;
 

@@ -27,7 +27,7 @@ use crate::tree::TreeNode;
 use crate::Squashfs;
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
-/// to create an on-disk image
+/// to create an on-disk image.
 #[derive(Debug, Clone)]
 pub struct FilesystemReader<R: SquashFsReader> {
     /// See [`SuperBlock`].`block_size`
@@ -46,7 +46,7 @@ pub struct FilesystemReader<R: SquashFsReader> {
     pub fragments: Option<Vec<Fragment>>,
     /// Information for the `/` node
     pub root_inode: SquashfsDir,
-    /// All files and directories in filesystem. This will be convert into a filesystem tree with [`Filesystem::to_bytes`]
+    /// All files and directories in filesystem
     pub nodes: Vec<NodeReader>,
     // File reader
     pub(crate) reader: RefCell<R>,
@@ -55,7 +55,7 @@ pub struct FilesystemReader<R: SquashFsReader> {
 }
 
 impl<R: SquashFsReader> FilesystemReader<R> {
-    /// First call `Squashfs::from_reader(..)`, then call `Squashfs::into_filesystem(..)`
+    /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     pub fn from_reader(reader: R) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader(reader)?;
         squashfs.into_filesystem_reader()
@@ -63,7 +63,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
 }
 
 impl<R: SquashFsReader> FilesystemReader<SquashfsReaderWithOffset<R>> {
-    /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
+    /// Same as [`Self::from_reader`], but with a starting `offset` to the image in the `reader`
     pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
         squashfs.into_filesystem_reader()
@@ -145,7 +145,8 @@ impl<R: SquashFsReader> FilesystemReader<R> {
 }
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
-/// to create an on-disk image
+/// to create an on-disk image. This can be used to create a Squashfs image using
+/// [`FilesystemWriter::to_bytes`].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FilesystemWriter {
     /// See [`SuperBlock`].`block_size`
@@ -162,7 +163,7 @@ pub struct FilesystemWriter {
     pub id_table: Option<Vec<Id>>,
     /// Information for the `/` node
     pub root_inode: SquashfsDir,
-    /// All files and directories in filesystem. This will be convert into a filesystem tree with [`Filesystem::to_bytes`]
+    /// All files and directories in filesystem
     pub nodes: Vec<NodeWriter>,
 }
 
@@ -179,7 +180,7 @@ impl FilesystemWriter {
                     InnerNodeReader::File(file) => {
                         let bytes = reader.file(&file.basic)?;
                         InnerNodeWriter::File(SquashfsFile {
-                            header: file.header.clone(),
+                            header: file.header,
                             bytes,
                         })
                     },

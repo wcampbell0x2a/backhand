@@ -1,3 +1,5 @@
+//! Reader traits
+
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -18,16 +20,19 @@ pub struct SquashfsReaderWithOffset<R: SquashFsReader> {
     /// Offset from start of file to squashfs
     offset: u64,
 }
+
 impl<R: SquashFsReader> SquashfsReaderWithOffset<R> {
     pub fn new(io: R, offset: u64) -> Self {
         Self { io, offset }
     }
 }
+
 impl<R: SquashFsReader> Read for SquashfsReaderWithOffset<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.io.read(buf)
     }
 }
+
 impl<R: SquashFsReader> Seek for SquashfsReaderWithOffset<R> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         match pos {
@@ -38,6 +43,7 @@ impl<R: SquashFsReader> Seek for SquashfsReaderWithOffset<R> {
 }
 
 impl<T: Read + Seek> SquashFsReader for T {}
+/// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
 pub trait SquashFsReader: Read + Seek {
     /// Read in entire data and fragments
     #[instrument(skip_all)]
@@ -49,9 +55,6 @@ pub trait SquashFsReader: Read + Seek {
     }
 
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
-    ///
-    /// TODO: in the future instead of reacing all the metadatas in this section, we should parse
-    /// the dir table ( I think ) that has all inode offset information
     #[instrument(skip_all)]
     fn inodes(
         &mut self,

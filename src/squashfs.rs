@@ -458,7 +458,7 @@ impl<R: SquashFsReader> Squashfs<R> {
             fragments: self.fragments,
             root_inode,
             nodes: nodes.to_vec(),
-            file: RefCell::new(self.file),
+            reader: RefCell::new(self.file),
             cache: RefCell::new(Cache::default()),
         };
         Ok(filesystem)

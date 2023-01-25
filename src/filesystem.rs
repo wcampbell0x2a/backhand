@@ -48,9 +48,9 @@ pub struct FilesystemReader<R: SquashFsReader> {
     pub root_inode: SquashfsDir,
     /// All files and directories in filesystem. This will be convert into a filesystem tree with [`Filesystem::to_bytes`]
     pub nodes: Vec<NodeReader>,
-    //file reader
-    pub(crate) file: RefCell<R>,
-    //Cache used in the decompression
+    // File reader
+    pub(crate) reader: RefCell<R>,
+    // Cache used in the decompression
     pub(crate) cache: RefCell<Cache>,
 }
 
@@ -82,7 +82,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
 
         // Extract Data
         if !basic_file.block_sizes.is_empty() {
-            self.file
+            self.reader
                 .borrow_mut()
                 .seek(SeekFrom::Start(basic_file.blocks_start.into()))?;
             for block_size in &basic_file.block_sizes {
@@ -108,7 +108,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
                         data_bytes.append(&mut bytes.to_vec());
                     },
                     None => {
-                        self.file
+                        self.reader
                             .borrow_mut()
                             .seek(SeekFrom::Start(frag.start.into()))?;
                         let mut bytes = self.read_data(frag.size as usize)?;
@@ -133,7 +133,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
         let uncompressed = size & (1 << 24) != 0;
         let size = size & !(1 << 24);
         let mut buf = vec![0u8; size];
-        self.file.borrow_mut().read_exact(&mut buf)?;
+        self.reader.borrow_mut().read_exact(&mut buf)?;
 
         let bytes = if uncompressed {
             buf

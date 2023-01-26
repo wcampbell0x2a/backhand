@@ -1,18 +1,19 @@
 use std::fs::File;
 
-use backhand::Filesystem;
+use backhand::{FilesystemReader, FilesystemWriter};
 use criterion::*;
 use test_assets::TestAssetDef;
 
 fn read_write(file: File, offset: u64) {
-    let og_filesystem = Filesystem::from_reader_with_offset(file, offset).unwrap();
+    let og_filesystem = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
+    let new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // convert to bytes
-    black_box(og_filesystem.to_bytes().unwrap());
+    black_box(new_filesystem.to_bytes().unwrap());
 }
 
 fn read(file: File, offset: u64) {
-    black_box(Filesystem::from_reader_with_offset(file, offset).unwrap());
+    black_box(FilesystemReader::from_reader_with_offset(file, offset).unwrap());
 }
 
 pub fn bench_read_write(c: &mut Criterion) {

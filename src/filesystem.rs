@@ -1,8 +1,9 @@
 //! In-memory representation of SquashFS filesystem tree used for writing to image
 
 use core::fmt;
+use std::cell::RefCell;
 use std::ffi::OsString;
-use std::io::{Cursor, Read, Seek, Write};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
@@ -10,7 +11,7 @@ use deku::bitvec::{BitVec, Msb0};
 use deku::{DekuContainerWrite, DekuWrite};
 use tracing::{info, instrument, trace};
 
-use crate::compressor::{CompressionOptions, Compressor};
+use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::data::{Added, DataWriter};
 use crate::entry::Entry;
 use crate::error::SquashfsError;
@@ -20,14 +21,183 @@ use crate::inode::{
     InodeInner,
 };
 use crate::metadata::{self, MetadataWriter};
-use crate::squashfs::{Id, SuperBlock};
+use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
+use crate::squashfs::{Cache, Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::Squashfs;
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
-/// to create an on-disk image
+/// to create an on-disk image.
+#[derive(Debug, Clone)]
+pub struct FilesystemReader<R: SquashFsReader> {
+    /// See [`SuperBlock`].`block_size`
+    pub block_size: u32,
+    /// See [`SuperBlock`].`block_log`
+    pub block_log: u16,
+    /// See [`SuperBlock`].`compressor`
+    pub compressor: Compressor,
+    /// See [`Squashfs`].`compression_options`
+    pub compression_options: Option<CompressionOptions>,
+    /// See [`SuperBlock`].`mod_time`
+    pub mod_time: u32,
+    /// See [`Squashfs`].`id`
+    pub id_table: Option<Vec<Id>>,
+    /// Fragments Lookup Table
+    pub fragments: Option<Vec<Fragment>>,
+    /// Information for the `/` node
+    pub root_inode: SquashfsDir,
+    /// All files and directories in filesystem
+    pub nodes: Vec<NodeReader>,
+    // File reader
+    pub(crate) reader: RefCell<R>,
+    // Cache used in the decompression
+    pub(crate) cache: RefCell<Cache>,
+}
+
+impl<R: SquashFsReader> FilesystemReader<R> {
+    /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
+    pub fn from_reader(reader: R) -> Result<Self, SquashfsError> {
+        let squashfs = Squashfs::from_reader(reader)?;
+        squashfs.into_filesystem_reader()
+    }
+}
+
+impl<R: SquashFsReader> FilesystemReader<SquashfsReaderWithOffset<R>> {
+    /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
+    pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, SquashfsError> {
+        let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
+        squashfs.into_filesystem_reader()
+    }
+}
+
+impl<R: SquashFsReader> FilesystemReader<R> {
+    /// From file details, extract FileBytes
+    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> impl Read + 'a {
+        FilesystemFileReader::new(self, basic_file)
+    }
+
+    /// Read from either Data blocks or Fragments blocks
+    fn read_data(&self, size: usize) -> Result<Vec<u8>, SquashfsError> {
+        let uncompressed = size & (1 << 24) != 0;
+        let size = size & !(1 << 24);
+        let mut buf = vec![0u8; size];
+        self.reader.borrow_mut().read_exact(&mut buf)?;
+
+        let bytes = if uncompressed {
+            buf
+        } else {
+            compressor::decompress(buf, self.compressor)?
+        };
+        Ok(bytes)
+    }
+}
+
+struct FilesystemFileReader<'a, R: SquashFsReader> {
+    filesystem: &'a FilesystemReader<R>,
+    file: &'a BasicFile,
+    last_read: Vec<u8>,
+    //current block, after all blocks maybe there is a fragment, None is finished
+    current_block: Option<usize>,
+    bytes_available: usize,
+    pos: u64,
+}
+impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
+    pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
+        Self {
+            filesystem,
+            file,
+            last_read: vec![],
+            current_block: Some(0),
+            bytes_available: file.file_size as usize,
+            pos: file.blocks_start.into(),
+        }
+    }
+    pub fn read_block(&mut self, block: usize) -> Result<(), SquashfsError> {
+        self.current_block = Some(block + 1);
+        let block_size = self.file.block_sizes[block];
+        self.filesystem
+            .reader
+            .borrow_mut()
+            .seek(SeekFrom::Start(self.pos))?;
+        self.last_read = self.filesystem.read_data(block_size as usize)?;
+        self.pos = self.filesystem.reader.borrow_mut().stream_position()?;
+        Ok(())
+    }
+    pub fn read_fragment(&mut self) -> Result<(), SquashfsError> {
+        self.current_block = None;
+        if self.file.frag_index == 0xffffffff {
+            return Ok(());
+        }
+        let fragments = match &self.filesystem.fragments {
+            Some(fragments) => fragments,
+            None => return Ok(()),
+        };
+        let frag = fragments[self.file.frag_index as usize];
+        // use fragment cache if possible
+        let cache = self.filesystem.cache.borrow();
+        match cache.fragment_cache.get(&(frag.start)) {
+            Some(cache_bytes) => {
+                let bytes = &cache_bytes.clone();
+                self.last_read = bytes[self.file.block_offset as usize..].to_vec();
+            },
+            None => {
+                self.filesystem
+                    .reader
+                    .borrow_mut()
+                    .seek(SeekFrom::Start(frag.start))?;
+                let bytes = self.filesystem.read_data(frag.size as usize)?;
+                drop(cache);
+                self.filesystem
+                    .cache
+                    .borrow_mut()
+                    .fragment_cache
+                    .insert(frag.start, bytes.clone());
+                self.last_read = bytes[self.file.block_offset as usize..].to_vec();
+            },
+        }
+        Ok(())
+    }
+    pub fn read_available(&mut self, buf: &mut [u8]) -> usize {
+        let read_len = buf
+            .len()
+            .min(self.last_read.len())
+            .min(self.bytes_available);
+        buf[..read_len].copy_from_slice(&self.last_read[..read_len]);
+        self.last_read = self.last_read.split_off(read_len);
+        self.bytes_available -= read_len;
+        read_len
+    }
+}
+
+impl<'a, R: SquashFsReader> Read for FilesystemFileReader<'a, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        //if we already read the whole file, then we can return EoF
+        if self.bytes_available == 0 {
+            return Ok(0);
+        }
+        //if there is data available from the last read, consume it
+        if !self.last_read.is_empty() {
+            return Ok(self.read_available(buf));
+        }
+        //read a block/fragment
+        match self.current_block {
+            //no more blocks, try a fragment
+            Some(block) if block == self.file.block_sizes.len() => self.read_fragment()?,
+            //read the block
+            Some(block) => self.read_block(block)?,
+            //no more data to read, return EoF
+            None => return Ok(0),
+        }
+        //return data from the read block/fragment
+        Ok(self.read_available(buf))
+    }
+}
+
+/// In-memory representation of a Squashfs image with extracted files and other information needed
+/// to create an on-disk image. This can be used to create a Squashfs image using
+/// [`FilesystemWriter::to_bytes`].
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Filesystem {
+pub struct FilesystemWriter {
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
@@ -42,26 +212,52 @@ pub struct Filesystem {
     pub id_table: Option<Vec<Id>>,
     /// Information for the `/` node
     pub root_inode: SquashfsDir,
-    /// All files and directories in filesystem. This will be convert into a filesystem tree with [`Filesystem::to_bytes`]
-    pub nodes: Vec<Node>,
+    /// All files and directories in filesystem
+    pub nodes: Vec<NodeWriter>,
 }
 
-impl Filesystem {
-    /// Read filesystem from source `reader` implementing `Read + Seek`
-    ///
-    /// First call `Squashfs::from_reader(..)`, then call `Squashfs::into_filesystem(..)`
-    pub fn from_reader<R: Read + Seek + 'static>(reader: R) -> Result<Self, SquashfsError> {
-        let squashfs = Squashfs::from_reader(reader)?;
-        squashfs.into_filesystem()
-    }
-
-    /// Same as `from_reader`, but with a starting `offset` to the image in the `reader`
-    pub fn from_reader_with_offset<R: Read + Seek + 'static>(
-        reader: R,
-        offset: u64,
+impl FilesystemWriter {
+    /// use the same configuration then an existing SquashFsFile
+    pub fn from_fs_reader<R: SquashFsReader>(
+        reader: &FilesystemReader<R>,
     ) -> Result<Self, SquashfsError> {
-        let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
-        squashfs.into_filesystem()
+        let nodes = reader
+            .nodes
+            .iter()
+            .map(|x| {
+                let inner = match &x.inner {
+                    InnerNodeReader::File(file) => {
+                        let mut bytes = Vec::with_capacity(file.basic.file_size as usize);
+                        let mut reader = reader.file(&file.basic);
+                        reader.read_to_end(&mut bytes)?;
+                        InnerNodeWriter::File(SquashfsFile {
+                            header: file.header,
+                            bytes,
+                        })
+                    },
+                    InnerNodeReader::Symlink(x) => InnerNodeWriter::Symlink(x.clone()),
+                    InnerNodeReader::Dir(x) => InnerNodeWriter::Dir(x.clone()),
+                    InnerNodeReader::CharacterDevice(x) => {
+                        InnerNodeWriter::CharacterDevice(x.clone())
+                    },
+                    InnerNodeReader::BlockDevice(x) => InnerNodeWriter::BlockDevice(x.clone()),
+                };
+                Ok(NodeWriter {
+                    path: x.path.clone(),
+                    inner,
+                })
+            })
+            .collect::<Result<_, SquashfsError>>()?;
+        Ok(Self {
+            block_size: reader.block_size,
+            block_log: reader.block_log,
+            compressor: reader.compressor,
+            compression_options: reader.compression_options,
+            mod_time: reader.mod_time,
+            id_table: reader.id_table.clone(),
+            root_inode: reader.root_inode.clone(),
+            nodes,
+        })
     }
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
@@ -84,7 +280,7 @@ impl Filesystem {
 
                 // check if exists
                 for node in &mut self.nodes {
-                    if let InnerNode::Dir(_) = &node.inner {
+                    if let InnerNodeWriter::Dir(_) = &node.inner {
                         if node.path.as_os_str().to_str()
                             == Some(dir.to_str().ok_or(SquashfsError::OsStringToStr)?)
                         {
@@ -94,17 +290,16 @@ impl Filesystem {
                 }
 
                 // not found, add to dir
-                let new_dir = InnerNode::Dir(SquashfsDir { header });
-                let node = Node::new(PathBuf::from(full_path.clone()), new_dir);
+                let new_dir = InnerNodeWriter::Dir(SquashfsDir { header });
+                let node = NodeWriter::new(PathBuf::from(full_path.clone()), new_dir);
                 self.nodes.push(node);
             }
         }
 
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes)?;
-
-        let new_file = InnerNode::File(SquashfsFile { header, bytes });
-        let node = Node::new(path, new_file);
+        let new_file = InnerNodeWriter::File(SquashfsFile { header, bytes });
+        let node = NodeWriter::new(path, new_file);
         self.nodes.push(node);
 
         Ok(())
@@ -115,7 +310,7 @@ impl Filesystem {
         let find_path = find_path.into();
         find_path.strip_prefix("/").unwrap();
         for node in &mut self.nodes {
-            if let InnerNode::File(file) = &mut node.inner {
+            if let InnerNodeWriter::File(file) = &mut node.inner {
                 if node.path == find_path {
                     return Some(file);
                 }
@@ -135,12 +330,12 @@ impl Filesystem {
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
-        let new_symlink = InnerNode::Symlink(SquashfsSymlink {
+        let new_symlink = InnerNodeWriter::Symlink(SquashfsSymlink {
             header,
             original: original.into(),
             link: link.into(),
         });
-        let node = Node::new(path, new_symlink);
+        let node = NodeWriter::new(path, new_symlink);
         self.nodes.push(node);
 
         Ok(())
@@ -154,8 +349,8 @@ impl Filesystem {
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
-        let new_dir = InnerNode::Dir(SquashfsDir { header });
-        let node = Node::new(path, new_dir);
+        let new_dir = InnerNodeWriter::Dir(SquashfsDir { header });
+        let node = NodeWriter::new(path, new_dir);
         self.nodes.push(node);
 
         Ok(())
@@ -170,11 +365,11 @@ impl Filesystem {
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
-        let new_device = InnerNode::CharacterDevice(SquashfsCharacterDevice {
+        let new_device = InnerNodeWriter::CharacterDevice(SquashfsCharacterDevice {
             header,
             device_number,
         });
-        let node = Node::new(path, new_device);
+        let node = NodeWriter::new(path, new_device);
         self.nodes.push(node);
 
         Ok(())
@@ -189,11 +384,11 @@ impl Filesystem {
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
-        let new_device = InnerNode::BlockDevice(SquashfsBlockDevice {
+        let new_device = InnerNodeWriter::BlockDevice(SquashfsBlockDevice {
             header,
             device_number,
         });
-        let node = Node::new(path, new_device);
+        let node = NodeWriter::new(path, new_device);
         self.nodes.push(node);
 
         Ok(())
@@ -212,7 +407,7 @@ impl Filesystem {
         dir_writer: &mut MetadataWriter,
         data_writer: &mut DataWriter,
         dir_parent_inode: u32,
-    ) -> (Vec<Entry>, Vec<(OsString, InnerNode)>, u64) {
+    ) -> (Vec<Entry>, Vec<(OsString, InnerNodeWriter)>, u64) {
         let mut nodes = vec![];
         let mut ret_entries = vec![];
         let mut root_inode = 0;
@@ -253,7 +448,7 @@ impl Filesystem {
         for (name, node) in child_dir_nodes {
             let node_path = PathBuf::from(name.clone());
             let entry = match node {
-                InnerNode::Dir(path) => Self::path(
+                InnerNodeWriter::Dir(path) => Self::path(
                     name,
                     path.clone(),
                     inode,
@@ -261,14 +456,14 @@ impl Filesystem {
                     dir_writer,
                     inode_writer,
                 ),
-                InnerNode::File(file) => {
+                InnerNodeWriter::File(file) => {
                     Self::file(node_path, file, inode, data_writer, inode_writer)
                 },
-                InnerNode::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
-                InnerNode::CharacterDevice(char) => {
+                InnerNodeWriter::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
+                InnerNodeWriter::CharacterDevice(char) => {
                     Self::char(node_path, char, inode, inode_writer)
                 },
-                InnerNode::BlockDevice(block) => {
+                InnerNodeWriter::BlockDevice(block) => {
                     Self::block_device(node_path, block, inode, inode_writer)
                 },
             };
@@ -302,7 +497,7 @@ impl Filesystem {
         trace!("ENTRY: {entry:#02x?}");
         ret_entries.push(entry);
 
-        let path_node = if let Some(InnerNode::Dir(node)) = &tree.node {
+        let path_node = if let Some(InnerNodeWriter::Dir(node)) = &tree.node {
             node.clone()
         } else {
             panic!();
@@ -512,7 +707,7 @@ impl Filesystem {
         let mut inode = 1;
 
         // Add the "/" entry
-        let inner = InnerNode::Dir(self.root_inode.clone());
+        let inner = InnerNodeWriter::Dir(self.root_inode.clone());
         tree.node = Some(inner);
 
         //trace!("TREE: {:#02x?}", tree);
@@ -638,21 +833,48 @@ impl From<InodeHeader> for FilesystemHeader {
     }
 }
 
-/// Nodes that are converted into filesystem tree during writing to bytes
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Node {
+/// Nodes from an existing file that are converted into filesystem tree during writing to bytes
+#[derive(Debug, Clone)]
+pub struct NodeReader {
     pub path: PathBuf,
-    pub inner: InnerNode,
+    pub inner: InnerNodeReader,
 }
 
-impl Node {
-    pub fn new(path: PathBuf, inner: InnerNode) -> Self {
-        Node { path, inner }
+impl NodeReader {
+    pub fn new(path: PathBuf, inner: InnerNodeReader) -> Self {
+        Self { path, inner }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum InnerNodeReader {
+    File(SquashfsFileReader),
+    Symlink(SquashfsSymlink),
+    Dir(SquashfsDir),
+    CharacterDevice(SquashfsCharacterDevice),
+    BlockDevice(SquashfsBlockDevice),
+}
+#[derive(Debug, Clone)]
+pub struct SquashfsFileReader {
+    pub header: FilesystemHeader,
+    pub basic: BasicFile,
+}
+
+/// Nodes that are converted into filesystem tree during writing to bytes
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NodeWriter {
+    pub path: PathBuf,
+    pub inner: InnerNodeWriter,
+}
+
+impl NodeWriter {
+    pub fn new(path: PathBuf, inner: InnerNodeWriter) -> Self {
+        Self { path, inner }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum InnerNode {
+pub enum InnerNodeWriter {
     File(SquashfsFile),
     Symlink(SquashfsSymlink),
     Dir(SquashfsDir),

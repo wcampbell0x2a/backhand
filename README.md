@@ -20,29 +20,32 @@ Add the following to your `Cargo.toml` file:
 backhand = "0.7.0"
 ```
 ### Reading/Writing/Modifying Firmware
-```rust, ignore
+```rust,no_run
 use std::fs::File;
-use backhand::{Filesystem, FilesystemHeader};
+use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
 
 // read
 let file = File::open("file.squashfs").unwrap();
-let mut filesystem = Filesystem::from_reader(file).unwrap();
+let read_filesystem = FilesystemReader::from_reader(file).unwrap();
+
+// convert to writer
+let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).unwrap();
 
 // add file with data from slice
 let d = FilesystemHeader::default();
 let bytes = &mut b"Fear is the mind-killer.".as_slice();
-filesystem.push_file(bytes, "a/d/e/new_file", d);
+write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 
 // add file with data from file
 let mut new_file = File::open("dune").unwrap();
-filesystem.push_file(&mut new_file, "/root/dune", d);
+write_filesystem.push_file(&mut new_file, "/root/dune", d);
 
 // modify file
-let file = filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
+let file = write_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
 file.bytes = b"The sleeper must awaken.\n".to_vec();
 
-// write
-let bytes = filesystem.to_bytes().unwrap();
+// convert into bytes
+let bytes = write_filesystem.to_bytes().unwrap();
 ```
 
 ## Testing

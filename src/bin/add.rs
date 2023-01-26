@@ -1,8 +1,7 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use backhand::filesystem::FilesystemHeader;
-use backhand::Squashfs;
+use backhand::filesystem::{FilesystemHeader, FilesystemReader, FilesystemWriter};
 use clap::Parser;
 
 /// tool to add files to squashfs filesystems
@@ -26,8 +25,8 @@ fn main() {
 
     // read of squashfs
     let file = File::open(args.filesystem).unwrap();
-    let squashfs = Squashfs::from_reader(file).unwrap();
-    let mut filesystem = squashfs.into_filesystem().unwrap();
+    let filesystem = FilesystemReader::from_reader(file).unwrap();
+    let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 
     // create new file
     let mut new_file = File::open(&args.file).unwrap();

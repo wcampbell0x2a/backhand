@@ -14,13 +14,14 @@ use crate::error::SquashfsError;
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(type = "u16")]
+#[rustfmt::skip]
 pub enum Compressor {
     None = 0,
     Gzip = 1,
-    Lzo  = 2,
+    Lzo =  2,
     Lzma = 3,
-    Xz   = 4,
-    Lz4  = 5,
+    Xz =   4,
+    Lz4 =  5,
     Zstd = 6,
 }
 

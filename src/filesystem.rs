@@ -401,6 +401,7 @@ impl FilesystemWriter {
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
     #[instrument(skip_all)]
+    #[allow(clippy::type_complexity)]
     fn write_node(
         tree: &TreeNode,
         inode: &mut u32,

@@ -10,8 +10,6 @@ pub const METADATA_MAXSIZE: usize = 0x2000;
 
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 
-// TODO: add the option of not compressing entires
-// TODO: add docs
 #[derive(Debug)]
 pub(crate) struct MetadataWriter {
     compressor: Compressor,
@@ -42,7 +40,6 @@ impl MetadataWriter {
         }
     }
 
-    // TODO: add docs
     #[instrument(skip_all)]
     pub fn finalize(&mut self) -> Vec<u8> {
         let mut out = vec![];
@@ -71,7 +68,6 @@ impl MetadataWriter {
 }
 
 impl Write for MetadataWriter {
-    // TODO: add docs
     #[instrument(skip_all)]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         // add all of buf into uncompressed
@@ -81,7 +77,6 @@ impl Write for MetadataWriter {
             trace!("time to compress");
             // "Write" the to the saved metablock
             let b = compressor::compress(
-                // TODO use split_at?
                 &self.uncompressed_bytes[..METADATA_MAXSIZE],
                 self.compressor,
                 &self.compression_options,

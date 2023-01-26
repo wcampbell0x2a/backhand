@@ -23,7 +23,6 @@ fn normalized_components(path: &Path) -> Vec<&OsStr> {
     v
 }
 
-// TODO this can be either have a node or children not both, can be a Enum?
 #[derive(Debug)]
 pub(crate) struct TreeNode {
     pub fullpath: PathBuf,

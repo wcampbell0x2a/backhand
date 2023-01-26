@@ -137,7 +137,6 @@ pub struct ExtendedDirectory {
     pub index_count: u16,
     pub block_offset: u16,
     pub xattr_index: u32,
-    // TODO: this has a type
     #[deku(count = "*index_count")]
     pub dir_index: Vec<DirectoryIndex>,
 }

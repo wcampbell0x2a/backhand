@@ -314,7 +314,7 @@ impl<R: SquashFsReader> Squashfs<R> {
             trace!("using id for end of dir");
             id_ptr
         } else {
-            unreachable!();
+            return Err(SquashfsError::Unreachable);
         };
 
         info!("Reading Dirs");
@@ -488,7 +488,7 @@ impl<R: SquashFsReader> Squashfs<R> {
                     ext_dir.block_offset as usize,
                 )?
             },
-            _ => panic!(),
+            _ => return Err(SquashfsError::UnexpectedInode(dir_inode.inner.clone())),
         };
         if let Some(dirs) = dirs {
             trace!("extracing dir: {dirs:#?}");
@@ -524,7 +524,11 @@ impl<R: SquashFsReader> Squashfs<R> {
                             let basic = match &found_inode.inner {
                                 InodeInner::BasicFile(file) => file.clone(),
                                 InodeInner::ExtendedFile(file) => file.into(),
-                                _ => todo!(),
+                                _ => {
+                                    return Err(SquashfsError::UnexpectedInode(
+                                        found_inode.inner.clone(),
+                                    ))
+                                },
                             };
                             let inner = InnerNode::File(SquashfsFileReader { header, basic });
                             let node = Node::new(path, inner);
@@ -564,7 +568,9 @@ impl<R: SquashFsReader> Squashfs<R> {
                             let node = Node::new(path, inner);
                             nodes.push(node);
                         },
-                        _ => panic!("{entry:?}"),
+                        InodeId::ExtendedFile => {
+                            return Err(SquashfsError::UnsupportedInode(found_inode.inner.clone()))
+                        },
                     }
                 }
             }

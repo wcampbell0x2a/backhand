@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 ### Added
+- Add `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
+  These are all returned by the public API of filesystem and removed panics.
 ### Fixed
 ### Changed
 - Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.

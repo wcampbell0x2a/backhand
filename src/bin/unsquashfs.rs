@@ -4,7 +4,7 @@ use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use backhand::filesystem::{
-    InnerNodeReader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
+    InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
 use backhand::Squashfs;
 use clap::Parser;
@@ -47,7 +47,7 @@ fn extract_all(args: &Args) {
         let path = &node.path;
         if !args.list {
             match &node.inner {
-                InnerNodeReader::File(file) => {
+                InnerNode::File(file) => {
                     let path: PathBuf = path.iter().skip(1).collect();
                     tracing::debug!("file {}", path.display());
                     let filepath = Path::new(&args.dest).join(path);
@@ -62,7 +62,7 @@ fn extract_all(args: &Args) {
                         },
                     }
                 },
-                InnerNodeReader::Symlink(SquashfsSymlink { link, .. }) => {
+                InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
                     let path: PathBuf = path.iter().skip(1).collect();
                     tracing::debug!("symlink {} {}", path.display(), link);
                     let filepath = Path::new(&args.dest).join(path);
@@ -73,7 +73,7 @@ fn extract_all(args: &Args) {
                         println!("[!] failed write: {}->{link}", filepath.display());
                     }
                 },
-                InnerNodeReader::Dir(SquashfsDir { header, .. }) => {
+                InnerNode::Dir(SquashfsDir { header, .. }) => {
                     let path: PathBuf = path.iter().skip(1).collect();
                     let path = Path::new(&args.dest).join(&path);
                     tracing::debug!("path {}", path.display());
@@ -82,13 +82,13 @@ fn extract_all(args: &Args) {
                     fs::set_permissions(&path, perms).unwrap();
                     println!("[-] success, wrote {}", &path.display());
                 },
-                InnerNodeReader::CharacterDevice(SquashfsCharacterDevice {
+                InnerNode::CharacterDevice(SquashfsCharacterDevice {
                     header: _,
                     device_number: _,
                 }) => {
                     println!("[-] character device not supported");
                 },
-                InnerNodeReader::BlockDevice(SquashfsBlockDevice {
+                InnerNode::BlockDevice(SquashfsBlockDevice {
                     header: _,
                     device_number: _,
                 }) => {

@@ -23,10 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +let filesystem = FilesystemReader::from_reader(file).unwrap();
   +let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
   ```
-  ```diff
-  -InnerNode
-  +InnerNodeReader
-  ```
 
   Thanks [@rbran](https://github.com/rbran/) for the MR!
 

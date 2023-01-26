@@ -3,7 +3,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
-use crate::filesystem::{FilesystemWriter, InnerNodeWriter};
+use crate::filesystem::{FilesystemWriter, InnerNode, SquashfsFileWriter};
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();
@@ -27,7 +27,7 @@ fn normalized_components(path: &Path) -> Vec<&OsStr> {
 #[derive(Debug)]
 pub(crate) struct TreeNode {
     pub fullpath: PathBuf,
-    pub node: Option<InnerNodeWriter>,
+    pub node: Option<InnerNode<SquashfsFileWriter>>,
     pub children: BTreeMap<PathBuf, TreeNode>,
 }
 
@@ -40,7 +40,12 @@ impl TreeNode {
         }
     }
 
-    fn insert(&mut self, fullpath: &mut PathBuf, components: &[&OsStr], og_node: &InnerNodeWriter) {
+    fn insert(
+        &mut self,
+        fullpath: &mut PathBuf,
+        components: &[&OsStr],
+        og_node: &InnerNode<SquashfsFileWriter>,
+    ) {
         if let Some((first, rest)) = components.split_first() {
             fullpath.push(first);
 

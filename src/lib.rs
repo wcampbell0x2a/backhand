@@ -17,6 +17,7 @@
 //!### Reading/Writing/Modifying Firmware
 //!```rust,no_run
 //! # use std::fs::File;
+//! # use std::io::Cursor;
 //! # use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
 //!
 //! // read
@@ -28,12 +29,12 @@
 //!
 //! // add file with data from slice
 //! let d = FilesystemHeader::default();
-//! let bytes = &mut b"Fear is the mind-killer.".as_slice();
+//! let bytes = Cursor::new(b"Fear is the mind-killer.");
 //! write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 //!
 //! // add file with data from file
-//! let mut new_file = File::open("dune").unwrap();
-//! write_filesystem.push_file(&mut new_file, "/root/dune", d);
+//! let new_file = File::open("dune").unwrap();
+//! write_filesystem.push_file(new_file, "/root/dune", d);
 //!
 //! // convert into bytes
 //! let bytes = write_filesystem.to_bytes().unwrap();

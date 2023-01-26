@@ -33,16 +33,12 @@ let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).un
 
 // add file with data from slice
 let d = FilesystemHeader::default();
-let bytes = &mut b"Fear is the mind-killer.".as_slice();
+let bytes = std::io::Cursor::new(b"Fear is the mind-killer.");
 write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 
 // add file with data from file
-let mut new_file = File::open("dune").unwrap();
-write_filesystem.push_file(&mut new_file, "/root/dune", d);
-
-// modify file
-let file = write_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
-file.bytes = b"The sleeper must awaken.\n".to_vec();
+let new_file = File::open("dune").unwrap();
+write_filesystem.push_file(new_file, "/root/dune", d);
 
 // convert into bytes
 let bytes = write_filesystem.to_bytes().unwrap();

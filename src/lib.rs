@@ -35,10 +35,6 @@
 //! let mut new_file = File::open("dune").unwrap();
 //! write_filesystem.push_file(&mut new_file, "/root/dune", d);
 //!
-//! // modify file
-//! let file = write_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
-//! file.bytes = b"The sleeper must awaken.\n".to_vec();
-//!
 //! // convert into bytes
 //! let bytes = write_filesystem.to_bytes().unwrap();
 //! ```

@@ -49,7 +49,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
             fullpath.push(first);
 
             // no rest, we have the file
-            let node = rest.is_empty().then(|| og_node);
+            let node = rest.is_empty().then_some(og_node);
             let entry = self
                 .children
                 .entry(fullpath.to_path_buf())

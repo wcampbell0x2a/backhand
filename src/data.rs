@@ -120,7 +120,7 @@ impl DataWriter {
             // add to fragment bytes
             let frag_index = self.fragment_table.len() as u32;
             let block_offset = self.fragment_bytes.len() as u32;
-            self.fragment_bytes.write_all(&chunk).unwrap();
+            self.fragment_bytes.write_all(chunk).unwrap();
 
             (
                 chunk_reader.file_len,
@@ -134,12 +134,11 @@ impl DataWriter {
             let blocks_start = self.data_bytes.len() as u32 + self.data_start;
             let mut block_sizes = vec![];
             loop {
-                //empty chunk, no more data
-                if chunk.len() == 0 {
+                if chunk.is_empty() {
                     break;
                 }
                 let cb = compress(
-                    &chunk,
+                    chunk,
                     self.compressor,
                     &self.compression_options,
                     self.block_size,
@@ -150,7 +149,7 @@ impl DataWriter {
                 if cb.len() > chunk.len() {
                     // store uncompressed
                     block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
-                    self.data_bytes.write_all(&chunk).unwrap();
+                    self.data_bytes.write_all(chunk).unwrap();
                 } else {
                     // store compressed
                     block_sizes.push(cb.len() as u32);

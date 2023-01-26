@@ -50,7 +50,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
 
             // no rest, we have the file
             let node = if rest.is_empty() {
-                Some(og_node.clone())
+                Some(og_node)
             } else {
                 None
             };

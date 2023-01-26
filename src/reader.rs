@@ -66,7 +66,6 @@ pub trait SquashFsReader: Read + Seek {
         // Using this size, a SquashFS reader can determine if another header with further entries
         // should be following once it reaches the end of a run.
 
-        // TODO: with capacity?
         let mut ret_bytes = vec![];
 
         //let og_len = buf.len();
@@ -82,7 +81,6 @@ pub trait SquashFsReader: Read + Seek {
         }
         //tracing::trace!("TRACE: TOTAL BYTES: {02x?}", ret_bytes.len());
 
-        // TODO: with capacity?
         let mut ret_vec = HashMap::default();
         while !ret_bytes.is_empty() {
             let input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
@@ -219,7 +217,6 @@ pub trait SquashFsReader: Read + Seek {
         superblock: &SuperBlock,
         seek: u64,
         count: u64,
-        //TODO: remove?
     ) -> Result<Vec<T>, SquashfsError> {
         self.seek(SeekFrom::Start(seek))?;
 
@@ -229,7 +226,6 @@ pub trait SquashFsReader: Read + Seek {
             all_bytes.append(&mut bytes);
         }
 
-        // TODO: with capacity?
         let mut ret_vec = vec![];
         // Read until we fail to turn bytes into `T`
         while let Ok(((rest, _), t)) = T::from_bytes((&all_bytes, 0)) {

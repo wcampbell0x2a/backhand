@@ -12,7 +12,7 @@ use deku::{DekuContainerWrite, DekuWrite};
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
-use crate::data::{Added, DataWriter};
+use crate::data::{Added, DataWriter, DATA_STORED_UNCOMPRESSED};
 use crate::entry::Entry;
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
@@ -78,8 +78,8 @@ impl<R: SquashFsReader> FilesystemReader<R> {
 
     /// Read from either Data blocks or Fragments blocks
     fn read_data(&self, size: usize) -> Result<Vec<u8>, SquashfsError> {
-        let uncompressed = size & (1 << 24) != 0;
-        let size = size & !(1 << 24);
+        let uncompressed = size & (DATA_STORED_UNCOMPRESSED as usize) != 0;
+        let size = size & !(DATA_STORED_UNCOMPRESSED as usize);
         let mut buf = vec![0u8; size];
         self.reader.borrow_mut().read_exact(&mut buf)?;
 

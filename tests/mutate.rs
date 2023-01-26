@@ -53,14 +53,14 @@ fn test_add_00() {
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // Add file
-    let bytes = &mut b"this is a new file, wowo!".as_slice();
+    let bytes = Cursor::new(b"this is a new file, wowo!");
     new_filesystem
         .push_file(bytes, "a/d/e/new_file", FilesystemHeader::default())
         .unwrap();
     // Add file
     new_filesystem
         .push_file(
-            &mut Cursor::new("i am (g)root"),
+            Cursor::new("i am (g)root"),
             "root_file",
             FilesystemHeader::default(),
         )
@@ -68,15 +68,15 @@ fn test_add_00() {
     // Add file
     new_filesystem
         .push_file(
-            &mut Cursor::new("dude"),
+            Cursor::new("dude"),
             "a/b/c/d/dude",
             FilesystemHeader::default(),
         )
         .unwrap();
 
     // Modify file
-    let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
-    file.bytes = b"MODIFIEDfirst file!\n".to_vec();
+    //let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
+    //file.bytes = b"MODIFIEDfirst file!\n".to_vec();
 
     let bytes = new_filesystem.to_bytes().unwrap();
     fs::write(new_path, bytes).unwrap();

@@ -24,13 +24,13 @@ fn normalized_components(path: &Path) -> Vec<&OsStr> {
 }
 
 #[derive(Debug)]
-pub(crate) struct TreeNode {
+pub(crate) struct TreeNode<'a, 'b> {
     pub fullpath: PathBuf,
-    pub node: Option<InnerNode<SquashfsFileWriter>>,
-    pub children: BTreeMap<PathBuf, TreeNode>,
+    pub node: Option<&'b InnerNode<SquashfsFileWriter<'a>>>,
+    pub children: BTreeMap<PathBuf, TreeNode<'a, 'b>>,
 }
 
-impl TreeNode {
+impl<'a, 'b> TreeNode<'a, 'b> {
     pub(crate) fn name(&self) -> OsString {
         if let Some(path) = self.fullpath.as_path().file_name() {
             path.into()
@@ -43,7 +43,7 @@ impl TreeNode {
         &mut self,
         fullpath: &mut PathBuf,
         components: &[&OsStr],
-        og_node: &InnerNode<SquashfsFileWriter>,
+        og_node: &'b InnerNode<SquashfsFileWriter<'a>>,
     ) {
         if let Some((first, rest)) = components.split_first() {
             fullpath.push(first);
@@ -67,8 +67,8 @@ impl TreeNode {
     }
 }
 
-impl From<&FilesystemWriter> for TreeNode {
-    fn from(fs: &FilesystemWriter) -> Self {
+impl<'a, 'b> From<&'b FilesystemWriter<'a>> for TreeNode<'a, 'b> {
+    fn from(fs: &'b FilesystemWriter<'a>) -> Self {
         let mut tree = TreeNode {
             fullpath: "/".into(),
             node: None,

@@ -457,7 +457,7 @@ impl<R: SquashFsReader> Squashfs<R> {
             id_table: self.id.clone(),
             fragments: self.fragments,
             root_inode,
-            nodes: nodes.to_vec(),
+            nodes,
             reader: RefCell::new(self.file),
             cache: RefCell::new(Cache::default()),
         };

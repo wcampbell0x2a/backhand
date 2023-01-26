@@ -12,9 +12,3 @@ pub struct Fragment {
     pub(crate) size: u32,
     pub(crate) unused: u32,
 }
-
-impl Fragment {
-    pub fn uncompressed_size(num: u32) -> u32 {
-        1 << 24 | num
-    }
-}

@@ -16,6 +16,7 @@
 //!
 //!### Reading/Writing/Modifying Firmware
 //!```rust,no_run
+//! # use std::cell::RefCell;
 //! # use std::fs::File;
 //! # use std::io::Cursor;
 //! # use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
@@ -35,6 +36,10 @@
 //! // add file with data from file
 //! let new_file = File::open("dune").unwrap();
 //! write_filesystem.push_file(new_file, "/root/dune", d);
+//!
+//! // modify file
+//! let file = write_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
+//! file.reader = RefCell::new(Box::new(Cursor::new(b"The sleeper must awaken.\n")));
 //!
 //! // convert into bytes
 //! let bytes = write_filesystem.to_bytes().unwrap();

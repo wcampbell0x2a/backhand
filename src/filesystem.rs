@@ -2,7 +2,7 @@
 
 use core::fmt;
 use std::cell::RefCell;
-use std::ffi::OsString;
+use std::ffi::OsStr;
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
@@ -409,11 +409,14 @@ impl<'a> FilesystemWriter<'a> {
         dir_writer: &'_ mut MetadataWriter,
         data_writer: &'_ mut DataWriter,
         dir_parent_inode: u32,
-    ) -> (
-        Vec<Entry>,
-        Vec<(OsString, &'b InnerNode<SquashfsFileWriter<'a>>)>,
-        u64,
-    ) {
+    ) -> Result<
+        (
+            Vec<Entry>,
+            Vec<(&'b OsStr, &'b InnerNode<SquashfsFileWriter<'a>>)>,
+            u64,
+        ),
+        SquashfsError,
+    > {
         let mut nodes = vec![];
         let mut ret_entries = vec![];
         let mut root_inode = 0;
@@ -422,7 +425,7 @@ impl<'a> FilesystemWriter<'a> {
         // directories
         if tree.children.is_empty() {
             nodes.push((tree.name(), tree.node.unwrap()));
-            return (ret_entries, nodes, root_inode);
+            return Ok((ret_entries, nodes, root_inode));
         }
 
         // ladies and gentlemen, we have a directory
@@ -451,7 +454,7 @@ impl<'a> FilesystemWriter<'a> {
         write_entries.append(&mut child_dir_entries);
 
         // write child inodes
-        for (name, node) in child_dir_nodes {
+        for (name, node) in &child_dir_nodes {
             let node_path = PathBuf::from(name.clone());
             let entry = match node {
                 InnerNode::Dir(path) => Self::path(
@@ -541,7 +544,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Write data and metadata for path node
     fn path(
-        name: OsString,
+        name: &OsStr,
         path: SquashfsDir,
         inode: &mut u32,
         parent_inode: u32,

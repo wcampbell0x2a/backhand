@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
@@ -31,11 +31,11 @@ pub(crate) struct TreeNode<'a, 'b> {
 }
 
 impl<'a, 'b> TreeNode<'a, 'b> {
-    pub(crate) fn name(&self) -> OsString {
+    pub(crate) fn name(&self) -> &OsStr {
         if let Some(path) = self.fullpath.as_path().file_name() {
-            path.into()
+            path
         } else {
-            "/".into()
+            "/".as_ref()
         }
     }
 

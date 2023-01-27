@@ -455,7 +455,7 @@ impl<'a> FilesystemWriter<'a> {
 
         // write child inodes
         for (name, node) in &child_dir_nodes {
-            let node_path = PathBuf::from(name.clone());
+            let node_path = PathBuf::from(name);
             let entry = match node {
                 InnerNode::Dir(path) => Self::path(
                     name,

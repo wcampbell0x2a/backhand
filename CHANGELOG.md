@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 ### Added
+- Add `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
+  These are all returned by the public API of filesystem and removed panics.
 ### Fixed
+- `inode_count` is fixed, previously was +1 the actual inode count.
 ### Changed
 - Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.
   This speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.

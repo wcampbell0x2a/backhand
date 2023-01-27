@@ -5,6 +5,7 @@ use std::{io, string};
 use thiserror::Error;
 
 use crate::compressor::Compressor;
+use crate::inode::InodeInner;
 
 #[derive(Error, Debug)]
 pub enum SquashfsError {
@@ -31,6 +32,15 @@ pub enum SquashfsError {
 
     #[error("os string cannot convert into str")]
     OsStringToStr,
+
+    #[error("branch was thought to be unreachable")]
+    Unreachable,
+
+    #[error("inode {0:?} was unexpected in this position")]
+    UnexpectedInode(InodeInner),
+
+    #[error("unsupported inode: {0:?}, please fill github issue to add support")]
+    UnsupportedInode(InodeInner),
 }
 
 impl From<SquashfsError> for io::Error {
@@ -46,6 +56,9 @@ impl From<SquashfsError> for io::Error {
             e @ SquashfsError::FileNotFound => Self::new(io::ErrorKind::NotFound, e),
             e @ SquashfsError::FieldNotInitialized => Self::new(io::ErrorKind::InvalidData, e),
             e @ SquashfsError::OsStringToStr => Self::new(io::ErrorKind::InvalidData, e),
+            e @ SquashfsError::Unreachable => Self::new(io::ErrorKind::InvalidData, e),
+            e @ SquashfsError::UnexpectedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ SquashfsError::UnsupportedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
         }
     }
 }

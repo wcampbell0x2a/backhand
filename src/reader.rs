@@ -9,10 +9,10 @@ use deku::prelude::*;
 use tracing::{instrument, trace};
 
 use crate::error::SquashfsError;
-use crate::fragment::{Fragment, FRAGMENT_SIZE};
+use crate::fragment::Fragment;
 use crate::inode::Inode;
-use crate::metadata;
 use crate::squashfs::{Export, Id, SuperBlock};
+use crate::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file
 pub struct SquashfsReaderWithOffset<R: SquashFsReader> {
@@ -154,7 +154,7 @@ pub trait SquashFsReader: Read + Seek {
         let (ptr, table) = self.lookup_table::<Fragment>(
             superblock,
             superblock.frag_table,
-            u64::from(superblock.frag_count) * FRAGMENT_SIZE as u64,
+            u64::from(superblock.frag_count) * fragment::SIZE as u64,
         )?;
 
         Ok(Some((ptr, table)))

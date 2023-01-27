@@ -2,7 +2,7 @@
 
 use deku::prelude::*;
 
-pub(crate) const FRAGMENT_SIZE: usize =
+pub(crate) const SIZE: usize =
     std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]

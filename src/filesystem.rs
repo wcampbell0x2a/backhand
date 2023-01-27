@@ -24,7 +24,7 @@ use crate::metadata::{self, MetadataWriter};
 use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
 use crate::squashfs::{Cache, Id, SuperBlock};
 use crate::tree::TreeNode;
-use crate::Squashfs;
+use crate::{fragment, Squashfs};
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
 /// to create an on-disk image.
@@ -444,7 +444,7 @@ impl<'a> FilesystemWriter<'a> {
                 dir_writer,
                 data_writer,
                 parent_inode,
-            );
+            )?;
             child_dir_entries.append(&mut l_dir_entries);
             child_dir_nodes.append(&mut l_dir_nodes);
         }
@@ -484,9 +484,9 @@ impl<'a> FilesystemWriter<'a> {
         let mut total_size = 3;
         for dir in Entry::into_dir(&mut write_entries) {
             trace!("WRITING DIR: {dir:#02x?}");
-            let bytes = dir.to_bytes().unwrap();
+            let bytes = dir.to_bytes()?;
             total_size += bytes.len() as u16;
-            dir_writer.write_all(&bytes).unwrap();
+            dir_writer.write_all(&bytes)?;
         }
 
         //trace!("BEFORE: {:#02x?}", child);
@@ -529,14 +529,14 @@ impl<'a> FilesystemWriter<'a> {
         };
 
         let mut v = BitVec::<u8, Msb0>::new();
-        dir_inode.write(&mut v, (0, 0)).unwrap();
+        dir_inode.write(&mut v, (0, 0))?;
         let bytes = v.as_raw_slice().to_vec();
-        inode_writer.write_all(&bytes).unwrap();
+        inode_writer.write_all(&bytes)?;
         root_inode = ((start as u64) << 16) | ((offset as u64) & 0xffff);
 
         trace!("[{:?}] entries: {ret_entries:#02x?}", tree.name());
         trace!("[{:?}] nodes: {nodes:#02x?}", tree.name());
-        (ret_entries, nodes, root_inode)
+        Ok((ret_entries, nodes, root_inode))
     }
 
     /// Write data and metadata for path node
@@ -723,13 +723,13 @@ impl<'a> FilesystemWriter<'a> {
             &mut dir_writer,
             &mut data_writer,
             0,
-        );
+        )?;
 
         // Compress everything
         data_writer.finalize();
 
         superblock.root_inode = root_inode;
-        superblock.inode_count = inode;
+        superblock.inode_count = inode - 1;
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;
@@ -772,7 +772,7 @@ impl<'a> FilesystemWriter<'a> {
         info!("Writing Superblock");
         trace!("{:#02x?}", superblock);
         w.rewind()?;
-        w.write_all(&superblock.to_bytes().unwrap())?;
+        w.write_all(&superblock.to_bytes()?)?;
 
         info!("Writing Finished");
 
@@ -786,10 +786,14 @@ impl<'a> FilesystemWriter<'a> {
     ) -> Result<(), SquashfsError> {
         if let Some(id) = id_table {
             let id_table_dat = w.position();
-            let bytes: Vec<u8> = id.iter().flat_map(|a| a.to_bytes().unwrap()).collect();
-            let metadata_len = metadata::set_if_uncompressed(bytes.len() as u16).to_le_bytes();
+            let mut id_bytes = Vec::with_capacity(id.len() * ((u32::BITS / 8) as usize));
+            for i in id {
+                let bytes = i.to_bytes()?;
+                id_bytes.write_all(&bytes)?;
+            }
+            let metadata_len = metadata::set_if_uncompressed(id_bytes.len() as u16).to_le_bytes();
             w.write_all(&metadata_len)?;
-            w.write_all(&bytes)?;
+            w.write_all(&id_bytes)?;
             write_superblock.id_table = w.position();
             write_superblock.id_count = id.len() as u16;
             w.write_all(&id_table_dat.to_le_bytes())?;
@@ -804,13 +808,14 @@ impl<'a> FilesystemWriter<'a> {
         write_superblock: &mut SuperBlock,
     ) -> Result<(), SquashfsError> {
         let frag_table_dat = w.position();
-        let bytes: Vec<u8> = frag_table
-            .iter()
-            .flat_map(|a| a.to_bytes().unwrap())
-            .collect();
-        let metadata_len = metadata::set_if_uncompressed(bytes.len() as u16).to_le_bytes();
+        let mut frag_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
+        for f in &frag_table {
+            let bytes = f.to_bytes()?;
+            frag_bytes.write_all(&bytes)?;
+        }
+        let metadata_len = metadata::set_if_uncompressed(frag_bytes.len() as u16).to_le_bytes();
         w.write_all(&metadata_len)?;
-        w.write_all(&bytes)?;
+        w.write_all(&frag_bytes)?;
         write_superblock.frag_table = w.position();
         write_superblock.frag_count = frag_table.len() as u32;
         w.write_all(&frag_table_dat.to_le_bytes())?;

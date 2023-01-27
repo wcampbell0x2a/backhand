@@ -730,7 +730,7 @@ impl FilesystemWriter {
         data_writer.finalize();
 
         superblock.root_inode = root_inode;
-        superblock.inode_count = inode;
+        superblock.inode_count = inode - 1;
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;

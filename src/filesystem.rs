@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::os::unix::prelude::OsStrExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use deku::bitvec::{BitVec, Msb0};
 use deku::{DekuContainerWrite, DekuWrite};
@@ -342,10 +342,9 @@ impl<'a> FilesystemWriter<'a> {
         Ok(())
     }
 
-    /// Insert symlink from `original` to `link`
+    /// Insert symlink `path` -> `link`
     pub fn push_symlink<P: Into<PathBuf>, S: Into<String>>(
         &mut self,
-        original: S,
         link: S,
         path: P,
         header: FilesystemHeader,
@@ -354,7 +353,6 @@ impl<'a> FilesystemWriter<'a> {
 
         let new_symlink = InnerNode::Symlink(SquashfsSymlink {
             header,
-            original: original.into(),
             link: link.into(),
         });
         let node = Node::new(path, new_symlink);
@@ -489,7 +487,9 @@ impl<'a> FilesystemWriter<'a> {
                 InnerNode::File(file) => {
                     Self::file(node_path, file, inode, data_writer, inode_writer)
                 },
-                InnerNode::Symlink(symlink) => Self::symlink(symlink, inode, inode_writer),
+                InnerNode::Symlink(symlink) => {
+                    Self::symlink(&node_path, symlink, inode, inode_writer)
+                },
                 InnerNode::CharacterDevice(char) => {
                     Self::char(node_path, char, inode, inode_writer)
                 },
@@ -643,6 +643,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Write data and metadata for symlink node
     fn symlink(
+        path: &Path,
         symlink: &SquashfsSymlink,
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
@@ -661,7 +662,8 @@ impl<'a> FilesystemWriter<'a> {
             }),
         };
 
-        sym_inode.to_bytes(symlink.original.as_bytes(), inode_writer)
+        let name = path.file_name().unwrap().to_str().unwrap();
+        sym_inode.to_bytes(name.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for char device node
@@ -913,7 +915,6 @@ impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsSymlink {
     pub header: FilesystemHeader,
-    pub original: String,
     pub link: String,
 }
 

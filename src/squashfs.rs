@@ -11,7 +11,7 @@ use deku::prelude::*;
 use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
-use crate::dir::{Dir, DirEntry};
+use crate::dir::Dir;
 use crate::error::SquashfsError;
 use crate::filesystem::{
     FilesystemReader, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
@@ -536,11 +536,10 @@ impl<R: SquashFsReader> Squashfs<R> {
                         },
                         // Basic Symlink
                         InodeId::BasicSymlink => {
-                            let (original, link) = self.symlink(found_inode, entry)?;
+                            let link = self.symlink(found_inode)?;
                             let path = new_path;
                             let inner = InnerNode::Symlink(SquashfsSymlink {
                                 header: header.into(),
-                                original,
                                 link,
                             });
                             let node = Node::new(path, inner);
@@ -584,12 +583,9 @@ impl<R: SquashFsReader> Squashfs<R> {
     /// # Returns
     /// `Ok(original, link)
     #[instrument(skip_all)]
-    fn symlink(&self, inode: &Inode, entry: &DirEntry) -> Result<(String, String), SquashfsError> {
+    fn symlink(&self, inode: &Inode) -> Result<String, SquashfsError> {
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
-            return Ok((
-                String::from_utf8(entry.name.clone())?,
-                String::from_utf8(basic_sym.target_path.clone())?,
-            ));
+            return Ok(String::from_utf8(basic_sym.target_path.clone())?);
         }
 
         error!("symlink not found");

@@ -76,6 +76,14 @@ impl<R: SquashFsReader> FilesystemReader<R> {
         FilesystemFileReader::new(self, basic_file)
     }
 
+    /// Read and return all the bytes from the file
+    pub fn read_file(&self, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
+        let mut reader = FilesystemFileReader::new(self, basic_file);
+        let mut bytes = Vec::with_capacity(basic_file.file_size as usize);
+        reader.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
     /// Read from either Data blocks or Fragments blocks
     fn read_data(&self, size: usize) -> Result<Vec<u8>, SquashfsError> {
         let uncompressed = size & (DATA_STORED_UNCOMPRESSED as usize) != 0;
@@ -319,6 +327,19 @@ impl<'a> FilesystemWriter<'a> {
         }
 
         None
+    }
+
+    /// Replace an existing file
+    pub fn replace_file<S: Into<PathBuf>>(
+        &mut self,
+        find_path: S,
+        reader: impl Read + 'a,
+    ) -> Result<(), SquashfsError> {
+        let file = self
+            .mut_file(find_path)
+            .ok_or(SquashfsError::FileNotFound)?;
+        file.reader = RefCell::new(Box::new(reader));
+        Ok(())
     }
 
     /// Insert symlink from `original` to `link`

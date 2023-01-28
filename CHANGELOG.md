@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SquashfsPath` renamed to `SquashfsDir`
 - `Filesystem::from_reader(..)`, `R` now takes `Read + Seek` instead our own `ReadSeek`
 - `Filesystem::from_reader_with_offset(..)`, `R` now takes `Read + Seek` instead our own `ReadSeek`
+- `Filesystem::push_symlink(..)` now only needs `path` and `link`
 
 ## [v0.6.0] - 2023-01-10
 - Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)

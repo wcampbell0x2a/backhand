@@ -29,6 +29,7 @@ use test_log::test;
 /// │   └── d
 /// │       └── e
 /// │           └── new_file (added)
+/// ├── ptr -> a/b/c/d/dude
 /// └── root_file (added)
 #[test]
 fn test_add_00() {
@@ -45,7 +46,7 @@ fn test_add_00() {
         },
         TestAssetDef {
             filename: "control.squashfs".to_string(),
-            hash: "a227c214be3efbd9b6958918e23d13f4c98de7a1fde64c2a5ede1c4c69938930".to_string(),
+            hash: "b690b167ef3d6126ca4180e73cf0cb827f48405630278a64017208b6774b663b".to_string(),
             url: "wcampbell.dev/squashfs/testing/test_add_00/control.squashfs".to_string(),
         },
     ];
@@ -79,13 +80,19 @@ fn test_add_00() {
         .push_file(Cursor::new("dude"), "a/b/c/d/dude", h)
         .unwrap();
 
+    new_filesystem
+        .push_symlink("a/b/c/d/dude", "ptr", h)
+        .unwrap();
+
     // Modify file
     let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
     file.reader = RefCell::new(Box::new(Cursor::new(b"MODIFIEDfirst file!\n")));
 
+    // to bytes
     let bytes = new_filesystem.to_bytes().unwrap();
     fs::write(&new_path, bytes).unwrap();
 
+    // compare
     let control_new_path = format!("{TEST_PATH}/control.squashfs");
     test_unsquashfs(&new_path, &control_new_path, None);
 }

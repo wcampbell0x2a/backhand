@@ -75,7 +75,7 @@ fn extract_all(args: &Args) {
                 },
                 InnerNode::Dir(SquashfsDir { header, .. }) => {
                     let path: PathBuf = path.iter().skip(1).collect();
-                    let path = Path::new(&args.dest).join(&path);
+                    let path = Path::new(&args.dest).join(path);
                     tracing::debug!("path {}", path.display());
                     let _ = std::fs::create_dir_all(&path);
                     let perms = Permissions::from_mode(u32::from(header.permissions));

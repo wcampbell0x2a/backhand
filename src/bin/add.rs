@@ -29,9 +29,9 @@ fn main() {
     let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 
     // create new file
-    let mut new_file = File::open(&args.file).unwrap();
+    let new_file = File::open(&args.file).unwrap();
     filesystem
-        .push_file(&mut new_file, args.file_path, FilesystemHeader::default())
+        .push_file(new_file, args.file_path, FilesystemHeader::default())
         .unwrap();
 
     // write new file

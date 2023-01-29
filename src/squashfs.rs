@@ -337,7 +337,7 @@ impl<R: SquashFsReader> Squashfs<R> {
 
         // show info about flags
         if superblock.inodes_uncompressed() {
-            info!("flags: inodes uncompressed");
+            info!("flag: inodes uncompressed");
         }
 
         if superblock.data_block_stored_uncompressed() {

@@ -72,8 +72,11 @@ Options:
   -o, --offset <BYTES>   Skip BYTES at the start of FILESYSTEM [default: 0]
   -l, --list             List filesystem, do not write to DEST
   -d, --dest <PATHNAME>  Extract to [PATHNAME] [default: squashfs-root]
+  -i, --info             Print files as they are extracted
+  -f, --force            If file already exists then overwrite
+  -s, --stat             Display filesystem superblock information
   -h, --help             Print help information
-  -V, --version          Print version information
+  -V, --version          Print version informatio
 ```
 ### add
 ```console

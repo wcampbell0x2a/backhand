@@ -4,6 +4,9 @@
 //! with references back to the inodes that describe those entries.
 
 use core::fmt;
+use std::ffi::OsString;
+use std::os::unix::prelude::OsStringExt;
+use std::path::PathBuf;
 
 use deku::prelude::*;
 
@@ -69,8 +72,9 @@ impl fmt::Debug for DirEntry {
 }
 
 impl DirEntry {
-    pub fn name(&self) -> String {
-        std::str::from_utf8(&self.name).unwrap().to_string()
+    pub fn name(&self) -> PathBuf {
+        let name = OsString::from_vec(self.name.clone());
+        PathBuf::from(name)
     }
 }
 

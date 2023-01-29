@@ -2,8 +2,10 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::hash::BuildHasherDefault;
 use std::io::SeekFrom;
+use std::os::unix::prelude::OsStringExt;
 use std::path::{Path, PathBuf};
 
 use deku::bitvec::BitVec;
@@ -583,9 +585,10 @@ impl<R: SquashFsReader> Squashfs<R> {
     /// # Returns
     /// `Ok(original, link)
     #[instrument(skip_all)]
-    fn symlink(&self, inode: &Inode) -> Result<String, SquashfsError> {
+    fn symlink(&self, inode: &Inode) -> Result<PathBuf, SquashfsError> {
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
-            return Ok(String::from_utf8(basic_sym.target_path.clone())?);
+            let path = OsString::from_vec(basic_sym.target_path.clone());
+            return Ok(PathBuf::from(path));
         }
 
         error!("symlink not found");

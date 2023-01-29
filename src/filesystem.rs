@@ -343,7 +343,7 @@ impl<'a> FilesystemWriter<'a> {
     }
 
     /// Insert symlink `path` -> `link`
-    pub fn push_symlink<P: Into<PathBuf>, S: Into<String>>(
+    pub fn push_symlink<P: Into<PathBuf>, S: Into<PathBuf>>(
         &mut self,
         link: S,
         path: P,
@@ -648,7 +648,7 @@ impl<'a> FilesystemWriter<'a> {
         inode: &mut u32,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
-        let link = symlink.link.as_bytes();
+        let link = symlink.link.as_os_str().as_bytes();
         let sym_inode = Inode {
             id: InodeId::BasicSymlink,
             header: InodeHeader {
@@ -915,7 +915,7 @@ impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsSymlink {
     pub header: FilesystemHeader,
-    pub link: String,
+    pub link: PathBuf,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

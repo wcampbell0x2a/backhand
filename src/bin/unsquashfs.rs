@@ -64,13 +64,14 @@ fn extract_all(args: &Args) {
                 },
                 InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
                     let path: PathBuf = path.iter().skip(1).collect();
-                    tracing::debug!("symlink {} {}", path.display(), link);
+                    let link_display = link.display();
+                    tracing::debug!("symlink {} {}", path.display(), link_display);
                     let filepath = Path::new(&args.dest).join(path);
                     let _ = std::fs::create_dir_all(filepath.parent().unwrap());
                     if std::os::unix::fs::symlink(link, &filepath).is_ok() {
-                        println!("[-] success, wrote {}->{link}", filepath.display());
+                        println!("[-] success, wrote {}->{link_display}", filepath.display());
                     } else {
-                        println!("[!] failed write: {}->{link}", filepath.display());
+                        println!("[!] failed write: {}->{link_display}", filepath.display());
                     }
                 },
                 InnerNode::Dir(SquashfsDir { header, .. }) => {

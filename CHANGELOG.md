@@ -8,12 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 ### Added
 - Add `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
-  These are all returned by the public API of filesystem and removed panics.
+  These are all returned by the public API of filesystem and more panics were removed.
+- unsquashfs: Add `--stat`, `--force`, `--info` flags.
+- unsquashfs: Add support for Char and Block device file creation when superuser.
+
 ### Fixed
 - `inode_count` is fixed, previously was +1 the actual inode count.
+
 ### Changed
 - Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.
-  This speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.
+  This significantly speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.
   The following diff will cover most common API upgrades from `v0.7.0`
   ```diff
   -let squashfs = Squashfs::from_reader(file).unwrap();

@@ -6,7 +6,7 @@ use clap::Parser;
 
 /// tool to add files to squashfs filesystems
 #[derive(Parser, Debug)]
-#[command(author, version)]
+#[command(author, version, name = "add-backhand")]
 struct Args {
     /// Squashfs file
     filesystem: PathBuf,

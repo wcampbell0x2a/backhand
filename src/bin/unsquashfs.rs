@@ -12,7 +12,7 @@ use nix::sys::stat::{mknod, Mode, SFlag};
 
 /// tool to uncompress, extract and list squashfs filesystems
 #[derive(Parser, Debug)]
-#[command(author, version)]
+#[command(author, version, name = "unsquashfs-backhand")]
 struct Args {
     /// Squashfs file
     filesystem: PathBuf,
@@ -32,6 +32,10 @@ struct Args {
     /// Print files as they are extracted
     #[arg(short, long)]
     info: bool,
+
+    /// If file already exists then overwrite
+    #[arg(short, long)]
+    force: bool,
 }
 
 fn main() {
@@ -55,8 +59,15 @@ fn extract_all(args: &Args) {
             match &node.inner {
                 InnerNode::File(file) => {
                     // read file
-                    tracing::debug!("file {}", path.display());
                     let filepath = Path::new(&args.dest).join(path);
+
+                    // check if file exists
+                    if !args.force {
+                        if filepath.exists() {
+                            println!("[-] failed, file already exists {}", filepath.display());
+                            continue;
+                        }
+                    }
                     let mut bytes = Vec::with_capacity(file.basic.file_size as usize);
                     let mut reader = filesystem.file(&file.basic);
                     reader.read_to_end(&mut bytes).unwrap();
@@ -78,8 +89,19 @@ fn extract_all(args: &Args) {
                 InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
                     // create symlink
                     let link_display = link.display();
-                    tracing::debug!("symlink {} {}", path.display(), link_display);
                     let filepath = Path::new(&args.dest).join(path);
+
+                    // check if file exists
+                    if !args.force {
+                        if filepath.exists() {
+                            println!("[-] failed, file already exists {}", filepath.display());
+                            continue;
+                        }
+                    }
+
+                    // remove symlink so this doesn't fail
+                    let _ = fs::remove_file(&filepath);
+
                     match std::os::unix::fs::symlink(link, &filepath) {
                         Ok(_) => {
                             if args.info {
@@ -98,7 +120,6 @@ fn extract_all(args: &Args) {
                 InnerNode::Dir(SquashfsDir { header }) => {
                     // create dir
                     let path = Path::new(&args.dest).join(path);
-                    tracing::debug!("path {}", path.display());
                     let _ = std::fs::create_dir(&path);
 
                     // set permissions

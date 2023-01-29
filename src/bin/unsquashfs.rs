@@ -48,37 +48,50 @@ fn extract_all(args: &Args) {
         if !args.list {
             match &node.inner {
                 InnerNode::File(file) => {
+                    // read file
                     let path: PathBuf = path.iter().skip(1).collect();
                     tracing::debug!("file {}", path.display());
                     let filepath = Path::new(&args.dest).join(path);
-                    let _ = std::fs::create_dir_all(filepath.parent().unwrap());
                     let mut bytes = Vec::with_capacity(file.basic.file_size as usize);
                     let mut reader = filesystem.file(&file.basic);
                     reader.read_to_end(&mut bytes).unwrap();
+                    // write file
                     match std::fs::write(&filepath, bytes) {
-                        Ok(_) => println!("[-] success, wrote {}", filepath.display()),
+                        Ok(_) => {
+                            println!("[-] success, wrote {}", filepath.display());
+                            // write permissions
+                            let perms = Permissions::from_mode(u32::from(file.header.permissions));
+                            fs::set_permissions(&filepath, perms).unwrap();
+                        },
                         Err(e) => {
                             println!("[!] failed write: {} : {e}", filepath.display())
                         },
                     }
                 },
                 InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
+                    // create symlink
                     let path: PathBuf = path.iter().skip(1).collect();
                     let link_display = link.display();
                     tracing::debug!("symlink {} {}", path.display(), link_display);
                     let filepath = Path::new(&args.dest).join(path);
-                    let _ = std::fs::create_dir_all(filepath.parent().unwrap());
-                    if std::os::unix::fs::symlink(link, &filepath).is_ok() {
-                        println!("[-] success, wrote {}->{link_display}", filepath.display());
-                    } else {
-                        println!("[!] failed write: {}->{link_display}", filepath.display());
+                    match std::os::unix::fs::symlink(link, &filepath) {
+                        Ok(_) => {
+                            println!("[-] success, wrote {}->{link_display}", filepath.display())
+                        },
+                        Err(e) => println!(
+                            "[!] failed write: {}->{link_display} : {e}",
+                            filepath.display()
+                        ),
                     }
                 },
-                InnerNode::Dir(SquashfsDir { header, .. }) => {
+                InnerNode::Dir(SquashfsDir { header }) => {
+                    // create dir
                     let path: PathBuf = path.iter().skip(1).collect();
                     let path = Path::new(&args.dest).join(path);
                     tracing::debug!("path {}", path.display());
-                    let _ = std::fs::create_dir_all(&path);
+                    let _ = std::fs::create_dir(&path);
+
+                    // set permissions
                     let perms = Permissions::from_mode(u32::from(header.permissions));
                     fs::set_permissions(&path, perms).unwrap();
                     println!("[-] success, wrote {}", &path.display());

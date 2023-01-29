@@ -11,14 +11,18 @@ keywords = ["filesystem", "deku", "squashfs", "linux"]
 categories = ["filesystem", "parsing"]
 
 [dependencies]
+# for lib
 deku = "0.15.0"
 flate2 = "1.0.24"
 xz2 = "0.1.7"
-clap = { version = "4.0.12", features = ["derive"] }
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 thiserror = "1.0.37"
 twox-hash = "1.6.3"
+
+# for bins
+nix = { version = "0.26.2", default-features = false, features = ["fs"] }
+clap = { version = "4.0.12", features = ["derive"] }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 
 [dev-dependencies]
 env_logger = "0.9.1"

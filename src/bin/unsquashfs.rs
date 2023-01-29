@@ -28,6 +28,10 @@ struct Args {
     /// Extract to [PATHNAME]
     #[arg(short, long, default_value = "squashfs-root", name = "PATHNAME")]
     dest: PathBuf,
+
+    /// Print files as they are extracted
+    #[arg(short, long)]
+    info: bool,
 }
 
 fn main() {
@@ -59,7 +63,9 @@ fn extract_all(args: &Args) {
                     // write file
                     match std::fs::write(&filepath, bytes) {
                         Ok(_) => {
-                            println!("[-] success, wrote {}", filepath.display());
+                            if args.info {
+                                println!("[-] success, wrote {}", filepath.display());
+                            }
                             // write permissions
                             let perms = Permissions::from_mode(u32::from(file.header.permissions));
                             fs::set_permissions(&filepath, perms).unwrap();
@@ -76,7 +82,12 @@ fn extract_all(args: &Args) {
                     let filepath = Path::new(&args.dest).join(path);
                     match std::os::unix::fs::symlink(link, &filepath) {
                         Ok(_) => {
-                            println!("[-] success, wrote {}->{link_display}", filepath.display())
+                            if args.info {
+                                println!(
+                                    "[-] success, wrote {}->{link_display}",
+                                    filepath.display()
+                                );
+                            }
                         },
                         Err(e) => println!(
                             "[!] failed write: {}->{link_display} : {e}",
@@ -93,7 +104,9 @@ fn extract_all(args: &Args) {
                     // set permissions
                     let perms = Permissions::from_mode(u32::from(header.permissions));
                     fs::set_permissions(&path, perms).unwrap();
-                    println!("[-] success, wrote {}", &path.display());
+                    if args.info {
+                        println!("[-] success, wrote {}", &path.display());
+                    }
                 },
                 InnerNode::CharacterDevice(SquashfsCharacterDevice {
                     header,
@@ -107,7 +120,9 @@ fn extract_all(args: &Args) {
                         u64::from(*device_number),
                     ) {
                         Ok(_) => {
-                            println!("[-] char device created: {}", path.display());
+                            if args.info {
+                                println!("[-] char device created: {}", path.display());
+                            }
                         },
                         Err(_) => {
                             println!(
@@ -129,7 +144,9 @@ fn extract_all(args: &Args) {
                         u64::from(*device_number),
                     ) {
                         Ok(_) => {
-                            println!("[-] block device created: {}", path.display());
+                            if args.info {
+                                println!("[-] block device created: {}", path.display());
+                            }
                         },
                         Err(_) => {
                             println!(
@@ -141,6 +158,7 @@ fn extract_all(args: &Args) {
                 },
             }
         } else {
+            // --list
             println!("{}", path.display());
         }
     }

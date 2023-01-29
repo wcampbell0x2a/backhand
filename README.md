@@ -76,7 +76,7 @@ Options:
   -f, --force            If file already exists then overwrite
   -s, --stat             Display filesystem superblock information
   -h, --help             Print help information
-  -V, --version          Print version informatio
+  -V, --version          Print version information
 ```
 ### add
 ```console

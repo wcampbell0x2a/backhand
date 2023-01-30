@@ -72,6 +72,9 @@ impl Entry {
     /// Create alphabetically sorted entries
     #[instrument(skip_all)]
     pub(crate) fn into_dir(entries: &mut [Entry]) -> Vec<Dir> {
+        if entries.is_empty() {
+            return vec![];
+        }
         entries.sort_unstable_by(|a, b| a.name.cmp(&b.name));
 
         let mut dirs = vec![];

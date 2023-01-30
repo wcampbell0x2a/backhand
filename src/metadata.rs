@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write, Seek};
+use std::io::{self, Read, Seek, Write};
 
 use tracing::{instrument, trace};
 

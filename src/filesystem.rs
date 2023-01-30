@@ -23,7 +23,7 @@ use crate::inode::{
 use crate::metadata::{self, MetadataWriter};
 use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
 use crate::squashfs::{Cache, Id, SuperBlock};
-use crate::tree::TreeNode;
+use crate::tree::{InnerTreeNode, TreeNode};
 use crate::{fragment, Squashfs};
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
@@ -432,7 +432,7 @@ impl<'a> FilesystemWriter<'a> {
     ) -> Result<
         (
             Option<Entry>,
-            Option<(&'b OsStr, &'b InnerNode<SquashfsFileWriter<'a>>)>,
+            Option<(&'b OsStr, &'b InnerTreeNode<'a, 'b>)>,
             u64,
         ),
         SquashfsError,
@@ -441,10 +441,13 @@ impl<'a> FilesystemWriter<'a> {
 
         // If no children, just return this entry since it doesn't have anything recursive/new
         // directories
-        if tree.children.is_empty() {
-            let node = Some((tree.name(), tree.node.unwrap()));
-            return Ok((None, node, root_inode));
-        }
+        let (path_node, dir) = match &tree.inner {
+            InnerTreeNode::Dir(path_node, dir) => (path_node, dir),
+            node => {
+                let node = Some((tree.name(), node));
+                return Ok((None, node, root_inode));
+            },
+        };
 
         // ladies and gentlemen, we have a directory
         let mut write_entries = vec![];
@@ -456,7 +459,7 @@ impl<'a> FilesystemWriter<'a> {
         *inode += 1;
 
         // tree has children, this is a Dir, get information of every child node
-        for (_, child) in tree.children.iter() {
+        for child in dir.values() {
             let (l_dir_entry, l_dir_node, _) = Self::write_node(
                 child,
                 inode,
@@ -478,24 +481,19 @@ impl<'a> FilesystemWriter<'a> {
         for (name, node) in &child_dir_nodes {
             let node_path = PathBuf::from(name);
             let entry = match node {
-                InnerNode::Dir(path) => Self::path(
-                    name,
-                    path.clone(),
-                    inode,
-                    parent_inode,
-                    dir_writer,
-                    inode_writer,
-                ),
-                InnerNode::File(file) => {
+                InnerTreeNode::Dir(path, _) => {
+                    Self::path(name, path, inode, parent_inode, dir_writer, inode_writer)
+                },
+                InnerTreeNode::File(file) => {
                     Self::file(node_path, file, writer, inode, data_writer, inode_writer)
                 },
-                InnerNode::Symlink(symlink) => {
+                InnerTreeNode::Symlink(symlink) => {
                     Self::symlink(&node_path, symlink, inode, inode_writer)
                 },
-                InnerNode::CharacterDevice(char) => {
+                InnerTreeNode::CharacterDevice(char) => {
                     Self::char(node_path, char, inode, inode_writer)
                 },
-                InnerNode::BlockDevice(block) => {
+                InnerTreeNode::BlockDevice(block) => {
                     Self::block_device(node_path, block, inode, inode_writer)
                 },
             };
@@ -527,12 +525,6 @@ impl<'a> FilesystemWriter<'a> {
             name: tree.name().as_bytes().to_vec(),
         };
         trace!("ENTRY: {entry:#02x?}");
-
-        let path_node = if let Some(InnerNode::Dir(node)) = &tree.node {
-            node.clone()
-        } else {
-            panic!();
-        };
 
         // write parent_inode
         let dir_inode = Inode {
@@ -566,7 +558,7 @@ impl<'a> FilesystemWriter<'a> {
     /// Write data and metadata for path node
     fn path(
         name: &OsStr,
-        path: SquashfsDir,
+        path: &SquashfsDir,
         inode: &mut u32,
         parent_inode: u32,
         dir_writer: &MetadataWriter,
@@ -732,21 +724,17 @@ impl<'a> FilesystemWriter<'a> {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let mut tree = TreeNode::from(self);
+        let tree: TreeNode = self.into();
         info!("Tree Created");
 
         // Empty Squashfs Superblock
-        w.write_all(&vec![0x00; 96])?;
+        w.write_all(&[0x00; 96])?;
         let mut data_writer = DataWriter::new(self.compressor, None, self.block_size);
         let mut inode_writer = MetadataWriter::new(self.compressor, None, self.block_size);
         let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
-
-        // Add the "/" entry
-        let inner = InnerNode::Dir(self.root_inode.clone());
-        tree.node = Some(&inner);
 
         //trace!("TREE: {:#02x?}", tree);
         let (_, _, root_inode) = Self::write_node(

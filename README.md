@@ -43,11 +43,12 @@ let new_file = File::open("dune").unwrap();
 write_filesystem.push_file(new_file, "/root/dune", d);
 
 // modify file
-let file = write_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
-file.reader = RefCell::new(Box::new(Cursor::new(b"The sleeper must awaken.\n")));
+let bytes = Cursor::new(b"The sleeper must awaken.\n");
+let file = write_filesystem.replace_file("/a/b/c/d/e/first_file", bytes).unwrap();
 
-// convert into bytes
-let bytes = write_filesystem.to_bytes().unwrap();
+// write into a new file
+let mut output = File::create("modified.squashfs").unwrap();
+write_filesystem.write(&mut output).unwrap();
 ```
 
 ## Testing

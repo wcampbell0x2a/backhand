@@ -3,7 +3,7 @@
 use core::fmt;
 use std::cell::RefCell;
 use std::ffi::OsStr;
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::{Path, PathBuf};
 
@@ -712,11 +712,21 @@ impl<'a> FilesystemWriter<'a> {
         block_inode.to_bytes(name.as_bytes(), inode_writer)
     }
 
-    /// Convert into bytes that can be stored on disk and used as a completed and correct read-only
-    /// filesystem. This generates the Superblock with the correct fields from `Filesystem`, and
-    /// the data after that contains the nodes.
+    /// Generate the final squashfs file at the offset.
     #[instrument(skip_all)]
-    pub fn to_bytes(&self) -> Result<Vec<u8>, SquashfsError> {
+    pub fn write_with_offset<W: Write + Seek>(
+        &self,
+        w: &mut W,
+        offset: u64,
+    ) -> Result<(), SquashfsError> {
+        let mut writer = WriterWithOffset { w, offset };
+        self.write(&mut writer)
+    }
+
+    /// Generate the final squashfs file. This generates the Superblock with the
+    /// correct fields from `Filesystem`, and the data after that contains the nodes.
+    #[instrument(skip_all)]
+    pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(), SquashfsError> {
         let mut superblock = SuperBlock::new(self.compressor);
 
         trace!("{:#02x?}", self.nodes);
@@ -724,7 +734,6 @@ impl<'a> FilesystemWriter<'a> {
         let mut tree = TreeNode::from(self);
         info!("Tree Created");
 
-        let mut c = Cursor::new(vec![]);
         let data_start = 96;
 
         let mut data_writer = DataWriter::new(self.compressor, None, data_start, self.block_size);
@@ -732,7 +741,7 @@ impl<'a> FilesystemWriter<'a> {
         let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
 
         // Empty Squashfs
-        c.write_all(&vec![0x00; data_start as usize])?;
+        w.write_all(&vec![0x00; data_start as usize])?;
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
@@ -761,34 +770,37 @@ impl<'a> FilesystemWriter<'a> {
         superblock.mod_time = self.mod_time;
 
         info!("Writing Data");
-        c.write_all(&data_writer.data_bytes)?;
+        w.write_all(&data_writer.data_bytes)?;
 
         info!("Writing Inodes");
-        superblock.inode_table = c.position();
-        c.write_all(&inode_writer.finalize())?;
+        superblock.inode_table = w.stream_position()?;
+        w.write_all(&inode_writer.finalize())?;
 
         info!("Writing Dirs");
-        superblock.dir_table = c.position();
-        c.write_all(&dir_writer.finalize())?;
+        superblock.dir_table = w.stream_position()?;
+        w.write_all(&dir_writer.finalize())?;
 
         info!("Writing Frag Lookup Table");
-        Self::write_frag_table(&mut c, data_writer.fragment_table, &mut superblock)?;
+        Self::write_frag_table(w, data_writer.fragment_table, &mut superblock)?;
 
         info!("Writing Id Lookup Table");
-        Self::write_id_table(&mut c, &self.id_table, &mut superblock)?;
+        Self::write_id_table(w, &self.id_table, &mut superblock)?;
 
         info!("Finalize Superblock and End Bytes");
-        Self::finalize(&mut c, &mut superblock)?;
+        Self::finalize(w, &mut superblock)?;
 
         info!("Superblock: {:#02x?}", superblock);
         info!("Success");
-        Ok(c.into_inner())
+        Ok(())
     }
 
-    fn finalize(w: &mut Cursor<Vec<u8>>, superblock: &mut SuperBlock) -> Result<(), SquashfsError> {
+    fn finalize<W: Write + Seek>(
+        w: &mut W,
+        superblock: &mut SuperBlock,
+    ) -> Result<(), SquashfsError> {
         // Pad out block_size
         info!("Writing Padding");
-        superblock.bytes_used = w.position();
+        superblock.bytes_used = w.stream_position()?;
         let blocks_used = superblock.bytes_used as u32 / 0x1000;
         let pad_len = (blocks_used + 1) * 0x1000;
         let pad_len = pad_len - superblock.bytes_used as u32;
@@ -805,13 +817,13 @@ impl<'a> FilesystemWriter<'a> {
         Ok(())
     }
 
-    fn write_id_table(
-        w: &mut Cursor<Vec<u8>>,
+    fn write_id_table<W: Write + Seek>(
+        w: &mut W,
         id_table: &Option<Vec<Id>>,
         write_superblock: &mut SuperBlock,
     ) -> Result<(), SquashfsError> {
         if let Some(id) = id_table {
-            let id_table_dat = w.position();
+            let id_table_dat = w.stream_position()?;
             let mut id_bytes = Vec::with_capacity(id.len() * ((u32::BITS / 8) as usize));
             for i in id {
                 let bytes = i.to_bytes()?;
@@ -820,7 +832,7 @@ impl<'a> FilesystemWriter<'a> {
             let metadata_len = metadata::set_if_uncompressed(id_bytes.len() as u16).to_le_bytes();
             w.write_all(&metadata_len)?;
             w.write_all(&id_bytes)?;
-            write_superblock.id_table = w.position();
+            write_superblock.id_table = w.stream_position()?;
             write_superblock.id_count = id.len() as u16;
             w.write_all(&id_table_dat.to_le_bytes())?;
         }
@@ -828,12 +840,12 @@ impl<'a> FilesystemWriter<'a> {
         Ok(())
     }
 
-    fn write_frag_table(
-        w: &mut Cursor<Vec<u8>>,
+    fn write_frag_table<W: Write + Seek>(
+        w: &mut W,
         frag_table: Vec<Fragment>,
         write_superblock: &mut SuperBlock,
     ) -> Result<(), SquashfsError> {
-        let frag_table_dat = w.position();
+        let frag_table_dat = w.stream_position()?;
         let mut frag_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
         for f in &frag_table {
             let bytes = f.to_bytes()?;
@@ -842,7 +854,7 @@ impl<'a> FilesystemWriter<'a> {
         let metadata_len = metadata::set_if_uncompressed(frag_bytes.len() as u16).to_le_bytes();
         w.write_all(&metadata_len)?;
         w.write_all(&frag_bytes)?;
-        write_superblock.frag_table = w.position();
+        write_superblock.frag_table = w.stream_position()?;
         write_superblock.frag_count = frag_table.len() as u32;
         w.write_all(&frag_table_dat.to_le_bytes())?;
 
@@ -933,4 +945,26 @@ pub struct SquashfsCharacterDevice {
 pub struct SquashfsBlockDevice {
     pub header: FilesystemHeader,
     pub device_number: u32,
+}
+
+struct WriterWithOffset<W: Write + Seek> {
+    w: W,
+    offset: u64,
+}
+impl<W: Write + Seek> Write for WriterWithOffset<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.w.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.w.flush()
+    }
+}
+
+impl<W: Write + Seek> Seek for WriterWithOffset<W> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        match pos {
+            SeekFrom::Start(start) => self.w.seek(SeekFrom::Start(self.offset + start)),
+            seek => self.w.seek(seek).map(|x| x - self.offset),
+        }
+    }
 }

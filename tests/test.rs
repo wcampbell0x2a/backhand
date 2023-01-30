@@ -1,5 +1,5 @@
 mod common;
-use std::fs::{self, File};
+use std::fs::File;
 
 use backhand::filesystem::FilesystemReader;
 use backhand::FilesystemWriter;
@@ -38,12 +38,13 @@ fn full_test(
 
     // convert to bytes
     info!("calling to_bytes");
-    let bytes = new_filesystem.to_bytes().unwrap();
-    fs::write(&new_path, &bytes).unwrap();
+    let mut output = File::create(&new_path).unwrap();
+    new_filesystem.write(&mut output).unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     info!("calling from_reader");
-    let _new_filesystem = FilesystemReader::from_reader(std::io::Cursor::new(bytes)).unwrap();
+    let created_file = File::open(&new_path).unwrap();
+    let _new_filesystem = FilesystemReader::from_reader(created_file).unwrap();
 
     info!("starting unsquashfs test");
     match verify {

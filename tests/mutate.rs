@@ -1,6 +1,6 @@
 mod common;
 use std::cell::RefCell;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Cursor;
 
 use backhand::filesystem::{FilesystemHeader, FilesystemReader};
@@ -88,9 +88,9 @@ fn test_add_00() {
     let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
     file.reader = RefCell::new(Box::new(Cursor::new(b"MODIFIEDfirst file!\n")));
 
-    // to bytes
-    let bytes = new_filesystem.to_bytes().unwrap();
-    fs::write(&new_path, bytes).unwrap();
+    // create the modified squashfs
+    let mut output = File::create(&new_path).unwrap();
+    new_filesystem.write(&mut output).unwrap();
 
     // compare
     let control_new_path = format!("{TEST_PATH}/control.squashfs");

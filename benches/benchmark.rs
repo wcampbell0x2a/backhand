@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::Cursor;
 
 use backhand::{FilesystemReader, FilesystemWriter};
 use criterion::*;
@@ -9,7 +10,8 @@ fn read_write(file: File, offset: u64) {
     let new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // convert to bytes
-    black_box(new_filesystem.to_bytes().unwrap());
+    let mut output = Cursor::new(vec![]);
+    black_box(new_filesystem.write(&mut output).unwrap());
 }
 
 fn read(file: File, offset: u64) {

@@ -35,7 +35,7 @@ fn main() {
         .unwrap();
 
     // write new file
-    let bytes = filesystem.to_bytes().unwrap();
-    std::fs::write("added.squashfs", bytes).unwrap();
+    let mut output = File::create("added.squashfs").unwrap();
+    filesystem.write(&mut output).unwrap();
     println!("added file and wrote to added.squashfs");
 }

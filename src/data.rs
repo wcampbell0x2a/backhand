@@ -1,6 +1,6 @@
 //! File Data
 
-use std::io::{Read, Write};
+use std::io::{Read, Seek, Write};
 
 use tracing::instrument;
 
@@ -53,10 +53,8 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
 #[derive(Debug)]
 pub(crate) struct DataWriter {
     block_size: u32,
-    data_start: u32,
     compressor: Compressor,
     compression_options: Option<CompressionOptions>,
-    pub(crate) data_bytes: Vec<u8>,
     /// Un-written fragment_bytes
     pub(crate) fragment_bytes: Vec<u8>,
     pub(crate) fragment_table: Vec<Fragment>,
@@ -67,15 +65,12 @@ impl DataWriter {
     pub fn new(
         compressor: Compressor,
         compression_options: Option<CompressionOptions>,
-        data_start: u32,
         block_size: u32,
     ) -> Self {
         Self {
             block_size,
-            data_start,
             compressor,
             compression_options,
-            data_bytes: vec![],
             fragment_bytes: Vec::with_capacity(block_size as usize),
             fragment_table: vec![],
         }
@@ -83,7 +78,11 @@ impl DataWriter {
 
     /// Add to data writer, either a Data or Fragment
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
-    pub(crate) fn add_bytes(&mut self, reader: impl Read) -> (usize, Added) {
+    pub(crate) fn add_bytes<W: Write + Seek>(
+        &mut self,
+        reader: impl Read,
+        writer: &mut W,
+    ) -> (usize, Added) {
         let mut chunk_reader = DataWriterChunkReader {
             chunk: vec![0u8; self.block_size as usize],
             file_len: 0,
@@ -97,7 +96,7 @@ impl DataWriter {
             // if this doesn't fit in the current fragment bytes, compress and add to data_bytes
             if (chunk.len() + self.fragment_bytes.len()) > self.block_size as usize {
                 // TODO: don't always compress?
-                let start = self.data_bytes.len() as u64 + self.data_start as u64;
+                let start = writer.stream_position().unwrap(/*TODO*/);
                 let cb = compress(
                     &self.fragment_bytes,
                     self.compressor,
@@ -112,7 +111,7 @@ impl DataWriter {
                     unused: 0,
                 };
                 self.fragment_table.push(frag);
-                self.data_bytes.write_all(&cb).unwrap();
+                writer.write_all(&cb).unwrap();
 
                 self.fragment_bytes = Vec::with_capacity(self.block_size as usize);
             }
@@ -131,7 +130,7 @@ impl DataWriter {
             )
         } else {
             // Add to data bytes
-            let blocks_start = self.data_bytes.len() as u32 + self.data_start;
+            let blocks_start = writer.stream_position().unwrap(/*TODO*/) as u32;
             let mut block_sizes = vec![];
             loop {
                 if chunk.is_empty() {
@@ -149,11 +148,11 @@ impl DataWriter {
                 if cb.len() > chunk.len() {
                     // store uncompressed
                     block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
-                    self.data_bytes.write_all(chunk).unwrap();
+                    writer.write_all(chunk).unwrap();
                 } else {
                     // store compressed
                     block_sizes.push(cb.len() as u32);
-                    self.data_bytes.write_all(&cb).unwrap();
+                    writer.write_all(&cb).unwrap();
                 }
                 chunk = chunk_reader.read_chunk().unwrap();
             }
@@ -169,8 +168,8 @@ impl DataWriter {
     }
 
     /// Compress the fragments that were under length, add to fragment table
-    pub fn finalize(&mut self) {
-        let start = self.data_bytes.len() as u64 + self.data_start as u64;
+    pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) {
+        let start = writer.stream_position().unwrap(/*TODO*/);
         let cb = compress(
             &self.fragment_bytes,
             self.compressor,
@@ -184,6 +183,6 @@ impl DataWriter {
             size,
             unused: 0,
         });
-        self.data_bytes.write_all(&cb).unwrap();
+        writer.write_all(&cb).unwrap();
     }
 }

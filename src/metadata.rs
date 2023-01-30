@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Write, Seek};
 
 use tracing::{instrument, trace};
 
@@ -41,11 +41,10 @@ impl MetadataWriter {
     }
 
     #[instrument(skip_all)]
-    pub fn finalize(&mut self) -> Vec<u8> {
-        let mut out = vec![];
+    pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), SquashfsError> {
         for cb in &self.compressed_bytes {
             trace!("len: {:02x?}", cb.len());
-            trace!("total: {:02x?}", out.len());
+            //trace!("total: {:02x?}", out.len());
             out.write_all(&(cb.len() as u16).to_le_bytes()).unwrap();
             out.write_all(cb).unwrap();
         }
@@ -59,11 +58,10 @@ impl MetadataWriter {
         .unwrap();
 
         trace!("len: {:02x?}", b.len());
-        trace!("total: {:02x?}", out.len());
+        //trace!("total: {:02x?}", out.len());
         out.write_all(&(b.len() as u16).to_le_bytes()).unwrap();
         out.write_all(&b).unwrap();
-
-        out
+        Ok(())
     }
 }
 

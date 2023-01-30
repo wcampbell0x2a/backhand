@@ -421,35 +421,33 @@ impl<'a> FilesystemWriter<'a> {
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
     #[instrument(skip_all)]
     #[allow(clippy::type_complexity)]
-    fn write_node<'b>(
+    fn write_node<'b, W: Write + Seek>(
         tree: &'b TreeNode<'a, 'b>,
         inode: &'_ mut u32,
+        writer: &mut W,
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
         data_writer: &'_ mut DataWriter,
         dir_parent_inode: u32,
     ) -> Result<
         (
-            Vec<Entry>,
-            Vec<(&'b OsStr, &'b InnerNode<SquashfsFileWriter<'a>>)>,
+            Option<Entry>,
+            Option<(&'b OsStr, &'b InnerNode<SquashfsFileWriter<'a>>)>,
             u64,
         ),
         SquashfsError,
     > {
-        let mut nodes = vec![];
-        let mut ret_entries = vec![];
         let mut root_inode = 0;
 
         // If no children, just return this entry since it doesn't have anything recursive/new
         // directories
         if tree.children.is_empty() {
-            nodes.push((tree.name(), tree.node.unwrap()));
-            return Ok((ret_entries, nodes, root_inode));
+            let node = Some((tree.name(), tree.node.unwrap()));
+            return Ok((None, node, root_inode));
         }
 
         // ladies and gentlemen, we have a directory
         let mut write_entries = vec![];
-        let mut child_dir_entries = vec![];
         let mut child_dir_nodes = vec![];
 
         // store parent Inode, this is used for child Dirs, as they will need this to reference
@@ -459,18 +457,22 @@ impl<'a> FilesystemWriter<'a> {
 
         // tree has children, this is a Dir, get information of every child node
         for (_, child) in tree.children.iter() {
-            let (mut l_dir_entries, mut l_dir_nodes, _) = Self::write_node(
+            let (l_dir_entry, l_dir_node, _) = Self::write_node(
                 child,
                 inode,
+                writer,
                 inode_writer,
                 dir_writer,
                 data_writer,
                 parent_inode,
             )?;
-            child_dir_entries.append(&mut l_dir_entries);
-            child_dir_nodes.append(&mut l_dir_nodes);
+            if let Some(entry) = l_dir_entry {
+                write_entries.push(entry);
+            }
+            if let Some(entry) = l_dir_node {
+                child_dir_nodes.push(entry);
+            }
         }
-        write_entries.append(&mut child_dir_entries);
 
         // write child inodes
         for (name, node) in &child_dir_nodes {
@@ -485,7 +487,7 @@ impl<'a> FilesystemWriter<'a> {
                     inode_writer,
                 ),
                 InnerNode::File(file) => {
-                    Self::file(node_path, file, inode, data_writer, inode_writer)
+                    Self::file(node_path, file, writer, inode, data_writer, inode_writer)
                 },
                 InnerNode::Symlink(symlink) => {
                     Self::symlink(&node_path, symlink, inode, inode_writer)
@@ -525,7 +527,6 @@ impl<'a> FilesystemWriter<'a> {
             name: tree.name().as_bytes().to_vec(),
         };
         trace!("ENTRY: {entry:#02x?}");
-        ret_entries.push(entry);
 
         let path_node = if let Some(InnerNode::Dir(node)) = &tree.node {
             node.clone()
@@ -554,13 +555,12 @@ impl<'a> FilesystemWriter<'a> {
 
         let mut v = BitVec::<u8, Msb0>::new();
         dir_inode.write(&mut v, (0, 0))?;
-        let bytes = v.as_raw_slice().to_vec();
-        inode_writer.write_all(&bytes)?;
+        inode_writer.write_all(v.as_raw_slice())?;
         root_inode = ((start as u64) << 16) | ((offset as u64) & 0xffff);
 
-        trace!("[{:?}] entries: {ret_entries:#02x?}", tree.name());
-        trace!("[{:?}] nodes: {nodes:#02x?}", tree.name());
-        Ok((ret_entries, nodes, root_inode))
+        trace!("[{:?}] entry: {entry:#02x?}", tree.name());
+        trace!("[{:?}] node: None", tree.name());
+        Ok((Some(entry), None, root_inode))
     }
 
     /// Write data and metadata for path node
@@ -594,14 +594,15 @@ impl<'a> FilesystemWriter<'a> {
     }
 
     /// Write data and metadata for file node
-    fn file(
+    fn file<W: Write + Seek>(
         node_path: PathBuf,
         file: &SquashfsFileWriter<'a>,
+        writer: &mut W,
         inode: &mut u32,
         data_writer: &mut DataWriter,
         inode_writer: &mut MetadataWriter,
     ) -> Entry {
-        let (file_size, added) = data_writer.add_bytes(file.reader.borrow_mut().as_mut());
+        let (file_size, added) = data_writer.add_bytes(file.reader.borrow_mut().as_mut(), writer);
 
         let basic_file = match added {
             Added::Data {
@@ -734,14 +735,11 @@ impl<'a> FilesystemWriter<'a> {
         let mut tree = TreeNode::from(self);
         info!("Tree Created");
 
-        let data_start = 96;
-
-        let mut data_writer = DataWriter::new(self.compressor, None, data_start, self.block_size);
+        // Empty Squashfs Superblock
+        w.write_all(&vec![0x00; 96])?;
+        let mut data_writer = DataWriter::new(self.compressor, None, self.block_size);
         let mut inode_writer = MetadataWriter::new(self.compressor, None, self.block_size);
         let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
-
-        // Empty Squashfs
-        w.write_all(&vec![0x00; data_start as usize])?;
 
         info!("Creating Inodes and Dirs");
         let mut inode = 1;
@@ -754,6 +752,7 @@ impl<'a> FilesystemWriter<'a> {
         let (_, _, root_inode) = Self::write_node(
             &tree,
             &mut inode,
+            w,
             &mut inode_writer,
             &mut dir_writer,
             &mut data_writer,
@@ -761,7 +760,8 @@ impl<'a> FilesystemWriter<'a> {
         )?;
 
         // Compress everything
-        data_writer.finalize();
+        info!("Writing Data");
+        data_writer.finalize(w);
 
         superblock.root_inode = root_inode;
         superblock.inode_count = inode - 1;
@@ -769,16 +769,13 @@ impl<'a> FilesystemWriter<'a> {
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;
 
-        info!("Writing Data");
-        w.write_all(&data_writer.data_bytes)?;
-
         info!("Writing Inodes");
         superblock.inode_table = w.stream_position()?;
-        w.write_all(&inode_writer.finalize())?;
+        inode_writer.finalize(w)?;
 
         info!("Writing Dirs");
         superblock.dir_table = w.stream_position()?;
-        w.write_all(&dir_writer.finalize())?;
+        dir_writer.finalize(w)?;
 
         info!("Writing Frag Lookup Table");
         Self::write_frag_table(w, data_writer.fragment_table, &mut superblock)?;

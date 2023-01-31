@@ -28,7 +28,7 @@ pub(crate) struct Entry<'a> {
 
 impl<'a> Entry<'a> {
     pub fn name(&self) -> String {
-        std::str::from_utf8(&self.name).unwrap().to_string()
+        std::str::from_utf8(self.name).unwrap().to_string()
     }
     /// Write data and metadata for path node
     #[allow(clippy::too_many_arguments)]
@@ -227,7 +227,7 @@ impl<'a> Entry<'a> {
     /// Create alphabetically sorted entries
     #[instrument(skip_all)]
     pub(crate) fn into_dir(mut entries: Vec<Self>) -> Vec<Dir> {
-        entries.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+        entries.sort_unstable_by(|a, b| a.name.cmp(b.name));
 
         let mut dirs = vec![];
         let mut creating_dir = vec![];

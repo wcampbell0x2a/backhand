@@ -5,7 +5,7 @@ use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
 use deku::DekuContainerWrite;
-use tracing::trace;
+use tracing::{instrument, trace};
 
 use crate::data::DataWriter;
 use crate::entry::Entry;
@@ -127,7 +127,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
     /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    //#[instrument(skip_all)]
+    #[instrument(skip_all)]
     #[allow(clippy::type_complexity)]
     pub fn write<W: Write + Seek>(
         &'b self,

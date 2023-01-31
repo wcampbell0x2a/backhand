@@ -32,6 +32,7 @@ impl Entry {
         std::str::from_utf8(&self.name).unwrap().to_string()
     }
     /// Write data and metadata for path node
+    #[allow(clippy::too_many_arguments)]
     pub fn path(
         name: &OsStr,
         path: &SquashfsDir,

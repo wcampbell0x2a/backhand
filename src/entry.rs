@@ -2,7 +2,6 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::io::{Seek, Write};
 use std::os::unix::prelude::OsStrExt;
-use std::path::Path;
 
 use tracing::{instrument, trace};
 
@@ -18,23 +17,23 @@ use crate::inode::{
 use crate::metadata::MetadataWriter;
 
 #[derive(Clone)]
-pub(crate) struct Entry {
+pub(crate) struct Entry<'a> {
     pub start: u32,
     pub offset: u16,
     pub inode: u32,
     pub t: InodeId,
     pub name_size: u16,
-    pub name: Vec<u8>,
+    pub name: &'a [u8],
 }
 
-impl Entry {
+impl<'a> Entry<'a> {
     pub fn name(&self) -> String {
         std::str::from_utf8(&self.name).unwrap().to_string()
     }
     /// Write data and metadata for path node
     #[allow(clippy::too_many_arguments)]
     pub fn path(
-        name: &OsStr,
+        name: &'a OsStr,
         path: &SquashfsDir,
         inode: u32,
         parent_inode: u32,
@@ -62,7 +61,7 @@ impl Entry {
     }
     /// Write data and metadata for file node
     pub fn file<W: Write + Seek>(
-        node_path: &Path,
+        node_path: &'a OsStr,
         file: &SquashfsFileWriter<'_>,
         writer: &mut W,
         inode: u32,
@@ -105,17 +104,16 @@ impl Entry {
             inner: InodeInner::BasicFile(basic_file),
         };
 
-        let file_name = node_path.file_name().unwrap();
-        file_inode.to_bytes(file_name.as_bytes(), inode_writer)
+        file_inode.to_bytes(node_path.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for symlink node
     pub fn symlink(
-        path: &Path,
+        node_path: &'a OsStr,
         symlink: &SquashfsSymlink,
         inode: u32,
         inode_writer: &mut MetadataWriter,
-    ) -> Entry {
+    ) -> Self {
         let link = symlink.link.as_os_str().as_bytes();
         let sym_inode = Inode {
             id: InodeId::BasicSymlink,
@@ -130,17 +128,16 @@ impl Entry {
             }),
         };
 
-        let name = path.file_name().unwrap();
-        sym_inode.to_bytes(name.as_bytes(), inode_writer)
+        sym_inode.to_bytes(node_path.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for char device node
     pub fn char(
-        node_path: &Path,
+        node_path: &'a OsStr,
         char_device: &SquashfsCharacterDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
-    ) -> Entry {
+    ) -> Self {
         let char_inode = Inode {
             id: InodeId::BasicCharacterDevice,
             header: InodeHeader {
@@ -153,17 +150,16 @@ impl Entry {
             }),
         };
 
-        let name = node_path.file_name().unwrap();
-        char_inode.to_bytes(name.as_bytes(), inode_writer)
+        char_inode.to_bytes(node_path.as_bytes(), inode_writer)
     }
 
     /// Write data and metadata for block device node
     pub fn block_device(
-        node_path: &Path,
+        node_path: &'a OsStr,
         block_device: &SquashfsBlockDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
-    ) -> Entry {
+    ) -> Self {
         let block_inode = Inode {
             id: InodeId::BasicBlockDevice,
             header: InodeHeader {
@@ -176,12 +172,11 @@ impl Entry {
             }),
         };
 
-        let name = node_path.file_name().unwrap();
-        block_inode.to_bytes(name.as_bytes(), inode_writer)
+        block_inode.to_bytes(node_path.as_bytes(), inode_writer)
     }
 }
 
-impl fmt::Debug for Entry {
+impl<'a> fmt::Debug for Entry<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Entry")
             .field("start", &self.start)
@@ -194,8 +189,8 @@ impl fmt::Debug for Entry {
     }
 }
 
-impl Entry {
-    fn create_dir(creating_dir: &Vec<&Entry>, start: u32) -> Dir {
+impl<'a> Entry<'a> {
+    fn create_dir(creating_dir: &Vec<&Self>, start: u32) -> Dir {
         // find lowest inode number
         let mut lowest_inode = None;
         for e in creating_dir {
@@ -221,7 +216,7 @@ impl Entry {
                 inode_offset: (e.inode - lowest_inode.unwrap()) as i16,
                 t: e.t,
                 name_size: e.name_size,
-                name: e.name.clone(),
+                name: e.name.to_vec(),
             };
             dir.push(new_entry);
         }
@@ -231,7 +226,7 @@ impl Entry {
 
     /// Create alphabetically sorted entries
     #[instrument(skip_all)]
-    pub(crate) fn into_dir(mut entries: Vec<Entry>) -> Vec<Dir> {
+    pub(crate) fn into_dir(mut entries: Vec<Self>) -> Vec<Dir> {
         entries.sort_unstable_by(|a, b| a.name.cmp(&b.name));
 
         let mut dirs = vec![];
@@ -300,7 +295,7 @@ mod tests {
                 inode: 1,
                 t: InodeId::BasicDirectory,
                 name_size: 0x01,
-                name: [b'a', b'a'].to_vec(),
+                name: b"aa",
             },
             Entry {
                 start: 1,
@@ -308,7 +303,7 @@ mod tests {
                 inode: 6,
                 t: InodeId::BasicDirectory,
                 name_size: 0x01,
-                name: [b'z', b'z'].to_vec(),
+                name: b"zz",
             },
             Entry {
                 start: 1,
@@ -316,7 +311,7 @@ mod tests {
                 inode: 5,
                 t: InodeId::BasicDirectory,
                 name_size: 0x01,
-                name: [b'b', b'b'].to_vec(),
+                name: b"bb",
             },
         ];
 

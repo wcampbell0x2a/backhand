@@ -174,7 +174,6 @@ impl<'a, 'b> TreeNode<'a, 'b> {
 
         // write child inodes
         for node in dir.values().filter(|c| !c.have_children()) {
-            let node_path = PathBuf::from(node.name());
             let entry = match &node.inner {
                 InnerTreeNode::Dir(path, _) => Entry::path(
                     node.name(),
@@ -187,7 +186,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
                     dir_writer.metadata_start,
                 ),
                 InnerTreeNode::File(file) => Entry::file(
-                    &node_path,
+                    node.name(),
                     file,
                     writer,
                     *inode_counter,
@@ -195,13 +194,13 @@ impl<'a, 'b> TreeNode<'a, 'b> {
                     inode_writer,
                 ),
                 InnerTreeNode::Symlink(symlink) => {
-                    Entry::symlink(&node_path, symlink, *inode_counter, inode_writer)
+                    Entry::symlink(node.name(), symlink, *inode_counter, inode_writer)
                 },
                 InnerTreeNode::CharacterDevice(char) => {
-                    Entry::char(&node_path, char, *inode_counter, inode_writer)
+                    Entry::char(node.name(), char, *inode_counter, inode_writer)
                 },
                 InnerTreeNode::BlockDevice(block) => {
-                    Entry::block_device(&node_path, block, *inode_counter, inode_writer)
+                    Entry::block_device(node.name(), block, *inode_counter, inode_writer)
                 },
             };
             write_entries.push(entry);

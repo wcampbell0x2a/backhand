@@ -596,6 +596,7 @@ impl<'a> FilesystemWriter<'a> {
             &mut inode_writer,
             &mut dir_writer,
             &mut data_writer,
+            0,
         )?;
 
         // Compress everything

@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::io::{Seek, Write};
-use std::os::unix::prelude::OsStrExt;
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
@@ -121,8 +120,8 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
         data_writer: &'_ mut DataWriter,
+        parent_inode: u32,
     ) -> Result<(Entry, u64), SquashfsError> {
-        let parent_inode = *inode_counter;
         *inode_counter += 1;
         let this_inode = *inode_counter;
 
@@ -163,6 +162,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
                             inode_writer,
                             dir_writer,
                             data_writer,
+                            this_inode,
                         )
                         .map(|res| res.0) // only entry
                     })

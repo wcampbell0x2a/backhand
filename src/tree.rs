@@ -1,12 +1,21 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
+use std::io::{Seek, Write};
+use std::os::unix::prelude::OsStrExt;
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
+use deku::DekuContainerWrite;
+use tracing::trace;
+
+use crate::data::DataWriter;
+use crate::entry::Entry;
+use crate::error::SquashfsError;
 use crate::filesystem::{
     FilesystemWriter, InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileWriter, SquashfsSymlink,
 };
+use crate::metadata::MetadataWriter;
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();
@@ -72,7 +81,9 @@ impl<'a, 'b> TreeNode<'a, 'b> {
     ) {
         let (first, rest) = match components {
             [first, rest @ ..] => (first, rest),
-            _ => todo!("Error node have no name"),
+            _ => {
+                todo!("Error node have no name")
+            },
         };
         fullpath.push(first);
         let dir = match &mut self.inner {
@@ -101,6 +112,95 @@ impl<'a, 'b> TreeNode<'a, 'b> {
             _ => todo!("Error Dir don't exists"),
         }
     }
+
+    #[allow(clippy::type_complexity)]
+    pub fn write<W: Write + Seek>(
+        &'b self,
+        inode_counter: &'_ mut u32,
+        writer: &mut W,
+        inode_writer: &'_ mut MetadataWriter,
+        dir_writer: &'_ mut MetadataWriter,
+        data_writer: &'_ mut DataWriter,
+    ) -> Result<(Entry, u64), SquashfsError> {
+        let parent_inode = *inode_counter;
+        *inode_counter += 1;
+        let this_inode = *inode_counter;
+
+        //if not dir, just return the entry, if dir recursive call write to children and
+        //return the entries
+        let (path, child_entries) = match &self.inner {
+            InnerTreeNode::File(file) => {
+                let entry = Entry::file(
+                    &self.fullpath,
+                    file,
+                    writer,
+                    this_inode,
+                    data_writer,
+                    inode_writer,
+                );
+                return Ok((entry, 0));
+            },
+            InnerTreeNode::Symlink(symlink) => {
+                let entry = Entry::symlink(&self.fullpath, symlink, this_inode, inode_writer);
+                return Ok((entry, 0));
+            },
+            InnerTreeNode::CharacterDevice(char) => {
+                let entry = Entry::char(&self.fullpath, char, this_inode, inode_writer);
+                return Ok((entry, 0));
+            },
+            InnerTreeNode::BlockDevice(block) => {
+                let entry = Entry::block_device(&self.fullpath, block, this_inode, inode_writer);
+                return Ok((entry, 0));
+            },
+            InnerTreeNode::Dir(path, children) => {
+                let children = children
+                    .values()
+                    .map(|child| {
+                        Self::write(
+                            child,
+                            inode_counter,
+                            writer,
+                            inode_writer,
+                            dir_writer,
+                            data_writer,
+                        )
+                        .map(|res| res.0) // only entry
+                    })
+                    .collect::<Result<_, _>>()?;
+                (path, children)
+            },
+        };
+
+        //only dir executes after this point
+
+        // write dir
+        let block_offset = dir_writer.uncompressed_bytes.len() as u16;
+        trace!("WRITING DIR: {block_offset:#02x?}");
+        let mut total_size = 3;
+        for dir in Entry::into_dir(child_entries) {
+            trace!("WRITING DIR: {dir:#02x?}");
+            let bytes = dir.to_bytes()?;
+            total_size += bytes.len() as u16;
+            dir_writer.write_all(&bytes)?;
+        }
+
+        //trace!("BEFORE: {:#02x?}", child);
+        // write parent_inode
+        let entry = Entry::path(
+            self.name(),
+            path,
+            this_inode,
+            parent_inode,
+            dir_writer,
+            inode_writer,
+            total_size,
+        );
+        let root_inode = ((entry.start as u64) << 16) | ((entry.offset as u64) & 0xffff);
+
+        trace!("[{:?}] entry: {entry:#02x?}", self.name());
+        trace!("[{:?}] node: None", self.name());
+        Ok((entry, root_inode))
+    }
 }
 
 impl<'a, 'b> From<&'b FilesystemWriter<'a>> for TreeNode<'a, 'b> {
@@ -109,9 +209,14 @@ impl<'a, 'b> From<&'b FilesystemWriter<'a>> for TreeNode<'a, 'b> {
             fullpath: "/".into(),
             inner: InnerTreeNode::Dir(&fs.root_inode, BTreeMap::new()),
         };
+        //all nodes, except root
         for node in &fs.nodes {
             let path = node.path.as_path();
             let comp = normalized_components(path);
+            if comp.is_empty() {
+                //ignore root
+                continue;
+            }
             tree.insert(&mut PathBuf::new(), &comp, &node.inner);
         }
 

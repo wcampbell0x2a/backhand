@@ -2,25 +2,21 @@
 
 use core::fmt;
 use std::cell::RefCell;
-use std::ffi::OsStr;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::unix::prelude::OsStrExt;
 use std::path::PathBuf;
 
-use deku::bitvec::{BitVec, Msb0};
-use deku::{DekuContainerWrite, DekuWrite};
+use deku::DekuContainerWrite;
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::data::{DataWriter, DATA_STORED_UNCOMPRESSED};
-use crate::entry::Entry;
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
-use crate::inode::{BasicDirectory, BasicFile, Inode, InodeHeader, InodeId, InodeInner};
+use crate::inode::{BasicFile, InodeHeader};
 use crate::metadata::{self, MetadataWriter};
 use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
 use crate::squashfs::{Cache, Id, SuperBlock};
-use crate::tree::{InnerTreeNode, TreeNode};
+use crate::tree::TreeNode;
 use crate::{fragment, Squashfs};
 
 /// In-memory representation of a Squashfs image with extracted files and other information needed
@@ -409,153 +405,6 @@ impl<'a> FilesystemWriter<'a> {
         self.nodes.push(node);
 
         Ok(())
-    }
-
-    /// Create SquashFS file system from each node of Tree
-    ///
-    /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
-    /// keeps track of parent directories by calling this function on all nodes of a dir to get only
-    /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    #[instrument(skip_all)]
-    #[allow(clippy::type_complexity)]
-    fn write_node<'b, W: Write + Seek>(
-        tree: &'b TreeNode<'a, 'b>,
-        inode: &'_ mut u32,
-        writer: &mut W,
-        inode_writer: &'_ mut MetadataWriter,
-        dir_writer: &'_ mut MetadataWriter,
-        data_writer: &'_ mut DataWriter,
-        dir_parent_inode: u32,
-    ) -> Result<
-        (
-            Option<Entry>,
-            Option<(&'b OsStr, &'b InnerTreeNode<'a, 'b>)>,
-            u64,
-        ),
-        SquashfsError,
-    > {
-        let mut root_inode = 0;
-
-        // If no children, just return this entry since it doesn't have anything recursive/new
-        // directories
-        let (path_node, dir) = match &tree.inner {
-            InnerTreeNode::Dir(path_node, dir) => (path_node, dir),
-            node => {
-                let node = Some((tree.name(), node));
-                return Ok((None, node, root_inode));
-            },
-        };
-
-        // ladies and gentlemen, we have a directory
-        let mut write_entries: Vec<Entry> = vec![];
-        let mut child_dir_nodes: Vec<(&'b OsStr, &'b InnerTreeNode<'a, 'b>)> = vec![];
-
-        // store parent Inode, this is used for child Dirs, as they will need this to reference
-        // back to this
-        let parent_inode = *inode;
-        *inode += 1;
-
-        // tree has children, this is a Dir, get information of every child node
-        for child in dir.values() {
-            let (l_dir_entry, l_dir_node, _) = Self::write_node(
-                child,
-                inode,
-                writer,
-                inode_writer,
-                dir_writer,
-                data_writer,
-                parent_inode,
-            )?;
-            if let Some(entry) = l_dir_entry {
-                write_entries.push(entry);
-            }
-            if let Some(entry) = l_dir_node {
-                child_dir_nodes.push(entry);
-            }
-        }
-
-        // write child inodes
-        for (name, node) in &child_dir_nodes {
-            let node_path = PathBuf::from(name);
-            let entry = match node {
-                InnerTreeNode::Dir(path, _) => Entry::path(
-                    name,
-                    path,
-                    *inode,
-                    parent_inode,
-                    dir_writer,
-                    inode_writer,
-                    3,
-                ),
-                InnerTreeNode::File(file) => {
-                    Entry::file(&node_path, file, writer, *inode, data_writer, inode_writer)
-                },
-                InnerTreeNode::Symlink(symlink) => {
-                    Entry::symlink(&node_path, symlink, *inode, inode_writer)
-                },
-                InnerTreeNode::CharacterDevice(char) => {
-                    Entry::char(&node_path, char, *inode, inode_writer)
-                },
-                InnerTreeNode::BlockDevice(block) => {
-                    Entry::block_device(&node_path, block, *inode, inode_writer)
-                },
-            };
-            write_entries.push(entry);
-            *inode += 1;
-        }
-
-        // write dir
-        let block_index = dir_writer.metadata_start;
-        let block_offset = dir_writer.uncompressed_bytes.len() as u16;
-        trace!("WRITING DIR: {block_offset:#02x?}");
-        let mut total_size = 3;
-        for dir in Entry::into_dir(write_entries) {
-            trace!("WRITING DIR: {dir:#02x?}");
-            let bytes = dir.to_bytes()?;
-            total_size += bytes.len() as u16;
-            dir_writer.write_all(&bytes)?;
-        }
-
-        //trace!("BEFORE: {:#02x?}", child);
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        let start = inode_writer.metadata_start;
-        let entry = Entry {
-            start,
-            offset,
-            inode: parent_inode,
-            t: InodeId::BasicDirectory,
-            name_size: tree.name().len() as u16 - 1,
-            name: tree.name().as_bytes().to_vec(),
-        };
-        trace!("ENTRY: {entry:#02x?}");
-
-        // write parent_inode
-        let dir_inode = Inode {
-            id: InodeId::BasicDirectory,
-            header: InodeHeader {
-                permissions: path_node.header.permissions,
-                uid: path_node.header.uid,
-                gid: path_node.header.gid,
-                mtime: path_node.header.mtime,
-                inode_number: parent_inode,
-            },
-            inner: InodeInner::BasicDirectory(BasicDirectory {
-                block_index,
-                link_count: 2, // <- TODO: set this
-                file_size: total_size,
-                block_offset,
-                parent_inode: dir_parent_inode,
-            }),
-        };
-
-        let mut v = BitVec::<u8, Msb0>::new();
-        dir_inode.write(&mut v, (0, 0))?;
-        inode_writer.write_all(v.as_raw_slice())?;
-        root_inode = ((start as u64) << 16) | ((offset as u64) & 0xffff);
-
-        trace!("[{:?}] entry: {entry:#02x?}", tree.name());
-        trace!("[{:?}] node: None", tree.name());
-        Ok((Some(entry), None, root_inode))
     }
 
     /// Generate the final squashfs file at the offset.

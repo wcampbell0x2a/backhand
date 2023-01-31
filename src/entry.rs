@@ -1,15 +1,20 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::io::{Write, Seek};
+use std::io::{Seek, Write};
 use std::os::unix::prelude::OsStrExt;
 use std::path::Path;
 
 use tracing::{instrument, trace};
 
-use crate::data::{DataWriter, Added};
+use crate::data::{Added, DataWriter};
 use crate::dir::{Dir, DirEntry};
-use crate::filesystem::{SquashfsDir, SquashfsFileWriter, SquashfsSymlink, SquashfsCharacterDevice, SquashfsBlockDevice};
-use crate::inode::{BasicDirectory, Inode, InodeHeader, InodeId, InodeInner, BasicFile, BasicSymlink, BasicDeviceSpecialFile};
+use crate::filesystem::{
+    SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsFileWriter, SquashfsSymlink,
+};
+use crate::inode::{
+    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
+    InodeInner,
+};
 use crate::metadata::MetadataWriter;
 
 #[derive(Clone)]
@@ -32,12 +37,11 @@ impl Entry {
         path: &SquashfsDir,
         inode: u32,
         parent_inode: u32,
-        dir_writer: &MetadataWriter,
         inode_writer: &mut MetadataWriter,
         file_size: u16,
+        block_offset: u16,
+        block_index: u32,
     ) -> Self {
-        let block_offset = dir_writer.uncompressed_bytes.len() as u16;
-        let block_index = dir_writer.metadata_start;
         let dir_inode = Inode {
             id: InodeId::BasicDirectory,
             header: InodeHeader {
@@ -125,7 +129,7 @@ impl Entry {
             }),
         };
 
-        let name = path.file_name().unwrap().to_str().unwrap();
+        let name = path.file_name().unwrap();
         sym_inode.to_bytes(name.as_bytes(), inode_writer)
     }
 
@@ -174,7 +178,6 @@ impl Entry {
         let name = node_path.file_name().unwrap();
         block_inode.to_bytes(name.as_bytes(), inode_writer)
     }
-
 }
 
 impl fmt::Debug for Entry {
@@ -228,9 +231,6 @@ impl Entry {
     /// Create alphabetically sorted entries
     #[instrument(skip_all)]
     pub(crate) fn into_dir(mut entries: Vec<Entry>) -> Vec<Dir> {
-        if entries.is_empty() {
-            return vec![];
-        }
         entries.sort_unstable_by(|a, b| a.name.cmp(&b.name));
 
         let mut dirs = vec![];

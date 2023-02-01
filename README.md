@@ -35,7 +35,7 @@ let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).un
 
 // add file with data from slice
 let d = FilesystemHeader::default();
-let bytes = std::io::Cursor::new(b"Fear is the mind-killer.");
+let bytes = Cursor::new(b"Fear is the mind-killer.");
 write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 
 // add file with data from file

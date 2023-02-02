@@ -92,29 +92,12 @@ impl DataWriter {
         //TODO error
         let mut chunk = chunk_reader.read_chunk().unwrap();
 
-        // only one chunks, and not exactly the size of the block
+        // chunk size not exactly the size of the block
         if chunk.len() != self.block_size as usize {
-            // if this doesn't fit in the current fragment bytes, compress and add to data_bytes
+            // if this doesn't fit in the current fragment bytes
+            // compress the current fragment bytes and add to data_bytes
             if (chunk.len() + self.fragment_bytes.len()) > self.block_size as usize {
-                // TODO: don't always compress?
-                let start = self.data_bytes.len() as u64 + self.data_start as u64;
-                let cb = compress(
-                    &self.fragment_bytes,
-                    self.compressor,
-                    &self.compression_options,
-                    self.block_size,
-                )
-                .unwrap();
-                let size = cb.len() as u32;
-                let frag = Fragment {
-                    start,
-                    size,
-                    unused: 0,
-                };
-                self.fragment_table.push(frag);
-                self.data_bytes.write_all(&cb).unwrap();
-
-                self.fragment_bytes = Vec::with_capacity(self.block_size as usize);
+                self.finalize();
             }
 
             // add to fragment bytes
@@ -133,10 +116,7 @@ impl DataWriter {
             // Add to data bytes
             let blocks_start = self.data_bytes.len() as u32 + self.data_start;
             let mut block_sizes = vec![];
-            loop {
-                if chunk.is_empty() {
-                    break;
-                }
+            while !chunk.is_empty() {
                 let cb = compress(
                     chunk,
                     self.compressor,
@@ -168,7 +148,8 @@ impl DataWriter {
         }
     }
 
-    /// Compress the fragments that were under length, add to fragment table
+    /// Compress the fragments that were under length, write to data, add to fragment table, clear
+    /// current fragment_bytes
     pub fn finalize(&mut self) {
         let start = self.data_bytes.len() as u64 + self.data_start as u64;
         let cb = compress(
@@ -178,12 +159,24 @@ impl DataWriter {
             self.block_size,
         )
         .unwrap();
-        let size = cb.len() as u32;
+
+        // compression didn't reduce size
+        let size = if cb.len() > self.fragment_bytes.len() {
+            // store uncompressed
+            self.data_bytes.write_all(&self.fragment_bytes).unwrap();
+            println!("u: {:02x?} {:02x?}", cb.len(), self.fragment_bytes.len());
+            DATA_STORED_UNCOMPRESSED | self.fragment_bytes.len() as u32
+        } else {
+            // store compressed
+            println!("c: {:02x?} {:02x?}", cb.len(), self.fragment_bytes.len());
+            self.data_bytes.write_all(&cb).unwrap();
+            cb.len() as u32
+        };
         self.fragment_table.push(Fragment {
             start,
             size,
             unused: 0,
         });
-        self.data_bytes.write_all(&cb).unwrap();
+        self.fragment_bytes.clear();
     }
 }

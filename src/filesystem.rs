@@ -436,24 +436,16 @@ impl<'a> FilesystemWriter<'a> {
         let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
 
         info!("Creating Inodes and Dirs");
-        let mut inode = 1;
-
         //trace!("TREE: {:#02x?}", tree);
-        let (_, root_inode) = tree.write(
-            &mut inode,
-            w,
-            &mut inode_writer,
-            &mut dir_writer,
-            &mut data_writer,
-            0,
-        )?;
+        let (_, root_inode) =
+            tree.write(w, &mut inode_writer, &mut dir_writer, &mut data_writer, 0)?;
 
         // Compress everything
         info!("Writing Data");
         data_writer.finalize(w);
 
         superblock.root_inode = root_inode;
-        superblock.inode_count = inode - 1;
+        superblock.inode_count = self.nodes.len() as u32 + 1; // + 1 for the "/"
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;

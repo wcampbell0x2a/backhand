@@ -44,7 +44,7 @@ write_filesystem.push_file(new_file, "/root/dune", d);
 
 // modify file
 let bytes = Cursor::new(b"The sleeper must awaken.\n");
-let file = write_filesystem.replace_file("/a/b/c/d/e/first_file", bytes).unwrap();
+write_filesystem.replace_file("/a/b/c/d/e/first_file", bytes).unwrap();
 
 // write into a new file
 let mut output = File::create("modified.squashfs").unwrap();

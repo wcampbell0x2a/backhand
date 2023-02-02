@@ -10,6 +10,7 @@ use crate::fragment::Fragment;
 // bitflag for data size field in inode for signifying that the data is uncompressed
 pub(crate) const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
+#[derive(Debug, Clone)]
 pub(crate) enum Added {
     // Only Data was added
     Data {

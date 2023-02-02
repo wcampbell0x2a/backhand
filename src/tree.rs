@@ -5,17 +5,17 @@ use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
 use deku::DekuContainerWrite;
-use tracing::{instrument, trace};
+use tracing::trace;
 
-use crate::data::DataWriter;
+use crate::data::{Added, DataWriter};
 use crate::entry::Entry;
 use crate::error::SquashfsError;
 use crate::filesystem::{
     FilesystemWriter, InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileWriter, SquashfsSymlink,
 };
-use crate::inode::Inode;
 use crate::metadata::MetadataWriter;
+use crate::FilesystemHeader;
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();
@@ -44,7 +44,8 @@ pub(crate) struct TreeNode<'a, 'b> {
 
 #[derive(Debug)]
 pub(crate) enum InnerTreeNode<'a, 'b> {
-    File(&'b SquashfsFileWriter<'a>),
+    FilePhase1(&'b SquashfsFileWriter<'a>),
+    FilePhase2(usize, Added, &'b FilesystemHeader),
     Symlink(&'b SquashfsSymlink),
     Dir(&'b SquashfsDir, BTreeMap<OsString, TreeNode<'a, 'b>>),
     CharacterDevice(&'b SquashfsCharacterDevice),
@@ -65,7 +66,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         inner_node: &'b InnerNode<SquashfsFileWriter<'a>>,
     ) -> Self {
         let inner = match inner_node {
-            InnerNode::File(file) => InnerTreeNode::File(file),
+            InnerNode::File(file) => InnerTreeNode::FilePhase1(file),
             InnerNode::Symlink(sym) => InnerTreeNode::Symlink(sym),
             InnerNode::Dir(dir) => InnerTreeNode::Dir(dir, BTreeMap::new()),
             InnerNode::CharacterDevice(char) => InnerTreeNode::CharacterDevice(char),
@@ -132,14 +133,29 @@ impl<'a, 'b> TreeNode<'a, 'b> {
     /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    #[instrument(skip_all)]
-    #[allow(clippy::type_complexity)]
-    pub fn write<W: Write + Seek>(
-        &'b self,
+    pub fn write_data<W: Write + Seek>(
+        &mut self,
         writer: &mut W,
+        data_writer: &mut DataWriter,
+    ) -> Result<(), SquashfsError> {
+        match &mut self.inner {
+            InnerTreeNode::FilePhase1(file) => {
+                let (filesize, added) =
+                    data_writer.add_bytes(file.reader.borrow_mut().as_mut(), writer);
+                self.inner = InnerTreeNode::FilePhase2(filesize, added, &file.header);
+            },
+            InnerTreeNode::Dir(_path, dir) => {
+                dir.values_mut()
+                    .try_for_each(|child| child.write_data(writer, data_writer))?;
+            },
+            _ => (),
+        }
+        Ok(())
+    }
+    pub fn write_other(
+        &'b self,
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
-        data_writer: &'_ mut DataWriter,
         parent_inode: u32,
     ) -> Result<(Option<Entry>, u64), SquashfsError> {
         // If no children, just return since it doesn't have anything recursive/new
@@ -162,8 +178,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
 
         // tree has children, this is a Dir, get information of every child node
         for child in dir.values() {
-            let (l_dir_entries, _) =
-                child.write(writer, inode_writer, dir_writer, data_writer, this_inode)?;
+            let (l_dir_entries, _) = child.write_other(inode_writer, dir_writer, this_inode)?;
             if let Some(entry) = l_dir_entries {
                 write_entries.push(entry);
             }
@@ -182,13 +197,13 @@ impl<'a, 'b> TreeNode<'a, 'b> {
                     dir_writer.uncompressed_bytes.len() as u16,
                     dir_writer.metadata_start,
                 ),
-                InnerTreeNode::File(file) => Entry::file(
+                InnerTreeNode::FilePhase2(filesize, added, header) => Entry::file(
                     node.name(),
-                    file,
-                    writer,
+                    header,
                     node.inode_id,
-                    data_writer,
                     inode_writer,
+                    *filesize,
+                    added,
                 ),
                 InnerTreeNode::Symlink(symlink) => {
                     Entry::symlink(node.name(), symlink, node.inode_id, inode_writer)
@@ -199,6 +214,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
                 InnerTreeNode::BlockDevice(block) => {
                     Entry::block_device(node.name(), block, node.inode_id, inode_writer)
                 },
+                _ => unreachable!(),
             };
             write_entries.push(entry);
         }

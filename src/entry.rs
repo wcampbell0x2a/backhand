@@ -1,20 +1,20 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::io::{Seek, Write};
 use std::os::unix::prelude::OsStrExt;
 
 use tracing::{instrument, trace};
 
-use crate::data::{Added, DataWriter};
+use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
 use crate::filesystem::{
-    SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsFileWriter, SquashfsSymlink,
+    SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
 use crate::inode::{
     BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
     InodeInner,
 };
 use crate::metadata::MetadataWriter;
+use crate::FilesystemHeader;
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {
@@ -60,27 +60,25 @@ impl<'a> Entry<'a> {
         dir_inode.to_bytes(name.as_bytes(), inode_writer)
     }
     /// Write data and metadata for file node
-    pub fn file<W: Write + Seek>(
+    pub fn file(
         node_path: &'a OsStr,
-        file: &SquashfsFileWriter<'_>,
-        writer: &mut W,
+        header: &FilesystemHeader,
         inode: u32,
-        data_writer: &mut DataWriter,
         inode_writer: &mut MetadataWriter,
+        file_size: usize,
+        added: &Added,
     ) -> Self {
-        let (file_size, added) = data_writer.add_bytes(file.reader.borrow_mut().as_mut(), writer);
-
         let basic_file = match added {
             Added::Data {
                 blocks_start,
                 block_sizes,
             } => {
                 BasicFile {
-                    blocks_start,
+                    blocks_start: *blocks_start,
                     frag_index: 0xffffffff, // <- no fragment
                     block_offset: 0x0,      // <- no fragment
                     file_size: file_size.try_into().unwrap(),
-                    block_sizes,
+                    block_sizes: block_sizes.to_vec(),
                 }
             },
             Added::Fragment {
@@ -88,8 +86,8 @@ impl<'a> Entry<'a> {
                 block_offset,
             } => BasicFile {
                 blocks_start: 0,
-                frag_index,
-                block_offset,
+                frag_index: *frag_index,
+                block_offset: *block_offset,
                 file_size: file_size.try_into().unwrap(),
                 block_sizes: vec![],
             },
@@ -99,7 +97,7 @@ impl<'a> Entry<'a> {
             id: InodeId::BasicFile,
             header: InodeHeader {
                 inode_number: inode,
-                ..file.header.into()
+                ..header.to_owned().into()
             },
             inner: InodeInner::BasicFile(basic_file),
         };

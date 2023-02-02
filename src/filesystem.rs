@@ -426,7 +426,7 @@ impl<'a> FilesystemWriter<'a> {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let tree: TreeNode = self.into();
+        let mut tree: TreeNode = self.into();
         info!("Tree Created");
 
         // Empty Squashfs Superblock
@@ -437,12 +437,12 @@ impl<'a> FilesystemWriter<'a> {
 
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", tree);
-        let (_, root_inode) =
-            tree.write(w, &mut inode_writer, &mut dir_writer, &mut data_writer, 0)?;
-
-        // Compress everything
         info!("Writing Data");
+        tree.write_data(w, &mut data_writer)?;
+        // Compress fragments and write
         data_writer.finalize(w);
+
+        let (_, root_inode) = tree.write_other(&mut inode_writer, &mut dir_writer, 0)?;
 
         superblock.root_inode = root_inode;
         superblock.inode_count = self.nodes.len() as u32 + 1; // + 1 for the "/"

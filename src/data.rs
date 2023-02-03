@@ -114,12 +114,13 @@ impl DataWriter {
                 self.fragment_table.push(frag);
                 writer.write_all(&cb).unwrap();
 
-                self.fragment_bytes = Vec::with_capacity(self.block_size as usize);
+                self.fragment_bytes = vec![];
             }
 
             // add to fragment bytes
             let frag_index = self.fragment_table.len() as u32;
             let block_offset = self.fragment_bytes.len() as u32;
+            assert!(self.fragment_bytes.len() < 10_000_000);
             self.fragment_bytes.write_all(chunk).unwrap();
 
             (

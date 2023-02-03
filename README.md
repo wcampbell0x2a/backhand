@@ -35,7 +35,7 @@ let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).un
 
 // add file with data from slice
 let d = FilesystemHeader::default();
-let bytes = std::io::Cursor::new(b"Fear is the mind-killer.");
+let bytes = Cursor::new(b"Fear is the mind-killer.");
 write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 
 // add file with data from file
@@ -44,7 +44,7 @@ write_filesystem.push_file(new_file, "/root/dune", d);
 
 // modify file
 let bytes = Cursor::new(b"The sleeper must awaken.\n");
-let file = write_filesystem.replace_file("/a/b/c/d/e/first_file", bytes).unwrap();
+write_filesystem.replace_file("/a/b/c/d/e/first_file", bytes).unwrap();
 
 // write into a new file
 let mut output = File::create("modified.squashfs").unwrap();

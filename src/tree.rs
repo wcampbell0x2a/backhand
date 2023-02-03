@@ -94,8 +94,8 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         match (is_file, children) {
             //this file already exists
             (true, Some(_file)) => {
-                //TODO directory is allowed to be duplicated???
-                //todo!("Error File already exists in the tree {:?}", &node.fullpath)
+                //TODO directory is allowed to be duplicated??? ignore the second file?
+                ()
             },
             //this file don't exist in this dir, add it
             (true, None) => {
@@ -128,11 +128,6 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         }
     }
 
-    /// Create SquashFS file system from each node of Tree
-    ///
-    /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
-    /// keeps track of parent directories by calling this function on all nodes of a dir to get only
-    /// the nodes, but going into the child dirs in the case that it contains a child dir.
     pub fn write_data<W: Write + Seek>(
         &mut self,
         writer: &mut W,
@@ -141,7 +136,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         match &mut self.inner {
             InnerTreeNode::FilePhase1(file) => {
                 let (filesize, added) =
-                    data_writer.add_bytes(file.reader.borrow_mut().as_mut(), writer);
+                    data_writer.add_bytes(file.reader.borrow_mut().as_mut(), writer)?;
                 self.inner = InnerTreeNode::FilePhase2(filesize, added, &file.header);
             },
             InnerTreeNode::Dir(_path, dir) => {
@@ -152,7 +147,12 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         }
         Ok(())
     }
-    pub fn write_other(
+    /// Create SquashFS file system from each node of Tree
+    ///
+    /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
+    /// keeps track of parent directories by calling this function on all nodes of a dir to get only
+    /// the nodes, but going into the child dirs in the case that it contains a child dir.
+    pub fn write_inode_dir(
         &'b self,
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
@@ -178,7 +178,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
 
         // tree has children, this is a Dir, get information of every child node
         for child in dir.values() {
-            let (l_dir_entries, _) = child.write_other(inode_writer, dir_writer, this_inode)?;
+            let (l_dir_entries, _) = child.write_inode_dir(inode_writer, dir_writer, this_inode)?;
             if let Some(entry) = l_dir_entries {
                 write_entries.push(entry);
             }

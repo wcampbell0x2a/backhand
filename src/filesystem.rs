@@ -458,7 +458,7 @@ impl<'a> FilesystemWriter<'a> {
         data_writer.finalize(w);
 
         info!("Writing Other stuff");
-        let (_, root_inode) = tree.write_other(&mut inode_writer, &mut dir_writer, 0)?;
+        let (_, root_inode) = tree.write_inode_dir(&mut inode_writer, &mut dir_writer, 0)?;
 
         superblock.root_inode = root_inode;
         superblock.inode_count = self.nodes.len() as u32 + 1; // + 1 for the "/"

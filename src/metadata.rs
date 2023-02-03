@@ -45,8 +45,8 @@ impl MetadataWriter {
         for cb in &self.compressed_bytes {
             trace!("len: {:02x?}", cb.len());
             //trace!("total: {:02x?}", out.len());
-            out.write_all(&(cb.len() as u16).to_le_bytes()).unwrap();
-            out.write_all(cb).unwrap();
+            out.write_all(&(cb.len() as u16).to_le_bytes())?;
+            out.write_all(cb)?;
         }
 
         let b = compressor::compress(
@@ -54,13 +54,12 @@ impl MetadataWriter {
             self.compressor,
             &self.compression_options,
             self.block_size,
-        )
-        .unwrap();
+        )?;
 
         trace!("len: {:02x?}", b.len());
         //trace!("total: {:02x?}", out.len());
-        out.write_all(&(b.len() as u16).to_le_bytes()).unwrap();
-        out.write_all(&b).unwrap();
+        out.write_all(&(b.len() as u16).to_le_bytes())?;
+        out.write_all(&b)?;
         Ok(())
     }
 }
@@ -79,8 +78,7 @@ impl Write for MetadataWriter {
                 self.compressor,
                 &self.compression_options,
                 self.block_size,
-            )
-            .unwrap();
+            )?;
 
             // Metadata len + bytes + last metadata_start
             self.metadata_start += 2 + b.len() as u32;

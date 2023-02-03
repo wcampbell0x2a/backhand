@@ -455,7 +455,7 @@ impl<'a> FilesystemWriter<'a> {
         tree.write_data(w, &mut data_writer)?;
         info!("Writing Data Fragments");
         // Compress fragments and write
-        data_writer.finalize(w);
+        data_writer.finalize(w)?;
 
         info!("Writing Other stuff");
         let (_, root_inode) = tree.write_inode_dir(&mut inode_writer, &mut dir_writer, 0)?;

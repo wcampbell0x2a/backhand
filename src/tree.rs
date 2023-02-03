@@ -95,7 +95,6 @@ impl<'a, 'b> TreeNode<'a, 'b> {
             //this file already exists
             (true, Some(_file)) => {
                 //TODO directory is allowed to be duplicated??? ignore the second file?
-                ()
             },
             //this file don't exist in this dir, add it
             (true, None) => {

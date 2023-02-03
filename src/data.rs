@@ -104,7 +104,7 @@ impl DataWriter {
             let frag_index = self.fragment_table.len() as u32;
             let block_offset = self.fragment_bytes.len() as u32;
             assert!(self.fragment_bytes.len() < 10_000_000);
-            self.fragment_bytes.write_all(chunk).unwrap();
+            self.fragment_bytes.write_all(chunk)?;
 
             Ok((
                 chunk_reader.file_len,
@@ -123,20 +123,19 @@ impl DataWriter {
                     self.compressor,
                     &self.compression_options,
                     self.block_size,
-                )
-                .unwrap();
+                )?;
 
                 // compression didn't reduce size
                 if cb.len() > chunk.len() {
                     // store uncompressed
                     block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
-                    writer.write_all(chunk).unwrap();
+                    writer.write_all(chunk)?;
                 } else {
                     // store compressed
                     block_sizes.push(cb.len() as u32);
-                    writer.write_all(&cb).unwrap();
+                    writer.write_all(&cb)?;
                 }
-                chunk = chunk_reader.read_chunk().unwrap();
+                chunk = chunk_reader.read_chunk()?;
             }
 
             Ok((

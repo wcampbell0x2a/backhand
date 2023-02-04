@@ -103,7 +103,6 @@ impl DataWriter {
             // add to fragment bytes
             let frag_index = self.fragment_table.len() as u32;
             let block_offset = self.fragment_bytes.len() as u32;
-            assert!(self.fragment_bytes.len() < 10_000_000);
             self.fragment_bytes.write_all(chunk)?;
 
             Ok((
@@ -163,11 +162,9 @@ impl DataWriter {
         let size = if cb.len() > self.fragment_bytes.len() {
             // store uncompressed
             writer.write_all(&self.fragment_bytes)?;
-            println!("u: {:02x?} {:02x?}", cb.len(), self.fragment_bytes.len());
             DATA_STORED_UNCOMPRESSED | self.fragment_bytes.len() as u32
         } else {
             // store compressed
-            println!("c: {:02x?} {:02x?}", cb.len(), self.fragment_bytes.len());
             writer.write_all(&cb)?;
             cb.len() as u32
         };

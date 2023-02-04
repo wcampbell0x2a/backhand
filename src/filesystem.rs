@@ -134,7 +134,7 @@ impl<'a, R: SquashFsReader> Read for FilesystemFileReader<'a, R> {
                 return Ok(0);
             },
         }
-        //r1eturn data from the read block/fragment
+        //return data from the read block/fragment
         let read = inner.read_available(buf);
         if read == 0 {
             self.0 = None;

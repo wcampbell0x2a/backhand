@@ -21,7 +21,7 @@ use crate::filesystem::{
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::metadata;
-use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
+use crate::reader::{ReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
@@ -195,7 +195,7 @@ pub struct Cache {
 /// the struct types, while data stays compressed.
 ///
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
-pub struct Squashfs<R: SquashFsReader> {
+pub struct Squashfs<R: ReadSeek> {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
@@ -220,7 +220,7 @@ pub struct Squashfs<R: SquashFsReader> {
     file: R,
 }
 
-impl<R: SquashFsReader> Squashfs<R> {
+impl<R: ReadSeek> Squashfs<R> {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
@@ -229,7 +229,7 @@ impl<R: SquashFsReader> Squashfs<R> {
     }
 }
 
-impl<R: SquashFsReader> Squashfs<SquashfsReaderWithOffset<R>> {
+impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
     pub fn from_reader_with_offset(
         reader: R,
@@ -238,7 +238,7 @@ impl<R: SquashFsReader> Squashfs<SquashfsReaderWithOffset<R>> {
         Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset))
     }
 }
-impl<R: SquashFsReader> Squashfs<R> {
+impl<R: ReadSeek> Squashfs<R> {
     #[instrument(skip_all)]
     fn inner_from_reader(mut reader: R) -> Result<Squashfs<R>, SquashfsError> {
         reader.rewind()?;

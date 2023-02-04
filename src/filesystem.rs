@@ -14,7 +14,7 @@ use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, InodeHeader};
 use crate::metadata::{self, MetadataWriter};
-use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
+use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
 use crate::squashfs::{Cache, Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::{fragment, Squashfs};
@@ -22,7 +22,7 @@ use crate::{fragment, Squashfs};
 /// In-memory representation of a Squashfs image with extracted files and other information needed
 /// to create an on-disk image.
 #[derive(Debug)]
-pub struct FilesystemReader<R: SquashFsReader> {
+pub struct FilesystemReader<R: ReadSeek> {
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
@@ -47,7 +47,7 @@ pub struct FilesystemReader<R: SquashFsReader> {
     pub(crate) cache: RefCell<Cache>,
 }
 
-impl<R: SquashFsReader> FilesystemReader<R> {
+impl<R: ReadSeek> FilesystemReader<R> {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     pub fn from_reader(reader: R) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader(reader)?;
@@ -55,7 +55,7 @@ impl<R: SquashFsReader> FilesystemReader<R> {
     }
 }
 
-impl<R: SquashFsReader> FilesystemReader<SquashfsReaderWithOffset<R>> {
+impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
     pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
@@ -63,7 +63,7 @@ impl<R: SquashFsReader> FilesystemReader<SquashfsReaderWithOffset<R>> {
     }
 }
 
-impl<R: SquashFsReader> FilesystemReader<R> {
+impl<R: ReadSeek> FilesystemReader<R> {
     /// From file details, extract FileBytes
     pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> impl Read + 'a {
         FilesystemFileReader::new(self, basic_file)
@@ -93,8 +93,8 @@ impl<R: SquashFsReader> FilesystemReader<R> {
     }
 }
 
-struct FilesystemFileReader<'a, R: SquashFsReader>(Option<InnerFilesystemFileReader<'a, R>>);
-impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
+struct FilesystemFileReader<'a, R: ReadSeek>(Option<InnerFilesystemFileReader<'a, R>>);
+impl<'a, R: ReadSeek> FilesystemFileReader<'a, R> {
     pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
         Self(Some(InnerFilesystemFileReader {
             filesystem,
@@ -106,7 +106,7 @@ impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
         }))
     }
 }
-impl<'a, R: SquashFsReader> Read for FilesystemFileReader<'a, R> {
+impl<'a, R: ReadSeek> Read for FilesystemFileReader<'a, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let inner = if let Some(inner) = &mut self.0 {
             inner
@@ -142,7 +142,7 @@ impl<'a, R: SquashFsReader> Read for FilesystemFileReader<'a, R> {
         Ok(read)
     }
 }
-struct InnerFilesystemFileReader<'a, R: SquashFsReader> {
+struct InnerFilesystemFileReader<'a, R: ReadSeek> {
     filesystem: &'a FilesystemReader<R>,
     file: &'a BasicFile,
     last_read: Vec<u8>,
@@ -151,7 +151,7 @@ struct InnerFilesystemFileReader<'a, R: SquashFsReader> {
     bytes_available: usize,
     pos: u64,
 }
-impl<'a, R: SquashFsReader> InnerFilesystemFileReader<'a, R> {
+impl<'a, R: ReadSeek> InnerFilesystemFileReader<'a, R> {
     pub fn read_block(&mut self, block: usize) -> Result<(), SquashfsError> {
         self.current_block = Some(block + 1);
         let block_size = self.file.block_sizes[block];
@@ -236,7 +236,7 @@ pub struct FilesystemWriter<'a> {
 
 impl<'a> FilesystemWriter<'a> {
     /// use the same configuration then an existing SquashFsFile
-    pub fn from_fs_reader<R: SquashFsReader>(
+    pub fn from_fs_reader<R: ReadSeek>(
         reader: &'a FilesystemReader<R>,
     ) -> Result<Self, SquashfsError> {
         let nodes = reader

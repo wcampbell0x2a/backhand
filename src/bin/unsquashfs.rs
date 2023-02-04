@@ -7,7 +7,7 @@ use backhand::filesystem::{
     FilesystemReader, InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsSymlink,
 };
-use backhand::reader::SquashFsReader;
+use backhand::reader::ReadSeek;
 use backhand::Squashfs;
 use clap::Parser;
 use nix::sys::stat::{mknod, Mode, SFlag};
@@ -70,7 +70,7 @@ fn list<R: std::io::Read + std::io::Seek>(filesystem: FilesystemReader<R>) {
     }
 }
 
-fn stat<R: SquashFsReader>(squashfs: Squashfs<R>) {
+fn stat<R: ReadSeek>(squashfs: Squashfs<R>) {
     let superblock = squashfs.superblock;
     // show info about flags
     println!("{superblock:#08x?}");

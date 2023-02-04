@@ -138,9 +138,8 @@ impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
         if self.file.frag_index == 0xffffffff {
             return Ok(());
         }
-        let fragments = match &self.filesystem.fragments {
-            Some(fragments) => fragments,
-            None => return Ok(()),
+        let Some(fragments) = &self.filesystem.fragments else {
+            return Ok(());
         };
         let frag = fragments[self.file.frag_index as usize];
         // use fragment cache if possible

@@ -48,7 +48,7 @@ pub trait SquashFsReader: Read + Seek {
     /// Read in entire data and fragments
     #[instrument(skip_all)]
     fn data_and_fragments(&mut self, superblock: &SuperBlock) -> Result<Vec<u8>, SquashfsError> {
-        self.seek(SeekFrom::Start(0))?;
+        self.rewind()?;
         let mut buf = vec![0u8; superblock.inode_table as usize];
         self.read_exact(&mut buf)?;
         Ok(buf)

@@ -2,24 +2,17 @@
 
 use core::fmt;
 use std::cell::RefCell;
-use std::ffi::OsStr;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::unix::prelude::OsStrExt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use deku::bitvec::{BitVec, Msb0};
-use deku::{DekuContainerWrite, DekuWrite};
+use deku::DekuContainerWrite;
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
-use crate::data::{Added, DataWriter, DATA_STORED_UNCOMPRESSED};
-use crate::entry::Entry;
+use crate::data::{DataWriter, DATA_STORED_UNCOMPRESSED};
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
-use crate::inode::{
-    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
-    InodeInner,
-};
+use crate::inode::{BasicFile, InodeHeader};
 use crate::metadata::{self, MetadataWriter};
 use crate::reader::{SquashFsReader, SquashfsReaderWithOffset};
 use crate::squashfs::{Cache, Id, SuperBlock};
@@ -100,7 +93,56 @@ impl<R: SquashFsReader> FilesystemReader<R> {
     }
 }
 
-struct FilesystemFileReader<'a, R: SquashFsReader> {
+struct FilesystemFileReader<'a, R: SquashFsReader>(Option<InnerFilesystemFileReader<'a, R>>);
+impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
+    pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
+        Self(Some(InnerFilesystemFileReader {
+            filesystem,
+            file,
+            last_read: vec![],
+            current_block: Some(0),
+            bytes_available: file.file_size as usize,
+            pos: file.blocks_start.into(),
+        }))
+    }
+}
+impl<'a, R: SquashFsReader> Read for FilesystemFileReader<'a, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let inner = if let Some(inner) = &mut self.0 {
+            inner
+        } else {
+            return Ok(0);
+        };
+        //if we already read the whole file, then we can return EoF
+        if inner.bytes_available == 0 {
+            self.0 = None;
+            return Ok(0);
+        }
+        //if there is data available from the last read, consume it
+        if !inner.last_read.is_empty() {
+            return Ok(inner.read_available(buf));
+        }
+        //read a block/fragment
+        match inner.current_block {
+            //no more blocks, try a fragment
+            Some(block) if block == inner.file.block_sizes.len() => inner.read_fragment()?,
+            //read the block
+            Some(block) => inner.read_block(block)?,
+            //no more data to read, return EoF
+            None => {
+                self.0 = None;
+                return Ok(0);
+            },
+        }
+        //return data from the read block/fragment
+        let read = inner.read_available(buf);
+        if read == 0 {
+            self.0 = None;
+        }
+        Ok(read)
+    }
+}
+struct InnerFilesystemFileReader<'a, R: SquashFsReader> {
     filesystem: &'a FilesystemReader<R>,
     file: &'a BasicFile,
     last_read: Vec<u8>,
@@ -109,18 +151,7 @@ struct FilesystemFileReader<'a, R: SquashFsReader> {
     bytes_available: usize,
     pos: u64,
 }
-impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
-    pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
-        Self {
-            filesystem,
-            file,
-            last_read: vec![],
-            current_block: Some(0),
-            bytes_available: file.file_size as usize,
-            pos: file.blocks_start.into(),
-        }
-    }
-
+impl<'a, R: SquashFsReader> InnerFilesystemFileReader<'a, R> {
     pub fn read_block(&mut self, block: usize) -> Result<(), SquashfsError> {
         self.current_block = Some(block + 1);
         let block_size = self.file.block_sizes[block];
@@ -174,33 +205,9 @@ impl<'a, R: SquashFsReader> FilesystemFileReader<'a, R> {
             .min(self.last_read.len())
             .min(self.bytes_available);
         buf[..read_len].copy_from_slice(&self.last_read[..read_len]);
-        self.last_read = self.last_read.split_off(read_len);
+        self.last_read.drain(..read_len);
         self.bytes_available -= read_len;
         read_len
-    }
-}
-
-impl<'a, R: SquashFsReader> Read for FilesystemFileReader<'a, R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        //if we already read the whole file, then we can return EoF
-        if self.bytes_available == 0 {
-            return Ok(0);
-        }
-        //if there is data available from the last read, consume it
-        if !self.last_read.is_empty() {
-            return Ok(self.read_available(buf));
-        }
-        //read a block/fragment
-        match self.current_block {
-            //no more blocks, try a fragment
-            Some(block) if block == self.file.block_sizes.len() => self.read_fragment()?,
-            //read the block
-            Some(block) => self.read_block(block)?,
-            //no more data to read, return EoF
-            None => return Ok(0),
-        }
-        //return data from the read block/fragment
-        Ok(self.read_available(buf))
     }
 }
 
@@ -223,7 +230,7 @@ pub struct FilesystemWriter<'a> {
     pub id_table: Option<Vec<Id>>,
     /// Information for the `/` node
     pub root_inode: SquashfsDir,
-    /// All files and directories in filesystem
+    /// All files and directories in filesystem, including root
     pub nodes: Vec<Node<SquashfsFileWriter<'a>>>,
 }
 
@@ -414,304 +421,6 @@ impl<'a> FilesystemWriter<'a> {
         Ok(())
     }
 
-    /// Create SquashFS file system from each node of Tree
-    ///
-    /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
-    /// keeps track of parent directories by calling this function on all nodes of a dir to get only
-    /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    #[instrument(skip_all)]
-    #[allow(clippy::type_complexity)]
-    fn write_node<'b>(
-        tree: &'b TreeNode<'a, 'b>,
-        inode: &'_ mut u32,
-        inode_writer: &'_ mut MetadataWriter,
-        dir_writer: &'_ mut MetadataWriter,
-        data_writer: &'_ mut DataWriter,
-        dir_parent_inode: u32,
-    ) -> Result<
-        (
-            Vec<Entry>,
-            Vec<(&'b OsStr, &'b InnerNode<SquashfsFileWriter<'a>>)>,
-            u64,
-        ),
-        SquashfsError,
-    > {
-        let mut nodes = vec![];
-        let mut ret_entries = vec![];
-        let mut root_inode = 0;
-
-        // If no children, just return this entry since it doesn't have anything recursive/new
-        // directories
-        if tree.children.is_empty() {
-            nodes.push((tree.name(), tree.node.unwrap()));
-            return Ok((ret_entries, nodes, root_inode));
-        }
-
-        // ladies and gentlemen, we have a directory
-        let mut write_entries = vec![];
-        let mut child_dir_entries = vec![];
-        let mut child_dir_nodes = vec![];
-
-        // store parent Inode, this is used for child Dirs, as they will need this to reference
-        // back to this
-        let parent_inode = *inode;
-        *inode += 1;
-
-        // tree has children, this is a Dir, get information of every child node
-        for (_, child) in tree.children.iter() {
-            let (mut l_dir_entries, mut l_dir_nodes, _) = Self::write_node(
-                child,
-                inode,
-                inode_writer,
-                dir_writer,
-                data_writer,
-                parent_inode,
-            )?;
-            child_dir_entries.append(&mut l_dir_entries);
-            child_dir_nodes.append(&mut l_dir_nodes);
-        }
-        write_entries.append(&mut child_dir_entries);
-
-        // write child inodes
-        for (name, node) in &child_dir_nodes {
-            let node_path = PathBuf::from(name);
-            let entry = match node {
-                InnerNode::Dir(path) => Self::path(
-                    name,
-                    path.clone(),
-                    inode,
-                    parent_inode,
-                    dir_writer,
-                    inode_writer,
-                ),
-                InnerNode::File(file) => {
-                    Self::file(node_path, file, inode, data_writer, inode_writer)
-                },
-                InnerNode::Symlink(symlink) => {
-                    Self::symlink(&node_path, symlink, inode, inode_writer)
-                },
-                InnerNode::CharacterDevice(char) => {
-                    Self::char(node_path, char, inode, inode_writer)
-                },
-                InnerNode::BlockDevice(block) => {
-                    Self::block_device(node_path, block, inode, inode_writer)
-                },
-            };
-            write_entries.push(entry);
-            *inode += 1;
-        }
-
-        // write dir
-        let block_index = dir_writer.metadata_start;
-        let block_offset = dir_writer.uncompressed_bytes.len() as u16;
-        trace!("WRITING DIR: {block_offset:#02x?}");
-        let mut total_size = 3;
-        for dir in Entry::into_dir(&mut write_entries) {
-            trace!("WRITING DIR: {dir:#02x?}");
-            let bytes = dir.to_bytes()?;
-            total_size += bytes.len() as u16;
-            dir_writer.write_all(&bytes)?;
-        }
-
-        //trace!("BEFORE: {:#02x?}", child);
-        let offset = inode_writer.uncompressed_bytes.len() as u16;
-        let start = inode_writer.metadata_start;
-        let entry = Entry {
-            start,
-            offset,
-            inode: parent_inode,
-            t: InodeId::BasicDirectory,
-            name_size: tree.name().len() as u16 - 1,
-            name: tree.name().as_bytes().to_vec(),
-        };
-        trace!("ENTRY: {entry:#02x?}");
-        ret_entries.push(entry);
-
-        let path_node = if let Some(InnerNode::Dir(node)) = &tree.node {
-            node.clone()
-        } else {
-            panic!();
-        };
-
-        // write parent_inode
-        let dir_inode = Inode {
-            id: InodeId::BasicDirectory,
-            header: InodeHeader {
-                permissions: path_node.header.permissions,
-                uid: path_node.header.uid,
-                gid: path_node.header.gid,
-                mtime: path_node.header.mtime,
-                inode_number: parent_inode,
-            },
-            inner: InodeInner::BasicDirectory(BasicDirectory {
-                block_index,
-                link_count: 2, // <- TODO: set this
-                file_size: total_size,
-                block_offset,
-                parent_inode: dir_parent_inode,
-            }),
-        };
-
-        let mut v = BitVec::<u8, Msb0>::new();
-        dir_inode.write(&mut v, (0, 0))?;
-        let bytes = v.as_raw_slice().to_vec();
-        inode_writer.write_all(&bytes)?;
-        root_inode = ((start as u64) << 16) | ((offset as u64) & 0xffff);
-
-        trace!("[{:?}] entries: {ret_entries:#02x?}", tree.name());
-        trace!("[{:?}] nodes: {nodes:#02x?}", tree.name());
-        Ok((ret_entries, nodes, root_inode))
-    }
-
-    /// Write data and metadata for path node
-    fn path(
-        name: &OsStr,
-        path: SquashfsDir,
-        inode: &mut u32,
-        parent_inode: u32,
-        dir_writer: &MetadataWriter,
-        inode_writer: &mut MetadataWriter,
-    ) -> Entry {
-        let block_offset = dir_writer.uncompressed_bytes.len() as u16;
-        let block_index = dir_writer.metadata_start;
-        let dir_inode = Inode {
-            id: InodeId::BasicDirectory,
-            header: InodeHeader {
-                inode_number: *inode,
-                ..path.header.into()
-            },
-            inner: InodeInner::BasicDirectory(BasicDirectory {
-                block_index,
-                link_count: 2,
-                // Empty path
-                file_size: 3,
-                block_offset,
-                parent_inode,
-            }),
-        };
-
-        dir_inode.to_bytes(name.as_bytes(), inode_writer)
-    }
-
-    /// Write data and metadata for file node
-    fn file(
-        node_path: PathBuf,
-        file: &SquashfsFileWriter<'a>,
-        inode: &mut u32,
-        data_writer: &mut DataWriter,
-        inode_writer: &mut MetadataWriter,
-    ) -> Entry {
-        let (file_size, added) = data_writer.add_bytes(file.reader.borrow_mut().as_mut());
-
-        let basic_file = match added {
-            Added::Data {
-                blocks_start,
-                block_sizes,
-            } => {
-                BasicFile {
-                    blocks_start,
-                    frag_index: 0xffffffff, // <- no fragment
-                    block_offset: 0x0,      // <- no fragment
-                    file_size: file_size.try_into().unwrap(),
-                    block_sizes,
-                }
-            },
-            Added::Fragment {
-                frag_index,
-                block_offset,
-            } => BasicFile {
-                blocks_start: 0,
-                frag_index,
-                block_offset,
-                file_size: file_size.try_into().unwrap(),
-                block_sizes: vec![],
-            },
-        };
-
-        let file_inode = Inode {
-            id: InodeId::BasicFile,
-            header: InodeHeader {
-                inode_number: *inode,
-                ..file.header.into()
-            },
-            inner: InodeInner::BasicFile(basic_file),
-        };
-
-        let file_name = node_path.file_name().unwrap();
-        file_inode.to_bytes(file_name.as_bytes(), inode_writer)
-    }
-
-    /// Write data and metadata for symlink node
-    fn symlink(
-        path: &Path,
-        symlink: &SquashfsSymlink,
-        inode: &mut u32,
-        inode_writer: &mut MetadataWriter,
-    ) -> Entry {
-        let link = symlink.link.as_os_str().as_bytes();
-        let sym_inode = Inode {
-            id: InodeId::BasicSymlink,
-            header: InodeHeader {
-                inode_number: *inode,
-                ..symlink.header.into()
-            },
-            inner: InodeInner::BasicSymlink(BasicSymlink {
-                link_count: 0x1,
-                target_size: link.len() as u32,
-                target_path: link.to_vec(),
-            }),
-        };
-
-        let name = path.file_name().unwrap().to_str().unwrap();
-        sym_inode.to_bytes(name.as_bytes(), inode_writer)
-    }
-
-    /// Write data and metadata for char device node
-    fn char(
-        node_path: PathBuf,
-        char_device: &SquashfsCharacterDevice,
-        inode: &mut u32,
-        inode_writer: &mut MetadataWriter,
-    ) -> Entry {
-        let char_inode = Inode {
-            id: InodeId::BasicCharacterDevice,
-            header: InodeHeader {
-                inode_number: *inode,
-                ..char_device.header.into()
-            },
-            inner: InodeInner::BasicCharacterDevice(BasicDeviceSpecialFile {
-                link_count: 0x1,
-                device_number: char_device.device_number,
-            }),
-        };
-
-        let name = node_path.file_name().unwrap().to_str().unwrap();
-        char_inode.to_bytes(name.as_bytes(), inode_writer)
-    }
-
-    /// Write data and metadata for block device node
-    fn block_device(
-        node_path: PathBuf,
-        block_device: &SquashfsBlockDevice,
-        inode: &mut u32,
-        inode_writer: &mut MetadataWriter,
-    ) -> Entry {
-        let block_inode = Inode {
-            id: InodeId::BasicBlockDevice,
-            header: InodeHeader {
-                inode_number: *inode,
-                ..block_device.header.into()
-            },
-            inner: InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
-                link_count: 0x1,
-                device_number: block_device.device_number,
-            }),
-        };
-
-        let name = node_path.file_name().unwrap().to_str().unwrap();
-        block_inode.to_bytes(name.as_bytes(), inode_writer)
-    }
-
     /// Generate the final squashfs file at the offset.
     #[instrument(skip_all)]
     pub fn write_with_offset<W: Write + Seek>(
@@ -731,54 +440,39 @@ impl<'a> FilesystemWriter<'a> {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let mut tree = TreeNode::from(self);
+        let mut tree: TreeNode = self.into();
         info!("Tree Created");
 
-        let data_start = 96;
-
-        let mut data_writer = DataWriter::new(self.compressor, None, data_start, self.block_size);
+        // Empty Squashfs Superblock
+        w.write_all(&[0x00; 96])?;
+        let mut data_writer = DataWriter::new(self.compressor, None, self.block_size);
         let mut inode_writer = MetadataWriter::new(self.compressor, None, self.block_size);
         let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
 
-        // Empty Squashfs
-        w.write_all(&vec![0x00; data_start as usize])?;
-
         info!("Creating Inodes and Dirs");
-        let mut inode = 1;
-
-        // Add the "/" entry
-        let inner = InnerNode::Dir(self.root_inode.clone());
-        tree.node = Some(&inner);
-
         //trace!("TREE: {:#02x?}", tree);
-        let (_, _, root_inode) = Self::write_node(
-            &tree,
-            &mut inode,
-            &mut inode_writer,
-            &mut dir_writer,
-            &mut data_writer,
-            0,
-        )?;
+        info!("Writing Data");
+        tree.write_data(w, &mut data_writer)?;
+        info!("Writing Data Fragments");
+        // Compress fragments and write
+        data_writer.finalize(w)?;
 
-        // Compress everything
-        data_writer.finalize();
+        info!("Writing Other stuff");
+        let (_, root_inode) = tree.write_inode_dir(&mut inode_writer, &mut dir_writer, 0)?;
 
         superblock.root_inode = root_inode;
-        superblock.inode_count = inode - 1;
+        superblock.inode_count = self.nodes.len() as u32 + 1; // + 1 for the "/"
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;
 
-        info!("Writing Data");
-        w.write_all(&data_writer.data_bytes)?;
-
         info!("Writing Inodes");
         superblock.inode_table = w.stream_position()?;
-        w.write_all(&inode_writer.finalize())?;
+        inode_writer.finalize(w)?;
 
         info!("Writing Dirs");
         superblock.dir_table = w.stream_position()?;
-        w.write_all(&dir_writer.finalize())?;
+        dir_writer.finalize(w)?;
 
         info!("Writing Frag Lookup Table");
         Self::write_frag_table(w, data_writer.fragment_table, &mut superblock)?;
@@ -918,7 +612,7 @@ pub struct SquashfsFileWriter<'a> {
 
 impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DirEntry")
+        f.debug_struct("FileWriter")
             .field("header", &self.header)
             .finish()
     }

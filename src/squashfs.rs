@@ -4,7 +4,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::hash::BuildHasherDefault;
-use std::io::SeekFrom;
 use std::os::unix::prelude::OsStringExt;
 use std::path::{Path, PathBuf};
 
@@ -242,7 +241,7 @@ impl<R: SquashFsReader> Squashfs<SquashfsReaderWithOffset<R>> {
 impl<R: SquashFsReader> Squashfs<R> {
     #[instrument(skip_all)]
     fn inner_from_reader(mut reader: R) -> Result<Squashfs<R>, SquashfsError> {
-        reader.seek(SeekFrom::Start(0))?;
+        reader.rewind()?;
 
         // Size of metadata + optional compression options metadata block
         let mut superblock = [0u8; 96];

@@ -1,15 +1,17 @@
 //! File Data
 
-use std::io::{Read, Write};
+use std::io::{Read, Seek, Write};
 
 use tracing::instrument;
 
 use crate::compressor::{compress, CompressionOptions, Compressor};
+use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
 pub(crate) const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
+#[derive(Debug, Clone)]
 pub(crate) enum Added {
     // Only Data was added
     Data {
@@ -53,10 +55,8 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
 #[derive(Debug)]
 pub(crate) struct DataWriter {
     block_size: u32,
-    data_start: u32,
     compressor: Compressor,
     compression_options: Option<CompressionOptions>,
-    pub(crate) data_bytes: Vec<u8>,
     /// Un-written fragment_bytes
     pub(crate) fragment_bytes: Vec<u8>,
     pub(crate) fragment_table: Vec<Fragment>,
@@ -67,15 +67,12 @@ impl DataWriter {
     pub fn new(
         compressor: Compressor,
         compression_options: Option<CompressionOptions>,
-        data_start: u32,
         block_size: u32,
     ) -> Self {
         Self {
             block_size,
-            data_start,
             compressor,
             compression_options,
-            data_bytes: vec![],
             fragment_bytes: Vec::with_capacity(block_size as usize),
             fragment_table: vec![],
         }
@@ -83,38 +80,41 @@ impl DataWriter {
 
     /// Add to data writer, either a Data or Fragment
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
-    pub(crate) fn add_bytes(&mut self, reader: impl Read) -> (usize, Added) {
+    pub(crate) fn add_bytes<W: Write + Seek>(
+        &mut self,
+        reader: impl Read,
+        writer: &mut W,
+    ) -> Result<(usize, Added), SquashfsError> {
         let mut chunk_reader = DataWriterChunkReader {
             chunk: vec![0u8; self.block_size as usize],
             file_len: 0,
             reader,
         };
-        //TODO error
-        let mut chunk = chunk_reader.read_chunk().unwrap();
+        let mut chunk = chunk_reader.read_chunk()?;
 
         // chunk size not exactly the size of the block
         if chunk.len() != self.block_size as usize {
             // if this doesn't fit in the current fragment bytes
             // compress the current fragment bytes and add to data_bytes
             if (chunk.len() + self.fragment_bytes.len()) > self.block_size as usize {
-                self.finalize();
+                self.finalize(writer)?;
             }
 
             // add to fragment bytes
             let frag_index = self.fragment_table.len() as u32;
             let block_offset = self.fragment_bytes.len() as u32;
-            self.fragment_bytes.write_all(chunk).unwrap();
+            self.fragment_bytes.write_all(chunk)?;
 
-            (
+            Ok((
                 chunk_reader.file_len,
                 Added::Fragment {
                     frag_index,
                     block_offset,
                 },
-            )
+            ))
         } else {
             // Add to data bytes
-            let blocks_start = self.data_bytes.len() as u32 + self.data_start;
+            let blocks_start = writer.stream_position()? as u32;
             let mut block_sizes = vec![];
             while !chunk.is_empty() {
                 let cb = compress(
@@ -122,54 +122,50 @@ impl DataWriter {
                     self.compressor,
                     &self.compression_options,
                     self.block_size,
-                )
-                .unwrap();
+                )?;
 
                 // compression didn't reduce size
                 if cb.len() > chunk.len() {
                     // store uncompressed
                     block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
-                    self.data_bytes.write_all(chunk).unwrap();
+                    writer.write_all(chunk)?;
                 } else {
                     // store compressed
                     block_sizes.push(cb.len() as u32);
-                    self.data_bytes.write_all(&cb).unwrap();
+                    writer.write_all(&cb)?;
                 }
-                chunk = chunk_reader.read_chunk().unwrap();
+                chunk = chunk_reader.read_chunk()?;
             }
 
-            (
+            Ok((
                 chunk_reader.file_len,
                 Added::Data {
                     blocks_start,
                     block_sizes,
                 },
-            )
+            ))
         }
     }
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear
     /// current fragment_bytes
-    pub fn finalize(&mut self) {
-        let start = self.data_bytes.len() as u64 + self.data_start as u64;
+    pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), SquashfsError> {
+        let start = writer.stream_position()?;
         let cb = compress(
             &self.fragment_bytes,
             self.compressor,
             &self.compression_options,
             self.block_size,
-        )
-        .unwrap();
+        )?;
 
         // compression didn't reduce size
         let size = if cb.len() > self.fragment_bytes.len() {
             // store uncompressed
-            self.data_bytes.write_all(&self.fragment_bytes).unwrap();
-            println!("u: {:02x?} {:02x?}", cb.len(), self.fragment_bytes.len());
+            writer.write_all(&self.fragment_bytes)?;
             DATA_STORED_UNCOMPRESSED | self.fragment_bytes.len() as u32
         } else {
             // store compressed
-            println!("c: {:02x?} {:02x?}", cb.len(), self.fragment_bytes.len());
-            self.data_bytes.write_all(&cb).unwrap();
+            writer.write_all(&cb)?;
             cb.len() as u32
         };
         self.fragment_table.push(Fragment {
@@ -178,5 +174,6 @@ impl DataWriter {
             unused: 0,
         });
         self.fragment_bytes.clear();
+        Ok(())
     }
 }

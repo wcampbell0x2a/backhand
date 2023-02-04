@@ -23,7 +23,7 @@ pub struct Inode {
 
 impl Inode {
     /// Write to `m_writer`, creating Entry
-    pub(crate) fn to_bytes(&self, name_bytes: &[u8], m_writer: &mut MetadataWriter) -> Entry {
+    pub(crate) fn to_bytes<'a>(&self, name: &'a [u8], m_writer: &mut MetadataWriter) -> Entry<'a> {
         let mut v = BitVec::<u8, Msb0>::new();
         self.write(&mut v, (0, 0)).unwrap();
         let bytes = v.as_raw_slice().to_vec();
@@ -36,8 +36,8 @@ impl Inode {
             offset,
             inode: self.header.inode_number,
             t: self.id,
-            name_size: name_bytes.len() as u16 - 1,
-            name: name_bytes.to_vec(),
+            name_size: name.len() as u16 - 1,
+            name,
         }
     }
 }

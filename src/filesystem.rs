@@ -228,11 +228,24 @@ impl<'a, R: ReadSeek> SeekRewind for SquashfsFile<'a, R> {
     }
 }
 
+/// Used in situations that FilesystemWriter is created without a previously
+/// existing squashfs, if used, just panic.
+pub struct DummyReadSeek;
+impl Read for DummyReadSeek {
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+        unreachable!()
+    }
+}
+impl Seek for DummyReadSeek {
+    fn seek(&mut self, _pos: SeekFrom) -> std::io::Result<u64> {
+        unreachable!()
+    }
+}
 /// In-memory representation of a Squashfs image with extracted files and other information needed
 /// to create an on-disk image. This can be used to create a Squashfs image using
 /// [`FilesystemWriter::to_bytes`].
 #[derive(Debug)]
-pub struct FilesystemWriter<'a, R: ReadSeek> {
+pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`

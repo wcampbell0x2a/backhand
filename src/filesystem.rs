@@ -65,13 +65,14 @@ impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
 
 impl<R: ReadSeek> FilesystemReader<R> {
     /// Return a file handler for this file
-    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemFileReader<'a, R> {
-        FilesystemFileReader::new(self, basic_file)
+    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile<'a, R> {
+        FilesystemReaderFile::new(self, basic_file)
     }
 
     /// Read and return all the bytes from the file
     pub fn read_file(&self, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
-        let mut reader = FilesystemFileReader::new(self, basic_file);
+        let file = FilesystemReaderFile::new(self, basic_file);
+        let mut reader = file.reader();
         let mut bytes = Vec::with_capacity(basic_file.file_size as usize);
         reader.read_to_end(&mut bytes)?;
         Ok(bytes)
@@ -93,68 +94,87 @@ impl<R: ReadSeek> FilesystemReader<R> {
     }
 }
 
-pub struct FilesystemFileReader<'a, R: ReadSeek> {
-    filesystem: &'a FilesystemReader<R>,
-    file: &'a BasicFile,
+#[derive(Clone, Copy)]
+pub struct FilesystemReaderFile<'a, R: ReadSeek> {
+    system: &'a FilesystemReader<R>,
+    basic: &'a BasicFile,
+}
+impl<'a, R: ReadSeek> FilesystemReaderFile<'a, R> {
+    pub fn new(system: &'a FilesystemReader<R>, basic: &'a BasicFile) -> Self {
+        Self { system, basic }
+    }
+    pub fn reader(&self) -> SquashfsFile<'a, R> {
+        SquashfsFile::new(Self {
+            system: self.system,
+            basic: self.basic,
+        })
+    }
+}
+pub struct SquashfsFile<'a, R: ReadSeek> {
+    file: FilesystemReaderFile<'a, R>,
     last_read: Vec<u8>,
     //current block, after all blocks maybe there is a fragment, None is finished
     current_block: Option<usize>,
     bytes_available: usize,
     pos: u64,
 }
-impl<'a, R: ReadSeek> FilesystemFileReader<'a, R> {
-    pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
+impl<'a, R: ReadSeek> SquashfsFile<'a, R> {
+    pub fn new(file: FilesystemReaderFile<'a, R>) -> Self {
+        let bytes_available = file.basic.file_size as usize;
+        let pos = file.basic.blocks_start.into();
         Self {
-            filesystem,
             file,
             last_read: vec![],
             current_block: Some(0),
-            bytes_available: file.file_size as usize,
-            pos: file.blocks_start.into(),
+            bytes_available,
+            pos,
         }
     }
     pub fn read_block(&mut self, block: usize) -> Result<(), SquashfsError> {
         self.current_block = Some(block + 1);
-        let block_size = self.file.block_sizes[block];
-        self.filesystem
+        let block_size = self.file.basic.block_sizes[block];
+        self.file
+            .system
             .reader
             .borrow_mut()
             .seek(SeekFrom::Start(self.pos))?;
-        self.last_read = self.filesystem.read_data(block_size as usize)?;
-        self.pos = self.filesystem.reader.borrow_mut().stream_position()?;
+        self.last_read = self.file.system.read_data(block_size as usize)?;
+        self.pos = self.file.system.reader.borrow_mut().stream_position()?;
         Ok(())
     }
 
     pub fn read_fragment(&mut self) -> Result<(), SquashfsError> {
         self.current_block = None;
-        if self.file.frag_index == 0xffffffff {
+        if self.file.basic.frag_index == 0xffffffff {
             return Ok(());
         }
-        let fragments = match &self.filesystem.fragments {
+        let fragments = match &self.file.system.fragments {
             Some(fragments) => fragments,
             None => return Ok(()),
         };
-        let frag = fragments[self.file.frag_index as usize];
+        let frag = fragments[self.file.basic.frag_index as usize];
         // use fragment cache if possible
-        let cache = self.filesystem.cache.borrow();
+        let cache = self.file.system.cache.borrow();
         match cache.fragment_cache.get(&(frag.start)) {
             Some(cache_bytes) => {
                 let bytes = &cache_bytes.clone();
-                self.last_read = bytes[self.file.block_offset as usize..].to_vec();
+                self.last_read = bytes[self.file.basic.block_offset as usize..].to_vec();
             },
             None => {
-                self.filesystem
+                self.file
+                    .system
                     .reader
                     .borrow_mut()
                     .seek(SeekFrom::Start(frag.start))?;
-                let bytes = self.filesystem.read_data(frag.size as usize)?;
+                let bytes = self.file.system.read_data(frag.size as usize)?;
                 drop(cache);
-                self.filesystem
+                self.file
+                    .system
                     .cache
                     .borrow_mut()
                     .fragment_cache
                     .insert(frag.start, bytes.clone());
-                self.last_read = bytes[self.file.block_offset as usize..].to_vec();
+                self.last_read = bytes[self.file.basic.block_offset as usize..].to_vec();
             },
         }
         Ok(())
@@ -171,7 +191,7 @@ impl<'a, R: ReadSeek> FilesystemFileReader<'a, R> {
         read_len
     }
 }
-impl<'a, R: ReadSeek> Read for FilesystemFileReader<'a, R> {
+impl<'a, R: ReadSeek> Read for SquashfsFile<'a, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         //if we already read the whole file, then we can return EoF
         if self.bytes_available == 0 {
@@ -184,7 +204,7 @@ impl<'a, R: ReadSeek> Read for FilesystemFileReader<'a, R> {
         //read a block/fragment
         match self.current_block {
             //no more blocks, try a fragment
-            Some(block) if block == self.file.block_sizes.len() => self.read_fragment()?,
+            Some(block) if block == self.file.basic.block_sizes.len() => self.read_fragment()?,
             //read the block
             Some(block) => self.read_block(block)?,
             //no more data to read, return EoF
@@ -194,11 +214,11 @@ impl<'a, R: ReadSeek> Read for FilesystemFileReader<'a, R> {
         Ok(self.read_available(buf))
     }
 }
-impl<'a, R: ReadSeek> SeekRewind for FilesystemFileReader<'a, R> {
+impl<'a, R: ReadSeek> SeekRewind for SquashfsFile<'a, R> {
     fn rewind(&mut self) -> std::io::Result<()> {
         self.current_block = Some(0);
-        self.bytes_available = self.file.file_size as usize;
-        self.pos = self.file.blocks_start.into();
+        self.bytes_available = self.file.basic.file_size as usize;
+        self.pos = self.file.basic.blocks_start.into();
         self.last_read.clear();
         Ok(())
     }
@@ -208,7 +228,7 @@ impl<'a, R: ReadSeek> SeekRewind for FilesystemFileReader<'a, R> {
 /// to create an on-disk image. This can be used to create a Squashfs image using
 /// [`FilesystemWriter::to_bytes`].
 #[derive(Debug)]
-pub struct FilesystemWriter<'a> {
+pub struct FilesystemWriter<'a, R: ReadSeek> {
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
@@ -224,14 +244,12 @@ pub struct FilesystemWriter<'a> {
     /// Information for the `/` node
     pub root_inode: SquashfsDir,
     /// All files and directories in filesystem, including root
-    pub nodes: Vec<Node<SquashfsFileWriter<'a>>>,
+    pub nodes: Vec<Node<SquashfsFileWriter<'a, R>>>,
 }
 
-impl<'a> FilesystemWriter<'a> {
+impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// use the same configuration then an existing SquashFsFile
-    pub fn from_fs_reader<R: ReadSeek>(
-        reader: &'a FilesystemReader<R>,
-    ) -> Result<Self, SquashfsError> {
+    pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
         let nodes = reader
             .nodes
             .iter()
@@ -241,7 +259,7 @@ impl<'a> FilesystemWriter<'a> {
                         let reader = reader.file(&file.basic);
                         InnerNode::File(SquashfsFileWriter {
                             header: file.header,
-                            reader: RefCell::new(Box::new(reader)),
+                            reader: SquashfsFileSource::SquashfsFile(reader),
                         })
                     },
                     InnerNode::Symlink(x) => InnerNode::Symlink(x.clone()),
@@ -304,7 +322,10 @@ impl<'a> FilesystemWriter<'a> {
         }
 
         let reader = RefCell::new(Box::new(reader));
-        let new_file = InnerNode::File(SquashfsFileWriter { header, reader });
+        let new_file = InnerNode::File(SquashfsFileWriter {
+            header,
+            reader: SquashfsFileSource::UserDefined(reader),
+        });
         let node = Node::new(path, new_file);
         self.nodes.push(node);
 
@@ -315,7 +336,7 @@ impl<'a> FilesystemWriter<'a> {
     pub fn mut_file<S: Into<PathBuf>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut SquashfsFileWriter<'a>> {
+    ) -> Option<&mut SquashfsFileWriter<'a, R>> {
         let find_path = find_path.into();
         find_path.strip_prefix("/").unwrap();
         for node in &mut self.nodes {
@@ -338,7 +359,7 @@ impl<'a> FilesystemWriter<'a> {
         let file = self
             .mut_file(find_path)
             .ok_or(SquashfsError::FileNotFound)?;
-        file.reader = RefCell::new(Box::new(reader));
+        file.reader = SquashfsFileSource::UserDefined(RefCell::new(Box::new(reader)));
         Ok(())
     }
 
@@ -433,7 +454,7 @@ impl<'a> FilesystemWriter<'a> {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let mut tree: TreeNode = self.into();
+        let mut tree: TreeNode<R> = self.into();
         info!("Tree Created");
 
         // Empty Squashfs Superblock
@@ -598,17 +619,21 @@ pub struct SquashfsFileReader {
 }
 
 /// Read file
-pub struct SquashfsFileWriter<'a> {
+pub struct SquashfsFileWriter<'a, R: ReadSeek> {
     pub header: FilesystemHeader,
-    pub reader: RefCell<Box<dyn Read + 'a>>,
+    pub reader: SquashfsFileSource<'a, R>,
 }
 
-impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
+impl<'a, R: ReadSeek> fmt::Debug for SquashfsFileWriter<'a, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FileWriter")
             .field("header", &self.header)
             .finish()
     }
+}
+pub enum SquashfsFileSource<'a, R: ReadSeek> {
+    UserDefined(RefCell<Box<dyn Read + 'a>>),
+    SquashfsFile(FilesystemReaderFile<'a, R>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

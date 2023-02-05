@@ -1,5 +1,4 @@
 mod common;
-use std::cell::RefCell;
 use std::fs::File;
 use std::io::Cursor;
 
@@ -85,8 +84,12 @@ fn test_add_00() {
         .unwrap();
 
     // Modify file
-    let file = new_filesystem.mut_file("/a/b/c/d/e/first_file").unwrap();
-    file.reader = RefCell::new(Box::new(Cursor::new(b"MODIFIEDfirst file!\n")));
+    new_filesystem
+        .replace_file(
+            "/a/b/c/d/e/first_file",
+            Cursor::new(b"MODIFIEDfirst file!\n"),
+        )
+        .unwrap();
 
     // create the modified squashfs
     let mut output = File::create(&new_path).unwrap();

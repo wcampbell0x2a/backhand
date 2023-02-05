@@ -130,7 +130,7 @@ fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: Filesy
                     continue;
                 }
                 let mut bytes = Vec::with_capacity(file.basic.file_size as usize);
-                let mut reader = filesystem.file(&file.basic);
+                let mut reader = filesystem.file(&file.basic).reader();
                 reader.read_to_end(&mut bytes).unwrap();
                 // write file
                 match std::fs::write(&filepath, bytes) {

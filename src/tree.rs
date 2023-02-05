@@ -12,10 +12,10 @@ use crate::entry::Entry;
 use crate::error::SquashfsError;
 use crate::filesystem::{
     FilesystemWriter, InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileWriter, SquashfsSymlink,
+    SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,
 };
 use crate::metadata::MetadataWriter;
-use crate::reader::WriteSeek;
+use crate::reader::{ReadSeek, WriteSeek};
 use crate::FilesystemHeader;
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
@@ -37,23 +37,23 @@ fn normalized_components(path: &Path) -> Vec<&OsStr> {
 }
 
 #[derive(Debug)]
-pub(crate) struct TreeNode<'a, 'b> {
+pub(crate) struct TreeNode<'a, 'b, R: ReadSeek> {
     pub fullpath: PathBuf,
     inode_id: u32,
-    pub inner: InnerTreeNode<'a, 'b>,
+    pub inner: InnerTreeNode<'a, 'b, R>,
 }
 
 #[derive(Debug)]
-pub(crate) enum InnerTreeNode<'a, 'b> {
-    FilePhase1(&'b SquashfsFileWriter<'a>),
+pub(crate) enum InnerTreeNode<'a, 'b, R: ReadSeek> {
+    FilePhase1(&'b SquashfsFileWriter<'a, R>),
     FilePhase2(usize, Added, &'b FilesystemHeader),
     Symlink(&'b SquashfsSymlink),
-    Dir(&'b SquashfsDir, BTreeMap<OsString, TreeNode<'a, 'b>>),
+    Dir(&'b SquashfsDir, BTreeMap<OsString, TreeNode<'a, 'b, R>>),
     CharacterDevice(&'b SquashfsCharacterDevice),
     BlockDevice(&'b SquashfsBlockDevice),
 }
 
-impl<'a, 'b> TreeNode<'a, 'b> {
+impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
     pub(crate) fn name(&self) -> &OsStr {
         if let Some(path) = self.fullpath.as_path().file_name() {
             path
@@ -64,7 +64,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
 
     pub(crate) fn from_inner_node(
         fullpath: PathBuf,
-        inner_node: &'b InnerNode<SquashfsFileWriter<'a>>,
+        inner_node: &'b InnerNode<SquashfsFileWriter<'a, R>>,
     ) -> Self {
         let inner = match inner_node {
             InnerNode::File(file) => InnerTreeNode::FilePhase1(file),
@@ -80,7 +80,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         }
     }
 
-    fn insert(&mut self, components: &[&OsStr], node: TreeNode<'a, 'b>) {
+    fn insert(&mut self, components: &[&OsStr], node: TreeNode<'a, 'b, R>) {
         let dir = match &mut self.inner {
             InnerTreeNode::Dir(_, dir) => dir,
             _ => todo!("Error node inside non-Dir"),
@@ -108,7 +108,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         }
     }
 
-    pub fn children(&self) -> Option<&BTreeMap<OsString, TreeNode<'a, 'b>>> {
+    pub fn children(&self) -> Option<&BTreeMap<OsString, TreeNode<'a, 'b, R>>> {
         match &self.inner {
             InnerTreeNode::Dir(_, dir) => Some(dir),
             _ => None,
@@ -135,8 +135,14 @@ impl<'a, 'b> TreeNode<'a, 'b> {
     ) -> Result<(), SquashfsError> {
         match &mut self.inner {
             InnerTreeNode::FilePhase1(file) => {
-                let (filesize, added) =
-                    data_writer.add_bytes(file.reader.borrow_mut().as_mut(), writer)?;
+                let (filesize, added) = match &file.reader {
+                    SquashfsFileSource::UserDefined(file) => {
+                        data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
+                    },
+                    SquashfsFileSource::SquashfsFile(file) => {
+                        data_writer.add_bytes(file.reader(), writer)?
+                    },
+                };
                 self.inner = InnerTreeNode::FilePhase2(filesize, added, &file.header);
             },
             InnerTreeNode::Dir(_path, dir) => {
@@ -249,8 +255,8 @@ impl<'a, 'b> TreeNode<'a, 'b> {
     }
 }
 
-impl<'a, 'b> From<&'b FilesystemWriter<'a>> for TreeNode<'a, 'b> {
-    fn from(fs: &'b FilesystemWriter<'a>) -> Self {
+impl<'a, 'b, R: ReadSeek> From<&'b FilesystemWriter<'a, R>> for TreeNode<'a, 'b, R> {
+    fn from(fs: &'b FilesystemWriter<'a, R>) -> Self {
         let mut tree = TreeNode {
             fullpath: "/".into(),
             inner: InnerTreeNode::Dir(&fs.root_inode, BTreeMap::new()),

@@ -7,6 +7,7 @@ use tracing::instrument;
 use crate::compressor::{compress, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
+use crate::reader::WriteSeek;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
 pub(crate) const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
@@ -80,7 +81,7 @@ impl DataWriter {
 
     /// Add to data writer, either a Data or Fragment
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
-    pub(crate) fn add_bytes<W: Write + Seek>(
+    pub(crate) fn add_bytes<W: WriteSeek>(
         &mut self,
         reader: impl Read,
         writer: &mut W,

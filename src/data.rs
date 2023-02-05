@@ -2,6 +2,7 @@
 
 use std::io::{Read, Seek, Write};
 
+use deku::prelude::*;
 use tracing::instrument;
 
 use crate::compressor::{compress, CompressionOptions, Compressor};
@@ -10,14 +11,42 @@ use crate::fragment::Fragment;
 use crate::reader::WriteSeek;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
-pub(crate) const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
+const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+pub struct DataSize(u32);
+impl DataSize {
+    pub fn new(size: u32, uncompressed: bool) -> Self {
+        let mut value: u32 = size;
+        if value > DATA_STORED_UNCOMPRESSED {
+            panic!("value is too big");
+        }
+        if uncompressed {
+            value |= DATA_STORED_UNCOMPRESSED;
+        }
+        Self(value)
+    }
+    pub fn new_compressed(size: u32) -> Self {
+        Self::new(size, false)
+    }
+    pub fn new_uncompressed(size: u32) -> Self {
+        Self::new(size, true)
+    }
+    pub fn uncompressed(&self) -> bool {
+        self.0 & DATA_STORED_UNCOMPRESSED != 0
+    }
+    pub fn size(&self) -> u32 {
+        self.0 & !DATA_STORED_UNCOMPRESSED
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum Added {
     // Only Data was added
     Data {
         blocks_start: u32,
-        block_sizes: Vec<u32>,
+        block_sizes: Vec<DataSize>,
     },
     // Only Fragment was added
     Fragment {
@@ -128,11 +157,12 @@ impl DataWriter {
                 // compression didn't reduce size
                 if cb.len() > chunk.len() {
                     // store uncompressed
-                    block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
+                    block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
                     writer.write_all(chunk)?;
                 } else {
                     // store compressed
-                    block_sizes.push(cb.len() as u32);
+                    block_sizes.push(DataSize::new_compressed(cb.len() as u32));
+                    writer.write_all(chunk)?;
                     writer.write_all(&cb)?;
                 }
                 chunk = chunk_reader.read_chunk()?;
@@ -163,11 +193,11 @@ impl DataWriter {
         let size = if cb.len() > self.fragment_bytes.len() {
             // store uncompressed
             writer.write_all(&self.fragment_bytes)?;
-            DATA_STORED_UNCOMPRESSED | self.fragment_bytes.len() as u32
+            DataSize::new_uncompressed(self.fragment_bytes.len() as u32)
         } else {
             // store compressed
             writer.write_all(&cb)?;
-            cb.len() as u32
+            DataSize::new_compressed(cb.len() as u32)
         };
         self.fragment_table.push(Fragment {
             start,

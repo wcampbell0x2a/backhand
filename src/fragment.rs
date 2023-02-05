@@ -2,6 +2,8 @@
 
 use deku::prelude::*;
 
+use crate::data::DataSize;
+
 pub(crate) const SIZE: usize =
     std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();
 
@@ -9,6 +11,6 @@ pub(crate) const SIZE: usize =
 #[deku(endian = "little")]
 pub struct Fragment {
     pub(crate) start: u64,
-    pub(crate) size: u32,
+    pub(crate) size: DataSize,
     pub(crate) unused: u32,
 }

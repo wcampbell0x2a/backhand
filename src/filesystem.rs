@@ -9,7 +9,7 @@ use deku::DekuContainerWrite;
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
-use crate::data::{DataWriter, DATA_STORED_UNCOMPRESSED};
+use crate::data::DataWriter;
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, InodeHeader};
@@ -79,10 +79,8 @@ impl<R: ReadSeek> FilesystemReader<R> {
     }
 
     /// Read from either Data blocks or Fragments blocks
-    fn read_data(&self, size: usize) -> Result<Vec<u8>, SquashfsError> {
-        let uncompressed = size & (DATA_STORED_UNCOMPRESSED as usize) != 0;
-        let size = size & !(DATA_STORED_UNCOMPRESSED as usize);
-        let mut buf = vec![0u8; size];
+    fn read_data(&self, size: u32, uncompressed: bool) -> Result<Vec<u8>, SquashfsError> {
+        let mut buf = vec![0u8; size as usize];
         self.reader.borrow_mut().read_exact(&mut buf)?;
 
         let bytes = if uncompressed {
@@ -138,7 +136,10 @@ impl<'a, R: ReadSeek> SquashfsFile<'a, R> {
             .reader
             .borrow_mut()
             .seek(SeekFrom::Start(self.pos))?;
-        self.last_read = self.file.system.read_data(block_size as usize)?;
+        self.last_read = self
+            .file
+            .system
+            .read_data(block_size.size(), block_size.uncompressed())?;
         self.pos = self.file.system.reader.borrow_mut().stream_position()?;
         Ok(())
     }
@@ -166,7 +167,10 @@ impl<'a, R: ReadSeek> SquashfsFile<'a, R> {
                     .reader
                     .borrow_mut()
                     .seek(SeekFrom::Start(frag.start))?;
-                let bytes = self.file.system.read_data(frag.size as usize)?;
+                let bytes = self
+                    .file
+                    .system
+                    .read_data(frag.size.size(), frag.size.uncompressed())?;
                 drop(cache);
                 self.file
                     .system

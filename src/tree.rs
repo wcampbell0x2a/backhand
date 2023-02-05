@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
-use std::io::{Seek, Write};
+use std::io::Write;
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
@@ -15,6 +15,7 @@ use crate::filesystem::{
     SquashfsFileWriter, SquashfsSymlink,
 };
 use crate::metadata::MetadataWriter;
+use crate::reader::WriteSeek;
 use crate::FilesystemHeader;
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
@@ -127,7 +128,7 @@ impl<'a, 'b> TreeNode<'a, 'b> {
         }
     }
 
-    pub fn write_data<W: Write + Seek>(
+    pub fn write_data<W: WriteSeek>(
         &mut self,
         writer: &mut W,
         data_writer: &mut DataWriter,

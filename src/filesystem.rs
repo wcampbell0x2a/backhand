@@ -14,7 +14,7 @@ use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, InodeHeader};
 use crate::metadata::{self, MetadataWriter};
-use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
+use crate::reader::{ReadSeek, SquashfsReaderWithOffset, WriteSeek};
 use crate::squashfs::{Cache, Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::{fragment, Squashfs};
@@ -64,8 +64,8 @@ impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
 }
 
 impl<R: ReadSeek> FilesystemReader<R> {
-    /// From file details, extract FileBytes
-    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> impl Read + 'a {
+    /// Return a file handler for this file
+    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemFileReader<'a, R> {
         FilesystemFileReader::new(self, basic_file)
     }
 
@@ -93,7 +93,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
     }
 }
 
-struct FilesystemFileReader<'a, R: ReadSeek>(Option<InnerFilesystemFileReader<'a, R>>);
+pub struct FilesystemFileReader<'a, R: ReadSeek>(Option<InnerFilesystemFileReader<'a, R>>);
 impl<'a, R: ReadSeek> FilesystemFileReader<'a, R> {
     pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
         Self(Some(InnerFilesystemFileReader {
@@ -641,11 +641,11 @@ pub struct SquashfsBlockDevice {
     pub device_number: u32,
 }
 
-struct WriterWithOffset<W: Write + Seek> {
+struct WriterWithOffset<W: WriteSeek> {
     w: W,
     offset: u64,
 }
-impl<W: Write + Seek> Write for WriterWithOffset<W> {
+impl<W: WriteSeek> Write for WriterWithOffset<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.w.write(buf)
     }

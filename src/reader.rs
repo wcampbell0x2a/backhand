@@ -42,9 +42,28 @@ impl<R: ReadSeek> Seek for SquashfsReaderWithOffset<R> {
     }
 }
 
+/// Similar to to Seek, but only require the `rewind` function
+pub trait SeekRewind {
+    /// Set the IO position back at the start
+    fn rewind(&mut self) -> std::io::Result<()>;
+}
+impl<T: Seek> SeekRewind for T {
+    fn rewind(&mut self) -> std::io::Result<()> {
+        <Self as Seek>::rewind(self)
+    }
+}
+
+/// Pseudo-Trait for Read + Seek
+pub trait ReadRewind: Read + SeekRewind {}
+impl<T: Read + SeekRewind> ReadRewind for T {}
+
 /// Pseudo-Trait for Read + Seek
 pub trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
+
+/// Pseudo-Trait for Write + Seek
+pub trait WriteSeek: Write + Seek {}
+impl<T: Write + Seek> WriteSeek for T {}
 
 impl<T: ReadSeek> SquashFsReader for T {}
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]

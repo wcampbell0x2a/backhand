@@ -14,7 +14,7 @@ use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, InodeHeader};
 use crate::metadata::{self, MetadataWriter};
-use crate::reader::{ReadSeek, SquashfsReaderWithOffset, WriteSeek};
+use crate::reader::{ReadSeek, SeekRewind, SquashfsReaderWithOffset, WriteSeek};
 use crate::squashfs::{Cache, Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::{fragment, Squashfs};
@@ -93,56 +93,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
     }
 }
 
-pub struct FilesystemFileReader<'a, R: ReadSeek>(Option<InnerFilesystemFileReader<'a, R>>);
-impl<'a, R: ReadSeek> FilesystemFileReader<'a, R> {
-    pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
-        Self(Some(InnerFilesystemFileReader {
-            filesystem,
-            file,
-            last_read: vec![],
-            current_block: Some(0),
-            bytes_available: file.file_size as usize,
-            pos: file.blocks_start.into(),
-        }))
-    }
-}
-impl<'a, R: ReadSeek> Read for FilesystemFileReader<'a, R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let inner = if let Some(inner) = &mut self.0 {
-            inner
-        } else {
-            return Ok(0);
-        };
-        //if we already read the whole file, then we can return EoF
-        if inner.bytes_available == 0 {
-            self.0 = None;
-            return Ok(0);
-        }
-        //if there is data available from the last read, consume it
-        if !inner.last_read.is_empty() {
-            return Ok(inner.read_available(buf));
-        }
-        //read a block/fragment
-        match inner.current_block {
-            //no more blocks, try a fragment
-            Some(block) if block == inner.file.block_sizes.len() => inner.read_fragment()?,
-            //read the block
-            Some(block) => inner.read_block(block)?,
-            //no more data to read, return EoF
-            None => {
-                self.0 = None;
-                return Ok(0);
-            },
-        }
-        //return data from the read block/fragment
-        let read = inner.read_available(buf);
-        if read == 0 {
-            self.0 = None;
-        }
-        Ok(read)
-    }
-}
-struct InnerFilesystemFileReader<'a, R: ReadSeek> {
+pub struct FilesystemFileReader<'a, R: ReadSeek> {
     filesystem: &'a FilesystemReader<R>,
     file: &'a BasicFile,
     last_read: Vec<u8>,
@@ -151,7 +102,17 @@ struct InnerFilesystemFileReader<'a, R: ReadSeek> {
     bytes_available: usize,
     pos: u64,
 }
-impl<'a, R: ReadSeek> InnerFilesystemFileReader<'a, R> {
+impl<'a, R: ReadSeek> FilesystemFileReader<'a, R> {
+    pub fn new(filesystem: &'a FilesystemReader<R>, file: &'a BasicFile) -> Self {
+        Self {
+            filesystem,
+            file,
+            last_read: vec![],
+            current_block: Some(0),
+            bytes_available: file.file_size as usize,
+            pos: file.blocks_start.into(),
+        }
+    }
     pub fn read_block(&mut self, block: usize) -> Result<(), SquashfsError> {
         self.current_block = Some(block + 1);
         let block_size = self.file.block_sizes[block];
@@ -208,6 +169,38 @@ impl<'a, R: ReadSeek> InnerFilesystemFileReader<'a, R> {
         self.last_read.drain(..read_len);
         self.bytes_available -= read_len;
         read_len
+    }
+}
+impl<'a, R: ReadSeek> Read for FilesystemFileReader<'a, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        //if we already read the whole file, then we can return EoF
+        if self.bytes_available == 0 {
+            return Ok(0);
+        }
+        //if there is data available from the last read, consume it
+        if !self.last_read.is_empty() {
+            return Ok(self.read_available(buf));
+        }
+        //read a block/fragment
+        match self.current_block {
+            //no more blocks, try a fragment
+            Some(block) if block == self.file.block_sizes.len() => self.read_fragment()?,
+            //read the block
+            Some(block) => self.read_block(block)?,
+            //no more data to read, return EoF
+            None => return Ok(0),
+        }
+        //return data from the read block/fragment
+        Ok(self.read_available(buf))
+    }
+}
+impl<'a, R: ReadSeek> SeekRewind for FilesystemFileReader<'a, R> {
+    fn rewind(&mut self) -> std::io::Result<()> {
+        self.current_block = Some(0);
+        self.bytes_available = self.file.file_size as usize;
+        self.pos = self.file.blocks_start.into();
+        self.last_read.clear();
+        Ok(())
     }
 }
 

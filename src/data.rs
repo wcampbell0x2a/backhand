@@ -36,6 +36,12 @@ impl DataSize {
     pub fn uncompressed(&self) -> bool {
         self.0 & DATA_STORED_UNCOMPRESSED != 0
     }
+    pub fn set_uncompressed(&mut self) {
+        self.0 |= DATA_STORED_UNCOMPRESSED
+    }
+    pub fn set_compressed(&mut self) {
+        self.0 &= !DATA_STORED_UNCOMPRESSED
+    }
     pub fn size(&self) -> u32 {
         self.0 & !DATA_STORED_UNCOMPRESSED
     }
@@ -162,7 +168,6 @@ impl DataWriter {
                 } else {
                     // store compressed
                     block_sizes.push(DataSize::new_compressed(cb.len() as u32));
-                    writer.write_all(chunk)?;
                     writer.write_all(&cb)?;
                 }
                 chunk = chunk_reader.read_chunk()?;

@@ -139,9 +139,8 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     SquashfsFileSource::UserDefined(file) => {
                         data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
                     },
-                    SquashfsFileSource::SquashfsFile(file) => {
-                        data_writer.add_bytes(file.reader(), writer)?
-                    },
+                    SquashfsFileSource::SquashfsFile(file) => data_writer
+                        .add_bytes(file.raw_data_reader().decompress().into_reader(), writer)?,
                 };
                 self.inner = InnerTreeNode::FilePhase2(filesize, added, &file.header);
             },

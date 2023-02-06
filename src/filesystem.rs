@@ -9,7 +9,7 @@ use deku::DekuContainerWrite;
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
-use crate::data::DataWriter;
+use crate::data::{DataSize, DataWriter};
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::{BasicFile, InodeHeader};
@@ -86,7 +86,9 @@ impl<R: ReadSeek> FilesystemReader<R> {
         let bytes = if uncompressed {
             buf
         } else {
-            compressor::decompress(&buf, self.compressor)?
+            let mut out = vec![];
+            compressor::decompress(&buf, &mut out, self.compressor)?;
+            out
         };
         Ok(bytes)
     }
@@ -108,6 +110,151 @@ impl<'a, R: ReadSeek> FilesystemReaderFile<'a, R> {
         })
     }
 }
+enum BlockFragment<'a> {
+    Block(&'a DataSize),
+    Fragment(&'a Fragment),
+}
+pub enum RawDataBlock<'a, 'b> {
+    Block {
+        data: &'b [u8],
+        block: &'a DataSize,
+    },
+    Fragment {
+        data: &'b [u8],
+        fragment: &'a Fragment,
+    },
+}
+pub struct SquashfsRawData<'a, R: ReadSeek> {
+    file: FilesystemReaderFile<'a, R>,
+    //TODO: DISCUSTING, please have mercy on my soul
+    current_block: std::iter::Chain<
+        std::iter::Map<std::slice::Iter<'a, DataSize>, fn(&'a DataSize) -> BlockFragment<'a>>,
+        std::option::IntoIter<BlockFragment<'a>>,
+    >,
+    buf: Vec<u8>,
+    pos: u64,
+}
+
+impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
+    fn new_iterator(
+        file: &FilesystemReaderFile<'a, R>,
+    ) -> std::iter::Chain<
+        std::iter::Map<std::slice::Iter<'a, DataSize>, fn(&'a DataSize) -> BlockFragment<'a>>,
+        std::option::IntoIter<BlockFragment<'a>>,
+    > {
+        let fragment: Option<BlockFragment<'a>> = {
+            if file.basic.frag_index == 0xffffffff {
+                None
+            } else {
+                file.system
+                    .fragments
+                    .as_ref()
+                    .map(|fragments| &fragments[file.basic.frag_index as usize])
+                    .map(BlockFragment::Fragment)
+            }
+        };
+        let block_sizes: &'a [DataSize] = &file.basic.block_sizes;
+        let current_block: std::iter::Map<_, fn(&'a DataSize) -> BlockFragment<'a>> =
+            block_sizes.iter().map(BlockFragment::Block);
+        current_block.chain(fragment.into_iter())
+    }
+    pub fn new(file: FilesystemReaderFile<'a, R>) -> Self {
+        let pos = file.basic.blocks_start.into();
+        let current_block = Self::new_iterator(&file);
+        //TODO: what is the best capacity size?
+        let buf = Vec::with_capacity(file.system.block_size as usize);
+        Self {
+            file,
+            current_block,
+            buf,
+            pos,
+        }
+    }
+    fn read<'b>(
+        &'b mut self,
+        block: BlockFragment<'a>,
+    ) -> Result<RawDataBlock<'a, 'b>, SquashfsError> {
+        match block {
+            BlockFragment::Block(block) => {
+                let block_size = block.size() as usize;
+                self.buf.resize(block_size, 0);
+                //NOTE: storing/restoring the file-pos is not required at the
+                //moment of writing, but in the future, it may.
+                let mut reader = self.file.system.reader.borrow_mut();
+                reader.seek(SeekFrom::Start(self.pos))?;
+                reader.read_exact(&mut self.buf[..block_size])?;
+                self.pos = reader.stream_position()?;
+                Ok(RawDataBlock::Block {
+                    data: &self.buf[..block_size],
+                    block,
+                })
+            },
+            BlockFragment::Fragment(frag) => {
+                let frag_size = frag.size.size() as usize;
+                self.buf.resize(frag_size, 0);
+                let mut reader = self.file.system.reader.borrow_mut();
+                reader.seek(SeekFrom::Start(frag.start))?;
+                reader.read_exact(&mut self.buf[..frag_size])?;
+                Ok(RawDataBlock::Fragment {
+                    data: &self.buf[..frag_size],
+                    fragment: frag,
+                })
+            },
+        }
+    }
+    pub fn next<'b>(&'b mut self) -> Option<Result<RawDataBlock<'a, 'b>, SquashfsError>> {
+        self.current_block.next().map(|next| self.read(next))
+    }
+}
+impl<'a, R: ReadSeek> SeekRewind for SquashfsRawData<'a, R> {
+    fn rewind(&mut self) -> std::io::Result<()> {
+        self.pos = self.file.basic.blocks_start.into();
+        self.current_block = Self::new_iterator(&self.file);
+        Ok(())
+    }
+}
+pub struct SquashfsDecompress<'a, R: ReadSeek> {
+    raw_data: SquashfsRawData<'a, R>,
+    compressor: Compressor,
+    buf: Vec<u8>,
+}
+impl<'a, R: ReadSeek> SquashfsDecompress<'a, R> {
+    pub fn next<'b>(&'b mut self) -> Result<Option<&'b [u8]>, SquashfsError> {
+        let block_offset = self.raw_data.file.basic.block_offset as usize;
+        let data = match self.raw_data.next() {
+            Some(Ok(data)) => data,
+            Some(Err(err)) => return Err(err),
+            None => return Ok(None),
+        };
+        match data {
+            RawDataBlock::Block { data, block } => {
+                if block.uncompressed() {
+                    Ok(Some(data))
+                } else {
+                    self.buf.clear();
+                    compressor::decompress(data, &mut self.buf, self.compressor)?;
+                    Ok(Some(&self.buf))
+                }
+            },
+            RawDataBlock::Fragment { data, fragment } => {
+                //TODO how to handle cache here? The read as already done!
+                if fragment.size.uncompressed() {
+                    Ok(Some(&data[block_offset..]))
+                } else {
+                    self.buf.clear();
+                    compressor::decompress(data, &mut self.buf, self.compressor)?;
+                    Ok(Some(&self.buf[block_offset..]))
+                }
+            },
+        }
+    }
+}
+impl<'a, R: ReadSeek> SeekRewind for SquashfsDecompress<'a, R> {
+    fn rewind(&mut self) -> std::io::Result<()> {
+        self.raw_data.rewind()
+    }
+}
+
 pub struct SquashfsFile<'a, R: ReadSeek> {
     file: FilesystemReaderFile<'a, R>,
     last_read: Vec<u8>,
@@ -158,8 +305,7 @@ impl<'a, R: ReadSeek> SquashfsFile<'a, R> {
         let cache = self.file.system.cache.borrow();
         match cache.fragment_cache.get(&(frag.start)) {
             Some(cache_bytes) => {
-                let bytes = &cache_bytes.clone();
-                self.last_read = bytes[self.file.basic.block_offset as usize..].to_vec();
+                self.last_read = cache_bytes[self.file.basic.block_offset as usize..].to_vec();
             },
             None => {
                 self.file

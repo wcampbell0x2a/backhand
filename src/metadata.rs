@@ -112,7 +112,7 @@ pub fn read_block<R: Read + ?Sized>(
 
     let bytes = if is_compressed(metadata_len) {
         tracing::trace!("compressed");
-        compressor::decompress(buf, superblock.compressor)?
+        compressor::decompress(&buf, superblock.compressor)?
     } else {
         tracing::trace!("uncompressed");
         buf

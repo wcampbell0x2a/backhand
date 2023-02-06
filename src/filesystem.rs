@@ -86,7 +86,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
         let bytes = if uncompressed {
             buf
         } else {
-            compressor::decompress(buf, self.compressor)?
+            compressor::decompress(&buf, self.compressor)?
         };
         Ok(bytes)
     }

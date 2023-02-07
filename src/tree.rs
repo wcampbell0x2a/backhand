@@ -130,6 +130,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
 
     pub fn write_data<W: WriteSeek>(
         &mut self,
+        system_write: &FilesystemWriter<'a, R>,
         writer: &mut W,
         data_writer: &mut DataWriter,
     ) -> Result<(), SquashfsError> {
@@ -139,14 +140,21 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     SquashfsFileSource::UserDefined(file) => {
                         data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
                     },
-                    SquashfsFileSource::SquashfsFile(file) => data_writer
-                        .add_bytes(file.raw_data_reader().decompress().into_reader(), writer)?,
+                    SquashfsFileSource::SquashfsFile(file) => {
+                        if file.system.compressor == system_write.compressor
+                            && file.system.block_size == system_write.block_size
+                        {
+                            data_writer.just_copy_it(file.raw_data_reader(), writer)?
+                        } else {
+                            data_writer.add_bytes(file.reader(), writer)?
+                        }
+                    },
                 };
                 self.inner = InnerTreeNode::FilePhase2(filesize, added, &file.header);
             },
             InnerTreeNode::Dir(_path, dir) => {
                 dir.values_mut()
-                    .try_for_each(|child| child.write_data(writer, data_writer))?;
+                    .try_for_each(|child| child.write_data(system_write, writer, data_writer))?;
             },
             _ => (),
         }

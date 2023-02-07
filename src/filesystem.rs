@@ -19,8 +19,7 @@ use crate::squashfs::{Cache, Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::{fragment, Squashfs};
 
-/// In-memory representation of a Squashfs image with extracted files and other information needed
-/// to create an on-disk image.
+/// Representation of SquashFS filesystem after read from image
 #[derive(Debug)]
 pub struct FilesystemReader<R: ReadSeek> {
     /// See [`SuperBlock`].`block_size`
@@ -132,8 +131,8 @@ pub enum BlockFragment<'a> {
     Fragment(&'a Fragment),
 }
 pub struct BlockIterator<'a> {
-    blocks: &'a [DataSize],
-    fragment: Option<&'a Fragment>,
+    pub blocks: &'a [DataSize],
+    pub fragment: Option<&'a Fragment>,
 }
 impl<'a> Iterator for BlockIterator<'a> {
     type Item = BlockFragment<'a>;
@@ -358,9 +357,8 @@ impl Seek for DummyReadSeek {
         unreachable!()
     }
 }
-/// In-memory representation of a Squashfs image with extracted files and other information needed
-/// to create an on-disk image. This can be used to create a Squashfs image using
-/// [`FilesystemWriter::to_bytes`].
+
+/// Representation of SquashFS filesystem to be written back to an image
 #[derive(Debug)]
 pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     /// See [`SuperBlock`].`block_size`
@@ -426,7 +424,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         reader: impl Read + 'a,
         path: P,
-        header: FilesystemHeader,
+        header: NodeHeader,
     ) -> Result<(), SquashfsError> {
         let path = path.into();
         if path.parent().is_some() {
@@ -502,7 +500,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         link: S,
         path: P,
-        header: FilesystemHeader,
+        header: NodeHeader,
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
@@ -520,7 +518,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     pub fn push_dir<P: Into<PathBuf>>(
         &mut self,
         path: P,
-        header: FilesystemHeader,
+        header: NodeHeader,
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
@@ -536,7 +534,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         device_number: u32,
         path: P,
-        header: FilesystemHeader,
+        header: NodeHeader,
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
@@ -555,7 +553,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         device_number: u32,
         path: P,
-        header: FilesystemHeader,
+        header: NodeHeader,
     ) -> Result<(), SquashfsError> {
         let path = path.into();
 
@@ -704,15 +702,16 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 }
 
+/// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
-pub struct FilesystemHeader {
+pub struct NodeHeader {
     pub permissions: u16,
     pub uid: u16,
     pub gid: u16,
     pub mtime: u32,
 }
 
-impl From<InodeHeader> for FilesystemHeader {
+impl From<InodeHeader> for NodeHeader {
     fn from(inode_header: InodeHeader) -> Self {
         Self {
             permissions: inode_header.permissions,
@@ -736,8 +735,10 @@ impl<T> Node<T> {
     }
 }
 
+/// Filesystem node
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InnerNode<T> {
+    /// Either [`SquashfsFileReader`] or [`SquashfsFileWriter`]
     File(T),
     Symlink(SquashfsSymlink),
     Dir(SquashfsDir),
@@ -745,16 +746,16 @@ pub enum InnerNode<T> {
     BlockDevice(SquashfsBlockDevice),
 }
 
-/// Unread file
+/// Unread file for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsFileReader {
-    pub header: FilesystemHeader,
+    pub header: NodeHeader,
     pub basic: BasicFile,
 }
 
 /// Read file
 pub struct SquashfsFileWriter<'a, R: ReadSeek> {
-    pub header: FilesystemHeader,
+    pub header: NodeHeader,
     pub reader: SquashfsFileSource<'a, R>,
 }
 
@@ -770,26 +771,30 @@ pub enum SquashfsFileSource<'a, R: ReadSeek> {
     SquashfsFile(FilesystemReaderFile<'a, R>),
 }
 
+/// Symlink for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsSymlink {
-    pub header: FilesystemHeader,
+    pub header: NodeHeader,
     pub link: PathBuf,
 }
 
+/// Directory for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsDir {
-    pub header: FilesystemHeader,
+    pub header: NodeHeader,
 }
 
+/// Character Device for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsCharacterDevice {
-    pub header: FilesystemHeader,
+    pub header: NodeHeader,
     pub device_number: u32,
 }
 
+/// Block Device for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsBlockDevice {
-    pub header: FilesystemHeader,
+    pub header: NodeHeader,
     pub device_number: u32,
 }
 

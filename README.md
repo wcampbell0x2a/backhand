@@ -24,7 +24,7 @@ backhand = "0.7.0"
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Cursor;
-use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
+use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 
 // read
 let file = File::open("file.squashfs").unwrap();
@@ -34,7 +34,7 @@ let read_filesystem = FilesystemReader::from_reader(file).unwrap();
 let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).unwrap();
 
 // add file with data from slice
-let d = FilesystemHeader::default();
+let d = NodeHeader::default();
 let bytes = Cursor::new(b"Fear is the mind-killer.");
 write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 

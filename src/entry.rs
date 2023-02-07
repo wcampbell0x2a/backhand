@@ -14,7 +14,7 @@ use crate::inode::{
     InodeInner,
 };
 use crate::metadata::MetadataWriter;
-use crate::FilesystemHeader;
+use crate::NodeHeader;
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {
@@ -62,7 +62,7 @@ impl<'a> Entry<'a> {
     /// Write data and metadata for file node
     pub fn file(
         node_path: &'a OsStr,
-        header: &FilesystemHeader,
+        header: &NodeHeader,
         inode: u32,
         inode_writer: &mut MetadataWriter,
         file_size: usize,

@@ -19,8 +19,7 @@
 //! # use std::cell::RefCell;
 //! # use std::fs::File;
 //! # use std::io::Cursor;
-//! # use backhand::{FilesystemReader, FilesystemWriter, FilesystemHeader};
-//!
+//! # use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 //! // read
 //! let file = File::open("file.squashfs").unwrap();
 //! let read_filesystem = FilesystemReader::from_reader(file).unwrap();
@@ -29,7 +28,7 @@
 //! let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).unwrap();
 //!
 //! // add file with data from slice
-//! let d = FilesystemHeader::default();
+//! let d = NodeHeader::default();
 //! let bytes = Cursor::new(b"Fear is the mind-killer.");
 //! write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 //!
@@ -51,18 +50,34 @@
 #[doc = include_str!("../README.md")]
 type _ReadmeTest = ();
 
-pub mod compressor;
+mod compressor;
 mod data;
-pub mod dir;
+mod dir;
 mod entry;
-pub mod error;
-pub mod filesystem;
-pub mod fragment;
-pub mod inode;
+mod error;
+mod filesystem;
+mod fragment;
+mod inode;
 mod metadata;
-pub mod reader;
-pub mod squashfs;
+mod reader;
+mod squashfs;
 mod tree;
 
-pub use crate::filesystem::{FilesystemHeader, FilesystemReader, FilesystemWriter};
+pub use crate::filesystem::{
+    FilesystemReader, FilesystemWriter, InnerNode, NodeHeader, SquashfsBlockDevice,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
+};
+pub use crate::reader::ReadSeek;
 pub use crate::squashfs::Squashfs;
+
+/// Compression Choice and Options
+pub mod compression {
+    pub use crate::compressor::{CompressionOptions, Compressor, Gzip, Lz4, Lzo, Xz, Zstd};
+}
+
+/// [`Squashfs`] internal structs
+pub mod internal {
+    pub use crate::fragment::Fragment;
+    pub use crate::inode::Inode;
+    pub use crate::squashfs::{Export, Id, SuperBlock};
+}

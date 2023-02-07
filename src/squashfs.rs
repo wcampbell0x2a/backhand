@@ -110,8 +110,8 @@ impl SuperBlock {
         }
     }
 
-    // Extract size of optional compression options
-    pub fn compression_options_size(&self) -> Option<usize> {
+    /// Extract size of optional compression options
+    fn compression_options_size(&self) -> Option<usize> {
         if self.compressor_options_are_present() {
             let size = match self.compressor {
                 Compressor::Lzma => 0,
@@ -128,49 +128,61 @@ impl SuperBlock {
         }
     }
 
+    /// flag value
     pub fn inodes_uncompressed(&self) -> bool {
         self.flags & Flags::InodesStoredUncompressed as u16 != 0
     }
 
+    /// flag value
     pub fn data_block_stored_uncompressed(&self) -> bool {
         self.flags & Flags::DataBlockStoredUncompressed as u16 != 0
     }
 
+    /// flag value
     pub fn fragments_stored_uncompressed(&self) -> bool {
         self.flags & Flags::FragmentsStoredUncompressed as u16 != 0
     }
 
+    /// flag value
     pub fn fragments_are_not_used(&self) -> bool {
         self.flags & Flags::FragmentsAreNotUsed as u16 != 0
     }
 
+    /// flag value
     pub fn fragments_are_always_generated(&self) -> bool {
         self.flags & Flags::FragmentsAreAlwaysGenerated as u16 != 0
     }
 
+    /// flag value
     pub fn data_has_been_duplicated(&self) -> bool {
         self.flags & Flags::DataHasBeenDeduplicated as u16 != 0
     }
 
+    /// flag value
     pub fn nfs_export_table_exists(&self) -> bool {
         self.flags & Flags::NFSExportTableExists as u16 != 0
     }
 
+    /// flag value
     pub fn xattrs_are_stored_uncompressed(&self) -> bool {
         self.flags & Flags::XattrsAreStoredUncompressed as u16 != 0
     }
 
+    /// flag value
     pub fn no_xattrs_in_archive(&self) -> bool {
         self.flags & Flags::NoXattrsInArchive as u16 != 0
     }
 
+    /// flag value
     pub fn compressor_options_are_present(&self) -> bool {
         self.flags & Flags::CompressorOptionsArePresent as u16 != 0
     }
 }
 
 #[rustfmt::skip]
-pub enum Flags {
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum Flags {
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
     DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
     Unused                      = 0b0000_0000_0000_0100,
@@ -185,14 +197,13 @@ pub enum Flags {
 }
 
 #[derive(Default, Clone, Debug)]
-pub struct Cache {
+pub(crate) struct Cache {
     /// The first time a fragment bytes is read, those bytes are added to this map with the key
     /// representing the start position
-    pub fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
+    pub(crate) fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
 }
 
-/// Representation of Squashfs image in memory. Tables such as Inodes and Dirs are extracted into
-/// the struct types, while data stays compressed.
+/// Squashfs Image initial read information
 ///
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
 pub struct Squashfs<R: ReadSeek> {
@@ -201,14 +212,13 @@ pub struct Squashfs<R: ReadSeek> {
     pub compression_options: Option<CompressionOptions>,
     /// Section containing compressed/uncompressed file data and fragments.
     ///
-    /// This also contains the superblock and option bytes b/c that is how [`crate::inode::BasicFile`] uses its
-    /// `blocks_starts`.
+    /// This also contains the superblock and option bytes for file offset reasons.
     pub data_and_fragments: Vec<u8>,
     // All Inodes
     pub inodes: HashMap<u32, Inode, BuildHasherDefault<twox_hash::XxHash64>>,
     /// Root Inode
     pub root_inode: Inode,
-    /// Bytes containing Directory Table, this is converted into [`Dir`]'s with [`Squashfs::all_dirs`].
+    /// Bytes containing Directory Table
     pub dir_blocks: Vec<(u64, Vec<u8>)>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
@@ -373,25 +383,6 @@ impl<R: ReadSeek> Squashfs<R> {
 
         info!("Successful Read");
         Ok(squashfs)
-    }
-
-    /// Convert `self.dir_blocks` into `Vec<Dir>`
-    pub fn all_dirs(&self) -> Result<Vec<Dir>, SquashfsError> {
-        let bytes: Vec<u8> = self
-            .dir_blocks
-            .iter()
-            .flat_map(|(_, b)| b.clone())
-            .collect();
-
-        let mut dirs = vec![];
-        let mut rest = bytes;
-        while !rest.is_empty() {
-            let ((r, _), dir) = Dir::from_bytes((&rest, 0))?;
-            rest = r.to_vec();
-            dirs.push(dir);
-        }
-
-        Ok(dirs)
     }
 
     /// # Returns

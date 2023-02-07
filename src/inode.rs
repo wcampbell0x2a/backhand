@@ -9,7 +9,7 @@ use deku::prelude::*;
 use crate::data::DataSize;
 use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
-use crate::filesystem::FilesystemHeader;
+use crate::filesystem::NodeHeader;
 use crate::metadata::MetadataWriter;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
@@ -94,8 +94,8 @@ pub struct InodeHeader {
     pub inode_number: u32,
 }
 
-impl From<FilesystemHeader> for InodeHeader {
-    fn from(fs_header: FilesystemHeader) -> Self {
+impl From<NodeHeader> for InodeHeader {
+    fn from(fs_header: NodeHeader) -> Self {
         Self {
             permissions: fs_header.permissions,
             uid: fs_header.uid,

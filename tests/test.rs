@@ -1,8 +1,7 @@
 mod common;
 use std::fs::File;
 
-use backhand::filesystem::FilesystemReader;
-use backhand::FilesystemWriter;
+use backhand::{FilesystemReader, FilesystemWriter};
 use common::{test_unsquashfs, test_unsquashfs_list};
 use test_assets::TestAssetDef;
 use test_log::test;

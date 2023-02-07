@@ -10,7 +10,7 @@ pub(crate) const SIZE: usize =
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "little")]
 pub struct Fragment {
-    pub(crate) start: u64,
-    pub(crate) size: DataSize,
-    pub(crate) unused: u32,
+    pub start: u64,
+    pub size: DataSize,
+    pub unused: u32,
 }

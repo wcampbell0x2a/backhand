@@ -141,6 +141,9 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                         data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
                     },
                     SquashfsFileSource::SquashfsFile(file) => {
+                        // if the source file and the destination files are both
+                        // squashfs files and use the same compressor and block_size
+                        // just copy the data, don't compress->decompress
                         if file.system.compressor == system_write.compressor
                             && file.system.block_size == system_write.block_size
                         {

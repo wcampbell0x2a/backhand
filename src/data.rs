@@ -132,7 +132,7 @@ impl DataWriter {
         let blocks_start = writer.stream_position()? as u32;
         match first_block {
             // chunk size not exactly the size of the block
-            Some(Ok(fragment @ RawDataBlock::Fragment { .. })) => {
+            Some(Ok(fragment @ RawDataBlock { fragment: true, .. })) => {
                 let bytes = reader.decompress(&fragment, &mut decompress_buf)?;
                 // if this doesn't fit in the current fragment bytes
                 // compress the current fragment bytes and add to data_bytes
@@ -152,7 +152,11 @@ impl DataWriter {
                     },
                 ));
             },
-            Some(Ok(RawDataBlock::Block { data, block: _ })) => {
+            Some(Ok(RawDataBlock {
+                data,
+                fragment: false,
+                ..
+            })) => {
                 writer.write_all(data)?;
             },
             Some(Err(x)) => return Err(x),
@@ -168,10 +172,14 @@ impl DataWriter {
         }
         while let Some(block) = reader.next_block(&mut read_buf) {
             match block? {
-                RawDataBlock::Block { data, block: _ } => {
+                RawDataBlock {
+                    data,
+                    fragment: false,
+                    ..
+                } => {
                     writer.write_all(data)?;
                 },
-                fragment @ RawDataBlock::Fragment { .. } => {
+                fragment @ RawDataBlock { fragment: true, .. } => {
                     // TODO: support tail-end fragments, for now just treat it like a block
                     let bytes = reader.decompress(&fragment, &mut decompress_buf)?;
                     let cb = compress(

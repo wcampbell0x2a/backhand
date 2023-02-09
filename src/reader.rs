@@ -15,25 +15,25 @@ use crate::squashfs::{Export, Id, SuperBlock};
 use crate::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file
-pub struct SquashfsReaderWithOffset<R: SquashFsReader> {
+pub struct SquashfsReaderWithOffset<R: ReadSeek> {
     io: R,
     /// Offset from start of file to squashfs
     offset: u64,
 }
 
-impl<R: SquashFsReader> SquashfsReaderWithOffset<R> {
+impl<R: ReadSeek> SquashfsReaderWithOffset<R> {
     pub fn new(io: R, offset: u64) -> Self {
         Self { io, offset }
     }
 }
 
-impl<R: SquashFsReader> Read for SquashfsReaderWithOffset<R> {
+impl<R: ReadSeek> Read for SquashfsReaderWithOffset<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.io.read(buf)
     }
 }
 
-impl<R: SquashFsReader> Seek for SquashfsReaderWithOffset<R> {
+impl<R: ReadSeek> Seek for SquashfsReaderWithOffset<R> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         match pos {
             SeekFrom::Start(start) => self.io.seek(SeekFrom::Start(self.offset + start)),
@@ -42,9 +42,32 @@ impl<R: SquashFsReader> Seek for SquashfsReaderWithOffset<R> {
     }
 }
 
-impl<T: Read + Seek> SquashFsReader for T {}
+/// Similar to to Seek, but only require the `rewind` function
+pub trait SeekRewind {
+    /// Set the IO position back at the start
+    fn rewind(&mut self) -> std::io::Result<()>;
+}
+impl<T: Seek> SeekRewind for T {
+    fn rewind(&mut self) -> std::io::Result<()> {
+        <Self as Seek>::rewind(self)
+    }
+}
+
+/// Pseudo-Trait for Read + Seek
+pub trait ReadRewind: Read + SeekRewind {}
+impl<T: Read + SeekRewind> ReadRewind for T {}
+
+/// Pseudo-Trait for Read + Seek
+pub trait ReadSeek: Read + Seek {}
+impl<T: Read + Seek> ReadSeek for T {}
+
+/// Pseudo-Trait for Write + Seek
+pub trait WriteSeek: Write + Seek {}
+impl<T: Write + Seek> WriteSeek for T {}
+
+impl<T: ReadSeek> SquashFsReader for T {}
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
-pub trait SquashFsReader: Read + Seek {
+pub trait SquashFsReader: ReadSeek {
     /// Read in entire data and fragments
     #[instrument(skip_all)]
     fn data_and_fragments(&mut self, superblock: &SuperBlock) -> Result<Vec<u8>, SquashfsError> {

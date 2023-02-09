@@ -6,6 +6,7 @@ use std::io::Write;
 use deku::bitvec::{BitVec, Msb0};
 use deku::prelude::*;
 
+use crate::data::DataSize;
 use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
 use crate::filesystem::FilesystemHeader;
@@ -152,7 +153,7 @@ pub struct BasicFile {
     pub block_offset: u32,
     pub file_size: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
-    pub block_sizes: Vec<u32>,
+    pub block_sizes: Vec<DataSize>,
 }
 
 impl From<&ExtendedFile> for BasicFile {
@@ -181,7 +182,7 @@ pub struct ExtendedFile {
     pub block_offset: u32,
     pub xattr_index: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size)")]
-    pub block_sizes: Vec<u32>,
+    pub block_sizes: Vec<DataSize>,
 }
 
 fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -> u64 {

@@ -2,21 +2,58 @@
 
 use std::io::{Read, Seek, Write};
 
+use deku::prelude::*;
 use tracing::instrument;
 
 use crate::compressor::{compress, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
+use crate::filesystem::{RawDataBlock, SquashfsRawData};
 use crate::fragment::Fragment;
+use crate::reader::{ReadSeek, WriteSeek};
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
-pub(crate) const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
+const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+pub struct DataSize(u32);
+impl DataSize {
+    pub fn new(size: u32, uncompressed: bool) -> Self {
+        let mut value: u32 = size;
+        if value > DATA_STORED_UNCOMPRESSED {
+            panic!("value is too big");
+        }
+        if uncompressed {
+            value |= DATA_STORED_UNCOMPRESSED;
+        }
+        Self(value)
+    }
+    pub fn new_compressed(size: u32) -> Self {
+        Self::new(size, false)
+    }
+    pub fn new_uncompressed(size: u32) -> Self {
+        Self::new(size, true)
+    }
+    pub fn uncompressed(&self) -> bool {
+        self.0 & DATA_STORED_UNCOMPRESSED != 0
+    }
+    pub fn set_uncompressed(&mut self) {
+        self.0 |= DATA_STORED_UNCOMPRESSED
+    }
+    pub fn set_compressed(&mut self) {
+        self.0 &= !DATA_STORED_UNCOMPRESSED
+    }
+    pub fn size(&self) -> u32 {
+        self.0 & !DATA_STORED_UNCOMPRESSED
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum Added {
     // Only Data was added
     Data {
         blocks_start: u32,
-        block_sizes: Vec<u32>,
+        block_sizes: Vec<DataSize>,
     },
     // Only Fragment was added
     Fragment {
@@ -78,9 +115,105 @@ impl DataWriter {
         }
     }
 
+    /// Add to data writer, either a pre-compressed Data or Fragment
+    // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
+    pub(crate) fn just_copy_it<W: WriteSeek, R: ReadSeek>(
+        &mut self,
+        mut reader: SquashfsRawData<'_, R>,
+        writer: &mut W,
+    ) -> Result<(usize, Added), SquashfsError> {
+        let mut block_sizes = reader.file.basic.block_sizes.clone();
+        let mut read_buf = vec![];
+        let mut decompress_buf = vec![];
+
+        // if the first block is not full (fragment), store only a fragment
+        // otherwise processed to store blocks
+        let first_block = reader.next_block(&mut read_buf);
+        let blocks_start = writer.stream_position()? as u32;
+        match first_block {
+            // chunk size not exactly the size of the block
+            Some(Ok(fragment @ RawDataBlock { fragment: true, .. })) => {
+                let bytes = reader.decompress(&fragment, &mut decompress_buf)?;
+                // if this doesn't fit in the current fragment bytes
+                // compress the current fragment bytes and add to data_bytes
+                if (bytes.len() + self.fragment_bytes.len()) > self.block_size as usize {
+                    self.finalize(writer)?;
+                }
+                // add to fragment bytes
+                let frag_index = self.fragment_table.len() as u32;
+                let block_offset = self.fragment_bytes.len() as u32;
+                self.fragment_bytes.write_all(bytes)?;
+
+                return Ok((
+                    bytes.len(),
+                    Added::Fragment {
+                        frag_index,
+                        block_offset,
+                    },
+                ));
+            },
+            Some(Ok(RawDataBlock {
+                data,
+                fragment: false,
+                ..
+            })) => {
+                writer.write_all(data)?;
+            },
+            Some(Err(x)) => return Err(x),
+            None => {
+                return Ok((
+                    0,
+                    Added::Data {
+                        blocks_start,
+                        block_sizes,
+                    },
+                ))
+            },
+        }
+        while let Some(block) = reader.next_block(&mut read_buf) {
+            match block? {
+                RawDataBlock {
+                    data,
+                    fragment: false,
+                    ..
+                } => {
+                    writer.write_all(data)?;
+                },
+                fragment @ RawDataBlock { fragment: true, .. } => {
+                    // TODO: support tail-end fragments, for now just treat it like a block
+                    let bytes = reader.decompress(&fragment, &mut decompress_buf)?;
+                    let cb = compress(
+                        bytes,
+                        self.compressor,
+                        &self.compression_options,
+                        self.block_size,
+                    )?;
+                    // compression didn't reduce size
+                    if cb.len() > bytes.len() {
+                        // store uncompressed
+                        block_sizes.push(DataSize::new_uncompressed(bytes.len() as u32));
+                        writer.write_all(bytes)?;
+                    } else {
+                        // store compressed
+                        block_sizes.push(DataSize::new_compressed(cb.len() as u32));
+                        writer.write_all(&cb)?;
+                    }
+                },
+            }
+        }
+        let file_size = reader.file.basic.file_size as usize;
+        Ok((
+            file_size,
+            Added::Data {
+                blocks_start,
+                block_sizes,
+            },
+        ))
+    }
+
     /// Add to data writer, either a Data or Fragment
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
-    pub(crate) fn add_bytes<W: Write + Seek>(
+    pub(crate) fn add_bytes<W: WriteSeek>(
         &mut self,
         reader: impl Read,
         writer: &mut W,
@@ -127,11 +260,11 @@ impl DataWriter {
                 // compression didn't reduce size
                 if cb.len() > chunk.len() {
                     // store uncompressed
-                    block_sizes.push(DATA_STORED_UNCOMPRESSED | chunk.len() as u32);
+                    block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
                     writer.write_all(chunk)?;
                 } else {
                     // store compressed
-                    block_sizes.push(cb.len() as u32);
+                    block_sizes.push(DataSize::new_compressed(cb.len() as u32));
                     writer.write_all(&cb)?;
                 }
                 chunk = chunk_reader.read_chunk()?;
@@ -162,11 +295,11 @@ impl DataWriter {
         let size = if cb.len() > self.fragment_bytes.len() {
             // store uncompressed
             writer.write_all(&self.fragment_bytes)?;
-            DATA_STORED_UNCOMPRESSED | self.fragment_bytes.len() as u32
+            DataSize::new_uncompressed(self.fragment_bytes.len() as u32)
         } else {
             // store compressed
             writer.write_all(&cb)?;
-            cb.len() as u32
+            DataSize::new_compressed(cb.len() as u32)
         };
         self.fragment_table.push(Fragment {
             start,

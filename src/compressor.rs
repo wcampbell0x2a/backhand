@@ -92,20 +92,23 @@ pub struct Zstd {
 
 /// Using the current compressor from the superblock, decompress bytes
 #[instrument(skip_all)]
-pub(crate) fn decompress(bytes: Vec<u8>, compressor: Compressor) -> Result<Vec<u8>, SquashfsError> {
-    let mut out = vec![];
+pub(crate) fn decompress(
+    bytes: &[u8],
+    out: &mut Vec<u8>,
+    compressor: Compressor,
+) -> Result<(), SquashfsError> {
     match compressor {
         Compressor::Gzip => {
-            let mut decoder = flate2::read::ZlibDecoder::new(Cursor::new(bytes));
-            decoder.read_to_end(&mut out)?;
+            let mut decoder = flate2::read::ZlibDecoder::new(bytes);
+            decoder.read_to_end(out)?;
         },
         Compressor::Xz => {
-            let mut decoder = XzDecoder::new(Cursor::new(bytes));
-            decoder.read_to_end(&mut out)?;
+            let mut decoder = XzDecoder::new(bytes);
+            decoder.read_to_end(out)?;
         },
         _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
     }
-    Ok(out)
+    Ok(())
 }
 
 #[instrument(skip_all)]

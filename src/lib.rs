@@ -64,8 +64,9 @@ mod squashfs;
 mod tree;
 
 pub use crate::filesystem::{
-    FilesystemReader, FilesystemWriter, InnerNode, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
+    FilesystemReader, FilesystemReaderFile, FilesystemWriter, InnerNode, Node, NodeHeader,
+    SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader,
+    SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,
 };
 pub use crate::reader::ReadSeek;
 pub use crate::squashfs::Squashfs;

@@ -407,11 +407,8 @@ impl<R: ReadSeek> Squashfs<R> {
         let block: Vec<u8> = self
             .dir_blocks
             .iter()
-            .filter(|(a, _)| a >= &block_index)
-            .map(|(_, b)| b.clone())
-            .collect::<Vec<Vec<u8>>>()
-            .iter()
-            .flatten()
+            .filter(|(a, _)| *a >= block_index)
+            .flat_map(|(_, b)| b.iter())
             .copied()
             .collect();
 

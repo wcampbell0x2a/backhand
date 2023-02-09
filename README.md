@@ -21,7 +21,6 @@ backhand = "0.7.0"
 ```
 ### Reading/Writing/Modifying Firmware
 ```rust,no_run
-use std::cell::RefCell;
 use std::fs::File;
 use std::io::Cursor;
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};

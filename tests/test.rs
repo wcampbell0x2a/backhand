@@ -58,6 +58,7 @@ fn full_test(
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
 #[test]
+#[cfg(feature = "gzip")]
 fn test_00() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -71,6 +72,7 @@ fn test_00() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
 #[test]
+#[cfg(feature = "gzip")]
 fn test_01() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -84,6 +86,7 @@ fn test_01() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
 #[test]
+#[cfg(feature = "xz")]
 fn test_02() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -97,6 +100,7 @@ fn test_02() {
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
 #[test]
+#[cfg(feature = "xz")]
 fn test_03() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -109,6 +113,7 @@ fn test_03() {
 }
 
 #[test]
+#[cfg(feature = "xz")]
 fn test_04() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -121,6 +126,7 @@ fn test_04() {
 }
 
 #[test]
+#[cfg(feature = "xz")]
 fn test_05() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -134,6 +140,7 @@ fn test_05() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
 #[test]
+#[cfg(feature = "gzip")]
 fn test_06() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -147,6 +154,7 @@ fn test_06() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
 #[test]
+#[cfg(feature = "gzip")]
 fn test_07() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -160,6 +168,7 @@ fn test_07() {
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
 #[test]
+#[cfg(feature = "xz")]
 fn test_08() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -172,6 +181,7 @@ fn test_08() {
 }
 
 #[test]
+#[cfg(feature = "xz")]
 fn test_19() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -184,6 +194,7 @@ fn test_19() {
 }
 
 #[test]
+#[cfg(feature = "xz")]
 fn test_20() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -196,6 +207,7 @@ fn test_20() {
 }
 
 #[test]
+#[cfg(feature = "xz")]
 fn test_openwrt_tplink_archera7v5() {
     const FILE_NAME: &str =
         "openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin";
@@ -211,6 +223,7 @@ fn test_openwrt_tplink_archera7v5() {
 }
 
 #[test]
+#[cfg(feature = "xz")]
 fn test_openwrt_netgear_ex6100v2() {
     const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
 
@@ -226,6 +239,7 @@ fn test_openwrt_netgear_ex6100v2() {
 }
 
 #[test]
+#[cfg(feature = "gzip")]
 fn test_appimage_plexamp() {
     const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
     let asset_defs = [TestAssetDef {
@@ -238,6 +252,7 @@ fn test_appimage_plexamp() {
 }
 
 #[test]
+#[cfg(feature = "gzip")]
 fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
@@ -252,6 +267,7 @@ fn test_appimage_firefox() {
 /// Archer\ AX1800\(US\)_V3_221016.zip from https://www.tp-link.com/us/support/download/archer-ax1800/#Firmware
 /// (after ubi_extract_image)
 #[test]
+#[cfg(feature = "xz")]
 fn test_tplink_ax1800() {
     const FILE_NAME: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
     let asset_defs = [TestAssetDef {
@@ -265,6 +281,7 @@ fn test_tplink_ax1800() {
 
 /// one /console char device
 #[test]
+#[cfg(feature = "xz")]
 fn test_21() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -278,6 +295,7 @@ fn test_21() {
 
 /// This has a char device (/dev/console), so we can only test the list
 #[test]
+#[cfg(feature = "xz")]
 fn test_er605() {
     const FILE_NAME: &str = "2611E3.squashfs";
     let asset_defs = [TestAssetDef {
@@ -291,6 +309,7 @@ fn test_er605() {
 
 /// This has a char device (/dev/console), so we can only test the list
 #[test]
+#[cfg(feature = "xz")]
 fn test_re815xe() {
     const FILE_NAME: &str = "870D97.squashfs";
     let asset_defs = [TestAssetDef {

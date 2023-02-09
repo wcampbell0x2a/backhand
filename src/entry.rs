@@ -266,6 +266,7 @@ mod tests {
     use crate::metadata::{MetadataWriter, METADATA_MAXSIZE};
 
     #[test]
+    #[cfg(feature = "xz")]
     fn test_mwriter() {
         let bytes = [0xffu8; METADATA_MAXSIZE - 3];
 

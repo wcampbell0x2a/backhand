@@ -13,16 +13,21 @@ categories = ["filesystem", "parsing"]
 [dependencies]
 # for lib
 deku = "0.15.0"
-flate2 = "1.0.24"
-xz2 = "0.1.7"
 tracing = "0.1.37"
 thiserror = "1.0.37"
 twox-hash = "1.6.3"
+flate2 = { version = "1.0.24", optional = true }
+xz2 = { version = "0.1.7", optional = true }
 
 # for bins
 nix = { version = "0.26.2", default-features = false, features = ["fs"] }
 clap = { version = "4.0.12", features = ["derive"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
+
+[features]
+default = ["xz", "gzip"]
+xz = ["dep:xz2"]
+gzip = ["dep:flate2"]
 
 [dev-dependencies]
 env_logger = "0.9.1"

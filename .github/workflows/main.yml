@@ -19,6 +19,12 @@ jobs:
           - stable
             # msrv
           - 1.64.0
+        features:
+          - --no-default-features --features xz
+          - --no-default-features --features gzip
+          - --no-default-features --features gzip,xz
+          # default features
+          -
 
     steps:
       - run: sudo apt-get install -y squashfs-tools
@@ -28,8 +34,8 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build
-      - run: RUST_LOG=info cargo test --release
+      - run: cargo build ${{ matrix.features }}
+      - run: RUST_LOG=info cargo test --release ${{ matrix.features }}
 
   # benchmark
   benchmark:

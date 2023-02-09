@@ -3,12 +3,10 @@ use std::io::Read;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use backhand::filesystem::{
-    FilesystemReader, InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsSymlink,
+use backhand::{
+    FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsSymlink,
 };
-use backhand::reader::ReadSeek;
-use backhand::Squashfs;
 use clap::Parser;
 use nix::sys::stat::{mknod, Mode, SFlag};
 

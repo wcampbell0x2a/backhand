@@ -16,7 +16,7 @@ use crate::filesystem::{
 };
 use crate::metadata::MetadataWriter;
 use crate::reader::{ReadSeek, WriteSeek};
-use crate::FilesystemHeader;
+use crate::NodeHeader;
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();
@@ -46,7 +46,7 @@ pub(crate) struct TreeNode<'a, 'b, R: ReadSeek> {
 #[derive(Debug)]
 pub(crate) enum InnerTreeNode<'a, 'b, R: ReadSeek> {
     FilePhase1(&'b SquashfsFileWriter<'a, R>),
-    FilePhase2(usize, Added, &'b FilesystemHeader),
+    FilePhase2(usize, Added, &'b NodeHeader),
     Symlink(&'b SquashfsSymlink),
     Dir(&'b SquashfsDir, BTreeMap<OsString, TreeNode<'a, 'b, R>>),
     CharacterDevice(&'b SquashfsCharacterDevice),
@@ -54,7 +54,7 @@ pub(crate) enum InnerTreeNode<'a, 'b, R: ReadSeek> {
 }
 
 impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
-    pub(crate) fn name(&self) -> &OsStr {
+    fn name(&self) -> &OsStr {
         if let Some(path) = self.fullpath.as_path().file_name() {
             path
         } else {
@@ -62,7 +62,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         }
     }
 
-    pub(crate) fn from_inner_node(
+    fn from_inner_node(
         fullpath: PathBuf,
         inner_node: &'b InnerNode<SquashfsFileWriter<'a, R>>,
     ) -> Self {
@@ -108,17 +108,18 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         }
     }
 
-    pub fn children(&self) -> Option<&BTreeMap<OsString, TreeNode<'a, 'b, R>>> {
+    fn children(&self) -> Option<&BTreeMap<OsString, TreeNode<'a, 'b, R>>> {
         match &self.inner {
             InnerTreeNode::Dir(_, dir) => Some(dir),
             _ => None,
         }
     }
-    pub fn have_children(&self) -> bool {
+
+    fn have_children(&self) -> bool {
         self.children().map(|c| !c.is_empty()).unwrap_or(false)
     }
 
-    pub fn calculate_inode(&mut self, inode_counter: &'_ mut u32) {
+    fn calculate_inode(&mut self, inode_counter: &'_ mut u32) {
         self.inode_id = *inode_counter;
         *inode_counter += 1;
 
@@ -163,12 +164,13 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         }
         Ok(())
     }
+
     /// Create SquashFS file system from each node of Tree
     ///
     /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
-    pub fn write_inode_dir(
+    pub(crate) fn write_inode_dir(
         &'b self,
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,

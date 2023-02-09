@@ -2,8 +2,7 @@ mod common;
 use std::fs::File;
 use std::io::Cursor;
 
-use backhand::filesystem::{FilesystemHeader, FilesystemReader};
-use backhand::FilesystemWriter;
+use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -58,7 +57,7 @@ fn test_add_00() {
     let og_filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
-    let h = FilesystemHeader {
+    let h = NodeHeader {
         permissions: 0o755,
         uid: 0,
         gid: 0,

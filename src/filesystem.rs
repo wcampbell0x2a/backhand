@@ -78,6 +78,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
     }
 }
 
+/// Filesystem handle for file
 #[derive(Copy)]
 pub struct FilesystemReaderFile<'a, R: ReadSeek> {
     pub(crate) system: &'a FilesystemReader<R>,
@@ -722,7 +723,7 @@ impl From<InodeHeader> for NodeHeader {
     }
 }
 
-/// Nodes from an existing file that are converted into filesystem tree during writing to bytes
+/// Filesystem Node
 #[derive(Debug, PartialEq, Eq)]
 pub struct Node<T> {
     pub path: PathBuf,

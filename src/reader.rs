@@ -1,11 +1,11 @@
 //! Reader traits
 
 use std::collections::HashMap;
-use std::hash::BuildHasherDefault;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 use deku::bitvec::BitView;
 use deku::prelude::*;
+use rustc_hash::FxHashMap;
 use tracing::{instrument, trace};
 
 use crate::error::SquashfsError;
@@ -79,10 +79,7 @@ pub trait SquashFsReader: ReadSeek {
 
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
     #[instrument(skip_all)]
-    fn inodes(
-        &mut self,
-        superblock: &SuperBlock,
-    ) -> Result<HashMap<u32, Inode, BuildHasherDefault<twox_hash::XxHash64>>, SquashfsError> {
+    fn inodes(&mut self, superblock: &SuperBlock) -> Result<FxHashMap<u32, Inode>, SquashfsError> {
         self.seek(SeekFrom::Start(superblock.inode_table))?;
 
         // The directory inodes store the total, uncompressed size of the entire listing, including headers.

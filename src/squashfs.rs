@@ -1,14 +1,13 @@
 //! Read from on-disk image
 
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::OsString;
-use std::hash::BuildHasherDefault;
 use std::os::unix::prelude::OsStringExt;
 use std::path::{Path, PathBuf};
 
 use deku::bitvec::BitVec;
 use deku::prelude::*;
+use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
@@ -200,7 +199,7 @@ pub(crate) enum Flags {
 pub(crate) struct Cache {
     /// The first time a fragment bytes is read, those bytes are added to this map with the key
     /// representing the start position
-    pub(crate) fragment_cache: HashMap<u64, Vec<u8>, BuildHasherDefault<twox_hash::XxHash64>>,
+    pub(crate) fragment_cache: FxHashMap<u64, Vec<u8>>,
 }
 
 /// Squashfs Image initial read information
@@ -215,7 +214,7 @@ pub struct Squashfs<R: ReadSeek> {
     /// This also contains the superblock and option bytes for file offset reasons.
     pub data_and_fragments: Vec<u8>,
     // All Inodes
-    pub inodes: HashMap<u32, Inode, BuildHasherDefault<twox_hash::XxHash64>>,
+    pub inodes: FxHashMap<u32, Inode>,
     /// Root Inode
     pub root_inode: Inode,
     /// Bytes containing Directory Table

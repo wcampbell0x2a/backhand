@@ -7,18 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-  Thanks [@rbran](https://github.com/rbran/) for the incredible work on the performance of the library.
+## [v0.8.0] - 2023-02-11
 ### Added
-- Add `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
-  These are all returned by the public API of filesystem and more panics were removed.
 - unsquashfs: Add `--stat`, `--force`, `--info` flags.
 - unsquashfs: Add support for Char and Block device file creation when superuser.
 - features: `xz` and `gzip`. By default both are enabled, but conditionally you may compile only one type of decompressor.
+- `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
+  These are all returned by the public API of filesystem and more panics were removed.
 
 ### Fixed
 - `inode_count` is fixed, previously was +1 the actual inode count.
 
 ### Changed
+- The Public API of the library has been condensed, lmk if you have lost access to a required struct/field/enum.
 - Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.
   This significantly speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.
   The following diff will cover most common API upgrades from `v0.7.0`
@@ -38,6 +39,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   -FilesystemHeader
   +NodeHeader
   ```
+
+### Performance
+This releases allows massive performance improvements by only reading files from disk when required 
+and reducing the amount of memory required to read and write an image.
+
+Thanks [@rbran](https://github.com/rbran/) for the incredible work on the performance of the library.
+
+Before:
+```
+read/write/netgear_ax6100v2
+                        time:   [2.3553 s 2.3667 s 2.3775 s]
+read/write/tplink_ax1800
+                        time:   [17.996 s 18.068 s 18.140 s]
+```
+
+After:
+```
+write_read/netgear_ax6100v2
+                        time:   [1.2291 s 1.2363 s 1.2433 s]
+write_read/tplink_ax1800
+                        time:   [6.7506 s 6.8287 s 6.9349 s]
+only_read/netgear_ax6100v2
+                        time:   [5.1153 ms 5.1234 ms 5.1305 ms]
+only_read/tplink_ax1800 
+                        time:   [22.383 ms 22.398 ms 22.415 ms]
+```
 
 ## [v0.7.0] - 2023-01-23
 ### Added

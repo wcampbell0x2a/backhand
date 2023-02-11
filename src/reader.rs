@@ -6,7 +6,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use deku::bitvec::BitView;
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
-use tracing::{instrument, trace};
+use tracing::{error, instrument, trace};
 
 use crate::error::SquashfsError;
 use crate::fragment::Fragment;
@@ -71,7 +71,6 @@ pub trait SquashFsReader: ReadSeek {
     /// Read in entire data and fragments
     #[instrument(skip_all)]
     fn data_and_fragments(&mut self, superblock: &SuperBlock) -> Result<Vec<u8>, SquashfsError> {
-        self.rewind()?;
         let mut buf = vec![0u8; superblock.inode_table as usize];
         self.read_exact(&mut buf)?;
         Ok(buf)
@@ -104,15 +103,22 @@ pub trait SquashFsReader: ReadSeek {
         let mut ret_vec = HashMap::default();
         while !ret_bytes.is_empty() {
             let input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
-            match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
+            match Inode::read(
+                input_bits,
+                (
+                    superblock.bytes_used,
+                    superblock.block_size,
+                    superblock.block_log,
+                ),
+            ) {
                 Ok((rest, inode)) => {
                     // Push the new Inode to the return, with the position this was read from
                     ret_vec.insert(inode.header.inode_number, inode);
                     ret_bytes = rest.domain().region().unwrap().1.to_vec();
                 },
                 Err(e) => {
-                    // TODO: this should return an error
-                    panic!("{e}");
+                    error!("corrupted or invalid squashfs {e}");
+                    return Err(SquashfsError::CorruptedOrInvalidSquashfs);
                 },
             }
         }
@@ -127,6 +133,10 @@ pub trait SquashFsReader: ReadSeek {
         let root_inode_offset = (superblock.root_inode & 0xffff) as usize;
         trace!("root_inode_start:  0x{root_inode_start:02x?}");
         trace!("root_inode_offset: 0x{root_inode_offset:02x?}");
+        if (root_inode_start as u64) > superblock.bytes_used {
+            error!("root_inode_offset > bytes_used");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
 
         // Assumptions are made here that the root inode fits within two metadatas
         let seek = superblock.inode_table + root_inode_start as u64;
@@ -134,10 +144,21 @@ pub trait SquashFsReader: ReadSeek {
         let mut bytes_01 = metadata::read_block(self, superblock)?;
         let bytes_02 = metadata::read_block(self, superblock)?;
         bytes_01.write_all(&bytes_02)?;
+        if root_inode_offset > bytes_01.len() {
+            error!("root_inode_offset > bytes.len()");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
         let new_bytes = &bytes_01[root_inode_offset..];
 
         let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
-        match Inode::read(input_bits, (superblock.block_size, superblock.block_log)) {
+        match Inode::read(
+            input_bits,
+            (
+                superblock.bytes_used,
+                superblock.block_size,
+                superblock.block_log,
+            ),
+        ) {
             Ok((_, inode)) => Ok(inode),
             Err(e) => Err(e.into()),
         }

@@ -14,6 +14,7 @@ use crate::inode::{
     InodeInner,
 };
 use crate::metadata::MetadataWriter;
+use crate::squashfs::SuperBlock;
 use crate::NodeHeader;
 
 #[derive(Clone)]
@@ -41,6 +42,7 @@ impl<'a> Entry<'a> {
         file_size: u16,
         block_offset: u16,
         block_index: u32,
+        superblock: &SuperBlock,
     ) -> Self {
         let dir_inode = Inode {
             id: InodeId::BasicDirectory,
@@ -57,7 +59,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        dir_inode.to_bytes(name.as_bytes(), inode_writer)
+        dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock)
     }
     /// Write data and metadata for file node
     pub fn file(
@@ -67,6 +69,7 @@ impl<'a> Entry<'a> {
         inode_writer: &mut MetadataWriter,
         file_size: usize,
         added: &Added,
+        superblock: &SuperBlock,
     ) -> Self {
         let basic_file = match added {
             Added::Data {
@@ -102,7 +105,7 @@ impl<'a> Entry<'a> {
             inner: InodeInner::BasicFile(basic_file),
         };
 
-        file_inode.to_bytes(node_path.as_bytes(), inode_writer)
+        file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
     }
 
     /// Write data and metadata for symlink node
@@ -111,6 +114,7 @@ impl<'a> Entry<'a> {
         symlink: &SquashfsSymlink,
         inode: u32,
         inode_writer: &mut MetadataWriter,
+        superblock: &SuperBlock,
     ) -> Self {
         let link = symlink.link.as_os_str().as_bytes();
         let sym_inode = Inode {
@@ -126,7 +130,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        sym_inode.to_bytes(node_path.as_bytes(), inode_writer)
+        sym_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
     }
 
     /// Write data and metadata for char device node
@@ -135,6 +139,7 @@ impl<'a> Entry<'a> {
         char_device: &SquashfsCharacterDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
+        superblock: &SuperBlock,
     ) -> Self {
         let char_inode = Inode {
             id: InodeId::BasicCharacterDevice,
@@ -148,7 +153,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        char_inode.to_bytes(node_path.as_bytes(), inode_writer)
+        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
     }
 
     /// Write data and metadata for block device node
@@ -157,6 +162,7 @@ impl<'a> Entry<'a> {
         block_device: &SquashfsBlockDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
+        superblock: &SuperBlock,
     ) -> Self {
         let block_inode = Inode {
             id: InodeId::BasicBlockDevice,
@@ -170,7 +176,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        block_inode.to_bytes(node_path.as_bytes(), inode_writer)
+        block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
     }
 }
 

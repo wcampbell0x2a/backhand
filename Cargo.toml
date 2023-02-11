@@ -23,6 +23,7 @@ rustc-hash = "1.1.0"
 nix = { version = "0.26.2", default-features = false, features = ["fs"] }
 clap = { version = "4.0.12", features = ["derive"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
+byte-unit = "4.0.18"
 
 [features]
 default = ["xz", "gzip"]

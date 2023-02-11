@@ -27,6 +27,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 [features]
 default = ["xz", "gzip"]
 xz = ["dep:xz2"]
+xz-static = ["dep:xz2", "xz2?/static"]
 gzip = ["dep:flate2"]
 
 [dev-dependencies]

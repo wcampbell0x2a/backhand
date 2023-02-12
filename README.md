@@ -22,12 +22,13 @@ backhand = "0.8.0"
 ### Reading/Writing/Modifying Firmware
 ```rust,no_run
 use std::fs::File;
-use std::io::Cursor;
+use std::io::{BufReader, Cursor};
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 
 // read
 let file = File::open("file.squashfs").unwrap();
-let read_filesystem = FilesystemReader::from_reader(file).unwrap();
+let reader = BufReader::new(file);
+let read_filesystem = FilesystemReader::from_reader(reader).unwrap();
 
 // convert to writer
 let mut write_filesystem = FilesystemWriter::from_fs_reader(&read_filesystem).unwrap();

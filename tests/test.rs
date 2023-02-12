@@ -1,5 +1,6 @@
 mod common;
 use std::fs::File;
+use std::io::BufReader;
 
 use backhand::{FilesystemReader, FilesystemWriter};
 use common::{test_unsquashfs, test_unsquashfs_list};
@@ -31,8 +32,9 @@ fn full_test(
     let og_path = format!("{test_path}/{filepath}");
     let new_path = format!("{test_path}/bytes.squashfs");
     let file = File::open(&og_path).unwrap();
+    let reader = BufReader::new(file);
     info!("calling from_reader");
-    let og_filesystem = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
+    let og_filesystem = FilesystemReader::from_reader_with_offset(reader, offset).unwrap();
     let new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // convert to bytes

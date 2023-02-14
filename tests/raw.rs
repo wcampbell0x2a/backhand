@@ -1,5 +1,4 @@
 mod common;
-use std::path::PathBuf;
 
 use backhand::compression::Compressor;
 use backhand::internal::Id;
@@ -42,20 +41,18 @@ fn test_raw_00() {
         nodes: vec![],
     };
 
-    fs.push_dir("usr", o_header).unwrap();
-    fs.push_dir("usr/bin", o_header).unwrap();
+    fs.push_dir("usr", o_header);
+    fs.push_dir("usr/bin", o_header);
     fs.push_file(
         std::io::Cursor::new(vec![0x00, 0x01]),
         "usr/bin/heyo",
         header,
-    )
-    .unwrap();
+    );
     fs.push_file(
         std::io::Cursor::new(vec![0x0f; 0xff]),
         "this/is/a/file",
         header,
-    )
-    .unwrap();
+    );
 
     // create the modified squashfs
     let mut output = std::fs::File::create(&new_path).unwrap();

@@ -67,21 +67,13 @@ fn test_add_00() {
 
     // Add file
     let bytes = Cursor::new(b"this is a new file, wowo!");
-    new_filesystem
-        .push_file(bytes, "a/d/e/new_file", h)
-        .unwrap();
+    new_filesystem.push_file(bytes, "a/d/e/new_file", h);
     // Add file
-    new_filesystem
-        .push_file(Cursor::new("i am (g)root"), "root_file", h)
-        .unwrap();
+    new_filesystem.push_file(Cursor::new("i am (g)root"), "root_file", h);
     // Add file
-    new_filesystem
-        .push_file(Cursor::new("dude"), "a/b/c/d/dude", h)
-        .unwrap();
+    new_filesystem.push_file(Cursor::new("dude"), "a/b/c/d/dude", h);
 
-    new_filesystem
-        .push_symlink("a/b/c/d/dude", "ptr", h)
-        .unwrap();
+    new_filesystem.push_symlink("a/b/c/d/dude", "ptr", h);
 
     // Modify file
     new_filesystem

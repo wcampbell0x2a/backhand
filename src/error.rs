@@ -27,12 +27,6 @@ pub enum SquashfsError {
     #[error("file not found")]
     FileNotFound,
 
-    #[error("squashfs field not initialized")]
-    FieldNotInitialized,
-
-    #[error("os string cannot convert into str")]
-    OsStringToStr,
-
     #[error("branch was thought to be unreachable")]
     Unreachable,
 
@@ -54,8 +48,6 @@ impl From<SquashfsError> for io::Error {
                 Self::new(io::ErrorKind::Unsupported, e)
             },
             e @ SquashfsError::FileNotFound => Self::new(io::ErrorKind::NotFound, e),
-            e @ SquashfsError::FieldNotInitialized => Self::new(io::ErrorKind::InvalidData, e),
-            e @ SquashfsError::OsStringToStr => Self::new(io::ErrorKind::InvalidData, e),
             e @ SquashfsError::Unreachable => Self::new(io::ErrorKind::InvalidData, e),
             e @ SquashfsError::UnexpectedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
             e @ SquashfsError::UnsupportedInode(_) => Self::new(io::ErrorKind::InvalidData, e),

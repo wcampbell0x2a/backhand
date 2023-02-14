@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.0] - 2023-02-13
+### Fixed
+- `FilesystemWriter::push_file(..)` correctly enters file into filesystem
+### Changed
+- Remove Result return type from `FilesystemWriter::{push_file(..), push_dir(..), push_symlink(..), push_char_device(..) and push_block_devivce(..)`.
+- Remove unused errors: `FieldNotInitialized` and `OsStringToStr`.
+
 ## [v0.8.1] - 2023-02-11
 - Fix `src/lib.rs` version for docs.rs
 

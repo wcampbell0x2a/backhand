@@ -30,9 +30,7 @@ fn main() {
 
     // create new file
     let new_file = File::open(&args.file).unwrap();
-    filesystem
-        .push_file(new_file, args.file_path, NodeHeader::default())
-        .unwrap();
+    filesystem.push_file(new_file, args.file_path, NodeHeader::default());
 
     // write new file
     let mut output = File::create("added.squashfs").unwrap();

@@ -104,7 +104,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
             //not a file, dir, and it already exists
             (false, Some(dir)) => dir.insert(rest, node),
             //not a file, dir, but the dir don't exits
-            _ => todo!("Error Dir don't exists"),
+            (false, None) => todo!("Error Dir don't exists"),
         }
     }
 

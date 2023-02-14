@@ -426,30 +426,30 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         reader: impl Read + 'a,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), SquashfsError> {
+    ) {
         let path = path.into();
+
         if path.parent().is_some() {
-            let mut full_path = "".to_string();
+            let mut full_path = PathBuf::new();
             let components: Vec<_> = path.components().map(|comp| comp.as_os_str()).collect();
             'component: for dir in components.iter().take(components.len() - 1) {
                 // add to path
-                full_path.push('/');
-                full_path.push_str(dir.to_str().ok_or(SquashfsError::OsStringToStr)?);
+                full_path.push(dir);
 
                 // check if exists
                 for node in &mut self.nodes {
                     if let InnerNode::Dir(_) = &node.inner {
-                        if node.path.as_os_str().to_str()
-                            == Some(dir.to_str().ok_or(SquashfsError::OsStringToStr)?)
-                        {
-                            break 'component;
+                        let left = &node.path;
+                        let right = &full_path;
+                        if left == right {
+                            continue 'component;
                         }
                     }
                 }
 
                 // not found, add to dir
                 let new_dir = InnerNode::Dir(SquashfsDir { header });
-                let node = Node::new(PathBuf::from(full_path.clone()), new_dir);
+                let node = Node::new(full_path.clone(), new_dir);
                 self.nodes.push(node);
             }
         }
@@ -461,8 +461,6 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         });
         let node = Node::new(path, new_file);
         self.nodes.push(node);
-
-        Ok(())
     }
 
     /// Take a mutable reference to existing file at `find_path`
@@ -502,7 +500,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         link: S,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), SquashfsError> {
+    ) {
         let path = path.into();
 
         let new_symlink = InnerNode::Symlink(SquashfsSymlink {
@@ -511,23 +509,15 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         });
         let node = Node::new(path, new_symlink);
         self.nodes.push(node);
-
-        Ok(())
     }
 
     /// Insert empty `dir` at `path`
-    pub fn push_dir<P: Into<PathBuf>>(
-        &mut self,
-        path: P,
-        header: NodeHeader,
-    ) -> Result<(), SquashfsError> {
+    pub fn push_dir<P: Into<PathBuf>>(&mut self, path: P, header: NodeHeader) {
         let path = path.into();
 
         let new_dir = InnerNode::Dir(SquashfsDir { header });
         let node = Node::new(path, new_dir);
         self.nodes.push(node);
-
-        Ok(())
     }
 
     /// Insert character device with `device_number` at `path`
@@ -536,7 +526,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         device_number: u32,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), SquashfsError> {
+    ) {
         let path = path.into();
 
         let new_device = InnerNode::CharacterDevice(SquashfsCharacterDevice {
@@ -545,8 +535,6 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         });
         let node = Node::new(path, new_device);
         self.nodes.push(node);
-
-        Ok(())
     }
 
     /// Insert block device with `device_number` at `path`
@@ -555,7 +543,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         device_number: u32,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), SquashfsError> {
+    ) {
         let path = path.into();
 
         let new_device = InnerNode::BlockDevice(SquashfsBlockDevice {
@@ -564,8 +552,6 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         });
         let node = Node::new(path, new_device);
         self.nodes.push(node);
-
-        Ok(())
     }
 
     /// Generate the final squashfs file at the offset.

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.8.2] - 2023-02-13
+-  `FilesystemWriter::push_file(..)` correctly enters file into filesystem
+
 ## [v0.8.1] - 2023-02-11
 - Fix `src/lib.rs` version for docs.rs
 

@@ -428,28 +428,28 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         header: NodeHeader,
     ) -> Result<(), SquashfsError> {
         let path = path.into();
+
         if path.parent().is_some() {
-            let mut full_path = "".to_string();
+            let mut full_path = PathBuf::new();
             let components: Vec<_> = path.components().map(|comp| comp.as_os_str()).collect();
             'component: for dir in components.iter().take(components.len() - 1) {
                 // add to path
-                full_path.push('/');
-                full_path.push_str(dir.to_str().ok_or(SquashfsError::OsStringToStr)?);
+                full_path.push(dir);
 
                 // check if exists
                 for node in &mut self.nodes {
                     if let InnerNode::Dir(_) = &node.inner {
-                        if node.path.as_os_str().to_str()
-                            == Some(dir.to_str().ok_or(SquashfsError::OsStringToStr)?)
-                        {
-                            break 'component;
+                        let left = &node.path;
+                        let right = &full_path;
+                        if left == right {
+                            continue 'component;
                         }
                     }
                 }
 
                 // not found, add to dir
                 let new_dir = InnerNode::Dir(SquashfsDir { header });
-                let node = Node::new(PathBuf::from(full_path.clone()), new_dir);
+                let node = Node::new(full_path.clone(), new_dir);
                 self.nodes.push(node);
             }
         }

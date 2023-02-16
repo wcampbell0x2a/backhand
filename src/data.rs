@@ -7,7 +7,7 @@ use tracing::instrument;
 
 use crate::compressor::{compress, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
-use crate::filesystem::{RawDataBlock, SquashfsRawData};
+use crate::filesystem::SquashfsRawData;
 use crate::fragment::Fragment;
 use crate::reader::{ReadSeek, WriteSeek};
 
@@ -122,43 +122,16 @@ impl DataWriter {
         mut reader: SquashfsRawData<'_, R>,
         writer: &mut W,
     ) -> Result<(usize, Added), SquashfsError> {
+        //just clone it, because block sizes where never modified, just copy it
         let mut block_sizes = reader.file.basic.block_sizes.clone();
         let mut read_buf = vec![];
         let mut decompress_buf = vec![];
 
         // if the first block is not full (fragment), store only a fragment
         // otherwise processed to store blocks
-        let first_block = reader.next_block(&mut read_buf);
         let blocks_start = writer.stream_position()? as u32;
-        match first_block {
-            // chunk size not exactly the size of the block
-            Some(Ok(fragment @ RawDataBlock { fragment: true, .. })) => {
-                let bytes = reader.decompress(&fragment, &mut decompress_buf)?;
-                // if this doesn't fit in the current fragment bytes
-                // compress the current fragment bytes and add to data_bytes
-                if (bytes.len() + self.fragment_bytes.len()) > self.block_size as usize {
-                    self.finalize(writer)?;
-                }
-                // add to fragment bytes
-                let frag_index = self.fragment_table.len() as u32;
-                let block_offset = self.fragment_bytes.len() as u32;
-                self.fragment_bytes.write_all(bytes)?;
-
-                return Ok((
-                    bytes.len(),
-                    Added::Fragment {
-                        frag_index,
-                        block_offset,
-                    },
-                ));
-            },
-            Some(Ok(RawDataBlock {
-                data,
-                fragment: false,
-                ..
-            })) => {
-                writer.write_all(data)?;
-            },
+        let first_block = match reader.next_block(&mut read_buf) {
+            Some(Ok(first_block)) => first_block,
             Some(Err(x)) => return Err(x),
             None => {
                 return Ok((
@@ -169,36 +142,54 @@ impl DataWriter {
                     },
                 ))
             },
+        };
+        if first_block.fragment {
+            reader.decompress(first_block, &mut read_buf, &mut decompress_buf)?;
+            // if this doesn't fit in the current fragment bytes
+            // compress the current fragment bytes and add to data_bytes
+            if (decompress_buf.len() + self.fragment_bytes.len()) > self.block_size as usize {
+                self.finalize(writer)?;
+            }
+            // add to fragment bytes
+            let frag_index = self.fragment_table.len() as u32;
+            let block_offset = self.fragment_bytes.len() as u32;
+            self.fragment_bytes.write_all(&decompress_buf)?;
+
+            return Ok((
+                decompress_buf.len(),
+                Added::Fragment {
+                    frag_index,
+                    block_offset,
+                },
+            ));
+        } else {
+            //if is a block, just copy it
+            writer.write_all(&read_buf)?;
         }
         while let Some(block) = reader.next_block(&mut read_buf) {
-            match block? {
-                RawDataBlock {
-                    data,
-                    fragment: false,
-                    ..
-                } => {
-                    writer.write_all(data)?;
-                },
-                fragment @ RawDataBlock { fragment: true, .. } => {
-                    // TODO: support tail-end fragments, for now just treat it like a block
-                    let bytes = reader.decompress(&fragment, &mut decompress_buf)?;
-                    let cb = compress(
-                        bytes,
-                        self.compressor,
-                        &self.compression_options,
-                        self.block_size,
-                    )?;
-                    // compression didn't reduce size
-                    if cb.len() > bytes.len() {
-                        // store uncompressed
-                        block_sizes.push(DataSize::new_uncompressed(bytes.len() as u32));
-                        writer.write_all(bytes)?;
-                    } else {
-                        // store compressed
-                        block_sizes.push(DataSize::new_compressed(cb.len() as u32));
-                        writer.write_all(&cb)?;
-                    }
-                },
+            let block = block?;
+            if block.fragment {
+                reader.decompress(block, &mut read_buf, &mut decompress_buf)?;
+                // TODO: support tail-end fragments, for now just treat it like a block
+                let cb = compress(
+                    &decompress_buf,
+                    self.compressor,
+                    &self.compression_options,
+                    self.block_size,
+                )?;
+                // compression didn't reduce size
+                if cb.len() > decompress_buf.len() {
+                    // store uncompressed
+                    block_sizes.push(DataSize::new_uncompressed(decompress_buf.len() as u32));
+                    writer.write_all(&decompress_buf)?;
+                } else {
+                    // store compressed
+                    block_sizes.push(DataSize::new_compressed(cb.len() as u32));
+                    writer.write_all(&cb)?;
+                }
+            } else {
+                //if is a block, just copy it
+                writer.write_all(&read_buf)?;
             }
         }
         let file_size = reader.file.basic.file_size as usize;

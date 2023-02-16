@@ -323,8 +323,7 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
             //data is already decompress, so just swap the read and decompress
             //buffers, so the buf_decompress contains the final data.
             std::mem::swap(&mut self.buf_read, &mut self.buf_decompress);
-            self.buf_decompress =
-                self.buf_decompress[self.raw_data.file.basic.block_offset as usize..].to_vec();
+            self.buf_decompress.drain(..self.raw_data.file.basic.block_offset as usize);
         } else {
             self.raw_data.decompress(&block, &mut self.buf_decompress)?;
         }

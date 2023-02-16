@@ -319,11 +319,11 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
             None => return Ok(()),
         };
         if block.uncompressed {
-            self.raw_data.decompress(&block, &mut self.buf_decompress)?;
-        } else {
             //data is already decompress, so just swap the read and decompress
             //buffers, so the buf_decompress contains the final data.
             std::mem::swap(&mut self.buf_read, &mut self.buf_decompress);
+        } else {
+            self.raw_data.decompress(&block, &mut self.buf_decompress)?;
         }
         self.last_read = 0;
         Ok(())

@@ -150,8 +150,7 @@ impl<'a> Iterator for BlockIterator<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct RawDataBlock<'b> {
-    pub(crate) data: &'b [u8],
+pub(crate) struct RawDataBlock {
     pub(crate) fragment: bool,
     pub(crate) uncompressed: bool,
 }
@@ -171,11 +170,11 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
             pos,
         }
     }
-    fn read_raw_data<'b>(
+    fn read_raw_data(
         &mut self,
-        data: &'b mut Vec<u8>,
+        data: &mut Vec<u8>,
         block: BlockFragment<'a>,
-    ) -> Result<RawDataBlock<'b>, SquashfsError> {
+    ) -> Result<RawDataBlock, SquashfsError> {
         match block {
             BlockFragment::Block(block) => {
                 let block_size = block.size() as usize;
@@ -187,7 +186,6 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
                 reader.read_exact(data)?;
                 self.pos = reader.stream_position()?;
                 Ok(RawDataBlock {
-                    data,
                     fragment: false,
                     uncompressed: block.uncompressed(),
                 })
@@ -201,7 +199,6 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
                     data[..cache_size].copy_from_slice(cache_bytes);
                     //cache is store uncompressed
                     Ok(RawDataBlock {
-                        data,
                         fragment: true,
                         uncompressed: true,
                     })
@@ -213,7 +210,6 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
                     reader.seek(SeekFrom::Start(fragment.start))?;
                     reader.read_exact(data)?;
                     Ok(RawDataBlock {
-                        data,
                         fragment: true,
                         uncompressed: fragment.size.uncompressed(),
                     })
@@ -221,10 +217,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
             },
         }
     }
-    pub fn next_block<'b>(
-        &mut self,
-        buf: &'b mut Vec<u8>,
-    ) -> Option<Result<RawDataBlock<'b>, SquashfsError>> {
+    pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, SquashfsError>> {
         self.current_block
             .next()
             .map(|next| self.read_raw_data(buf, next))
@@ -238,47 +231,36 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         let frag_end = frag_start + frag_len;
         frag_start..frag_end
     }
-    pub fn decompress<'b>(
+    pub fn decompress(
         &self,
-        block: &RawDataBlock<'b>,
-        buf: &'b mut Vec<u8>,
-    ) -> Result<&'b [u8], SquashfsError> {
-        match block {
-            RawDataBlock {
-                data,
-                fragment,
-                uncompressed: false,
-            } => {
-                buf.clear();
-                compressor::decompress(data, buf, self.file.system.compressor)?;
-                // store the cache, so decompression is not duplicated
-                if *fragment {
-                    self.file
-                        .system
-                        .cache
-                        .borrow_mut()
-                        .fragment_cache
-                        .insert(self.file.fragment().unwrap().start, buf.clone());
-                    let range = self.fragment_range();
-                    Ok(&buf[range])
-                } else {
-                    Ok(buf.as_slice())
-                }
-            },
-            RawDataBlock {
-                data,
-                fragment: true,
-                uncompressed: true,
-            } => {
-                let range = self.fragment_range();
-                Ok(&data[range])
-            },
-            RawDataBlock {
-                data,
-                fragment: false,
-                uncompressed: true,
-            } => Ok(data),
+        data: RawDataBlock,
+        input_buf: &mut Vec<u8>,
+        output_buf: &mut Vec<u8>,
+    ) -> Result<(), SquashfsError> {
+        //input is already decompress, so just swap the input/output, so the
+        //output_buf contains the final data.
+        if data.uncompressed {
+            std::mem::swap(input_buf, output_buf);
+        } else {
+            output_buf.clear();
+            compressor::decompress(input_buf, output_buf, self.file.system.compressor)?;
+            // store the cache, so decompression is not duplicated
+            if data.fragment {
+                self.file
+                    .system
+                    .cache
+                    .borrow_mut()
+                    .fragment_cache
+                    .insert(self.file.fragment().unwrap().start, output_buf.clone());
+            }
         }
+        //apply the fragment offset
+        if data.fragment {
+            let range = self.fragment_range();
+            output_buf.drain(range.end..);
+            output_buf.drain(..range.start);
+        }
+        Ok(())
     }
     pub fn into_reader(self) -> SquashfsReadFile<'a, R> {
         let bytes_available = self.file.basic.file_size as usize;
@@ -319,15 +301,8 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
             Some(block) => block?,
             None => return Ok(()),
         };
-        if block.uncompressed {
-            //data is already decompress, so just swap the read and decompress
-            //buffers, so the buf_decompress contains the final data.
-            std::mem::swap(&mut self.buf_read, &mut self.buf_decompress);
-            self.buf_decompress =
-                self.buf_decompress[self.raw_data.file.basic.block_offset as usize..].to_vec();
-        } else {
-            self.raw_data.decompress(&block, &mut self.buf_decompress)?;
-        }
+        self.raw_data
+            .decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
         self.last_read = 0;
         Ok(())
     }

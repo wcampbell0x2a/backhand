@@ -148,6 +148,7 @@ impl<'a> Iterator for BlockIterator<'a> {
             .or_else(|| self.fragment.take().map(BlockFragment::Fragment))
     }
 }
+
 #[derive(Clone, Copy)]
 pub(crate) struct RawDataBlock<'b> {
     pub(crate) data: &'b [u8],
@@ -322,6 +323,8 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
             //data is already decompress, so just swap the read and decompress
             //buffers, so the buf_decompress contains the final data.
             std::mem::swap(&mut self.buf_read, &mut self.buf_decompress);
+            self.buf_decompress =
+                self.buf_decompress[self.raw_data.file.basic.block_offset as usize..].to_vec();
         } else {
             self.raw_data.decompress(&block, &mut self.buf_decompress)?;
         }

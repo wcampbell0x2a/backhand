@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.1] - 2023-02-16
+### Fixed
+- Fix `unsquashfs` extracting wrong file data
+
 ## [v0.9.0] - 2023-02-13
 ### Fixed
 - `FilesystemWriter::push_file(..)` correctly enters file into filesystem

@@ -9,10 +9,6 @@ backhand
 Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
-| :warning: WARNING                                                                          |
-|:-------------------------------------------------------------------------------------------|
-| The API for this library **isn't** complete. I will most likely break this for improvements |
-
 ## Library
 Add the following to your `Cargo.toml` file:
 ```toml
@@ -49,10 +45,6 @@ write_filesystem.replace_file("/a/b/c/d/e/first_file", bytes).unwrap();
 let mut output = File::create("modified.squashfs").unwrap();
 write_filesystem.write(&mut output).unwrap();
 ```
-
-## Testing
-This library is tested with unpacking and packing SquashFS firmwares and testing that result with `unsquashfs`.
-`openwrt` binaries are primarily being tested.
 
 ## Binaries
 These are currently under development and are missing features, MR's welcome!
@@ -93,3 +85,9 @@ Options:
   -h, --help     Print help information
   -V, --version  Print version information
 ```
+
+## Testing
+This library is extensively tested with all library features and images from openwrt and extracted from manufacturers devices.
+
+To run basic tests, use `cargo test --release`.
+To start fuzzing, run `cargo fuzz list` then pick one! Then start with `cargo fuzz run [NAME]`.

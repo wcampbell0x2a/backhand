@@ -49,7 +49,7 @@ write_filesystem.write(&mut output).unwrap();
 ## Binaries
 These are currently under development and are missing features, MR's welcome!
 
-To install, run `cargo install backhand`.
+To install, run `cargo install backhand --locked`.
 
 ### unsquashfs
 ```console

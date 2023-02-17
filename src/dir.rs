@@ -86,6 +86,7 @@ pub struct DirectoryIndex {
     pub(crate) index: u32,
     /// Start offset of a directory table metadata block, relative to the directory table start.
     pub(crate) start: u32,
+    #[deku(assert = "*name_size < 100")]
     pub(crate) name_size: u32,
     #[deku(count = "*name_size + 1")]
     pub(crate) name: Vec<u8>,

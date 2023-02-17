@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 use std::ffi::OsString;
+use std::io::SeekFrom;
 use std::os::unix::prelude::OsStringExt;
 use std::path::{Path, PathBuf};
 
@@ -260,6 +261,21 @@ impl<R: ReadSeek> Squashfs<R> {
         let (_, superblock) = SuperBlock::from_bytes((&superblock, 0))?;
         info!("{superblock:#08x?}");
 
+        let power_of_two = superblock.block_size != 0
+            && (superblock.block_size & (superblock.block_size - 1)) == 0;
+        if (superblock.block_size > byte_unit::n_mb_bytes!(1) as u32)
+            || (superblock.block_size < byte_unit::n_kb_bytes(4) as u32)
+            || !power_of_two
+        {
+            error!("block_size invalid");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+
+        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
+            error!("block size.log2() != block_log");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+
         // Parse Compression Options, if any
         info!("Reading Compression options");
         let compression_options = if superblock.compressor != Compressor::None {
@@ -288,6 +304,46 @@ impl<R: ReadSeek> Squashfs<R> {
             None
         };
         info!("compression_options: {compression_options:02x?}");
+
+        // Check if legal image
+        let total_length = reader.seek(SeekFrom::End(0))?;
+        reader.rewind()?;
+        if superblock.bytes_used > total_length {
+            error!("corrupted or invalid bytes_used");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.id_table != 0xffff_ffff_ffff_ffff && superblock.id_table > total_length {
+            error!("corrupted or invalid id_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.xattr_table != 0xffff_ffff_ffff_ffff && superblock.xattr_table > total_length
+        {
+            error!("corrupted or invalid xattr_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.inode_table > total_length {
+            error!("corrupted or invalid inode_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.dir_table > total_length {
+            error!("corrupted or invalid dir_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.xattr_table != 0xffff_ffff_ffff_ffff && superblock.xattr_table > total_length
+        {
+            error!("corrupted or invalid frag_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.frag_table != 0xffff_ffff_ffff_ffff && superblock.frag_table > total_length {
+            error!("corrupted or invalid frag_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.export_table != 0xffff_ffff_ffff_ffff
+            && superblock.export_table > total_length
+        {
+            error!("corrupted or invalid export_table");
+            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+        }
 
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Data and Fragments");

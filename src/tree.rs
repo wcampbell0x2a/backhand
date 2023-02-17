@@ -16,6 +16,7 @@ use crate::filesystem::{
 };
 use crate::metadata::MetadataWriter;
 use crate::reader::{ReadSeek, WriteSeek};
+use crate::squashfs::SuperBlock;
 use crate::NodeHeader;
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
@@ -175,6 +176,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
         parent_inode: u32,
+        superblock: SuperBlock,
     ) -> Result<(Option<Entry>, u64), SquashfsError> {
         // If no children, just return since it doesn't have anything recursive/new
         // directories
@@ -196,7 +198,8 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
 
         // tree has children, this is a Dir, get information of every child node
         for child in dir.values() {
-            let (l_dir_entries, _) = child.write_inode_dir(inode_writer, dir_writer, this_inode)?;
+            let (l_dir_entries, _) =
+                child.write_inode_dir(inode_writer, dir_writer, this_inode, superblock)?;
             if let Some(entry) = l_dir_entries {
                 write_entries.push(entry);
             }
@@ -214,6 +217,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     3, // Empty path
                     dir_writer.uncompressed_bytes.len() as u16,
                     dir_writer.metadata_start,
+                    &superblock,
                 ),
                 InnerTreeNode::FilePhase2(filesize, added, header) => Entry::file(
                     node.name(),
@@ -222,16 +226,25 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     inode_writer,
                     *filesize,
                     added,
+                    &superblock,
                 ),
-                InnerTreeNode::Symlink(symlink) => {
-                    Entry::symlink(node.name(), symlink, node.inode_id, inode_writer)
-                },
+                InnerTreeNode::Symlink(symlink) => Entry::symlink(
+                    node.name(),
+                    symlink,
+                    node.inode_id,
+                    inode_writer,
+                    &superblock,
+                ),
                 InnerTreeNode::CharacterDevice(char) => {
-                    Entry::char(node.name(), char, node.inode_id, inode_writer)
+                    Entry::char(node.name(), char, node.inode_id, inode_writer, &superblock)
                 },
-                InnerTreeNode::BlockDevice(block) => {
-                    Entry::block_device(node.name(), block, node.inode_id, inode_writer)
-                },
+                InnerTreeNode::BlockDevice(block) => Entry::block_device(
+                    node.name(),
+                    block,
+                    node.inode_id,
+                    inode_writer,
+                    &superblock,
+                ),
                 _ => unreachable!(),
             };
             write_entries.push(entry);
@@ -259,6 +272,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
             total_size,
             block_offset,
             block_index,
+            &superblock,
         );
         let root_inode = ((entry.start as u64) << 16) | ((entry.offset as u64) & 0xffff);
 

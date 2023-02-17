@@ -11,22 +11,36 @@ use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
 use crate::filesystem::NodeHeader;
 use crate::metadata::MetadataWriter;
+use crate::squashfs::SuperBlock;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "block_size: u32, block_log: u16")]
+#[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16")]
 #[deku(endian = "little")]
 pub struct Inode {
     pub id: InodeId,
     pub header: InodeHeader,
-    #[deku(ctx = "*id, block_size, block_log")]
+    #[deku(ctx = "*id, bytes_used, block_size, block_log")]
     pub inner: InodeInner,
 }
 
 impl Inode {
     /// Write to `m_writer`, creating Entry
-    pub(crate) fn to_bytes<'a>(&self, name: &'a [u8], m_writer: &mut MetadataWriter) -> Entry<'a> {
+    pub(crate) fn to_bytes<'a>(
+        &self,
+        name: &'a [u8],
+        m_writer: &mut MetadataWriter,
+        superblock: &SuperBlock,
+    ) -> Entry<'a> {
         let mut v = BitVec::<u8, Msb0>::new();
-        self.write(&mut v, (0, 0)).unwrap();
+        self.write(
+            &mut v,
+            (
+                0xffff_ffff_ffff_ffff, // bytes_used is unused for ctx. set to max
+                superblock.block_size,
+                superblock.block_log,
+            ),
+        )
+        .unwrap();
         let bytes = v.as_raw_slice().to_vec();
         let start = m_writer.metadata_start;
         let offset = m_writer.uncompressed_bytes.len() as u16;
@@ -58,7 +72,9 @@ pub enum InodeId {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "endian: deku::ctx::Endian, id: InodeId, block_size: u32, block_log: u16")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, id: InodeId, bytes_used: u64, block_size: u32, block_log: u16"
+)]
 #[deku(endian = "endian")]
 #[deku(id = "id")]
 pub enum InodeInner {
@@ -81,7 +97,7 @@ pub enum InodeInner {
     ExtendedDirectory(ExtendedDirectory),
 
     #[deku(id = "InodeId::ExtendedFile")]
-    ExtendedFile(#[deku(ctx = "block_size, block_log")] ExtendedFile),
+    ExtendedFile(#[deku(ctx = "bytes_used, block_size, block_log")] ExtendedFile),
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
@@ -135,6 +151,7 @@ pub struct ExtendedDirectory {
     pub file_size: u32,
     pub block_index: u32,
     pub parent_inode: u32,
+    #[deku(assert = "*index_count < 256")]
     pub index_count: u16,
     pub block_offset: u16,
     pub xattr_index: u32,
@@ -151,6 +168,7 @@ pub struct BasicFile {
     pub blocks_start: u32,
     pub frag_index: u32,
     pub block_offset: u32,
+    #[deku(assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))")]
     pub file_size: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
@@ -171,10 +189,13 @@ impl From<&ExtendedFile> for BasicFile {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
+    ctx = "endian: deku::ctx::Endian, bytes_used: u64, block_size: u32, block_log: u16"
 )]
 pub struct ExtendedFile {
     pub blocks_start: u64,
+    #[deku(
+        assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1)) && (*file_size < bytes_used)"
+    )]
     pub file_size: u64,
     pub sparse: u64,
     pub link_count: u32,
@@ -199,6 +220,7 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicSymlink {
     pub link_count: u32,
+    #[deku(assert = "*target_size < 256")]
     pub target_size: u32,
     #[deku(count = "target_size")]
     pub target_path: Vec<u8>,

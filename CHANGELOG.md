@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- Fuzz testing with `cargo fuzz`. Mostly fuzz bytes as bytes/image input into this library.
+### Fixed
+- Fixed many issues found with fuzz testing related to legal images.
+  Checks are now added at every stop possible to prevent many soundness issues.
 
 ## [v0.9.1] - 2023-02-16
 ### Fixed

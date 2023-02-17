@@ -35,6 +35,9 @@ pub enum SquashfsError {
 
     #[error("unsupported inode: {0:?}, please fill github issue to add support")]
     UnsupportedInode(InodeInner),
+
+    #[error("corrupted or invalid squashfs image")]
+    CorruptedOrInvalidSquashfs,
 }
 
 impl From<SquashfsError> for io::Error {
@@ -51,6 +54,9 @@ impl From<SquashfsError> for io::Error {
             e @ SquashfsError::Unreachable => Self::new(io::ErrorKind::InvalidData, e),
             e @ SquashfsError::UnexpectedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
             e @ SquashfsError::UnsupportedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ SquashfsError::CorruptedOrInvalidSquashfs => {
+                Self::new(io::ErrorKind::InvalidData, e)
+            },
         }
     }
 }

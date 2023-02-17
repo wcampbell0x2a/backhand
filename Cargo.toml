@@ -16,7 +16,7 @@ deku = "0.15.0"
 tracing = "0.1.37"
 thiserror = "1.0.37"
 flate2 = { version = "1.0.24", optional = true }
-xz2 = { version = "0.1.7", optional = true }
+xz2 = { git = "https://github.com/wcampbell0x2a/xz2-rs", branch = "add-arm-decoder-encoders", optional = true }
 rustc-hash = "1.1.0"
 
 # for bins

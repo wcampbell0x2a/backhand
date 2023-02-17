@@ -224,7 +224,6 @@ fn test_openwrt_tplink_archera7v5() {
 
 #[test]
 #[cfg(feature = "xz")]
-#[cfg(not(feature = "xz-static"))]
 fn test_openwrt_netgear_ex6100v2() {
     const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
 
@@ -269,7 +268,6 @@ fn test_appimage_firefox() {
 /// (after ubi_extract_image)
 #[test]
 #[cfg(feature = "xz")]
-#[cfg(not(feature = "xz-static"))]
 fn test_tplink_ax1800() {
     const FILE_NAME: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
     let asset_defs = [TestAssetDef {

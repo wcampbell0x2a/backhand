@@ -22,8 +22,8 @@ use crate::error::SquashfsError;
 pub enum Compressor {
     None = 0,
     Gzip = 1,
-    Lzo =  2,
-    Lzma = 3,
+    Lzma = 2,
+    Lzo =  3,
     Xz =   4,
     Lz4 =  5,
     Zstd = 6,
@@ -98,22 +98,23 @@ pub struct Zstd {
 #[instrument(skip_all)]
 pub(crate) fn decompress(
     bytes: &[u8],
-    out: &mut [u8],
+    out: &mut Vec<u8>,
     compressor: Compressor,
 ) -> Result<(), SquashfsError> {
     match compressor {
         #[cfg(feature = "gzip")]
         Compressor::Gzip => {
             let mut decoder = flate2::read::ZlibDecoder::new(bytes);
-            decoder.read_exact(out)?;
+            decoder.read_to_end(out)?;
         },
         #[cfg(feature = "xz")]
         Compressor::Xz => {
             let mut decoder = XzDecoder::new(bytes);
-            decoder.read_exact(out)?;
+            decoder.read_to_end(out)?;
         },
         #[cfg(feature = "lzo")]
         Compressor::Lzo => {
+            out.resize(out.capacity(), 0);
             let (_out, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
             if error != rust_lzo::LZOError::OK {
                 return Err(SquashfsError::CorruptedOrInvalidSquashfs);

@@ -117,7 +117,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
     }
 
     fn have_children(&self) -> bool {
-        self.children().map(|c| !c.is_empty()).unwrap_or(false)
+        self.children().map_or(false, |c| !c.is_empty())
     }
 
     fn calculate_inode(&mut self, inode_counter: &'_ mut u32) {
@@ -245,7 +245,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     inode_writer,
                     &superblock,
                 ),
-                _ => unreachable!(),
+                InnerTreeNode::FilePhase1(_) => unreachable!(),
             };
             write_entries.push(entry);
         }

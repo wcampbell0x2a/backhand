@@ -173,7 +173,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
     fn read_raw_data(
         &mut self,
         data: &mut Vec<u8>,
-        block: BlockFragment<'a>,
+        block: &BlockFragment<'a>,
     ) -> Result<RawDataBlock, SquashfsError> {
         match block {
             BlockFragment::Block(block) => {
@@ -220,7 +220,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, SquashfsError>> {
         self.current_block
             .next()
-            .map(|next| self.read_raw_data(buf, next))
+            .map(|next| self.read_raw_data(buf, &next))
     }
     fn fragment_range(&self) -> std::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;

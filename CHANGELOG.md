@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed many issues found with fuzz testing related to legal images.
   Checks are now added at every stop possible to prevent many soundness issues.
+### Changed
+- Pass internal raw data by reference, improving `only_read` benchmarks by ~9%.
 
 ## [v0.9.1] - 2023-02-16
 ### Fixed

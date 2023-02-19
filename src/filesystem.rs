@@ -242,7 +242,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         if data.uncompressed {
             std::mem::swap(input_buf, output_buf);
         } else {
-            output_buf.clear();
+            output_buf.resize(self.file.system.block_size as usize, 0);
             compressor::decompress(input_buf, output_buf, self.file.system.compressor)?;
             // store the cache, so decompression is not duplicated
             if data.fragment {

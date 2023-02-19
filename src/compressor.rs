@@ -98,19 +98,26 @@ pub struct Zstd {
 #[instrument(skip_all)]
 pub(crate) fn decompress(
     bytes: &[u8],
-    out: &mut Vec<u8>,
+    out: &mut [u8],
     compressor: Compressor,
 ) -> Result<(), SquashfsError> {
     match compressor {
         #[cfg(feature = "gzip")]
         Compressor::Gzip => {
             let mut decoder = flate2::read::ZlibDecoder::new(bytes);
-            decoder.read_to_end(out)?;
+            decoder.read_exact(out)?;
         },
         #[cfg(feature = "xz")]
         Compressor::Xz => {
             let mut decoder = XzDecoder::new(bytes);
-            decoder.read_to_end(out)?;
+            decoder.read_exact(out)?;
+        },
+        #[cfg(feature = "lzo")]
+        Compressor::Lzo => {
+            let (_out, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
+            if error != rust_lzo::LZOError::OK {
+                return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            }
         },
         _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
     }
@@ -185,6 +192,16 @@ pub(crate) fn compress(
             let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
             let mut buf = vec![];
             encoder.read_to_end(&mut buf)?;
+            Ok(buf)
+        },
+        #[cfg(feature = "lzo")]
+        (Compressor::Lzo, _) => {
+            let mut lzo = rust_lzo::LZOContext::new();
+            let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
+            let error = lzo.compress(bytes, &mut buf);
+            if error != rust_lzo::LZOError::OK {
+                return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            }
             Ok(buf)
         },
         _ => Err(SquashfsError::UnsupportedCompression(compressor)),

@@ -115,7 +115,9 @@ pub(crate) fn decompress(
         #[cfg(feature = "lzo")]
         Compressor::Lzo => {
             out.resize(out.capacity(), 0);
-            let (_out, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
+            let (out_size, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
+            let out_size = out_size.len();
+            out.truncate(out_size);
             if error != rust_lzo::LZOError::OK {
                 return Err(SquashfsError::CorruptedOrInvalidSquashfs);
             }

@@ -245,7 +245,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     inode_writer,
                     &superblock,
                 ),
-                _ => unreachable!(),
+                InnerTreeNode::FilePhase1(_) => unreachable!(),
             };
             write_entries.push(entry);
         }

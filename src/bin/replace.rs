@@ -1,12 +1,12 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
+use backhand::{FilesystemReader, FilesystemWriter};
 use clap::Parser;
 
-/// tool to add files to squashfs filesystems
+/// tool to replace files in squashfs filesystems
 #[derive(Parser, Debug)]
-#[command(author, version, name = "add-backhand")]
+#[command(author, version, name = "replace-backhand")]
 struct Args {
     /// Squashfs input image
     filesystem: PathBuf,
@@ -14,11 +14,11 @@ struct Args {
     /// Path of file to read, to write into squashfs
     file: PathBuf,
 
-    /// Path of file inserted into squashfs
+    /// Path of file replaced in image
     file_path: PathBuf,
 
     /// Squashfs output image
-    #[clap(short, long, default_value = "added.squashfs")]
+    #[clap(short, long, default_value = "replaced.squashfs")]
     out: PathBuf,
 }
 
@@ -32,12 +32,12 @@ fn main() {
     let filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 
-    // create new file
+    // Modify file
     let new_file = File::open(&args.file).unwrap();
-    filesystem.push_file(new_file, args.file_path, NodeHeader::default());
+    filesystem.replace_file(args.file_path, new_file).unwrap();
 
     // write new file
     let mut output = File::create(&args.out).unwrap();
     filesystem.write(&mut output).unwrap();
-    println!("added file and wrote to {}", args.out.display());
+    println!("replaced file and wrote to {}", args.out.display());
 }

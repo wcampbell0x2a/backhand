@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 ### Added
 - Fuzz testing with `cargo fuzz`. Mostly fuzz bytes as bytes/image input into this library.
+- `unsquashfs`: Add `-o, --out <OUT>` flag for output squashfs image destination
+- `replace`: Add binary to replace file in squashfs filesystems
+
 ### Fixed
 - Fixed many issues found with fuzz testing related to legal images.
   Checks are now added at every stop possible to prevent many soundness issues.

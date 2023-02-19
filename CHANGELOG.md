@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Checks are now added at every stop possible to prevent many soundness issues.
 ### Changed
 - Pass internal raw data by reference, improving `only_read` benchmarks by ~9%.
+- Invalid `Superblock.block_size` is now checked against MiB(1) instead of MB(1)
 
 ## [v0.9.1] - 2023-02-16
 ### Fixed

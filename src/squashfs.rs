@@ -263,11 +263,11 @@ impl<R: ReadSeek> Squashfs<R> {
 
         let power_of_two = superblock.block_size != 0
             && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > byte_unit::n_mb_bytes!(1) as u32)
+        if (superblock.block_size > byte_unit::n_mib_bytes!(1) as u32)
             || (superblock.block_size < byte_unit::n_kb_bytes(4) as u32)
             || !power_of_two
         {
-            error!("block_size invalid");
+            error!("block_size({:#02x}) invalid", superblock.block_size);
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
 

@@ -51,8 +51,8 @@ These are currently under development and are missing features, MR's welcome!
 
 To install, run `cargo install backhand --locked`.
 
-### unsquashfs
-```console
+### unsquashfs-backhand
+```no_test
 tool to uncompress, extract and list squashfs filesystems
 
 Usage: unsquashfs [OPTIONS] <FILESYSTEM>
@@ -70,20 +70,38 @@ Options:
   -h, --help             Print help information
   -V, --version          Print version information
 ```
-### add
-```console
+### add-backhand
+```no_test
 tool to add files to squashfs filesystems
 
-Usage: add <FILESYSTEM> <FILE> <FILE_PATH>
+Usage: add [OPTIONS] <FILESYSTEM> <FILE> <FILE_PATH>
 
 Arguments:
-  <FILESYSTEM>  Squashfs file
-  <FILE>
-  <FILE_PATH>
+  <FILESYSTEM>  Squashfs input image
+  <FILE>        Path of file to read, to write into squashfs
+  <FILE_PATH>   Path of file inserted into squashfs
 
 Options:
-  -h, --help     Print help information
-  -V, --version  Print version information
+  -o, --out <OUT>  Squashfs output image [default: added.squashfs]
+  -h, --help       Print help
+  -V, --version    Print version
+```
+
+### replace-backhand
+```no_test
+tool to replace files in squashfs filesystems
+
+Usage: replace [OPTIONS] <FILESYSTEM> <FILE> <FILE_PATH>
+
+Arguments:
+  <FILESYSTEM>  Squashfs input image
+  <FILE>        Path of file to read, to write into squashfs
+  <FILE_PATH>   Path of file replaced in image
+
+Options:
+  -o, --out <OUT>  Squashfs output image [default: replaced.squashfs]
+  -h, --help       Print help
+  -V, --version    Print version
 ```
 
 ## Testing

@@ -213,13 +213,13 @@ pub(crate) fn compress(
             Ok(buf)
         },
         #[cfg(feature = "zstd")]
-        (Compressor::Zstd, option) => {
+        (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None)) => {
             let compression_level = match option {
                 None => 3,
                 Some(CompressionOptions::Zstd(option)) => option.compression_level,
                 Some(_) => unreachable!(),
             };
-            let mut encoder = zstd::bulk::Compressor::new(compression_level as i32).unwrap();
+            let mut encoder = zstd::bulk::Compressor::new(compression_level as i32)?;
             let mut buf = vec![];
             encoder.compress_to_buffer(bytes, &mut buf)?;
             Ok(buf)

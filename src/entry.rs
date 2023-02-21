@@ -31,6 +31,7 @@ impl<'a> Entry<'a> {
     pub fn name(&self) -> String {
         std::str::from_utf8(self.name).unwrap().to_string()
     }
+
     /// Write data and metadata for path node
     #[allow(clippy::too_many_arguments)]
     pub fn path(
@@ -61,6 +62,7 @@ impl<'a> Entry<'a> {
 
         dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock)
     }
+
     /// Write data and metadata for file node
     pub fn file(
         node_path: &'a OsStr,

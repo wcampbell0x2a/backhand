@@ -28,21 +28,27 @@ impl DataSize {
         }
         Self(value)
     }
+
     pub fn new_compressed(size: u32) -> Self {
         Self::new(size, false)
     }
+
     pub fn new_uncompressed(size: u32) -> Self {
         Self::new(size, true)
     }
+
     pub fn uncompressed(&self) -> bool {
         self.0 & DATA_STORED_UNCOMPRESSED != 0
     }
+
     pub fn set_uncompressed(&mut self) {
         self.0 |= DATA_STORED_UNCOMPRESSED
     }
+
     pub fn set_compressed(&mut self) {
         self.0 &= !DATA_STORED_UNCOMPRESSED
     }
+
     pub fn size(&self) -> u32 {
         self.0 & !DATA_STORED_UNCOMPRESSED
     }

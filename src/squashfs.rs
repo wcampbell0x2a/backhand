@@ -79,12 +79,12 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
-    const MAGIC: &'static [u8; 4] = b"hsqs";
-    const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
     const DEFAULT_BLOCK_LOG: u16 = 0x11;
+    const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
+    const MAGIC: &'static [u8; 4] = b"hsqs";
+    const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
     const VERSION_MAJ: u16 = 4;
     const VERSION_MIN: u16 = 0;
-    const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
     pub fn new(compressor: Compressor) -> Self {
         Self {
@@ -248,6 +248,7 @@ impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
         Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset))
     }
 }
+
 impl<R: ReadSeek> Squashfs<R> {
     #[instrument(skip_all)]
     fn inner_from_reader(mut reader: R) -> Result<Squashfs<R>, SquashfsError> {

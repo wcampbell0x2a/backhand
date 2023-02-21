@@ -96,9 +96,11 @@ impl<'a, R: ReadSeek> FilesystemReaderFile<'a, R> {
     pub fn new(system: &'a FilesystemReader<R>, basic: &'a BasicFile) -> Self {
         Self { system, basic }
     }
+
     pub fn reader(&self) -> SquashfsReadFile<'a, R> {
         self.raw_data_reader().into_reader()
     }
+
     pub fn fragment(&self) -> Option<&'a Fragment> {
         if self.basic.frag_index == 0xffffffff {
             None
@@ -109,6 +111,7 @@ impl<'a, R: ReadSeek> FilesystemReaderFile<'a, R> {
                 .map(|fragments| &fragments[self.basic.frag_index as usize])
         }
     }
+
     pub(crate) fn raw_data_reader(&self) -> SquashfsRawData<'a, R> {
         SquashfsRawData::new(Self {
             system: self.system,
@@ -170,6 +173,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
             pos,
         }
     }
+
     fn read_raw_data(
         &mut self,
         data: &mut Vec<u8>,
@@ -217,11 +221,13 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
             },
         }
     }
+
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, SquashfsError>> {
         self.current_block
             .next()
             .map(|next| self.read_raw_data(buf, &next))
     }
+
     fn fragment_range(&self) -> std::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
         let block_num = self.file.basic.block_sizes.len();
@@ -231,6 +237,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         let frag_end = frag_start + frag_len;
         frag_start..frag_end
     }
+
     pub fn decompress(
         &self,
         data: RawDataBlock,
@@ -262,6 +269,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         }
         Ok(())
     }
+
     pub fn into_reader(self) -> SquashfsReadFile<'a, R> {
         let bytes_available = self.file.basic.file_size as usize;
         let buf_read = Vec::with_capacity(self.file.system.block_size as usize);
@@ -288,6 +296,7 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
     pub fn available(&self) -> &[u8] {
         &self.buf_decompress[self.last_read..]
     }
+
     pub fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available();
         let read_len = buf.len().min(available.len()).min(self.bytes_available);
@@ -296,6 +305,7 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
         self.last_read += read_len;
         read_len
     }
+
     pub fn read_next_block(&mut self) -> Result<(), SquashfsError> {
         let block = match self.raw_data.next_block(&mut self.buf_read) {
             Some(block) => block?,
@@ -313,6 +323,7 @@ impl<'a, R: ReadSeek> Read for SquashfsReadFile<'a, R> {
         if self.bytes_available == 0 {
             return Ok(0);
         }
+
         //no data available, read the next block
         if self.available().is_empty() {
             self.read_next_block()?;
@@ -326,11 +337,13 @@ impl<'a, R: ReadSeek> Read for SquashfsReadFile<'a, R> {
 /// Used in situations that FilesystemWriter is created without a previously
 /// existing squashfs, if used, just panic.
 pub struct DummyReadSeek;
+
 impl Read for DummyReadSeek {
     fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
         unreachable!()
     }
 }
+
 impl Seek for DummyReadSeek {
     fn seek(&mut self, _pos: SeekFrom) -> std::io::Result<u64> {
         unreachable!()
@@ -359,7 +372,7 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
 }
 
 impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
-    /// use the same configuration then an existing SquashFsFile
+    /// use the same configuration from an existing SquashFsFile
     pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
         let nodes = reader
             .nodes
@@ -732,6 +745,7 @@ impl<'a, R: ReadSeek> fmt::Debug for SquashfsFileWriter<'a, R> {
             .finish()
     }
 }
+
 pub enum SquashfsFileSource<'a, R: ReadSeek> {
     UserDefined(RefCell<Box<dyn Read + 'a>>),
     SquashfsFile(FilesystemReaderFile<'a, R>),
@@ -768,10 +782,12 @@ struct WriterWithOffset<W: WriteSeek> {
     w: W,
     offset: u64,
 }
+
 impl<W: WriteSeek> Write for WriterWithOffset<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.w.write(buf)
     }
+
     fn flush(&mut self) -> std::io::Result<()> {
         self.w.flush()
     }

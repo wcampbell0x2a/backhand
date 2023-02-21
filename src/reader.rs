@@ -47,6 +47,7 @@ pub trait SeekRewind {
     /// Set the IO position back at the start
     fn rewind(&mut self) -> std::io::Result<()>;
 }
+
 impl<T: Seek> SeekRewind for T {
     fn rewind(&mut self) -> std::io::Result<()> {
         <Self as Seek>::rewind(self)
@@ -66,6 +67,7 @@ pub trait WriteSeek: Write + Seek {}
 impl<T: Write + Seek> WriteSeek for T {}
 
 impl<T: ReadSeek> SquashFsReader for T {}
+
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
 pub trait SquashFsReader: ReadSeek {
     /// Read in entire data and fragments
@@ -229,6 +231,7 @@ pub trait SquashFsReader: ReadSeek {
             Ok(None)
         }
     }
+
     /// Parse Lookup Table
     #[instrument(skip_all)]
     fn lookup_table<T: for<'a> DekuContainerRead<'a>>(

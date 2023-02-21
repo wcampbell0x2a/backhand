@@ -248,6 +248,7 @@ impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
         Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset))
     }
 }
+
 impl<R: ReadSeek> Squashfs<R> {
     #[instrument(skip_all)]
     fn inner_from_reader(mut reader: R) -> Result<Squashfs<R>, SquashfsError> {

@@ -112,7 +112,7 @@ pub fn read_block<R: Read + ?Sized>(
 
     let bytes = if is_compressed(metadata_len) {
         tracing::trace!("compressed");
-        let mut out = vec![];
+        let mut out = Vec::with_capacity(8 * 1024);
         compressor::decompress(&buf, &mut out, superblock.compressor)?;
         out
     } else {

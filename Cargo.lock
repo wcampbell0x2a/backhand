@@ -63,6 +63,7 @@ dependencies = [
  "env_logger",
  "flate2",
  "nix",
+ "rust-lzo",
  "rustc-hash",
  "tempfile",
  "test-assets",
@@ -1024,6 +1025,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "rust-lzo"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf191ab1b954757cb5bb7f366e17d80daaa06010f1fdde7a3a7db052c1ecd1a8"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

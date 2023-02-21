@@ -22,8 +22,8 @@ use crate::error::SquashfsError;
 pub enum Compressor {
     None = 0,
     Gzip = 1,
-    Lzo =  2,
-    Lzma = 3,
+    Lzma = 2,
+    Lzo =  3,
     Xz =   4,
     Lz4 =  5,
     Zstd = 6,
@@ -112,6 +112,16 @@ pub(crate) fn decompress(
             let mut decoder = XzDecoder::new(bytes);
             decoder.read_to_end(out)?;
         },
+        #[cfg(feature = "lzo")]
+        Compressor::Lzo => {
+            out.resize(out.capacity(), 0);
+            let (out_size, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
+            let out_size = out_size.len();
+            out.truncate(out_size);
+            if error != rust_lzo::LZOError::OK {
+                return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            }
+        },
         _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
     }
     Ok(())
@@ -185,6 +195,16 @@ pub(crate) fn compress(
             let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
             let mut buf = vec![];
             encoder.read_to_end(&mut buf)?;
+            Ok(buf)
+        },
+        #[cfg(feature = "lzo")]
+        (Compressor::Lzo, _) => {
+            let mut lzo = rust_lzo::LZOContext::new();
+            let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
+            let error = lzo.compress(bytes, &mut buf);
+            if error != rust_lzo::LZOError::OK {
+                return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            }
             Ok(buf)
         },
         _ => Err(SquashfsError::UnsupportedCompression(compressor)),

@@ -5,7 +5,7 @@
 //! Add the following to your `Cargo.toml` file:
 //! ```toml
 //! [dependencies]
-//! backhand = "0.9.1"
+//! backhand = "0.10.0"
 //! ```
 //!
 //! For reading an image and extracting its details and contents, use

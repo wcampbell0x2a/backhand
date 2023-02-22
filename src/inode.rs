@@ -9,9 +9,9 @@ use deku::prelude::*;
 use crate::data::DataSize;
 use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
-use crate::filesystem::NodeHeader;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
+use crate::NodeHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16")]

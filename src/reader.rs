@@ -22,8 +22,9 @@ pub struct SquashfsReaderWithOffset<R: ReadSeek> {
 }
 
 impl<R: ReadSeek> SquashfsReaderWithOffset<R> {
-    pub fn new(io: R, offset: u64) -> Self {
-        Self { io, offset }
+    pub fn new(mut io: R, offset: u64) -> std::io::Result<Self> {
+        io.seek(SeekFrom::Start(offset))?;
+        Ok(Self { io, offset })
     }
 }
 
@@ -35,10 +36,11 @@ impl<R: ReadSeek> Read for SquashfsReaderWithOffset<R> {
 
 impl<R: ReadSeek> Seek for SquashfsReaderWithOffset<R> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-        match pos {
-            SeekFrom::Start(start) => self.io.seek(SeekFrom::Start(self.offset + start)),
-            seek => self.io.seek(seek).map(|x| x - self.offset),
-        }
+        let seek = match pos {
+            SeekFrom::Start(start) => SeekFrom::Start(self.offset + start),
+            seek => seek,
+        };
+        self.io.seek(seek).map(|x| x - self.offset)
     }
 }
 

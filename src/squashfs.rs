@@ -244,7 +244,7 @@ impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
         reader: R,
         offset: u64,
     ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, SquashfsError> {
-        Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset))
+        Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset)?)
     }
 }
 

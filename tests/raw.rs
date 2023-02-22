@@ -9,6 +9,8 @@ use test_assets::TestAssetDef;
 #[test]
 #[cfg(feature = "xz")]
 fn test_raw_00() {
+    use backhand::{CompressionExtra, ExtraXz, FilesystemCompressor};
+
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
         hash: "a2970a4e82014740b2333f4555eecf321898633ccadb443affec966f47f3acb3".to_string(),
@@ -30,14 +32,21 @@ fn test_raw_00() {
         ..header
     };
 
+    // test out max xz level
+    let mut xz_extra = ExtraXz::default();
+    xz_extra.level(9).unwrap();
+    let extra = CompressionExtra::Xz(xz_extra);
+
+    let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
+    compressor.extra(extra).unwrap();
+
     let mut fs: FilesystemWriter = FilesystemWriter {
         kind: kind::LE_V4_0,
-        block_size: 0x0004_0000,
-        block_log: 0x0000_0012,
-        compressor: Compressor::Xz,
-        compression_options: None,
-        mod_time: 0x634f_5237,
         id_table: Some(vec![Id(0)]),
+        mod_time: 0x634f5237,
+        block_size: 0x040000,
+        compressor,
+        block_log: 0x000012,
         root_inode: SquashfsDir { header },
         nodes: vec![],
     };

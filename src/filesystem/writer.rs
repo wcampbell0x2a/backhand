@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use deku::bitvec::BitVec;
 use deku::DekuWrite;
-use tracing::{info, instrument, trace};
+use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataWriter;
@@ -30,10 +30,6 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
     pub block_log: u16,
-    /// See [`SuperBlock`].`compressor`
-    pub compressor: Compressor,
-    /// See [`Squashfs`].`compression_options`
-    pub compression_options: Option<CompressionOptions>,
     /// See [`SuperBlock`].`mod_time`
     pub mod_time: u32,
     /// See [`Squashfs`].`id`
@@ -42,6 +38,7 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub root_inode: SquashfsDir,
     /// All files and directories in filesystem, including root
     pub nodes: Vec<Node<SquashfsFileWriter<'a, R>>>,
+    pub compressor: FilesystemCompressor,
 }
 
 impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
@@ -74,8 +71,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             kind: reader.kind,
             block_size: reader.block_size,
             block_log: reader.block_log,
-            compressor: reader.compressor,
-            compression_options: reader.compression_options,
+            compressor: FilesystemCompressor::new(reader.compressor, reader.compression_options)?,
             mod_time: reader.mod_time,
             id_table: reader.id_table.clone(),
             root_inode: reader.root_inode.clone(),
@@ -258,7 +254,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// correct fields from `Filesystem`, and the data after that contains the nodes.
     #[instrument(skip_all)]
     pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(), SquashfsError> {
-        let mut superblock = SuperBlock::new(self.compressor, self.kind);
+        let mut superblock = SuperBlock::new(self.compressor.id, self.kind);
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
@@ -267,10 +263,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
-        let mut data_writer = DataWriter::new(self.compressor, None, self.block_size);
-        let mut inode_writer =
-            MetadataWriter::new(self.compressor, None, self.block_size, self.kind);
-        let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size, self.kind);
+        let mut data_writer = DataWriter::new(self.compressor, self.block_size);
+        let mut inode_writer = MetadataWriter::new(self.compressor, self.block_size, self.kind);
+        let mut dir_writer = MetadataWriter::new(self.compressor, self.block_size, self.kind);
 
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", tree);
@@ -445,5 +440,99 @@ impl<W: Write + Seek> Seek for WriterWithOffset<W> {
             seek => seek,
         };
         self.w.seek(seek).map(|x| x - self.offset)
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct FilesystemCompressor {
+    pub(crate) id: Compressor,
+    pub(crate) options: Option<CompressionOptions>,
+    pub(crate) extra: Option<CompressionExtra>,
+}
+
+impl FilesystemCompressor {
+    pub fn new(id: Compressor, options: Option<CompressionOptions>) -> Result<Self, SquashfsError> {
+        if matches!(id, Compressor::None) {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        if matches!(id, Compressor::Gzip)
+            && (options.is_none() || matches!(options, Some(CompressionOptions::Gzip(_))))
+        {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        if matches!(id, Compressor::Lzma)
+            && (options.is_none() || matches!(options, Some(CompressionOptions::Lzma)))
+        {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        if matches!(id, Compressor::Lzo)
+            && (options.is_none() || matches!(options, Some(CompressionOptions::Lzo(_))))
+        {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        if matches!(id, Compressor::Xz)
+            && (options.is_none() || matches!(options, Some(CompressionOptions::Xz(_))))
+        {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        if matches!(id, Compressor::Lz4)
+            && (options.is_none() || matches!(options, Some(CompressionOptions::Lz4(_))))
+        {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        if matches!(id, Compressor::Zstd)
+            && (options.is_none() || matches!(options, Some(CompressionOptions::Zstd(_))))
+        {
+            let extra = None;
+            return Ok(Self { id, options, extra });
+        }
+
+        error!("invalid compression settings");
+        Err(SquashfsError::InvalidCompressionOption)
+    }
+
+    pub fn extra(&mut self, extra: CompressionExtra) -> Result<(), SquashfsError> {
+        if matches!(extra, CompressionExtra::Xz(_)) && matches!(self.id, Compressor::Xz) {
+            self.extra = Some(extra);
+            return Ok(());
+        }
+
+        error!("invalid extra compression settings");
+        Err(SquashfsError::InvalidCompressionOption)
+    }
+}
+
+/// Compression options that aren't stored in image an image and only used when writing
+#[derive(Debug, Copy, Clone)]
+pub enum CompressionExtra {
+    Xz(ExtraXz),
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct ExtraXz {
+    pub(crate) level: Option<u32>,
+}
+
+impl ExtraXz {
+    /// Set Xz compress preset level. Must be in range `0..=9`
+    pub fn level(&mut self, level: u32) -> Result<(), SquashfsError> {
+        if level > 9 {
+            return Err(SquashfsError::InvalidCompressionOption);
+        }
+        self.level = Some(level);
+
+        Ok(())
     }
 }

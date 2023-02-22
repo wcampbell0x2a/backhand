@@ -4,8 +4,9 @@ use deku::bitvec::{BitVec, BitView};
 use deku::prelude::*;
 use tracing::{instrument, trace};
 
-use crate::compressor::{self, CompressionOptions, Compressor};
+use crate::compressor::{self};
 use crate::error::SquashfsError;
+use crate::filesystem::writer::FilesystemCompressor;
 use crate::squashfs::{Kind, SuperBlock};
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
@@ -14,8 +15,7 @@ const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 
 #[derive(Debug)]
 pub(crate) struct MetadataWriter {
-    compressor: Compressor,
-    compression_options: Option<CompressionOptions>,
+    compressor: FilesystemCompressor,
     block_size: u32,
     /// Offset from the beginning of the metadata block last written
     pub(crate) metadata_start: u32,
@@ -28,15 +28,9 @@ pub(crate) struct MetadataWriter {
 
 impl MetadataWriter {
     #[instrument(skip_all)]
-    pub fn new(
-        compressor: Compressor,
-        compression_options: Option<CompressionOptions>,
-        block_size: u32,
-        kind: Kind,
-    ) -> Self {
+    pub fn new(compressor: FilesystemCompressor, block_size: u32, kind: Kind) -> Self {
         Self {
             compressor,
-            compression_options,
             block_size,
             metadata_start: 0,
             uncompressed_bytes: vec![],
@@ -56,12 +50,7 @@ impl MetadataWriter {
             out.write_all(cb)?;
         }
 
-        let b = compressor::compress(
-            &self.uncompressed_bytes,
-            self.compressor,
-            &self.compression_options,
-            self.block_size,
-        )?;
+        let b = compressor::compress(&self.uncompressed_bytes, self.compressor, self.block_size)?;
 
         trace!("len: {:02x?}", b.len());
         let mut bv = BitVec::new();
@@ -84,7 +73,6 @@ impl Write for MetadataWriter {
             let b = compressor::compress(
                 &self.uncompressed_bytes[..METADATA_MAXSIZE],
                 self.compressor,
-                &self.compression_options,
                 self.block_size,
             )?;
 

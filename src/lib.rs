@@ -67,7 +67,9 @@ pub use crate::filesystem::node::{
     SquashfsFileReader, SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,
 };
 pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
-pub use crate::filesystem::writer::FilesystemWriter;
+pub use crate::filesystem::writer::{
+    CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
+};
 pub use crate::reader::ReadSeek;
 pub use crate::squashfs::Squashfs;
 

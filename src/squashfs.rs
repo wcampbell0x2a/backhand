@@ -14,14 +14,13 @@ use tracing::{error, info, instrument, trace};
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::Dir;
 use crate::error::SquashfsError;
-use crate::filesystem::{
-    FilesystemReader, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsSymlink,
-};
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
-use crate::metadata;
 use crate::reader::{ReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::{
+    metadata, FilesystemReader, InnerNode, Node, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+};
 
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]

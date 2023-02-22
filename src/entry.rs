@@ -6,16 +6,15 @@ use tracing::{instrument, trace};
 
 use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
-use crate::filesystem::{
-    SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
-};
 use crate::inode::{
     BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
     InodeInner,
 };
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
-use crate::NodeHeader;
+use crate::{
+    NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
+};
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {

@@ -10,14 +10,13 @@ use tracing::trace;
 use crate::data::{Added, DataWriter};
 use crate::entry::Entry;
 use crate::error::SquashfsError;
-use crate::filesystem::{
-    FilesystemWriter, InnerNode, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,
-};
 use crate::metadata::MetadataWriter;
 use crate::reader::{ReadSeek, WriteSeek};
 use crate::squashfs::SuperBlock;
-use crate::NodeHeader;
+use crate::{
+    FilesystemWriter, InnerNode, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,
+};
 
 fn normalized_components(path: &Path) -> Vec<&OsStr> {
     let mut v = Vec::new();

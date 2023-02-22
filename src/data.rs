@@ -7,7 +7,7 @@ use tracing::instrument;
 
 use crate::compressor::{compress, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
-use crate::filesystem::SquashfsRawData;
+use crate::filesystem::reader::SquashfsRawData;
 use crate::fragment::Fragment;
 use crate::reader::{ReadSeek, WriteSeek};
 

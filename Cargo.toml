@@ -18,6 +18,7 @@ thiserror = "1.0.37"
 flate2 = { version = "1.0.24", optional = true }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
+zstd = { version = "0.12.3", optional = true }
 rustc-hash = "1.1.0"
 
 # for bins
@@ -27,11 +28,12 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 byte-unit = "4.0.18"
 
 [features]
-default = ["xz", "gzip", "lzo"]
+default = ["xz", "gzip", "lzo", "zstd"]
 xz = ["dep:xz2"]
 xz-static = ["dep:xz2", "xz2?/static"]
 gzip = ["dep:flate2"]
 lzo = ["dep:rust-lzo"]
+zstd = ["dep:zstd"]
 
 [dev-dependencies]
 env_logger = "0.9.1"

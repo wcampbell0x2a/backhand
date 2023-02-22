@@ -122,6 +122,11 @@ pub(crate) fn decompress(
                 return Err(SquashfsError::CorruptedOrInvalidSquashfs);
             }
         },
+        #[cfg(feature = "zstd")]
+        Compressor::Zstd => {
+            let mut decoder = zstd::bulk::Decompressor::new().unwrap();
+            decoder.decompress_to_buffer(bytes, out)?;
+        },
         _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
     }
     Ok(())
@@ -205,6 +210,18 @@ pub(crate) fn compress(
             if error != rust_lzo::LZOError::OK {
                 return Err(SquashfsError::CorruptedOrInvalidSquashfs);
             }
+            Ok(buf)
+        },
+        #[cfg(feature = "zstd")]
+        (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None)) => {
+            let compression_level = match option {
+                None => 3,
+                Some(CompressionOptions::Zstd(option)) => option.compression_level,
+                Some(_) => unreachable!(),
+            };
+            let mut encoder = zstd::bulk::Compressor::new(compression_level as i32)?;
+            let mut buf = vec![];
+            encoder.compress_to_buffer(bytes, &mut buf)?;
             Ok(buf)
         },
         _ => Err(SquashfsError::UnsupportedCompression(compressor)),

@@ -38,12 +38,14 @@ fn full_test(
     // convert to bytes
     info!("calling to_bytes");
     let mut output = File::create(&new_path).unwrap();
-    new_filesystem.write(&mut output).unwrap();
+    new_filesystem
+        .write_with_offset(&mut output, offset)
+        .unwrap();
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     info!("calling from_reader");
     let created_file = File::open(&new_path).unwrap();
-    let _new_filesystem = FilesystemReader::from_reader(created_file).unwrap();
+    let _new_filesystem = FilesystemReader::from_reader_with_offset(created_file, offset).unwrap();
 
     info!("starting unsquashfs test");
     match verify {

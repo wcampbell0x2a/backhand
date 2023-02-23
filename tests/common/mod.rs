@@ -24,6 +24,8 @@ pub fn test_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
         .args([
             "-d",
             new_dir.path().to_str().unwrap(),
+            "-o",
+            &control_offset.unwrap_or(0).to_string(),
             // we don't run as root, avoid special file errors
             "-ignore-errors",
             "-no-exit-code",
@@ -54,6 +56,8 @@ pub fn test_unsquashfs_list(control: &str, new: &str, control_offset: Option<u64
         .args([
             "-l",
             // we don't run as root, avoid special file errors
+            "-o",
+            &control_offset.unwrap_or(0).to_string(),
             "-ignore-errors",
             "-no-exit-code",
             new,

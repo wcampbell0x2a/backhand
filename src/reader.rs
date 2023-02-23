@@ -15,6 +15,7 @@ use crate::squashfs::{Export, Id, SuperBlock};
 use crate::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file
+#[derive(Debug)]
 pub struct SquashfsReaderWithOffset<R: ReadSeek> {
     io: R,
     /// Offset from start of file to squashfs

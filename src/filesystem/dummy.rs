@@ -2,6 +2,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 /// Used in situations that FilesystemWriter is created without a previously
 /// existing squashfs, if used, just panic.
+#[derive(Debug)]
 pub struct DummyReadSeek;
 
 impl Read for DummyReadSeek {

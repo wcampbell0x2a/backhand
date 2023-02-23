@@ -42,6 +42,9 @@ fn full_test(
         .write_with_offset(&mut output, offset)
         .unwrap();
 
+    // Test Debug is impl'ed properly on FilesystemWriter
+    let _ = format!("{new_filesystem:#02x?}");
+
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     info!("calling from_reader");
     let created_file = File::open(&new_path).unwrap();

@@ -222,7 +222,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         w: &mut W,
         offset: u64,
     ) -> Result<(), SquashfsError> {
-        let mut writer = WriterWithOffset { w, offset };
+        let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
     }
 
@@ -355,6 +355,12 @@ struct WriterWithOffset<W: WriteSeek> {
     w: W,
     offset: u64,
 }
+impl<W: WriteSeek> WriterWithOffset<W> {
+    pub fn new(mut w: W, offset: u64) -> std::io::Result<Self> {
+        w.seek(SeekFrom::Start(offset))?;
+        Ok(Self { w, offset })
+    }
+}
 impl<W: WriteSeek> Write for WriterWithOffset<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.w.write(buf)
@@ -367,9 +373,10 @@ impl<W: WriteSeek> Write for WriterWithOffset<W> {
 
 impl<W: Write + Seek> Seek for WriterWithOffset<W> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-        match pos {
-            SeekFrom::Start(start) => self.w.seek(SeekFrom::Start(self.offset + start)),
-            seek => self.w.seek(seek).map(|x| x - self.offset),
-        }
+        let seek = match pos {
+            SeekFrom::Start(start) => SeekFrom::Start(self.offset + start),
+            seek => seek,
+        };
+        self.w.seek(seek).map(|x| x - self.offset)
     }
 }

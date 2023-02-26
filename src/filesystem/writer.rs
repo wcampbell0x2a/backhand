@@ -262,21 +262,24 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         self.nodes.push(node);
     }
 
-    /// Generate the final squashfs file at the offset.
+    /// Same as [`Self::write`], but seek'ing to `offset` in `w` before reading. This offset
+    /// is treated as the base image offset.
     #[instrument(skip_all)]
     pub fn write_with_offset<W: Write + Seek>(
         &self,
         w: &mut W,
         offset: u64,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(SuperBlock, u64), SquashfsError> {
         let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
     }
 
-    /// Generate the final squashfs file. This generates the Superblock with the
-    /// correct fields from `Filesystem`, and the data after that contains the nodes.
+    /// Generate and write the resulting squashfs image to `w`
+    ///
+    /// # Returns
+    /// (written populated [`Superblock`], total amount of bytes written including padding)
     #[instrument(skip_all)]
-    pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(), SquashfsError> {
+    pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(SuperBlock, u64), SquashfsError> {
         let mut superblock = SuperBlock::new(self.compressor.id, self.kind);
 
         trace!("{:#02x?}", self.nodes);
@@ -323,18 +326,18 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         self.write_id_table(w, &self.id_table, &mut superblock)?;
 
         info!("Finalize Superblock and End Bytes");
-        self.finalize(w, &mut superblock)?;
+        let bytes_written = self.finalize(w, &mut superblock)?;
 
         info!("Superblock: {:#02x?}", superblock);
         info!("Success");
-        Ok(())
+        Ok((superblock, bytes_written))
     }
 
     fn finalize<W: Write + Seek>(
         &self,
         w: &mut W,
         superblock: &mut SuperBlock,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<u64, SquashfsError> {
         // Pad out block_size
         info!("Writing Padding");
         superblock.bytes_used = w.stream_position()?;
@@ -353,7 +356,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
         info!("Writing Finished");
 
-        Ok(())
+        Ok(superblock.bytes_used + pad_len as u64)
     }
 
     fn write_id_table<W: Write + Seek>(

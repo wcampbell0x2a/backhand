@@ -42,7 +42,7 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
 }
 
 impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
-    /// use the same configuration then an existing SquashFsFile
+    /// Use the same configuration as an existing `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
         let nodes = reader
             .nodes

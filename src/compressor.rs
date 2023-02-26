@@ -77,8 +77,20 @@ pub struct Lzo {
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Xz {
     pub dictionary_size: u32,
-    // TODO: enum
-    pub filters: u32,
+    pub filters: XzFilter,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(type = "u32")]
+#[rustfmt::skip]
+pub enum XzFilter {
+    X86      = 0x01,
+    PowerPC  = 0x02,
+    IA64     = 0x04,
+    Arm      = 0x08,
+    ArmThumb = 0x10,
+    Sparc    = 0x20,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
@@ -163,6 +175,16 @@ pub(crate) fn compress(
             opts.dict_size(dict_size);
 
             let mut filters = Filters::new();
+            if let Some(CompressionOptions::Xz(xz)) = option {
+                match xz.filters {
+                    XzFilter::X86 => filters.x86(),
+                    XzFilter::PowerPC => filters.powerpc(),
+                    XzFilter::IA64 => filters.ia64(),
+                    XzFilter::Arm => filters.arm(),
+                    XzFilter::ArmThumb => filters.arm_thumb(),
+                    XzFilter::Sparc => filters.sparc(),
+                };
+            }
             filters.lzma2(&opts);
 
             let stream = MtStreamBuilder::new()

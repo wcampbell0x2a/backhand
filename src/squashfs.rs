@@ -447,11 +447,18 @@ impl<R: ReadSeek> Squashfs<R> {
                 }
                 // data -> compression options
                 let bv = BitVec::from_slice(&bytes);
-                let (_, c) = CompressionOptions::read(
+                let ret = CompressionOptions::read(
                     &bv,
                     (deku::ctx::Endian::Little, superblock.compressor),
-                )?;
-                Some(c)
+                );
+
+                match ret {
+                    Ok(co) => Some(co.1),
+                    Err(e) => {
+                        error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                        None
+                    },
+                }
             } else {
                 None
             }

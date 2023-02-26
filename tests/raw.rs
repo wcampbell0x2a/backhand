@@ -40,16 +40,14 @@ fn test_raw_00() {
     let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
     compressor.extra(extra).unwrap();
 
-    let mut fs: FilesystemWriter = FilesystemWriter {
-        kind: kind::LE_V4_0,
-        id_table: Some(vec![Id(0)]),
-        mod_time: 0x634f5237,
-        block_size: 0x040000,
+    let mut fs: FilesystemWriter<'_, std::fs::File> = FilesystemWriter::new(
+        kind::LE_V4_0,
+        0x0004_0000,
+        0x634f_5237,
+        Id::root(),
+        SquashfsDir { header },
         compressor,
-        block_log: 0x000012,
-        root_inode: SquashfsDir { header },
-        nodes: vec![],
-    };
+    );
 
     fs.push_dir("usr", o_header);
     fs.push_dir("usr/bin", o_header);

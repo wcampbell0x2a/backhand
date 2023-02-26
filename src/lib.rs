@@ -70,8 +70,10 @@ pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
 pub use crate::filesystem::writer::{
     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
 };
+pub use crate::fragment::Fragment;
+pub use crate::inode::Inode;
 pub use crate::reader::ReadSeek;
-pub use crate::squashfs::Squashfs;
+pub use crate::squashfs::{Export, Id, Squashfs, SuperBlock};
 
 /// Support the wonderful world of vendor formats
 pub mod kind {
@@ -81,11 +83,4 @@ pub mod kind {
 /// Compression Choice and Options
 pub mod compression {
     pub use crate::compressor::{CompressionOptions, Compressor, Gzip, Lz4, Lzo, Xz, Zstd};
-}
-
-/// [`Squashfs`] internal structs
-pub mod internal {
-    pub use crate::fragment::Fragment;
-    pub use crate::inode::Inode;
-    pub use crate::squashfs::{Export, Id, SuperBlock};
 }

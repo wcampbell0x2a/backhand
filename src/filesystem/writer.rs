@@ -26,22 +26,45 @@ use crate::{
 #[derive(Debug)]
 pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub kind: Kind,
-    /// See [`SuperBlock`].`block_size`
+    /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub block_size: u32,
-    /// See [`SuperBlock`].`block_log`
-    pub block_log: u16,
-    /// See [`SuperBlock`].`mod_time`
+    /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
+    /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
     pub mod_time: u32,
-    /// See [`Squashfs`].`id`
-    pub id_table: Option<Vec<Id>>,
+    /// 32 bit user and group IDs
+    pub id_table: Vec<Id>,
     /// Information for the `/` node
     pub root_inode: SquashfsDir,
-    /// All files and directories in filesystem, including root
-    pub nodes: Vec<Node<SquashfsFileWriter<'a, R>>>,
+    /// Compressor used when writing
     pub compressor: FilesystemCompressor,
+    /// All files and directories in filesystem, including root
+    pub(crate) nodes: Vec<Node<SquashfsFileWriter<'a, R>>>,
+    /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
+    pub(crate) block_log: u16,
 }
 
 impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
+    pub fn new(
+        block_size: u32,
+        mod_time: u32,
+        id_table: Vec<Id>,
+        root_inode: SquashfsDir,
+        compressor: FilesystemCompressor,
+        kind: Kind,
+    ) -> Self {
+        // TODO: verify all fields
+        Self {
+            kind,
+            block_size,
+            block_log: (block_size as f32).log2() as u16,
+            mod_time,
+            id_table,
+            root_inode,
+            compressor,
+            nodes: vec![],
+        }
+    }
+
     /// Use the same configuration as an existing `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
         let nodes = reader
@@ -336,30 +359,28 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     fn write_id_table<W: Write + Seek>(
         &self,
         w: &mut W,
-        id_table: &Option<Vec<Id>>,
+        id_table: &Vec<Id>,
         write_superblock: &mut SuperBlock,
     ) -> Result<(), SquashfsError> {
-        if let Some(id) = id_table {
-            let id_table_dat = w.stream_position()?;
-            let mut id_bytes = Vec::with_capacity(id.len() * ((u32::BITS / 8) as usize));
-            for i in id {
-                let mut bv = BitVec::new();
-                i.write(&mut bv, self.kind)?;
-                id_bytes.write_all(bv.as_raw_slice())?;
-            }
-            // write metdata_length
+        let id_table_dat = w.stream_position()?;
+        let mut id_bytes = Vec::with_capacity(id_table.len() * ((u32::BITS / 8) as usize));
+        for i in &self.id_table {
             let mut bv = BitVec::new();
-            metadata::set_if_uncompressed(id_bytes.len() as u16)
-                .write(&mut bv, self.kind.data_endian)?;
-            w.write_all(bv.as_raw_slice())?;
-            w.write_all(&id_bytes)?;
-            write_superblock.id_table = w.stream_position()?;
-            write_superblock.id_count = id.len() as u16;
-
-            let mut bv = BitVec::new();
-            id_table_dat.write(&mut bv, self.kind.type_endian)?;
-            w.write_all(bv.as_raw_slice())?;
+            i.write(&mut bv, self.kind)?;
+            id_bytes.write_all(bv.as_raw_slice())?;
         }
+        // write metdata_length
+        let mut bv = BitVec::new();
+        metadata::set_if_uncompressed(id_bytes.len() as u16)
+            .write(&mut bv, self.kind.data_endian)?;
+        w.write_all(bv.as_raw_slice())?;
+        w.write_all(&id_bytes)?;
+        write_superblock.id_table = w.stream_position()?;
+        write_superblock.id_count = id_table.len() as u16;
+
+        let mut bv = BitVec::new();
+        id_table_dat.write(&mut bv, self.kind.type_endian)?;
+        w.write_all(bv.as_raw_slice())?;
 
         Ok(())
     }
@@ -396,18 +417,13 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
     /// Return index of id, adding if required
     fn lookup_add_id(&mut self, id: u32) -> u16 {
-        let found = self
-            .id_table
-            .as_ref()
-            .unwrap()
-            .iter()
-            .position(|a| a.0 == id);
+        let found = self.id_table.iter().position(|a| a.0 == id);
 
         match found {
             Some(found) => found as u16,
             None => {
-                self.id_table.as_mut().unwrap().push(Id(id));
-                self.id_table.as_ref().unwrap().len() as u16 - 1
+                self.id_table.push(Id(id));
+                self.id_table.len() as u16 - 1
             },
         }
     }

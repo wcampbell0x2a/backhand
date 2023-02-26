@@ -169,6 +169,12 @@ pub struct Export(pub u64);
 #[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct Id(pub u32);
 
+impl Id {
+    pub fn root() -> Vec<Id> {
+        vec![Id(0)]
+    }
+}
+
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
 #[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
@@ -361,7 +367,7 @@ pub struct Squashfs<R: ReadSeek> {
     /// Export Lookup Table
     pub export: Option<Vec<Export>>,
     /// Id Lookup Table
-    pub id: Option<Vec<Id>>,
+    pub id: Vec<Id>,
     //file reader
     file: R,
 }
@@ -474,12 +480,7 @@ impl<R: ReadSeek> Squashfs<R> {
             error!("corrupted or invalid bytes_used");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.id_table != 0xffff_ffff_ffff_ffff && superblock.id_table > total_length {
-            error!("corrupted or invalid id_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
-        }
-        if superblock.xattr_table != 0xffff_ffff_ffff_ffff && superblock.xattr_table > total_length
-        {
+        if superblock.id_table > total_length {
             error!("corrupted or invalid xattr_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
@@ -529,8 +530,8 @@ impl<R: ReadSeek> Squashfs<R> {
 
         info!("Reading Ids");
         let id = reader.id(&superblock, kind)?;
-        let id_ptr = id.clone().map(|a| a.0);
-        let id_table = id.map(|a| a.1);
+        let id_ptr = id.0;
+        let id_table = id.1;
 
         let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
             trace!("using fragment for end of dir");
@@ -538,11 +539,9 @@ impl<R: ReadSeek> Squashfs<R> {
         } else if let Some(export_ptr) = export_ptr {
             trace!("using export for end of dir");
             export_ptr
-        } else if let Some(id_ptr) = id_ptr {
+        } else {
             trace!("using id for end of dir");
             id_ptr
-        } else {
-            return Err(SquashfsError::Unreachable);
         };
 
         info!("Reading Dirs");

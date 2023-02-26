@@ -15,6 +15,8 @@ use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
 pub struct FilesystemReader<R: ReadSeek> {
     pub kind: Kind,
     /// See [`SuperBlock`].`block_size`
+    ///
+    /// [0]: crate::SuperBlock
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
     pub block_log: u16,
@@ -25,7 +27,7 @@ pub struct FilesystemReader<R: ReadSeek> {
     /// See [`SuperBlock`].`mod_time`
     pub mod_time: u32,
     /// See [`Squashfs`].`id`
-    pub id_table: Option<Vec<Id>>,
+    pub id_table: Vec<Id>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
     /// Information for the `/` node

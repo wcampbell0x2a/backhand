@@ -443,6 +443,7 @@ impl<W: Write + Seek> Seek for WriterWithOffset<W> {
     }
 }
 
+/// All compression options for [`FilesystemWriter`]
 #[derive(Debug, Copy, Clone)]
 pub struct FilesystemCompressor {
     pub(crate) id: Compressor,
@@ -514,19 +515,20 @@ impl FilesystemCompressor {
     }
 }
 
-/// Compression options that aren't stored in image an image and only used when writing
+/// Compression options only for [`FilesystemWriter`]
 #[derive(Debug, Copy, Clone)]
 pub enum CompressionExtra {
     Xz(ExtraXz),
 }
 
+/// Xz compression option for [`FilesystemWriter`]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct ExtraXz {
     pub(crate) level: Option<u32>,
 }
 
 impl ExtraXz {
-    /// Set Xz compress preset level. Must be in range `0..=9`
+    /// Set compress preset level. Must be in range `0..=9`
     pub fn level(&mut self, level: u32) -> Result<(), SquashfsError> {
         if level > 9 {
             return Err(SquashfsError::InvalidCompressionOption);

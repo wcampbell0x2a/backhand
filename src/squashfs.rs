@@ -223,7 +223,7 @@ pub struct SuperBlock {
 impl SuperBlock {
     const DEFAULT_BLOCK_LOG: u16 = 0x11;
     const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
-    const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
+    pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
     const VERSION_MAJ: u16 = 4;
     const VERSION_MIN: u16 = 0;
 
@@ -480,6 +480,8 @@ impl<R: ReadSeek> Squashfs<R> {
             error!("corrupted or invalid bytes_used");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
+
+        // check required fields
         if superblock.id_table > total_length {
             error!("corrupted or invalid xattr_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
@@ -492,17 +494,17 @@ impl<R: ReadSeek> Squashfs<R> {
             error!("corrupted or invalid dir_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.xattr_table != 0xffff_ffff_ffff_ffff && superblock.xattr_table > total_length
-        {
+
+        // check optional fields
+        if superblock.xattr_table != SuperBlock::NOT_SET && superblock.xattr_table > total_length {
             error!("corrupted or invalid frag_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.frag_table != 0xffff_ffff_ffff_ffff && superblock.frag_table > total_length {
+        if superblock.frag_table != SuperBlock::NOT_SET && superblock.frag_table > total_length {
             error!("corrupted or invalid frag_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.export_table != 0xffff_ffff_ffff_ffff
-            && superblock.export_table > total_length
+        if superblock.export_table != SuperBlock::NOT_SET && superblock.export_table > total_length
         {
             error!("corrupted or invalid export_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);

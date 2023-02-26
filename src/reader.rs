@@ -202,7 +202,7 @@ pub trait SquashFsReader: ReadSeek {
         superblock: &SuperBlock,
         kind: Kind,
     ) -> Result<Option<(u64, Vec<Fragment>)>, SquashfsError> {
-        if superblock.frag_count == 0 || superblock.frag_table == 0xffffffffffffffff {
+        if superblock.frag_count == 0 || superblock.frag_table == SuperBlock::NOT_SET {
             return Ok(None);
         }
         let (ptr, table) = self.lookup_table::<Fragment>(
@@ -222,7 +222,7 @@ pub trait SquashFsReader: ReadSeek {
         superblock: &SuperBlock,
         kind: Kind,
     ) -> Result<Option<(u64, Vec<Export>)>, SquashfsError> {
-        if superblock.nfs_export_table_exists() && superblock.export_table != 0xffffffffffffffff {
+        if superblock.nfs_export_table_exists() && superblock.export_table != SuperBlock::NOT_SET {
             let ptr = superblock.export_table;
             let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
             let (ptr, table) = self.lookup_table::<Export>(superblock, ptr, count, kind)?;

@@ -1,8 +1,7 @@
 mod common;
 
 use backhand::compression::Compressor;
-use backhand::internal::Id;
-use backhand::{kind, FilesystemWriter, NodeHeader, SquashfsDir};
+use backhand::{kind, FilesystemWriter, Id, NodeHeader};
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 
@@ -41,12 +40,12 @@ fn test_raw_00() {
     compressor.extra(extra).unwrap();
 
     let mut fs: FilesystemWriter<'_, std::fs::File> = FilesystemWriter::new(
-        kind::LE_V4_0,
         0x0004_0000,
         0x634f_5237,
         Id::root(),
-        SquashfsDir { header },
+        header,
         compressor,
+        kind::LE_V4_0,
     );
 
     fs.push_dir("usr", o_header);

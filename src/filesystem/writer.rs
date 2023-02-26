@@ -23,6 +23,33 @@ use crate::{
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
+///
+/// Use [`Self::from_fs_reader`] to write with the data from a previous SquashFS image
+///
+/// Use [`Self::new`] to create an empty SquashFS image without an original image. For example:
+/// ```rust
+/// # use std::time::SystemTime;
+/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind};
+/// let header = NodeHeader {
+///     permissions: 0o755,
+///     ..NodeHeader::default()
+/// };
+///
+/// let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
+///
+/// let mut fs: FilesystemWriter<'_, std::fs::File> = FilesystemWriter::new(
+///     0x0004_0000,
+///     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32,
+///     Id::root(),
+///     header,
+///     compressor,
+///     kind::LE_V4_0,
+/// );
+///
+/// fs.push_dir("usr", header);
+/// fs.push_dir("usr/bin", header);
+/// fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/file", header);
+/// ```
 #[derive(Debug)]
 pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub kind: Kind,
@@ -49,7 +76,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         block_size: u32,
         mod_time: u32,
         id_table: Vec<Id>,
-        root_inode: SquashfsDir,
+        root_inode_header: NodeHeader,
         compressor: FilesystemCompressor,
         kind: Kind,
     ) -> Self {
@@ -60,7 +87,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             block_log: (block_size as f32).log2() as u16,
             mod_time,
             id_table,
-            root_inode,
+            root_inode: SquashfsDir {
+                header: root_inode_header,
+            },
             compressor,
             nodes: vec![],
         }

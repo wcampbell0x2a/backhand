@@ -27,16 +27,16 @@ use crate::{
 pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
-    pub block_size: u32,
+    pub(crate) block_size: u32,
     /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
     /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
-    pub mod_time: u32,
+    pub(crate) mod_time: u32,
     /// 32 bit user and group IDs
-    pub id_table: Vec<Id>,
+    pub(crate) id_table: Vec<Id>,
     /// Information for the `/` node
-    pub root_inode: SquashfsDir,
+    pub(crate) root_inode: SquashfsDir,
     /// Compressor used when writing
-    pub compressor: FilesystemCompressor,
+    pub(crate) compressor: FilesystemCompressor,
     /// All files and directories in filesystem, including root
     pub(crate) nodes: Vec<Node<SquashfsFileWriter<'a, R>>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
@@ -44,6 +44,7 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
 }
 
 impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
+    /// Create empty image with context
     pub fn new(
         block_size: u32,
         mod_time: u32,
@@ -65,7 +66,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         }
     }
 
-    /// Use the same configuration as an existing `reader`
+    /// Inherit filesystem structure and properties from `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
         let nodes = reader
             .nodes

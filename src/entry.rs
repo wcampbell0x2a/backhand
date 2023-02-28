@@ -11,7 +11,7 @@ use crate::inode::{
     InodeInner,
 };
 use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
+use crate::squashfs::{Kind, SuperBlock};
 use crate::{
     NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
@@ -43,6 +43,7 @@ impl<'a> Entry<'a> {
         block_offset: u16,
         block_index: u32,
         superblock: &SuperBlock,
+        kind: Kind,
     ) -> Self {
         let dir_inode = Inode {
             id: InodeId::BasicDirectory,
@@ -59,10 +60,11 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock)
+        dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
     }
 
     /// Write data and metadata for file node
+    #[allow(clippy::too_many_arguments)]
     pub fn file(
         node_path: &'a OsStr,
         header: &NodeHeader,
@@ -71,6 +73,7 @@ impl<'a> Entry<'a> {
         file_size: usize,
         added: &Added,
         superblock: &SuperBlock,
+        kind: Kind,
     ) -> Self {
         let basic_file = match added {
             Added::Data {
@@ -106,7 +109,7 @@ impl<'a> Entry<'a> {
             inner: InodeInner::BasicFile(basic_file),
         };
 
-        file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
+        file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
 
     /// Write data and metadata for symlink node
@@ -116,6 +119,7 @@ impl<'a> Entry<'a> {
         inode: u32,
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
+        kind: Kind,
     ) -> Self {
         let link = symlink.link.as_os_str().as_bytes();
         let sym_inode = Inode {
@@ -131,7 +135,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        sym_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
+        sym_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
 
     /// Write data and metadata for char device node
@@ -141,6 +145,7 @@ impl<'a> Entry<'a> {
         inode: u32,
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
+        kind: Kind,
     ) -> Self {
         let char_inode = Inode {
             id: InodeId::BasicCharacterDevice,
@@ -154,7 +159,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
+        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
 
     /// Write data and metadata for block device node
@@ -164,6 +169,7 @@ impl<'a> Entry<'a> {
         inode: u32,
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
+        kind: Kind,
     ) -> Self {
         let block_inode = Inode {
             id: InodeId::BasicBlockDevice,
@@ -177,7 +183,7 @@ impl<'a> Entry<'a> {
             }),
         };
 
-        block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock)
+        block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
 }
 
@@ -266,31 +272,7 @@ impl<'a> Entry<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-
     use super::*;
-    use crate::compressor::Compressor;
-    use crate::metadata::{MetadataWriter, METADATA_MAXSIZE};
-
-    #[test]
-    #[cfg(feature = "xz")]
-    fn test_mwriter() {
-        let bytes = [0xffu8; METADATA_MAXSIZE - 3];
-
-        let mut mwriter = MetadataWriter::new(Compressor::Xz, None, 0x2000);
-
-        mwriter.write_all(&bytes).unwrap();
-        assert_eq!(0, mwriter.metadata_start);
-        assert_eq!(bytes, &*mwriter.uncompressed_bytes);
-        assert!(mwriter.compressed_bytes.is_empty());
-
-        let bytes = [0x11u8; 6];
-
-        mwriter.write_all(&bytes).unwrap();
-        assert_eq!(0x6e, mwriter.metadata_start);
-        assert_eq!(bytes[3..], mwriter.uncompressed_bytes);
-        assert_eq!(mwriter.compressed_bytes[0].len(), 0x6c);
-    }
 
     #[test]
     fn test_entry() {

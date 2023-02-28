@@ -2,7 +2,7 @@ mod common;
 
 use backhand::compression::Compressor;
 use backhand::internal::Id;
-use backhand::{FilesystemWriter, NodeHeader, SquashfsDir};
+use backhand::{kind, FilesystemWriter, NodeHeader, SquashfsDir};
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 
@@ -31,12 +31,13 @@ fn test_raw_00() {
     };
 
     let mut fs: FilesystemWriter = FilesystemWriter {
-        id_table: Some(vec![Id(0)]),
-        mod_time: 0x634f5237,
-        block_size: 0x040000,
+        kind: kind::LE_V4_0,
+        block_size: 0x0004_0000,
+        block_log: 0x0000_0012,
         compressor: Compressor::Xz,
         compression_options: None,
-        block_log: 0x000012,
+        mod_time: 0x634f_5237,
+        id_table: Some(vec![Id(0)]),
         root_inode: SquashfsDir { header },
         nodes: vec![],
     };

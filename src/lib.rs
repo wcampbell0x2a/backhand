@@ -71,6 +71,11 @@ pub use crate::filesystem::writer::FilesystemWriter;
 pub use crate::reader::ReadSeek;
 pub use crate::squashfs::Squashfs;
 
+/// Support the wonderful world of vendor formats
+pub mod kind {
+    pub use crate::squashfs::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
+}
+
 /// Compression Choice and Options
 pub mod compression {
     pub use crate::compressor::{CompressionOptions, Compressor, Gzip, Lz4, Lzo, Xz, Zstd};

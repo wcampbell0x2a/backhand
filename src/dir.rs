@@ -11,9 +11,11 @@ use std::path::PathBuf;
 use deku::prelude::*;
 
 use crate::inode::InodeId;
+use crate::kind::Kind;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Default, PartialEq, Eq)]
-#[deku(endian = "little")]
+#[deku(ctx = "kind: Kind")]
+#[deku(endian = "kind.type_endian")]
 pub struct Dir {
     /// Number of entries following the header.
     pub(crate) count: u32,

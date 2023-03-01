@@ -70,16 +70,17 @@ Options:
   -h, --help             Print help information
   -V, --version          Print version information
 ```
+
 ### add-backhand
 ```no_test
 tool to add files to squashfs filesystems
 
-Usage: add [OPTIONS] <FILESYSTEM> <FILE> <FILE_PATH>
+Usage: add [OPTIONS] <IMAGE> <FILE> <FILE_PATH_IN_IMAGE>
 
 Arguments:
-  <FILESYSTEM>  Squashfs input image
-  <FILE>        Path of file to read, to write into squashfs
-  <FILE_PATH>   Path of file inserted into squashfs
+  <IMAGE>               Squashfs input image
+  <FILE>                Path of file to read, to write into squashfs
+  <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
 
 Options:
   -o, --out <OUT>  Squashfs output image [default: added.squashfs]
@@ -91,12 +92,12 @@ Options:
 ```no_test
 tool to replace files in squashfs filesystems
 
-Usage: replace [OPTIONS] <FILESYSTEM> <FILE> <FILE_PATH>
+Usage: replace [OPTIONS] <IMAGE> <FILE> <FILE_PATH_IN_IMAGE>
 
 Arguments:
-  <FILESYSTEM>  Squashfs input image
-  <FILE>        Path of file to read, to write into squashfs
-  <FILE_PATH>   Path of file replaced in image
+  <IMAGE>               Squashfs input image
+  <FILE>                Path of file to read, to write into squashfs
+  <FILE_PATH_IN_IMAGE>  Path of file replaced in image
 
 Options:
   -o, --out <OUT>  Squashfs output image [default: replaced.squashfs]

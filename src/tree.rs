@@ -146,6 +146,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                         // squashfs files and use the same compressor and block_size
                         // just copy the data, don't compress->decompress
                         if file.system.compressor == system_write.compressor
+                            && file.system.compression_options == system_write.compression_options
                             && file.system.block_size == system_write.block_size
                         {
                             data_writer.just_copy_it(file.raw_data_reader(), writer)?

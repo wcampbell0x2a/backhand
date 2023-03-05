@@ -98,24 +98,29 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             let mut full_path = PathBuf::new();
             let components: Vec<_> = path.components().map(|comp| comp.as_os_str()).collect();
             'component: for dir in components.iter().take(components.len() - 1) {
+                let dir = Path::new(dir);
                 // add to path
                 full_path.push(dir);
+                //println!("{dir:?}");
 
-                // check if exists
-                for node in &mut self.nodes {
-                    if let InnerNode::Dir(_) = &node.inner {
-                        let left = &node.path;
-                        let right = &full_path;
-                        if left == right {
-                            continue 'component;
+                // skip root directory
+                if dir != Path::new("/") {
+                    // check if exists
+                    for node in &mut self.nodes {
+                        if let InnerNode::Dir(_) = &node.inner {
+                            let left = &node.path;
+                            let right = &full_path;
+                            if left == right {
+                                continue 'component;
+                            }
                         }
                     }
-                }
 
-                // not found, add to dir
-                let new_dir = InnerNode::Dir(SquashfsDir { header });
-                let node = Node::new(full_path.clone(), new_dir);
-                self.nodes.push(node);
+                    // not found, add to dir
+                    let new_dir = InnerNode::Dir(SquashfsDir { header });
+                    let node = Node::new(full_path.clone(), new_dir);
+                    self.nodes.push(node);
+                }
             }
         }
 

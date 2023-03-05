@@ -4,12 +4,14 @@ use std::io::Write;
 use std::path::Component::*;
 use std::path::{Path, PathBuf};
 
-use deku::DekuContainerWrite;
+use deku::bitvec::BitVec;
+use deku::prelude::*;
 use tracing::trace;
 
 use crate::data::{Added, DataWriter};
 use crate::entry::Entry;
 use crate::error::SquashfsError;
+use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
 use crate::reader::{ReadSeek, WriteSeek};
 use crate::squashfs::SuperBlock;
@@ -177,6 +179,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         dir_writer: &'_ mut MetadataWriter,
         parent_inode: u32,
         superblock: SuperBlock,
+        kind: Kind,
     ) -> Result<(Option<Entry>, u64), SquashfsError> {
         // If no children, just return since it doesn't have anything recursive/new
         // directories
@@ -199,7 +202,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         // tree has children, this is a Dir, get information of every child node
         for child in dir.values() {
             let (l_dir_entries, _) =
-                child.write_inode_dir(inode_writer, dir_writer, this_inode, superblock)?;
+                child.write_inode_dir(inode_writer, dir_writer, this_inode, superblock, kind)?;
             if let Some(entry) = l_dir_entries {
                 write_entries.push(entry);
             }
@@ -218,6 +221,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     dir_writer.uncompressed_bytes.len() as u16,
                     dir_writer.metadata_start,
                     &superblock,
+                    kind,
                 ),
                 InnerTreeNode::FilePhase2(filesize, added, header) => Entry::file(
                     node.name(),
@@ -227,6 +231,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     *filesize,
                     added,
                     &superblock,
+                    kind,
                 ),
                 InnerTreeNode::Symlink(symlink) => Entry::symlink(
                     node.name(),
@@ -234,16 +239,23 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                     node.inode_id,
                     inode_writer,
                     &superblock,
+                    kind,
                 ),
-                InnerTreeNode::CharacterDevice(char) => {
-                    Entry::char(node.name(), char, node.inode_id, inode_writer, &superblock)
-                },
+                InnerTreeNode::CharacterDevice(char) => Entry::char(
+                    node.name(),
+                    char,
+                    node.inode_id,
+                    inode_writer,
+                    &superblock,
+                    kind,
+                ),
                 InnerTreeNode::BlockDevice(block) => Entry::block_device(
                     node.name(),
                     block,
                     node.inode_id,
                     inode_writer,
                     &superblock,
+                    kind,
                 ),
                 InnerTreeNode::FilePhase1(_) => unreachable!(),
             };
@@ -257,9 +269,13 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         let mut total_size = 3;
         for dir in Entry::into_dir(write_entries) {
             trace!("WRITING DIR: {dir:#02x?}");
-            let bytes = dir.to_bytes()?;
+
+            let mut bv = BitVec::new();
+            dir.write(&mut bv, kind)?;
+            let bytes = bv.as_raw_slice();
+            dir_writer.write_all(bv.as_raw_slice())?;
+
             total_size += bytes.len() as u16;
-            dir_writer.write_all(&bytes)?;
         }
 
         //trace!("BEFORE: {:#02x?}", child);
@@ -273,6 +289,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
             block_offset,
             block_index,
             &superblock,
+            kind,
         );
         let root_inode = ((entry.start as u64) << 16) | ((entry.offset as u64) & 0xffff);
 

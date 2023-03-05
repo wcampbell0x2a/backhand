@@ -1,10 +1,12 @@
 use std::io::{self, Read, Seek, Write};
 
+use deku::bitvec::{BitVec, BitView};
+use deku::prelude::*;
 use tracing::{instrument, trace};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::error::SquashfsError;
-use crate::squashfs::SuperBlock;
+use crate::squashfs::{Kind, SuperBlock};
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 
@@ -21,6 +23,7 @@ pub(crate) struct MetadataWriter {
     pub(crate) uncompressed_bytes: Vec<u8>,
     // All current bytes that are compressed
     pub(crate) compressed_bytes: Vec<Vec<u8>>,
+    pub(crate) kind: Kind,
 }
 
 impl MetadataWriter {
@@ -29,6 +32,7 @@ impl MetadataWriter {
         compressor: Compressor,
         compression_options: Option<CompressionOptions>,
         block_size: u32,
+        kind: Kind,
     ) -> Self {
         Self {
             compressor,
@@ -37,6 +41,7 @@ impl MetadataWriter {
             metadata_start: 0,
             uncompressed_bytes: vec![],
             compressed_bytes: vec![],
+            kind,
         }
     }
 
@@ -45,7 +50,9 @@ impl MetadataWriter {
         for cb in &self.compressed_bytes {
             trace!("len: {:02x?}", cb.len());
             //trace!("total: {:02x?}", out.len());
-            out.write_all(&(cb.len() as u16).to_le_bytes())?;
+            let mut bv = BitVec::new();
+            (cb.len() as u16).write(&mut bv, self.kind.data_endian)?;
+            out.write_all(bv.as_raw_slice())?;
             out.write_all(cb)?;
         }
 
@@ -57,8 +64,9 @@ impl MetadataWriter {
         )?;
 
         trace!("len: {:02x?}", b.len());
-        //trace!("total: {:02x?}", out.len());
-        out.write_all(&(b.len() as u16).to_le_bytes())?;
+        let mut bv = BitVec::new();
+        (b.len() as u16).write(&mut bv, self.kind.data_endian)?;
+        out.write_all(bv.as_raw_slice())?;
         out.write_all(&b)?;
         Ok(())
     }
@@ -100,10 +108,14 @@ impl Write for MetadataWriter {
 pub fn read_block<R: Read + ?Sized>(
     reader: &mut R,
     superblock: &SuperBlock,
+    kind: Kind,
 ) -> Result<Vec<u8>, SquashfsError> {
     let mut buf = [0u8; 2];
     reader.read_exact(&mut buf)?;
-    let metadata_len = u16::from_le_bytes(buf);
+
+    let bv = buf.view_bits::<deku::bitvec::Msb0>();
+    trace!("{:02x?}", buf);
+    let (_, metadata_len) = u16::read(bv, kind.data_endian)?;
 
     let byte_len = len(metadata_len);
     tracing::trace!("len: 0x{:02x?}", byte_len);

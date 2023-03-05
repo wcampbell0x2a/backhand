@@ -224,7 +224,13 @@ fn test_openwrt_tplink_archera7v5() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x225fd0, Verify::Extract);
+    full_test(
+        &asset_defs,
+        FILE_NAME,
+        TEST_PATH,
+        0x0022_5fd0,
+        Verify::Extract,
+    );
 }
 
 #[test]
@@ -241,7 +247,13 @@ fn test_openwrt_netgear_ex6100v2() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2c0080, Verify::Extract);
+    full_test(
+        &asset_defs,
+        FILE_NAME,
+        TEST_PATH,
+        0x002c_0080,
+        Verify::Extract,
+    );
 }
 
 #[test]

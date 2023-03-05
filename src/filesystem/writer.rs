@@ -2,7 +2,8 @@ use std::cell::RefCell;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
-use deku::DekuContainerWrite;
+use deku::bitvec::BitVec;
+use deku::DekuWrite;
 use tracing::{info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
@@ -11,6 +12,7 @@ use crate::error::SquashfsError;
 use crate::filesystem::dummy::DummyReadSeek;
 use crate::filesystem::node::SquashfsSymlink;
 use crate::fragment::Fragment;
+use crate::kind::Kind;
 use crate::metadata::{self, MetadataWriter};
 use crate::reader::{ReadSeek, WriteSeek};
 use crate::squashfs::{Id, SuperBlock};
@@ -23,6 +25,7 @@ use crate::{
 /// Representation of SquashFS filesystem to be written back to an image
 #[derive(Debug)]
 pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
+    pub kind: Kind,
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
@@ -68,6 +71,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             })
             .collect::<Result<_, SquashfsError>>()?;
         Ok(Self {
+            kind: reader.kind,
             block_size: reader.block_size,
             block_log: reader.block_log,
             compressor: reader.compressor,
@@ -230,7 +234,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// correct fields from `Filesystem`, and the data after that contains the nodes.
     #[instrument(skip_all)]
     pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(), SquashfsError> {
-        let mut superblock = SuperBlock::new(self.compressor);
+        let mut superblock = SuperBlock::new(self.compressor, self.kind);
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
@@ -240,8 +244,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
         let mut data_writer = DataWriter::new(self.compressor, None, self.block_size);
-        let mut inode_writer = MetadataWriter::new(self.compressor, None, self.block_size);
-        let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size);
+        let mut inode_writer =
+            MetadataWriter::new(self.compressor, None, self.block_size, self.kind);
+        let mut dir_writer = MetadataWriter::new(self.compressor, None, self.block_size, self.kind);
 
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", tree);
@@ -253,7 +258,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
         info!("Writing Other stuff");
         let (_, root_inode) =
-            tree.write_inode_dir(&mut inode_writer, &mut dir_writer, 0, superblock)?;
+            tree.write_inode_dir(&mut inode_writer, &mut dir_writer, 0, superblock, self.kind)?;
 
         superblock.root_inode = root_inode;
         superblock.inode_count = self.nodes.len() as u32 + 1; // + 1 for the "/"
@@ -270,13 +275,13 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         dir_writer.finalize(w)?;
 
         info!("Writing Frag Lookup Table");
-        Self::write_frag_table(w, data_writer.fragment_table, &mut superblock)?;
+        self.write_frag_table(w, data_writer.fragment_table, &mut superblock)?;
 
         info!("Writing Id Lookup Table");
-        Self::write_id_table(w, &self.id_table, &mut superblock)?;
+        self.write_id_table(w, &self.id_table, &mut superblock)?;
 
         info!("Finalize Superblock and End Bytes");
-        Self::finalize(w, &mut superblock)?;
+        self.finalize(w, &mut superblock)?;
 
         info!("Superblock: {:#02x?}", superblock);
         info!("Success");
@@ -284,6 +289,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     fn finalize<W: Write + Seek>(
+        &self,
         w: &mut W,
         superblock: &mut SuperBlock,
     ) -> Result<(), SquashfsError> {
@@ -299,7 +305,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         info!("Writing Superblock");
         trace!("{:#02x?}", superblock);
         w.rewind()?;
-        w.write_all(&superblock.to_bytes()?)?;
+        let mut bv = BitVec::new();
+        superblock.write(&mut bv, self.kind)?;
+        w.write_all(bv.as_raw_slice())?;
 
         info!("Writing Finished");
 
@@ -307,6 +315,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     fn write_id_table<W: Write + Seek>(
+        &self,
         w: &mut W,
         id_table: &Option<Vec<Id>>,
         write_superblock: &mut SuperBlock,
@@ -315,21 +324,29 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             let id_table_dat = w.stream_position()?;
             let mut id_bytes = Vec::with_capacity(id.len() * ((u32::BITS / 8) as usize));
             for i in id {
-                let bytes = i.to_bytes()?;
-                id_bytes.write_all(&bytes)?;
+                let mut bv = BitVec::new();
+                i.write(&mut bv, self.kind)?;
+                id_bytes.write_all(bv.as_raw_slice())?;
             }
-            let metadata_len = metadata::set_if_uncompressed(id_bytes.len() as u16).to_le_bytes();
-            w.write_all(&metadata_len)?;
+            // write metdata_length
+            let mut bv = BitVec::new();
+            metadata::set_if_uncompressed(id_bytes.len() as u16)
+                .write(&mut bv, self.kind.data_endian)?;
+            w.write_all(bv.as_raw_slice())?;
             w.write_all(&id_bytes)?;
             write_superblock.id_table = w.stream_position()?;
             write_superblock.id_count = id.len() as u16;
-            w.write_all(&id_table_dat.to_le_bytes())?;
+
+            let mut bv = BitVec::new();
+            id_table_dat.write(&mut bv, self.kind.type_endian)?;
+            w.write_all(bv.as_raw_slice())?;
         }
 
         Ok(())
     }
 
     fn write_frag_table<W: Write + Seek>(
+        &self,
         w: &mut W,
         frag_table: Vec<Fragment>,
         write_superblock: &mut SuperBlock,
@@ -337,15 +354,23 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         let frag_table_dat = w.stream_position()?;
         let mut frag_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
         for f in &frag_table {
-            let bytes = f.to_bytes()?;
-            frag_bytes.write_all(&bytes)?;
+            let mut bv = BitVec::new();
+            f.write(&mut bv, self.kind)?;
+            frag_bytes.write_all(bv.as_raw_slice())?;
         }
-        let metadata_len = metadata::set_if_uncompressed(frag_bytes.len() as u16).to_le_bytes();
-        w.write_all(&metadata_len)?;
+        // write metdata_length
+        let mut bv = BitVec::new();
+        metadata::set_if_uncompressed(frag_bytes.len() as u16)
+            .write(&mut bv, self.kind.data_endian)?;
+        w.write_all(bv.as_raw_slice())?;
+
         w.write_all(&frag_bytes)?;
         write_superblock.frag_table = w.stream_position()?;
         write_superblock.frag_count = frag_table.len() as u32;
-        w.write_all(&frag_table_dat.to_le_bytes())?;
+
+        let mut bv = BitVec::new();
+        frag_table_dat.write(&mut bv, self.kind.type_endian)?;
+        w.write_all(bv.as_raw_slice())?;
 
         Ok(())
     }

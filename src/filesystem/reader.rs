@@ -7,12 +7,13 @@ use crate::error::SquashfsError;
 use crate::fragment::Fragment;
 use crate::inode::BasicFile;
 use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
-use crate::squashfs::{Cache, Id};
+use crate::squashfs::{Cache, Id, Kind};
 use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image
 #[derive(Debug)]
 pub struct FilesystemReader<R: ReadSeek> {
+    pub kind: Kind,
     /// See [`SuperBlock`].`block_size`
     pub block_size: u32,
     /// See [`SuperBlock`].`block_log`
@@ -39,6 +40,8 @@ pub struct FilesystemReader<R: ReadSeek> {
 
 impl<R: ReadSeek> FilesystemReader<R> {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
+    ///
+    /// With default kind: [`crate::kind::LE_V4_0`] and offset `0`.
     pub fn from_reader(reader: R) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader(reader)?;
         squashfs.into_filesystem_reader()
@@ -49,6 +52,16 @@ impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
     pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, SquashfsError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
+        squashfs.into_filesystem_reader()
+    }
+
+    /// Same as [`Self::from_reader_with_offset`], but setting custom `kind`
+    pub fn from_reader_with_offset_and_kind(
+        reader: R,
+        offset: u64,
+        kind: Kind,
+    ) -> Result<Self, SquashfsError> {
+        let squashfs = Squashfs::from_reader_with_offset_and_kind(reader, offset, kind)?;
         squashfs.into_filesystem_reader()
     }
 }

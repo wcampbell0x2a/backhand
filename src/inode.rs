@@ -9,13 +9,14 @@ use deku::prelude::*;
 use crate::data::DataSize;
 use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
+use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
 use crate::NodeHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16")]
-#[deku(endian = "little")]
+#[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, kind: Kind")]
+#[deku(endian = "kind.type_endian")]
 pub struct Inode {
     pub id: InodeId,
     pub header: InodeHeader,
@@ -30,6 +31,7 @@ impl Inode {
         name: &'a [u8],
         m_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
+        kind: Kind,
     ) -> Entry<'a> {
         let mut v = BitVec::<u8, Msb0>::new();
         self.write(
@@ -38,6 +40,7 @@ impl Inode {
                 0xffff_ffff_ffff_ffff, // bytes_used is unused for ctx. set to max
                 superblock.block_size,
                 superblock.block_log,
+                kind,
             ),
         )
         .unwrap();

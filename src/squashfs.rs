@@ -6,7 +6,7 @@ use std::io::SeekFrom;
 use std::os::unix::prelude::OsStringExt;
 use std::path::{Path, PathBuf};
 
-use deku::bitvec::BitVec;
+use deku::bitvec::{BitVec, BitView, Msb0};
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
@@ -22,22 +22,159 @@ use crate::{
     SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
+/// Kind Magic
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Magic {
+    Little,
+    Big,
+}
+
+impl Magic {
+    fn magic(self) -> [u8; 4] {
+        match self {
+            Self::Little => *b"hsqs",
+            Self::Big => *b"sqsh",
+        }
+    }
+}
+
+/// Kind Endian
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Endian {
+    Little,
+    Big,
+}
+
+/// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
+///
+/// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
+///
+/// TODO: we probably want a `from_reader` for this, so they can get a `Kind` from the magic bytes.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Kind {
+    /// Magic at the beginning of the image
+    pub(crate) magic: [u8; 4],
+    /// Endian used for all data types
+    pub(crate) type_endian: deku::ctx::Endian,
+    /// Endian used for Metadata Lengths
+    pub(crate) data_endian: deku::ctx::Endian,
+    /// Major version
+    pub(crate) version_major: u16,
+    /// Minor version
+    pub(crate) version_minor: u16,
+}
+
+impl Kind {
+    /// Create with default Kind: [`LE_V4_0`]
+    pub fn new() -> Self {
+        LE_V4_0
+    }
+
+    /// Set magic type at the beginning of the image
+    pub fn with_magic(mut self, magic: Magic) -> Self {
+        self.magic = magic.magic();
+        self
+    }
+
+    /// Set endian used for data types
+    pub fn with_type_endian(mut self, endian: Endian) -> Self {
+        match endian {
+            Endian::Little => {
+                self.type_endian = deku::ctx::Endian::Little;
+            },
+            Endian::Big => {
+                self.type_endian = deku::ctx::Endian::Big;
+            },
+        }
+        self
+    }
+
+    /// Set endian used for Metadata lengths
+    pub fn with_data_endian(mut self, endian: Endian) -> Self {
+        match endian {
+            Endian::Little => {
+                self.data_endian = deku::ctx::Endian::Little;
+            },
+            Endian::Big => {
+                self.data_endian = deku::ctx::Endian::Big;
+            },
+        }
+        self
+    }
+
+    /// Set both type and data endian
+    pub fn with_all_endian(mut self, endian: Endian) -> Self {
+        match endian {
+            Endian::Little => {
+                self.type_endian = deku::ctx::Endian::Little;
+                self.data_endian = deku::ctx::Endian::Little;
+            },
+            Endian::Big => {
+                self.type_endian = deku::ctx::Endian::Big;
+                self.data_endian = deku::ctx::Endian::Big;
+            },
+        }
+        self
+    }
+
+    /// Set major and minor version
+    pub fn with_version(mut self, major: u16, minor: u16) -> Self {
+        self.version_major = major;
+        self.version_minor = minor;
+        self
+    }
+}
+
+impl Default for Kind {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Default `Kind` for linux kernel and squashfs-tools/mksquashfs. Little-Endian v4.0
+pub const LE_V4_0: Kind = Kind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 4,
+    version_minor: 0,
+};
+
+/// Big-Endian Superblock v4.0
+pub const BE_V4_0: Kind = Kind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 4,
+    version_minor: 0,
+};
+
+/// AVM Fritz!OS firmware support. Tested with: https://github.com/dnicolodi/squashfs-avm-tools
+pub const AVM_BE_V4_0: Kind = Kind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 4,
+    version_minor: 0,
+};
+
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "little")]
+#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct Export(pub u64);
 
 /// 32 bit user and group IDs
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "little")]
+#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct Id(pub u32);
 
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
+#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct SuperBlock {
     /// Must be set to 0x73717368 ("hsqs" on disk).
-    #[deku(assert_eq = "*Self::MAGIC")]
+    #[deku(assert_eq = "kind.magic")]
     pub magic: [u8; 4],
     /// The number of inodes stored in the archive.
     pub inode_count: u32,
@@ -56,10 +193,10 @@ pub struct SuperBlock {
     pub flags: u16,
     /// The number of entries in the ID lookup table.
     pub id_count: u16,
-    #[deku(assert_eq = "4")]
+    #[deku(assert_eq = "kind.version_major")]
     /// Major version of the format. Must be set to 4.
     pub version_major: u16,
-    #[deku(assert_eq = "0")]
+    #[deku(assert_eq = "kind.version_minor")]
     /// Minor version of the format. Must be set to 0.
     pub version_minor: u16,
     /// A reference to the inode of the root directory.
@@ -80,14 +217,13 @@ pub struct SuperBlock {
 impl SuperBlock {
     const DEFAULT_BLOCK_LOG: u16 = 0x11;
     const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
-    const MAGIC: &'static [u8; 4] = b"hsqs";
     const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
     const VERSION_MAJ: u16 = 4;
     const VERSION_MIN: u16 = 0;
 
-    pub fn new(compressor: Compressor) -> Self {
+    pub fn new(compressor: Compressor, kind: Kind) -> Self {
         Self {
-            magic: *Self::MAGIC,
+            magic: kind.magic,
             inode_count: 0,
             mod_time: 0,
             block_size: Self::DEFAULT_BLOCK_SIZE,
@@ -206,6 +342,7 @@ pub(crate) struct Cache {
 ///
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
 pub struct Squashfs<R: ReadSeek> {
+    pub kind: Kind,
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
@@ -239,18 +376,35 @@ impl<R: ReadSeek> Squashfs<R> {
 }
 
 impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
-    /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
+    /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before Reading
+    ///
+    /// Uses default [`Kind`]: [`LITTLE_ENDIAN_V4_0`]
     pub fn from_reader_with_offset(
         reader: R,
         offset: u64,
     ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, SquashfsError> {
         Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset)?)
     }
+
+    /// Same as [`Self::from_reader_with_offset`], but including custom `kind`
+    pub fn from_reader_with_offset_and_kind(
+        reader: R,
+        offset: u64,
+        kind: Kind,
+    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, SquashfsError> {
+        Self::inner_from_reader_with_kind(SquashfsReaderWithOffset::new(reader, offset)?, kind)
+    }
 }
 
 impl<R: ReadSeek> Squashfs<R> {
-    #[instrument(skip_all)]
-    fn inner_from_reader(mut reader: R) -> Result<Squashfs<R>, SquashfsError> {
+    fn inner_from_reader(reader: R) -> Result<Squashfs<R>, SquashfsError> {
+        Self::inner_from_reader_with_kind(reader, LE_V4_0)
+    }
+
+    fn inner_from_reader_with_kind(
+        mut reader: R,
+        kind: Kind,
+    ) -> Result<Squashfs<R>, SquashfsError> {
         reader.rewind()?;
 
         // Size of metadata + optional compression options metadata block
@@ -258,7 +412,8 @@ impl<R: ReadSeek> Squashfs<R> {
         reader.read_exact(&mut superblock)?;
 
         // Parse SuperBlock
-        let (_, superblock) = SuperBlock::from_bytes((&superblock, 0))?;
+        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
+        let (_, superblock) = SuperBlock::read(bs, kind)?;
         info!("{superblock:#08x?}");
 
         let power_of_two = superblock.block_size != 0
@@ -280,7 +435,7 @@ impl<R: ReadSeek> Squashfs<R> {
         info!("Reading Compression options");
         let compression_options = if superblock.compressor != Compressor::None {
             if let Some(size) = superblock.compression_options_size() {
-                let bytes = metadata::read_block(&mut reader, &superblock)?;
+                let bytes = metadata::read_block(&mut reader, &superblock, kind)?;
 
                 // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
                 // squashfs-tools/unsquashfs complains about this also
@@ -350,23 +505,23 @@ impl<R: ReadSeek> Squashfs<R> {
         let data_and_fragments = reader.data_and_fragments(&superblock)?;
 
         info!("Reading Inodes");
-        let inodes = reader.inodes(&superblock)?;
+        let inodes = reader.inodes(&superblock, kind)?;
 
         info!("Reading Root Inode");
-        let root_inode = reader.root_inode(&superblock)?;
+        let root_inode = reader.root_inode(&superblock, kind)?;
 
         info!("Reading Fragments");
-        let fragments = reader.fragments(&superblock)?;
+        let fragments = reader.fragments(&superblock, kind)?;
         let fragment_ptr = fragments.clone().map(|a| a.0);
         let fragment_table = fragments.map(|a| a.1);
 
         info!("Reading Exports");
-        let export = reader.export(&superblock)?;
+        let export = reader.export(&superblock, kind)?;
         let export_ptr = export.clone().map(|a| a.0);
         let export_table = export.map(|a| a.1);
 
         info!("Reading Ids");
-        let id = reader.id(&superblock)?;
+        let id = reader.id(&superblock, kind)?;
         let id_ptr = id.clone().map(|a| a.0);
         let id_table = id.map(|a| a.1);
 
@@ -384,9 +539,10 @@ impl<R: ReadSeek> Squashfs<R> {
         };
 
         info!("Reading Dirs");
-        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position)?;
+        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, kind)?;
 
         let squashfs = Squashfs {
+            kind,
             superblock,
             compression_options,
             data_and_fragments,
@@ -467,15 +623,16 @@ impl<R: ReadSeek> Squashfs<R> {
             .copied()
             .collect();
 
-        // Parse into Dirs
-        let mut bytes = &block[block_offset..][..file_size as usize - 3];
+        let bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];
-        while !bytes.is_empty() {
-            let (rest, dir) = Dir::from_bytes((bytes, 0))?;
-            bytes = rest.0;
-            dirs.push(dir);
+        let mut all_bytes = bytes.view_bits::<Msb0>();
+        // Read until we fail to turn bytes into `T`
+        while let Ok((rest, t)) = Dir::read(all_bytes, self.kind) {
+            dirs.push(t);
+            all_bytes = rest;
         }
 
+        trace!("finish");
         Ok(Some(dirs))
     }
 
@@ -493,6 +650,7 @@ impl<R: ReadSeek> Squashfs<R> {
         };
 
         let filesystem = FilesystemReader {
+            kind: self.kind,
             block_size: self.superblock.block_size,
             block_log: self.superblock.block_log,
             compressor: self.superblock.compressor,

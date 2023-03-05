@@ -3,12 +3,13 @@
 use deku::prelude::*;
 
 use crate::data::DataSize;
+use crate::kind::Kind;
 
 pub(crate) const SIZE: usize =
     std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
-#[deku(endian = "little")]
+#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct Fragment {
     pub start: u64,
     pub size: DataSize,

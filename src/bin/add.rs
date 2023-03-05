@@ -9,12 +9,13 @@ use clap::Parser;
 #[command(author, version, name = "add-backhand")]
 struct Args {
     /// Squashfs input image
-    filesystem: PathBuf,
+    image: PathBuf,
 
     /// Path of file to read, to write into squashfs
     file: PathBuf,
 
-    /// Path of file inserted into squashfs
+    /// Path of file once inserted into squashfs
+    #[clap(name = "FILE_PATH_IN_IMAGE")]
     file_path: PathBuf,
 
     /// Squashfs output image
@@ -28,7 +29,7 @@ fn main() {
     let args = Args::parse();
 
     // read of squashfs
-    let file = File::open(args.filesystem).unwrap();
+    let file = File::open(args.image).unwrap();
     let filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 

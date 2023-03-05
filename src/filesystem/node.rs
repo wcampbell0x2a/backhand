@@ -16,6 +16,17 @@ pub struct NodeHeader {
     pub mtime: u32,
 }
 
+impl NodeHeader {
+    pub fn new(permissions: u16, uid: u16, gid: u16, mtime: u32) -> Self {
+        Self {
+            permissions,
+            uid,
+            gid,
+            mtime,
+        }
+    }
+}
+
 impl From<InodeHeader> for NodeHeader {
     fn from(inode_header: InodeHeader) -> Self {
         Self {

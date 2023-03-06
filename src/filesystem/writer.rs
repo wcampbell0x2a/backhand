@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use deku::bitvec::BitVec;
 use deku::DekuWrite;
@@ -90,32 +90,40 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         reader: impl Read + 'a,
         path: P,
-        header: NodeHeader,
+        mut header: NodeHeader,
     ) {
+        // create uid and replace gid with index
+        header.gid = self.lookup_add_id(header.gid as u32);
+        // create uid and replace uid with index
+        header.uid = self.lookup_add_id(header.uid as u32);
         let path = path.into();
 
         if path.parent().is_some() {
             let mut full_path = PathBuf::new();
             let components: Vec<_> = path.components().map(|comp| comp.as_os_str()).collect();
             'component: for dir in components.iter().take(components.len() - 1) {
+                let dir = Path::new(dir);
                 // add to path
                 full_path.push(dir);
 
-                // check if exists
-                for node in &mut self.nodes {
-                    if let InnerNode::Dir(_) = &node.inner {
-                        let left = &node.path;
-                        let right = &full_path;
-                        if left == right {
-                            continue 'component;
+                // skip root directory
+                if dir != Path::new("/") {
+                    // check if exists
+                    for node in &mut self.nodes {
+                        if let InnerNode::Dir(_) = &node.inner {
+                            let left = &node.path;
+                            let right = &full_path;
+                            if left == right {
+                                continue 'component;
+                            }
                         }
                     }
-                }
 
-                // not found, add to dir
-                let new_dir = InnerNode::Dir(SquashfsDir { header });
-                let node = Node::new(full_path.clone(), new_dir);
-                self.nodes.push(node);
+                    // not found, add to dir
+                    let new_dir = InnerNode::Dir(SquashfsDir { header });
+                    let node = Node::new(full_path.clone(), new_dir);
+                    self.nodes.push(node);
+                }
             }
         }
 
@@ -164,8 +172,12 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         link: S,
         path: P,
-        header: NodeHeader,
+        mut header: NodeHeader,
     ) {
+        // create uid and replace uid with index
+        header.uid = self.lookup_add_id(header.uid as u32);
+        // create uid and replace gid with index
+        header.gid = self.lookup_add_id(header.gid as u32);
         let path = path.into();
 
         let new_symlink = InnerNode::Symlink(SquashfsSymlink {
@@ -177,7 +189,11 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Insert empty `dir` at `path`
-    pub fn push_dir<P: Into<PathBuf>>(&mut self, path: P, header: NodeHeader) {
+    pub fn push_dir<P: Into<PathBuf>>(&mut self, path: P, mut header: NodeHeader) {
+        // create uid and replace uid with index
+        header.uid = self.lookup_add_id(header.uid as u32);
+        // create uid and replace gid with index
+        header.gid = self.lookup_add_id(header.gid as u32);
         let path = path.into();
 
         let new_dir = InnerNode::Dir(SquashfsDir { header });
@@ -190,8 +206,12 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         device_number: u32,
         path: P,
-        header: NodeHeader,
+        mut header: NodeHeader,
     ) {
+        // create uid and replace uid with index
+        header.uid = self.lookup_add_id(header.uid as u32);
+        // create uid and replace gid with index
+        header.gid = self.lookup_add_id(header.gid as u32);
         let path = path.into();
 
         let new_device = InnerNode::CharacterDevice(SquashfsCharacterDevice {
@@ -207,8 +227,12 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         device_number: u32,
         path: P,
-        header: NodeHeader,
+        mut header: NodeHeader,
     ) {
+        // create uid and replace uid with index
+        header.uid = self.lookup_add_id(header.uid as u32);
+        // create uid and replace gid with index
+        header.gid = self.lookup_add_id(header.gid as u32);
         let path = path.into();
 
         let new_device = InnerNode::BlockDevice(SquashfsBlockDevice {
@@ -373,6 +397,24 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         w.write_all(bv.as_raw_slice())?;
 
         Ok(())
+    }
+
+    /// Return index of id, adding if required
+    fn lookup_add_id(&mut self, id: u32) -> u16 {
+        let found = self
+            .id_table
+            .as_ref()
+            .unwrap()
+            .iter()
+            .position(|a| a.0 == id);
+
+        match found {
+            Some(found) => found as u16,
+            None => {
+                self.id_table.as_mut().unwrap().push(Id(id));
+                self.id_table.as_ref().unwrap().len() as u16 - 1
+            },
+        }
     }
 }
 

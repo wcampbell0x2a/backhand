@@ -83,9 +83,13 @@ Arguments:
   <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
 
 Options:
-  -o, --out <OUT>  Squashfs output image [default: added.squashfs]
-  -h, --help       Print help
-  -V, --version    Print version
+  -o, --out <OUT>      Squashfs output image [default: added.squashfs]
+      --mode <MODE>    Overide mode read from `file`
+      --uid <UID>      Overide uid read from `file`
+      --gid <GID>      Overide gid read from `file`
+      --mtime <MTIME>  Overide mtime read from `file`
+  -h, --help           Print help
+  -V, --version        Print version
 ```
 
 ### replace-backhand

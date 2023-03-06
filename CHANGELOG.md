@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- Support for Read/Write of non-standard custom squashfs images:
+    - `LE_V4_0`: (linux kernel) Little-Endian default official v4.0
+    - `BE_V4_0`: Big-Endian v4.0
+    - `AVM_BE_V4_0`: AVM Fritz!OS firmware support.
+- `FilesystemWriter`: Builder pattern used when mutating an image
+- `FilesytemCompressor`: `.compressor` is now `FilesystemCompressor`,
+   which holds the Id as well as options stored in the image as well as extra options only used when
+   compressing when creating a new image.
+- `add`: now reads file details to derive the details when the file is added the image
+- `add`: `--mtime`, `--uid`, `--gid` and `--permission` to override file details derived from file
+- Add error `InvalidCompressionOption`
+- Change default XZ compression level to 6
+- Support custom XZ filters for `FilesystemWriter`
+- Return `(Superblock, bytes_written)` for `FilesystemWriter::write()`
+- Update deku to 0.16.0
+### Fixed
+- `ID` now supports multiple IDs for GUI and UID in the table
+- `id_table` is now properly a u64 pointer
+- Data is now *not* copied when during the use of a `FilesystemWriter` you decide to change the compression used.
+  Thanks [@rbran](https://github.com/rbran/)
 
 ## [v0.10.1] - 2023-02-22
 ### Added

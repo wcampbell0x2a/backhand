@@ -68,7 +68,7 @@ pub use crate::filesystem::node::{
 };
 pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
 pub use crate::filesystem::writer::{
-    CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
+    CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, DEFAULT_BLOCK_SIZE,
 };
 pub use crate::fragment::Fragment;
 pub use crate::inode::Inode;

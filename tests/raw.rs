@@ -1,14 +1,14 @@
 mod common;
 
 use backhand::compression::Compressor;
-use backhand::{kind, FilesystemWriter, Id, NodeHeader};
+use backhand::{kind, FilesystemWriter, NodeHeader};
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 
 #[test]
 #[cfg(feature = "xz")]
 fn test_raw_00() {
-    use backhand::{CompressionExtra, ExtraXz, FilesystemCompressor};
+    use backhand::{CompressionExtra, ExtraXz, FilesystemCompressor, DEFAULT_BLOCK_SIZE};
 
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
@@ -39,14 +39,14 @@ fn test_raw_00() {
     let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
     compressor.extra(extra).unwrap();
 
-    let mut fs: FilesystemWriter<'_, std::fs::File> = FilesystemWriter::new(
-        0x0004_0000,
-        0x634f_5237,
-        Id::root(),
-        header,
-        compressor,
-        kind::LE_V4_0,
-    );
+    // (some of these are already set with default(), but just testing...)
+    let mut fs = FilesystemWriter::default();
+    fs.set_time(0x634f_5237);
+    fs.set_block_size(DEFAULT_BLOCK_SIZE);
+    fs.set_only_root_id();
+    fs.set_root_header(header);
+    fs.set_compressor(compressor);
+    fs.set_kind(kind::LE_V4_0);
 
     fs.push_dir("usr", o_header);
     fs.push_dir("usr/bin", o_header);

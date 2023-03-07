@@ -103,7 +103,7 @@ pub enum InodeInner {
     ExtendedFile(#[deku(ctx = "bytes_used, block_size, block_log")] ExtendedFile),
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct InodeHeader {
     pub permissions: u16,

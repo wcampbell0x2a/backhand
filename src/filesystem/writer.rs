@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::bitvec::BitVec;
 use deku::DekuWrite;
@@ -22,37 +23,46 @@ use crate::{
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileSource, SquashfsFileWriter,
 };
 
+pub const DEFAULT_BLOCK_SIZE: u32 = 0x0004_0000;
+
 /// Representation of SquashFS filesystem to be written back to an image
 ///
 /// Use [`Self::from_fs_reader`] to write with the data from a previous SquashFS image
 ///
-/// Use [`Self::new`] to create an empty SquashFS image without an original image. For example:
+/// Use [`Self::default`] to create an empty SquashFS image without an original image. For example:
 /// ```rust
 /// # use std::time::SystemTime;
-/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind};
+/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra};
+/// // Add empty default FilesytemWriter
+/// let mut fs = FilesystemWriter::default();
+/// fs.set_current_time();
+/// fs.set_block_size(DEFAULT_BLOCK_SIZE);
+/// fs.set_only_root_id();
+/// fs.set_kind(kind::LE_V4_0);
+///
+/// // set root image permissions
 /// let header = NodeHeader {
 ///     permissions: 0o755,
 ///     ..NodeHeader::default()
 /// };
+/// fs.set_root_header(header);
 ///
+/// // set extra compression options
+/// let mut xz_extra = ExtraXz::default();
+/// xz_extra.level(9).unwrap();
+/// let extra = CompressionExtra::Xz(xz_extra);
 /// let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
+/// compressor.extra(extra).unwrap();
+/// fs.set_compressor(compressor);
 ///
-/// let mut fs: FilesystemWriter<'_, std::fs::File> = FilesystemWriter::new(
-///     0x0004_0000,
-///     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as u32,
-///     Id::root(),
-///     header,
-///     compressor,
-///     kind::LE_V4_0,
-/// );
-///
+/// // push some dirs and a file
 /// fs.push_dir("usr", header);
 /// fs.push_dir("usr/bin", header);
 /// fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/file", header);
 /// ```
 #[derive(Debug)]
 pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
-    pub kind: Kind,
+    pub(crate) kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub(crate) block_size: u32,
     /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
@@ -70,29 +80,76 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub(crate) block_log: u16,
 }
 
-impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
-    /// Create empty image with context
-    pub fn new(
-        block_size: u32,
-        mod_time: u32,
-        id_table: Vec<Id>,
-        root_inode_header: NodeHeader,
-        compressor: FilesystemCompressor,
-        kind: Kind,
-    ) -> Self {
-        // TODO: verify all fields
+impl Default for FilesystemWriter<'_> {
+    /// Create default FilesystemWriter
+    ///
+    /// block_size: `DEFAULT_BLOCK_SIZE`, compressor: default XZ compression, no nodes,
+    /// kind: `Kind::default()`, and mod_time: `0`.
+    fn default() -> Self {
+        let block_size = DEFAULT_BLOCK_SIZE;
         Self {
-            kind,
             block_size,
-            block_log: (block_size as f32).log2() as u16,
-            mod_time,
-            id_table,
+            mod_time: 0,
+            id_table: vec![],
             root_inode: SquashfsDir {
-                header: root_inode_header,
+                header: NodeHeader::default(),
             },
-            compressor,
+            compressor: FilesystemCompressor::default(),
+            kind: Kind::default(),
             nodes: vec![],
+            block_log: (block_size as f32).log2() as u16,
         }
+    }
+}
+
+impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
+    /// Set block size
+    pub fn set_block_size(&mut self, block_size: u32) {
+        self.block_size = block_size;
+        self.block_log = (block_size as f32).log2() as u16;
+    }
+
+    /// Set time of image as `mod_time`
+    pub fn set_time(&mut self, mod_time: u32) {
+        self.mod_time = mod_time;
+    }
+
+    /// Set time of image as current time
+    pub fn set_current_time(&mut self) {
+        self.mod_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as u32;
+    }
+
+    /// Set kind as `kind`
+    pub fn set_kind(&mut self, kind: Kind) {
+        self.kind = kind;
+    }
+
+    /// Set root mode as `mode`
+    pub fn set_root_mode(&mut self, mode: u16) {
+        self.root_inode.header.permissions = mode;
+    }
+
+    /// Set root uid as `uid`
+    pub fn set_root_uid(&mut self, uid: u16) {
+        self.root_inode.header.uid = uid;
+    }
+
+    /// Set root gid as `gid`
+    pub fn set_root_gid(&mut self, gid: u16) {
+        self.root_inode.header.gid = gid;
+    }
+
+    /// Set compressor as `compressor`
+    pub fn set_compressor(&mut self, compressor: FilesystemCompressor) {
+        self.compressor = compressor;
+    }
+
+    // Set id_table to `Id::root()`
+    pub fn set_only_root_id(&mut self) {
+        self.id_table = Id::root();
     }
 
     /// Inherit filesystem structure and properties from `reader`
@@ -135,6 +192,8 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
     /// This will make parent directories as needed with the same metadata of `header`
+    ///
+    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: Into<PathBuf>>(
         &mut self,
         reader: impl Read + 'a,
@@ -217,6 +276,8 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Insert symlink `path` -> `link`
+    ///
+    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
     pub fn push_symlink<P: Into<PathBuf>, S: Into<PathBuf>>(
         &mut self,
         link: S,
@@ -238,6 +299,8 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Insert empty `dir` at `path`
+    ///
+    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
     pub fn push_dir<P: Into<PathBuf>>(&mut self, path: P, mut header: NodeHeader) {
         // create uid and replace uid with index
         header.uid = self.lookup_add_id(header.uid as u32);
@@ -251,6 +314,8 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Insert character device with `device_number` at `path`
+    ///
+    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
     pub fn push_char_device<P: Into<PathBuf>>(
         &mut self,
         device_number: u32,
@@ -272,6 +337,8 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Insert block device with `device_number` at `path`
+    ///
+    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
     pub fn push_block_device<P: Into<PathBuf>>(
         &mut self,
         device_number: u32,
@@ -307,7 +374,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// Generate and write the resulting squashfs image to `w`
     ///
     /// # Returns
-    /// (written populated [`Superblock`], total amount of bytes written including padding)
+    /// (written populated [`SuperBlock`], total amount of bytes written including padding)
     #[instrument(skip_all)]
     pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(SuperBlock, u64), SquashfsError> {
         let mut superblock = SuperBlock::new(self.compressor.id, self.kind);
@@ -493,7 +560,7 @@ impl<W: Write + Seek> Seek for WriterWithOffset<W> {
 }
 
 /// All compression options for [`FilesystemWriter`]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct FilesystemCompressor {
     pub(crate) id: Compressor,
     pub(crate) options: Option<CompressionOptions>,

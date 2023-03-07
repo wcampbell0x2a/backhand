@@ -150,7 +150,7 @@ pub const BE_V4_0: Kind = Kind {
     version_minor: 0,
 };
 
-/// AVM Fritz!OS firmware support. Tested with: https://github.com/dnicolodi/squashfs-avm-tools
+/// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
 pub const AVM_BE_V4_0: Kind = Kind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,

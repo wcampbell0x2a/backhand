@@ -16,7 +16,7 @@ use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 use crate::error::SquashfsError;
 use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(type = "u16")]
 #[rustfmt::skip]
@@ -25,6 +25,7 @@ pub enum Compressor {
     Gzip = 1,
     Lzma = 2,
     Lzo =  3,
+    #[default]
     Xz =   4,
     Lz4 =  5,
     Zstd = 6,

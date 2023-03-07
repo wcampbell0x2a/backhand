@@ -1,14 +1,17 @@
 use std::fs::{self, File, Permissions};
 use std::io;
-use std::os::unix::prelude::PermissionsExt;
+use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use backhand::{
-    FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsSymlink,
+    FilesystemReader, InnerNode, NodeHeader, ReadSeek, Squashfs, SquashfsBlockDevice,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
 use clap::Parser;
-use nix::sys::stat::{mknod, Mode, SFlag};
+use libc::lchown;
+use nix::libc::geteuid;
+use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
+use nix::sys::time::{TimeSpec, TimeVal};
 
 /// tool to uncompress, extract and list squashfs filesystems
 #[derive(Parser, Debug)]
@@ -49,6 +52,10 @@ fn main() {
 
     let file = File::open(&args.filesystem).unwrap();
     let squashfs = Squashfs::from_reader_with_offset(file, args.offset).unwrap();
+    let root_process = unsafe { geteuid() == 0 };
+    if root_process {
+        umask(Mode::from_bits(0).unwrap());
+    }
 
     if args.list {
         let filesystem = squashfs.into_filesystem_reader().unwrap();
@@ -57,7 +64,7 @@ fn main() {
         stat(squashfs);
     } else {
         let filesystem = squashfs.into_filesystem_reader().unwrap();
-        extract_all(&args, filesystem);
+        extract_all(&args, filesystem, root_process);
     }
 }
 
@@ -111,7 +118,49 @@ fn stat<R: ReadSeek>(squashfs: Squashfs<R>) {
     }
 }
 
-fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: FilesystemReader<R>) {
+fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file: bool) {
+    // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
+    let timeval = TimeVal::new(i64::from(header.mtime), 0);
+    utimes(path, &timeval, &timeval).unwrap();
+
+    let mut mode = u32::from(header.permissions);
+
+    // Only chown when root
+    if root_process {
+        // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
+        let path_bytes = PathBuf::from(path).as_os_str().as_bytes().as_ptr() as *const i8;
+        unsafe {
+            lchown(path_bytes, u32::from(header.uid), u32::from(header.gid));
+        }
+    } else if is_file {
+        // bitwise-not if not rooted (disable write permissions for user/group). Following
+        // squashfs-tools/unsquashfs behaviour
+        mode &= !0o022;
+    }
+
+    // set permissions
+    //
+    // NOTE: In squashfs-tools/unsquashfs they remove the write bits for user and group?
+    // I don't know if there is a reason for that but I keep the permissions the same if possible
+    match fs::set_permissions(path, Permissions::from_mode(mode)) {
+        Ok(_) => (),
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                // try without sticky bit
+                if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err() {
+                    println!("[!] could not set permissions");
+                }
+            }
+        },
+    }
+}
+
+fn extract_all<R: std::io::Read + std::io::Seek>(
+    args: &Args,
+    filesystem: FilesystemReader<R>,
+    root_process: bool,
+) {
+    // TODO: fixup perms for this?
     let _ = fs::create_dir_all(&args.dest);
 
     for node in &filesystem.nodes {
@@ -136,19 +185,19 @@ fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: Filesy
                         if args.info {
                             println!("[-] success, wrote {}", filepath.display());
                         }
-                        // write permissions
-                        let perms = Permissions::from_mode(u32::from(file.header.permissions));
-                        fs::set_permissions(&filepath, perms).unwrap();
+
+                        set_attributes(&filepath, &file.header, root_process, true);
                     },
                     Err(e) => {
-                        println!("[!] failed write: {} : {e}", filepath.display())
+                        println!("[!] failed write: {} : {e}", filepath.display());
+                        continue;
                     },
                 }
             },
-            InnerNode::Symlink(SquashfsSymlink { link, .. }) => {
+            InnerNode::Symlink(SquashfsSymlink { link, header }) => {
                 // create symlink
                 let link_display = link.display();
-                let filepath = Path::new(&args.dest).join(path);
+                let filepath = Path::new(&args.dest).join(&path);
 
                 // check if file exists
                 if !args.force && filepath.exists() {
@@ -156,29 +205,51 @@ fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: Filesy
                     continue;
                 }
 
-                // remove symlink so this doesn't fail
-                let _ = fs::remove_file(&filepath);
-
                 match std::os::unix::fs::symlink(link, &filepath) {
                     Ok(_) => {
                         if args.info {
                             println!("[-] success, wrote {}->{link_display}", filepath.display());
                         }
                     },
-                    Err(e) => println!(
-                        "[!] failed write: {}->{link_display} : {e}",
-                        filepath.display()
-                    ),
+                    Err(e) => {
+                        println!(
+                            "[!] failed write: {}->{link_display} : {e}",
+                            filepath.display()
+                        );
+                        continue;
+                    },
                 }
+
+                // set attributes, but special to not follow the symlink
+
+                if root_process {
+                    // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
+                    let path_bytes =
+                        PathBuf::from(&filepath).as_os_str().as_bytes().as_ptr() as *const i8;
+                    unsafe {
+                        lchown(path_bytes, u32::from(header.uid), u32::from(header.gid));
+                    }
+                }
+
+                // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
+                // Make sure this doesn't follow symlinks when changed to std library!
+                let timespec = TimeSpec::new(i64::from(header.mtime), 0);
+                utimensat(
+                    None,
+                    &filepath,
+                    &timespec,
+                    &timespec,
+                    UtimensatFlags::NoFollowSymlink,
+                )
+                .unwrap();
             },
-            InnerNode::Dir(SquashfsDir { header }) => {
+            InnerNode::Dir(SquashfsDir { .. }) => {
                 // create dir
                 let path = Path::new(&args.dest).join(path);
                 let _ = std::fs::create_dir(&path);
 
-                // set permissions
-                let perms = Permissions::from_mode(u32::from(header.permissions));
-                fs::set_permissions(&path, perms).unwrap();
+                // These permissionsn are corrected later (user default permissions for now)
+
                 if args.info {
                     println!("[-] success, wrote {}", &path.display());
                 }
@@ -188,23 +259,34 @@ fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: Filesy
                 device_number,
             }) => {
                 let path = Path::new(&args.dest).join(path);
-                match mknod(
-                    &path,
-                    SFlag::S_IFCHR,
-                    Mode::from_bits(u32::from(header.permissions)).unwrap(),
-                    u64::from(*device_number),
-                ) {
-                    Ok(_) => {
-                        if args.info {
-                            println!("[-] char device created: {}", path.display());
-                        }
-                    },
-                    Err(_) => {
-                        println!(
-                            "[!] could not create char device {}, are you superuser?",
-                            path.display()
-                        );
-                    },
+                if root_process {
+                    match mknod(
+                        &path,
+                        SFlag::S_IFCHR,
+                        Mode::from_bits(u32::from(header.permissions)).unwrap(),
+                        u64::from(*device_number),
+                    ) {
+                        Ok(_) => {
+                            if args.info {
+                                println!("[-] char device created: {}", path.display());
+                            }
+
+                            set_attributes(&path, header, root_process, true);
+                        },
+                        Err(_) => {
+                            println!(
+                                "[!] could not create char device {}, are you superuser?",
+                                path.display()
+                            );
+                            continue;
+                        },
+                    }
+                } else {
+                    println!(
+                        "[!] could not create char device {}, you are not superuser!",
+                        path.display()
+                    );
+                    continue;
                 }
             },
             InnerNode::BlockDevice(SquashfsBlockDevice {
@@ -222,15 +304,28 @@ fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: Filesy
                         if args.info {
                             println!("[-] block device created: {}", path.display());
                         }
+
+                        set_attributes(&path, header, root_process, true);
                     },
                     Err(_) => {
                         println!(
                             "[!] could not create block device {}, are you superuser?",
                             path.display()
                         );
+                        continue;
                     },
                 }
             },
+        }
+    }
+
+    // fixup dir permissions
+    for node in &filesystem.nodes {
+        let path = &node.path;
+        let path: PathBuf = path.iter().skip(1).collect();
+        if let InnerNode::Dir(SquashfsDir { header }) = &node.inner {
+            let path = Path::new(&args.dest).join(path);
+            set_attributes(&path, header, root_process, false);
         }
     }
 }

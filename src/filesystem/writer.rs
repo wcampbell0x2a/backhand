@@ -104,7 +104,13 @@ impl Default for FilesystemWriter<'_> {
 
 impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// Set block size
+    ///
+    /// # Panics
+    /// If invalid, must be [`SuperBlock::MIN_BLOCK_SIZE`] `> block_size <` [`SuperBlock::MAX_BLOCK_SIZE`]
     pub fn set_block_size(&mut self, block_size: u32) {
+        if !(SuperBlock::MIN_BLOCK_SIZE..=SuperBlock::MAX_BLOCK_SIZE).contains(&block_size) {
+            panic!("invalid block_size");
+        }
         self.block_size = block_size;
         self.block_log = (block_size as f32).log2() as u16;
     }

@@ -221,11 +221,13 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
-    const DEFAULT_BLOCK_LOG: u16 = 0x11;
-    const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
+    const DEFAULT_BLOCK_LOG: u16 = 0x11; // 128KiB
+    const DEFAULT_BLOCK_SIZE: u32 = 0x20000; // 128KiB
+    /// 1MiB
+    pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
+    /// 4KiB
+    pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
     pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
-    const VERSION_MAJ: u16 = 4;
-    const VERSION_MIN: u16 = 0;
 
     pub fn new(compressor: Compressor, kind: Kind) -> Self {
         Self {
@@ -424,8 +426,8 @@ impl<R: ReadSeek> Squashfs<R> {
 
         let power_of_two = superblock.block_size != 0
             && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > byte_unit::n_mib_bytes!(1) as u32)
-            || (superblock.block_size < byte_unit::n_kb_bytes(4) as u32)
+        if (superblock.block_size > SuperBlock::MAX_BLOCK_SIZE)
+            || (superblock.block_size < SuperBlock::MIN_BLOCK_SIZE)
             || !power_of_two
         {
             error!("block_size({:#02x}) invalid", superblock.block_size);

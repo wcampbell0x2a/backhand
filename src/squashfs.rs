@@ -386,7 +386,7 @@ impl<R: ReadSeek> Squashfs<R> {
 impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before Reading
     ///
-    /// Uses default [`Kind`]: [`LITTLE_ENDIAN_V4_0`]
+    /// Uses default [`Kind`]: [`LE_V4_0`]
     pub fn from_reader_with_offset(
         reader: R,
         offset: u64,

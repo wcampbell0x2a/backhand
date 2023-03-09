@@ -26,10 +26,8 @@ use crate::{
 pub const DEFAULT_BLOCK_SIZE: u32 = 0x0004_0000;
 
 /// Representation of SquashFS filesystem to be written back to an image
-///
-/// Use [`Self::from_fs_reader`] to write with the data from a previous SquashFS image
-///
-/// Use [`Self::default`] to create an empty SquashFS image without an original image. For example:
+/// - Use [`Self::from_fs_reader`] to write with the data from a previous SquashFS image
+/// - Use [`Self::default`] to create an empty SquashFS image without an original image. For example:
 /// ```rust
 /// # use std::time::SystemTime;
 /// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra};
@@ -45,7 +43,7 @@ pub const DEFAULT_BLOCK_SIZE: u32 = 0x0004_0000;
 ///     permissions: 0o755,
 ///     ..NodeHeader::default()
 /// };
-/// fs.set_root_header(header);
+/// fs.set_root_mode(0o777);
 ///
 /// // set extra compression options
 /// let mut xz_extra = ExtraXz::default();
@@ -116,6 +114,14 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Set time of image as `mod_time`
+    ///
+    /// # Example
+    /// Set to `Wed Oct 19 01:26:15 2022`
+    /// ```rust
+    /// # use backhand::{FilesystemWriter, kind};
+    /// let mut fs = FilesystemWriter::default();
+    /// fs.set_time(0x634f_5237);
+    /// ```
     pub fn set_time(&mut self, mod_time: u32) {
         self.mod_time = mod_time;
     }
@@ -129,11 +135,25 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Set kind as `kind`
+    ///
+    /// # Set kind to default V4.0
+    /// ```rust
+    /// # use backhand::{FilesystemWriter, kind};
+    /// let mut fs = FilesystemWriter::default();
+    /// fs.set_kind(kind::LE_V4_0);
+    /// ```
     pub fn set_kind(&mut self, kind: Kind) {
         self.kind = kind;
     }
 
     /// Set root mode as `mode`
+    ///
+    /// # Example
+    ///```rust
+    /// # use backhand::FilesystemWriter;
+    /// let mut fs = FilesystemWriter::default();
+    /// fs.set_root_mode(0o777);
+    /// ```
     pub fn set_root_mode(&mut self, mode: u16) {
         self.root_inode.header.permissions = mode;
     }
@@ -149,11 +169,16 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Set compressor as `compressor`
+    ///
+    ///```rust
+    /// # use backhand::{FilesystemWriter, FilesystemCompressor, compression::Compressor};
+    /// let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
+    /// ```
     pub fn set_compressor(&mut self, compressor: FilesystemCompressor) {
         self.compressor = compressor;
     }
 
-    // Set id_table to `Id::root()`
+    /// Set id_table to `Id::root()`, removing old entries
     pub fn set_only_root_id(&mut self) {
         self.id_table = Id::root();
     }

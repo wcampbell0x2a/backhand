@@ -44,7 +44,7 @@ fn test_raw_00() {
     fs.set_time(0x634f_5237);
     fs.set_block_size(DEFAULT_BLOCK_SIZE);
     fs.set_only_root_id();
-    fs.set_root_header(header);
+    fs.set_root_mode(0o777);
     fs.set_compressor(compressor);
     fs.set_kind(kind::LE_V4_0);
 

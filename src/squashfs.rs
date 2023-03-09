@@ -440,33 +440,32 @@ impl<R: ReadSeek> Squashfs<R> {
         // Parse Compression Options, if any
         info!("Reading Compression options");
         let compression_options = if superblock.compressor != Compressor::None {
-            if let Some(size) = superblock.compression_options_size() {
-                let bytes = metadata::read_block(&mut reader, &superblock, kind)?;
+            match superblock.compression_options_size() {
+                Some(size) => {
+                    let bytes = metadata::read_block(&mut reader, &superblock, kind)?;
 
-                // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
-                // squashfs-tools/unsquashfs complains about this also
-                if bytes.len() != size {
-                    tracing::warn!(
-                        "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
-                        bytes
-                    );
+                    // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
+                    // squashfs-tools/unsquashfs complains about this also
+                    if bytes.len() != size {
+                        tracing::warn!(
+                            "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
+                            bytes
+                        );
+                    }
+                    // data -> compression options
+                    let bv = BitVec::from_slice(&bytes);
+                    match CompressionOptions::read(
+                        &bv,
+                        (deku::ctx::Endian::Little, superblock.compressor),
+                    ) {
+                        Ok(co) => Some(co.1),
+                        Err(e) => {
+                            error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                            None
+                        },
+                    }
                 }
-                // data -> compression options
-                let bv = BitVec::from_slice(&bytes);
-                let ret = CompressionOptions::read(
-                    &bv,
-                    (deku::ctx::Endian::Little, superblock.compressor),
-                );
-
-                match ret {
-                    Ok(co) => Some(co.1),
-                    Err(e) => {
-                        error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
-                        None
-                    },
-                }
-            } else {
-                None
+                None => None,
             }
         } else {
             None

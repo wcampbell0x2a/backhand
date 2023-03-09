@@ -34,11 +34,13 @@ pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
 /// 4KiB
 pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
 
-/// Kind Magic
+/// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Magic {
+    /// Little Endian `b"hsqs"`
     Little,
+    /// Big Endian `b"sqsh"`
     Big,
 }
 

@@ -20,10 +20,9 @@ use crate::squashfs::{Id, SuperBlock};
 use crate::tree::TreeNode;
 use crate::{
     fragment, FilesystemReader, InnerNode, Node, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileSource, SquashfsFileWriter,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileSource, SquashfsFileWriter, MAX_BLOCK_SIZE,
+    MIN_BLOCK_SIZE,
 };
-
-pub const DEFAULT_BLOCK_SIZE: u32 = 0x0004_0000;
 
 /// Representation of SquashFS filesystem to be written back to an image
 /// - Use [`Self::from_fs_reader`] to write with the data from a previous SquashFS image
@@ -84,7 +83,7 @@ impl Default for FilesystemWriter<'_> {
     /// block_size: `DEFAULT_BLOCK_SIZE`, compressor: default XZ compression, no nodes,
     /// kind: `Kind::default()`, and mod_time: `0`.
     fn default() -> Self {
-        let block_size = DEFAULT_BLOCK_SIZE;
+        let block_size = crate::DEFAULT_BLOCK_SIZE;
         Self {
             block_size,
             mod_time: 0,
@@ -106,7 +105,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// # Panics
     /// If invalid, must be [`SuperBlock::MIN_BLOCK_SIZE`] `> block_size <` [`SuperBlock::MAX_BLOCK_SIZE`]
     pub fn set_block_size(&mut self, block_size: u32) {
-        if !(SuperBlock::MIN_BLOCK_SIZE..=SuperBlock::MAX_BLOCK_SIZE).contains(&block_size) {
+        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) {
             panic!("invalid block_size");
         }
         self.block_size = block_size;

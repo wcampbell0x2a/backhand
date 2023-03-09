@@ -68,12 +68,14 @@ pub use crate::filesystem::node::{
 };
 pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
 pub use crate::filesystem::writer::{
-    CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, DEFAULT_BLOCK_SIZE,
+    CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
 };
 pub use crate::fragment::Fragment;
 pub use crate::inode::Inode;
 pub use crate::reader::ReadSeek;
-pub use crate::squashfs::{Export, Id, Squashfs, SuperBlock};
+pub use crate::squashfs::{
+    Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+};
 
 /// Support the wonderful world of vendor formats
 pub mod kind {

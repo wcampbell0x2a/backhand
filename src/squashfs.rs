@@ -22,6 +22,18 @@ use crate::{
     SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
+/// 128KiB
+pub const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
+
+/// log2 of 128KiB
+const DEFAULT_BLOCK_LOG: u16 = 0x11;
+
+/// 1MiB
+pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
+
+/// 4KiB
+pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
+
 /// Kind Magic
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -221,12 +233,6 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
-    const DEFAULT_BLOCK_LOG: u16 = 0x11; // 128KiB
-    const DEFAULT_BLOCK_SIZE: u32 = 0x20000; // 128KiB
-    /// 1MiB
-    pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
-    /// 4KiB
-    pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
     pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
     pub fn new(compressor: Compressor, kind: Kind) -> Self {
@@ -234,10 +240,10 @@ impl SuperBlock {
             magic: kind.magic,
             inode_count: 0,
             mod_time: 0,
-            block_size: Self::DEFAULT_BLOCK_SIZE,
+            block_size: DEFAULT_BLOCK_SIZE,
             frag_count: 0,
             compressor,
-            block_log: Self::DEFAULT_BLOCK_LOG,
+            block_log: DEFAULT_BLOCK_LOG,
             flags: 0,
             id_count: 0,
             version_major: kind.version_major,
@@ -426,8 +432,8 @@ impl<R: ReadSeek> Squashfs<R> {
 
         let power_of_two = superblock.block_size != 0
             && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > SuperBlock::MAX_BLOCK_SIZE)
-            || (superblock.block_size < SuperBlock::MIN_BLOCK_SIZE)
+        if (superblock.block_size > MAX_BLOCK_SIZE)
+            || (superblock.block_size < MIN_BLOCK_SIZE)
             || !power_of_two
         {
             error!("block_size({:#02x}) invalid", superblock.block_size);
@@ -466,7 +472,7 @@ impl<R: ReadSeek> Squashfs<R> {
                             None
                         },
                     }
-                }
+                },
                 None => None,
             }
         } else {

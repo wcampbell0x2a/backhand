@@ -1,14 +1,15 @@
 mod common;
 
 use backhand::compression::Compressor;
-use backhand::internal::Id;
-use backhand::{kind, FilesystemWriter, NodeHeader, SquashfsDir};
+use backhand::{kind, FilesystemWriter, NodeHeader};
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
 
 #[test]
 #[cfg(feature = "xz")]
 fn test_raw_00() {
+    use backhand::{CompressionExtra, ExtraXz, FilesystemCompressor, DEFAULT_BLOCK_SIZE};
+
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
         hash: "a2970a4e82014740b2333f4555eecf321898633ccadb443affec966f47f3acb3".to_string(),
@@ -30,17 +31,22 @@ fn test_raw_00() {
         ..header
     };
 
-    let mut fs: FilesystemWriter = FilesystemWriter {
-        kind: kind::LE_V4_0,
-        block_size: 0x0004_0000,
-        block_log: 0x0000_0012,
-        compressor: Compressor::Xz,
-        compression_options: None,
-        mod_time: 0x634f_5237,
-        id_table: Some(vec![Id(0)]),
-        root_inode: SquashfsDir { header },
-        nodes: vec![],
-    };
+    // test out max xz level
+    let mut xz_extra = ExtraXz::default();
+    xz_extra.level(9).unwrap();
+    let extra = CompressionExtra::Xz(xz_extra);
+
+    let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
+    compressor.extra(extra).unwrap();
+
+    // (some of these are already set with default(), but just testing...)
+    let mut fs = FilesystemWriter::default();
+    fs.set_time(0x634f_5237);
+    fs.set_block_size(DEFAULT_BLOCK_SIZE);
+    fs.set_only_root_id();
+    fs.set_root_mode(0o777);
+    fs.set_compressor(compressor);
+    fs.set_kind(kind::LE_V4_0);
 
     fs.push_dir("usr", o_header);
     fs.push_dir("usr/bin", o_header);

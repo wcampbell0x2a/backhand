@@ -14,8 +14,9 @@ use xz2::read::{XzDecoder, XzEncoder};
 use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::SquashfsError;
+use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(type = "u16")]
 #[rustfmt::skip]
@@ -24,6 +25,7 @@ pub enum Compressor {
     Gzip = 1,
     Lzma = 2,
     Lzo =  3,
+    #[default]
     Xz =   4,
     Lz4 =  5,
     Zstd = 6,
@@ -76,8 +78,20 @@ pub struct Lzo {
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Xz {
     pub dictionary_size: u32,
-    // TODO: enum
-    pub filters: u32,
+    pub filters: XzFilter,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(type = "u32")]
+#[rustfmt::skip]
+pub enum XzFilter {
+    X86      = 0x01,
+    PowerPC  = 0x02,
+    IA64     = 0x04,
+    Arm      = 0x08,
+    ArmThumb = 0x10,
+    Sparc    = 0x20,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
@@ -135,20 +149,43 @@ pub(crate) fn decompress(
 #[instrument(skip_all)]
 pub(crate) fn compress(
     bytes: &[u8],
-    compressor: Compressor,
-    options: &Option<CompressionOptions>,
+    fc: FilesystemCompressor,
     block_size: u32,
 ) -> Result<Vec<u8>, SquashfsError> {
-    match (compressor, options) {
+    match (fc.id, fc.options, fc.extra) {
         #[cfg(feature = "xz")]
-        (Compressor::Xz, Some(CompressionOptions::Xz(xz))) => {
-            let level = 7;
+        (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
+            let dict_size = match option {
+                None => block_size,
+                Some(CompressionOptions::Xz(option)) => option.dictionary_size,
+                Some(_) => unreachable!(),
+            };
+            let default_level = 6; // LZMA_DEFAULT
+            let level = match extra {
+                None => default_level,
+                Some(CompressionExtra::Xz(xz)) => {
+                    if let Some(level) = xz.level {
+                        level
+                    } else {
+                        default_level
+                    }
+                },
+            };
             let check = Check::Crc32;
             let mut opts = LzmaOptions::new_preset(level).unwrap();
-            let dict_size = xz.dictionary_size;
             opts.dict_size(dict_size);
 
             let mut filters = Filters::new();
+            if let Some(CompressionOptions::Xz(xz)) = option {
+                match xz.filters {
+                    XzFilter::X86 => filters.x86(),
+                    XzFilter::PowerPC => filters.powerpc(),
+                    XzFilter::IA64 => filters.ia64(),
+                    XzFilter::Arm => filters.arm(),
+                    XzFilter::ArmThumb => filters.arm_thumb(),
+                    XzFilter::Sparc => filters.sparc(),
+                };
+            }
             filters.lzma2(&opts);
 
             let stream = MtStreamBuilder::new()
@@ -161,33 +198,10 @@ pub(crate) fn compress(
             let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
             let mut buf = vec![];
             encoder.read_to_end(&mut buf)?;
-            Ok(buf)
-        },
-        #[cfg(feature = "xz")]
-        (Compressor::Xz, None) => {
-            let level = 7;
-            let check = Check::Crc32;
-            let mut opts = LzmaOptions::new_preset(level).unwrap();
-            opts.dict_size(block_size);
-
-            let mut filters = Filters::new();
-            filters.lzma2(&opts);
-
-            let stream = MtStreamBuilder::new()
-                .threads(2)
-                .filters(filters)
-                .check(check)
-                .encoder()
-                .unwrap();
-
-            let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
-            let mut buf = vec![];
-            encoder.read_to_end(&mut buf)?;
-
             Ok(buf)
         },
         #[cfg(feature = "gzip")]
-        (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip))) => {
+        (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip)), _) => {
             // TODO(#8): Use window_size and strategies
             let mut encoder =
                 ZlibEncoder::new(Cursor::new(bytes), Compression::new(gzip.compression_level));
@@ -196,14 +210,14 @@ pub(crate) fn compress(
             Ok(buf)
         },
         #[cfg(feature = "gzip")]
-        (Compressor::Gzip, None) => {
+        (Compressor::Gzip, None, _) => {
             let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
             let mut buf = vec![];
             encoder.read_to_end(&mut buf)?;
             Ok(buf)
         },
         #[cfg(feature = "lzo")]
-        (Compressor::Lzo, _) => {
+        (Compressor::Lzo, _, _) => {
             let mut lzo = rust_lzo::LZOContext::new();
             let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
             let error = lzo.compress(bytes, &mut buf);
@@ -213,7 +227,7 @@ pub(crate) fn compress(
             Ok(buf)
         },
         #[cfg(feature = "zstd")]
-        (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None)) => {
+        (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None), _) => {
             let compression_level = match option {
                 None => 3,
                 Some(CompressionOptions::Zstd(option)) => option.compression_level,
@@ -224,6 +238,6 @@ pub(crate) fn compress(
             encoder.compress_to_buffer(bytes, &mut buf)?;
             Ok(buf)
         },
-        _ => Err(SquashfsError::UnsupportedCompression(compressor)),
+        _ => Err(SquashfsError::UnsupportedCompression(fc.id)),
     }
 }

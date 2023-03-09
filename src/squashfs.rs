@@ -22,11 +22,25 @@ use crate::{
     SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
-/// Kind Magic
+/// 128KiB
+pub const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
+
+/// log2 of 128KiB
+const DEFAULT_BLOCK_LOG: u16 = 0x11;
+
+/// 1MiB
+pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
+
+/// 4KiB
+pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
+
+/// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Magic {
+    /// Little Endian `b"hsqs"`
     Little,
+    /// Big Endian `b"sqsh"`
     Big,
 }
 
@@ -49,8 +63,7 @@ pub enum Endian {
 /// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
 ///
 /// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
-///
-/// TODO: we probably want a `from_reader` for this, so they can get a `Kind` from the magic bytes.
+// TODO: we probably want a `from_reader` for this, so they can get a `Kind` from the magic bytes.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Kind {
     /// Magic at the beginning of the image
@@ -127,6 +140,7 @@ impl Kind {
 }
 
 impl Default for Kind {
+    /// Same as [`Self::new`]
     fn default() -> Self {
         Self::new()
     }
@@ -150,7 +164,7 @@ pub const BE_V4_0: Kind = Kind {
     version_minor: 0,
 };
 
-/// AVM Fritz!OS firmware support. Tested with: https://github.com/dnicolodi/squashfs-avm-tools
+/// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
 pub const AVM_BE_V4_0: Kind = Kind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
@@ -168,6 +182,12 @@ pub struct Export(pub u64);
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct Id(pub u32);
+
+impl Id {
+    pub fn root() -> Vec<Id> {
+        vec![Id(0)]
+    }
+}
 
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
@@ -215,25 +235,21 @@ pub struct SuperBlock {
 }
 
 impl SuperBlock {
-    const DEFAULT_BLOCK_LOG: u16 = 0x11;
-    const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
-    const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
-    const VERSION_MAJ: u16 = 4;
-    const VERSION_MIN: u16 = 0;
+    pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
     pub fn new(compressor: Compressor, kind: Kind) -> Self {
         Self {
             magic: kind.magic,
             inode_count: 0,
             mod_time: 0,
-            block_size: Self::DEFAULT_BLOCK_SIZE,
+            block_size: DEFAULT_BLOCK_SIZE,
             frag_count: 0,
             compressor,
-            block_log: Self::DEFAULT_BLOCK_LOG,
+            block_log: DEFAULT_BLOCK_LOG,
             flags: 0,
             id_count: 0,
-            version_major: Self::VERSION_MAJ,
-            version_minor: Self::VERSION_MIN,
+            version_major: kind.version_major,
+            version_minor: kind.version_minor,
             root_inode: 0,
             bytes_used: 0,
             id_table: 0,
@@ -361,7 +377,7 @@ pub struct Squashfs<R: ReadSeek> {
     /// Export Lookup Table
     pub export: Option<Vec<Export>>,
     /// Id Lookup Table
-    pub id: Option<Vec<Id>>,
+    pub id: Vec<Id>,
     //file reader
     file: R,
 }
@@ -378,7 +394,7 @@ impl<R: ReadSeek> Squashfs<R> {
 impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before Reading
     ///
-    /// Uses default [`Kind`]: [`LITTLE_ENDIAN_V4_0`]
+    /// Uses default [`Kind`]: [`LE_V4_0`]
     pub fn from_reader_with_offset(
         reader: R,
         offset: u64,
@@ -418,8 +434,8 @@ impl<R: ReadSeek> Squashfs<R> {
 
         let power_of_two = superblock.block_size != 0
             && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > byte_unit::n_mib_bytes!(1) as u32)
-            || (superblock.block_size < byte_unit::n_kb_bytes(4) as u32)
+        if (superblock.block_size > MAX_BLOCK_SIZE)
+            || (superblock.block_size < MIN_BLOCK_SIZE)
             || !power_of_two
         {
             error!("block_size({:#02x}) invalid", superblock.block_size);
@@ -434,26 +450,32 @@ impl<R: ReadSeek> Squashfs<R> {
         // Parse Compression Options, if any
         info!("Reading Compression options");
         let compression_options = if superblock.compressor != Compressor::None {
-            if let Some(size) = superblock.compression_options_size() {
-                let bytes = metadata::read_block(&mut reader, &superblock, kind)?;
+            match superblock.compression_options_size() {
+                Some(size) => {
+                    let bytes = metadata::read_block(&mut reader, &superblock, kind)?;
 
-                // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
-                // squashfs-tools/unsquashfs complains about this also
-                if bytes.len() != size {
-                    tracing::warn!(
-                        "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
-                        bytes
-                    );
-                }
-                // data -> compression options
-                let bv = BitVec::from_slice(&bytes);
-                let (_, c) = CompressionOptions::read(
-                    &bv,
-                    (deku::ctx::Endian::Little, superblock.compressor),
-                )?;
-                Some(c)
-            } else {
-                None
+                    // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
+                    // squashfs-tools/unsquashfs complains about this also
+                    if bytes.len() != size {
+                        tracing::warn!(
+                            "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
+                            bytes
+                        );
+                    }
+                    // data -> compression options
+                    let bv = BitVec::from_slice(&bytes);
+                    match CompressionOptions::read(
+                        &bv,
+                        (deku::ctx::Endian::Little, superblock.compressor),
+                    ) {
+                        Ok(co) => Some(co.1),
+                        Err(e) => {
+                            error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                            None
+                        },
+                    }
+                },
+                None => None,
             }
         } else {
             None
@@ -467,12 +489,9 @@ impl<R: ReadSeek> Squashfs<R> {
             error!("corrupted or invalid bytes_used");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.id_table != 0xffff_ffff_ffff_ffff && superblock.id_table > total_length {
-            error!("corrupted or invalid id_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
-        }
-        if superblock.xattr_table != 0xffff_ffff_ffff_ffff && superblock.xattr_table > total_length
-        {
+
+        // check required fields
+        if superblock.id_table > total_length {
             error!("corrupted or invalid xattr_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
@@ -484,17 +503,17 @@ impl<R: ReadSeek> Squashfs<R> {
             error!("corrupted or invalid dir_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.xattr_table != 0xffff_ffff_ffff_ffff && superblock.xattr_table > total_length
-        {
+
+        // check optional fields
+        if superblock.xattr_table != SuperBlock::NOT_SET && superblock.xattr_table > total_length {
             error!("corrupted or invalid frag_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.frag_table != 0xffff_ffff_ffff_ffff && superblock.frag_table > total_length {
+        if superblock.frag_table != SuperBlock::NOT_SET && superblock.frag_table > total_length {
             error!("corrupted or invalid frag_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.export_table != 0xffff_ffff_ffff_ffff
-            && superblock.export_table > total_length
+        if superblock.export_table != SuperBlock::NOT_SET && superblock.export_table > total_length
         {
             error!("corrupted or invalid export_table");
             return Err(SquashfsError::CorruptedOrInvalidSquashfs);
@@ -522,8 +541,8 @@ impl<R: ReadSeek> Squashfs<R> {
 
         info!("Reading Ids");
         let id = reader.id(&superblock, kind)?;
-        let id_ptr = id.clone().map(|a| a.0);
-        let id_table = id.map(|a| a.1);
+        let id_ptr = id.0;
+        let id_table = id.1;
 
         let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
             trace!("using fragment for end of dir");
@@ -531,11 +550,9 @@ impl<R: ReadSeek> Squashfs<R> {
         } else if let Some(export_ptr) = export_ptr {
             trace!("using export for end of dir");
             export_ptr
-        } else if let Some(id_ptr) = id_ptr {
+        } else {
             trace!("using id for end of dir");
             id_ptr
-        } else {
-            return Err(SquashfsError::Unreachable);
         };
 
         info!("Reading Dirs");

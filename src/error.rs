@@ -38,6 +38,9 @@ pub enum SquashfsError {
 
     #[error("corrupted or invalid squashfs image")]
     CorruptedOrInvalidSquashfs,
+
+    #[error("invalid squashfs compression options")]
+    InvalidCompressionOption,
 }
 
 impl From<SquashfsError> for io::Error {
@@ -57,6 +60,7 @@ impl From<SquashfsError> for io::Error {
             e @ SquashfsError::CorruptedOrInvalidSquashfs => {
                 Self::new(io::ErrorKind::InvalidData, e)
             },
+            e @ SquashfsError::InvalidCompressionOption => Self::new(io::ErrorKind::InvalidData, e),
         }
     }
 }

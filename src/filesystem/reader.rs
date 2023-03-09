@@ -14,19 +14,18 @@ use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
 #[derive(Debug)]
 pub struct FilesystemReader<R: ReadSeek> {
     pub kind: Kind,
-    /// See [`SuperBlock`].`block_size`
-    ///
-    /// [0]: crate::SuperBlock
+    /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub block_size: u32,
-    /// See [`SuperBlock`].`block_log`
+    /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub block_log: u16,
-    /// See [`SuperBlock`].`compressor`
+    /// Compressor used for data
     pub compressor: Compressor,
-    /// See [`Squashfs`].`compression_options`
+    /// Optional Compressor used for data stored in image
     pub compression_options: Option<CompressionOptions>,
-    /// See [`SuperBlock`].`mod_time`
+    /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
+    /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
     pub mod_time: u32,
-    /// See [`Squashfs`].`id`
+    /// ID's stored for gui(s) and uid(s)
     pub id_table: Vec<Id>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,

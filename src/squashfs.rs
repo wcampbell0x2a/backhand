@@ -61,8 +61,7 @@ pub enum Endian {
 /// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
 ///
 /// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
-///
-/// TODO: we probably want a `from_reader` for this, so they can get a `Kind` from the magic bytes.
+// TODO: we probably want a `from_reader` for this, so they can get a `Kind` from the magic bytes.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Kind {
     /// Magic at the beginning of the image
@@ -139,6 +138,7 @@ impl Kind {
 }
 
 impl Default for Kind {
+    /// Same as [`Self::new`]
     fn default() -> Self {
         Self::new()
     }

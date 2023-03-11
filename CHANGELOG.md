@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `LE_V4_0`: (linux kernel) Little-Endian default official v4.0
     - `BE_V4_0`: Big-Endian v4.0
     - `AVM_BE_V4_0`: AVM Fritz!OS firmware support.
-- `FilesystemWriter`: Builder pattern used when mutating an image
+- `FilesystemWriter`: Builder pattern used when mutating an image. This includes multiple functions
+   for the public API. Supporting both raw images and modification made to images that already exist.
 - `FilesytemCompressor`: `.compressor` is now `FilesystemCompressor`,
    which holds the Id as well as options stored in the image as well as extra options only used when
    compressing when creating a new image.

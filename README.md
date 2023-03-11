@@ -84,10 +84,10 @@ Arguments:
 
 Options:
   -o, --out <OUT>      Squashfs output image [default: added.squashfs]
-      --mode <MODE>    Overide mode read from `file`
-      --uid <UID>      Overide uid read from `file`
-      --gid <GID>      Overide gid read from `file`
-      --mtime <MTIME>  Overide mtime read from `file`
+      --mode <MODE>    Overide mode read from <FILE>
+      --uid <UID>      Overide uid read from <FILE>
+      --gid <GID>      Overide gid read from <FILE>
+      --mtime <MTIME>  Overide mtime read from <FILE>
   -h, --help           Print help
   -V, --version        Print version
 ```

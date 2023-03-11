@@ -21,7 +21,7 @@ use crate::tree::TreeNode;
 use crate::{
     fragment, FilesystemReader, InnerNode, Node, NodeHeader, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileSource, SquashfsFileWriter,
-    DEFAULT_BLOCK_SIZE, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -75,6 +75,7 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     pub(crate) nodes: Vec<Node<SquashfsFileWriter<'a, R>>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
+    pub(crate) pad_len: u32,
 }
 
 impl Default for FilesystemWriter<'_> {
@@ -95,6 +96,7 @@ impl Default for FilesystemWriter<'_> {
             kind: Kind::default(),
             nodes: vec![],
             block_log: (block_size as f32).log2() as u16,
+            pad_len: DEFAULT_PAD_LEN,
         }
     }
 }
@@ -114,8 +116,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
     /// Set time of image as `mod_time`
     ///
-    /// # Example
-    /// Set to `Wed Oct 19 01:26:15 2022`
+    /// # Example: Set to `Wed Oct 19 01:26:15 2022`
     /// ```rust
     /// # use backhand::{FilesystemWriter, kind};
     /// let mut fs = FilesystemWriter::default();
@@ -135,7 +136,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
     /// Set kind as `kind`
     ///
-    /// # Set kind to default V4.0
+    /// # Example: Set kind to default V4.0
     /// ```rust
     /// # use backhand::{FilesystemWriter, kind};
     /// let mut fs = FilesystemWriter::default();
@@ -182,6 +183,15 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         self.id_table = Id::root();
     }
 
+    /// Set padding(zero bytes) added to the end of the image after calling [`write`].
+    ///
+    /// For example, if given `pad_kib` of 8; a 8K padding will be added to the end of the image.
+    ///
+    /// Default: [`DEFAULT_PAD_LEN`]
+    pub fn set_kib_padding(&mut self, pad_kib: u32) {
+        self.pad_len = pad_kib * 1024;
+    }
+
     /// Inherit filesystem structure and properties from `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
         let nodes = reader
@@ -216,6 +226,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             id_table: reader.id_table.clone(),
             root_inode: reader.root_inode.clone(),
             nodes,
+            pad_len: DEFAULT_PAD_LEN,
         })
     }
 
@@ -465,13 +476,29 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         w: &mut W,
         superblock: &mut SuperBlock,
     ) -> Result<u64, SquashfsError> {
-        // Pad out block_size
+        // Pad out block_size to 4K
         info!("Writing Padding");
         superblock.bytes_used = w.stream_position()?;
-        let blocks_used = superblock.bytes_used as u32 / 0x1000;
-        let pad_len = (blocks_used + 1) * 0x1000;
-        let pad_len = pad_len - superblock.bytes_used as u32;
-        w.write_all(&vec![0x00; pad_len as usize])?;
+        let blocks_used = superblock.bytes_used as u32 / self.pad_len;
+        let total_pad_len = (blocks_used + 1) * self.pad_len;
+        let pad_len = total_pad_len - superblock.bytes_used as u32;
+
+        // Write 1K at a time
+        let mut total_written = 0;
+        while w.stream_position()? < (superblock.bytes_used + pad_len as u64) {
+            let arr = &[0x00; 1024];
+
+            // check if last block to write
+            let len = if (pad_len - total_written) < 1024 {
+                (pad_len - total_written) % 1024
+            } else {
+                // else, full 1K
+                1024
+            };
+
+            w.write_all(&arr[..len as usize])?;
+            total_written += len;
+        }
 
         // Seek back the beginning and write the superblock
         info!("Writing Superblock");

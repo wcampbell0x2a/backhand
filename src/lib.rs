@@ -74,7 +74,8 @@ pub use crate::fragment::Fragment;
 pub use crate::inode::Inode;
 pub use crate::reader::ReadSeek;
 pub use crate::squashfs::{
-    Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
+    MIN_BLOCK_SIZE,
 };
 
 /// Support the wonderful world of vendor formats

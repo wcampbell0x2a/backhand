@@ -25,6 +25,9 @@ use crate::{
 /// 128KiB
 pub const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
 
+/// 4KiB
+pub const DEFAULT_PAD_LEN: u32 = 0x1000;
+
 /// log2 of 128KiB
 const DEFAULT_BLOCK_LOG: u16 = 0x11;
 
@@ -190,7 +193,7 @@ impl Id {
 }
 
 /// Contains important information about the archive, including the locations of other sections
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite)]
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
 pub struct SuperBlock {
     /// Must be set to 0x73717368 ("hsqs" on disk).

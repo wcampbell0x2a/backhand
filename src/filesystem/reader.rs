@@ -324,6 +324,7 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
             Some(block) => block?,
             None => return Ok(()),
         };
+        self.buf_decompress.clear();
         self.raw_data
             .decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
         self.last_read = 0;

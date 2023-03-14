@@ -1,5 +1,5 @@
 use std::fs::{self, File, Permissions};
-use std::io::Read;
+use std::io;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Path, PathBuf};
 
@@ -127,11 +127,11 @@ fn extract_all<R: std::io::Read + std::io::Seek>(args: &Args, filesystem: Filesy
                     println!("[-] failed, file already exists {}", filepath.display());
                     continue;
                 }
-                let mut bytes = Vec::with_capacity(file.basic.file_size as usize);
+
+                // write to file
+                let mut fd = File::create(&filepath).unwrap();
                 let mut reader = filesystem.file(&file.basic).reader();
-                reader.read_to_end(&mut bytes).unwrap();
-                // write file
-                match std::fs::write(&filepath, bytes) {
+                match io::copy(&mut reader, &mut fd) {
                     Ok(_) => {
                         if args.info {
                             println!("[-] success, wrote {}", filepath.display());

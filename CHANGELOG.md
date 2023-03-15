@@ -16,13 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FilesytemCompressor`: `.compressor` is now `FilesystemCompressor`,
    which holds the Id as well as options stored in the image as well as extra options only used when
    compressing when creating a new image.
-- `add`: now reads file details to derive the details when the file is added the image
-- `add`: `--mtime`, `--uid`, `--gid` and `--permission` to override file details derived from file
 - Add error `InvalidCompressionOption`
 - Change default XZ compression level to 6
 - Support custom XZ filters for `FilesystemWriter`
 - Return `(Superblock, bytes_written)` for `FilesystemWriter::write()`
 - Update deku to 0.16.0
+- `add`: now reads file details to derive the details when the file is added the image
+- `add`: `--mtime`, `--uid`, `--gid` and `--permission` to override file details derived from file
+- `unsquashfs`: now correctly extracts ownership and permission details
 ### Fixed
 - `ID` now supports multiple IDs for GUI and UID in the table
 - `id_table` is now properly a u64 pointer

@@ -256,6 +256,8 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         input_buf: &mut Vec<u8>,
         output_buf: &mut Vec<u8>,
     ) -> Result<(), SquashfsError> {
+        //append to the output_buf is not allowed, it need to be empty
+        assert!(output_buf.is_empty());
         //input is already decompress, so just swap the input/output, so the
         //output_buf contains the final data.
         if data.uncompressed {

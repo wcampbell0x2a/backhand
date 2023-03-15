@@ -308,11 +308,11 @@ pub struct SquashfsReadFile<'a, R: ReadSeek> {
 }
 
 impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
-    pub fn available(&self) -> &[u8] {
+    fn available(&self) -> &[u8] {
         &self.buf_decompress[self.last_read..]
     }
 
-    pub fn read_available(&mut self, buf: &mut [u8]) -> usize {
+    fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available();
         let read_len = buf.len().min(available.len()).min(self.bytes_available);
         buf[..read_len].copy_from_slice(&available[..read_len]);
@@ -321,7 +321,7 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
         read_len
     }
 
-    pub fn read_next_block(&mut self) -> Result<(), SquashfsError> {
+    fn read_next_block(&mut self) -> Result<(), SquashfsError> {
         let block = match self.raw_data.next_block(&mut self.buf_read) {
             Some(block) => block?,
             None => return Ok(()),

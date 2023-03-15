@@ -8,7 +8,7 @@ use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, instrument, trace};
 
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::Inode;
 use crate::squashfs::{Export, Id, Kind, SuperBlock};
@@ -75,7 +75,7 @@ impl<T: ReadSeek> SquashFsReader for T {}
 pub trait SquashFsReader: ReadSeek {
     /// Read in entire data and fragments
     #[instrument(skip_all)]
-    fn data_and_fragments(&mut self, superblock: &SuperBlock) -> Result<Vec<u8>, SquashfsError> {
+    fn data_and_fragments(&mut self, superblock: &SuperBlock) -> Result<Vec<u8>, BackhandError> {
         let mut buf = vec![0u8; superblock.inode_table as usize];
         self.read_exact(&mut buf)?;
         Ok(buf)
@@ -87,7 +87,7 @@ pub trait SquashFsReader: ReadSeek {
         &mut self,
         superblock: &SuperBlock,
         kind: Kind,
-    ) -> Result<FxHashMap<u32, Inode>, SquashfsError> {
+    ) -> Result<FxHashMap<u32, Inode>, BackhandError> {
         self.seek(SeekFrom::Start(superblock.inode_table))?;
 
         // The directory inodes store the total, uncompressed size of the entire listing, including headers.
@@ -128,7 +128,7 @@ pub trait SquashFsReader: ReadSeek {
                 },
                 Err(e) => {
                     error!("corrupted or invalid squashfs {e}");
-                    return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
                 },
             }
         }
@@ -138,14 +138,14 @@ pub trait SquashFsReader: ReadSeek {
 
     /// Extract the root `Inode` as a `BasicDirectory`
     #[instrument(skip_all)]
-    fn root_inode(&mut self, superblock: &SuperBlock, kind: Kind) -> Result<Inode, SquashfsError> {
+    fn root_inode(&mut self, superblock: &SuperBlock, kind: Kind) -> Result<Inode, BackhandError> {
         let root_inode_start = (superblock.root_inode >> 16) as usize;
         let root_inode_offset = (superblock.root_inode & 0xffff) as usize;
         trace!("root_inode_start:  0x{root_inode_start:02x?}");
         trace!("root_inode_offset: 0x{root_inode_offset:02x?}");
         if (root_inode_start as u64) > superblock.bytes_used {
             error!("root_inode_offset > bytes_used");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // Assumptions are made here that the root inode fits within two metadatas
@@ -156,7 +156,7 @@ pub trait SquashFsReader: ReadSeek {
         bytes_01.write_all(&bytes_02)?;
         if root_inode_offset > bytes_01.len() {
             error!("root_inode_offset > bytes.len()");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
         let new_bytes = &bytes_01[root_inode_offset..];
 
@@ -182,7 +182,7 @@ pub trait SquashFsReader: ReadSeek {
         superblock: &SuperBlock,
         end_ptr: u64,
         kind: Kind,
-    ) -> Result<Vec<(u64, Vec<u8>)>, SquashfsError> {
+    ) -> Result<Vec<(u64, Vec<u8>)>, BackhandError> {
         let seek = superblock.dir_table;
         self.seek(SeekFrom::Start(seek))?;
         let mut all_bytes = vec![];
@@ -201,7 +201,7 @@ pub trait SquashFsReader: ReadSeek {
         &mut self,
         superblock: &SuperBlock,
         kind: Kind,
-    ) -> Result<Option<(u64, Vec<Fragment>)>, SquashfsError> {
+    ) -> Result<Option<(u64, Vec<Fragment>)>, BackhandError> {
         if superblock.frag_count == 0 || superblock.frag_table == SuperBlock::NOT_SET {
             return Ok(None);
         }
@@ -221,7 +221,7 @@ pub trait SquashFsReader: ReadSeek {
         &mut self,
         superblock: &SuperBlock,
         kind: Kind,
-    ) -> Result<Option<(u64, Vec<Export>)>, SquashfsError> {
+    ) -> Result<Option<(u64, Vec<Export>)>, BackhandError> {
         if superblock.nfs_export_table_exists() && superblock.export_table != SuperBlock::NOT_SET {
             let ptr = superblock.export_table;
             let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
@@ -234,7 +234,7 @@ pub trait SquashFsReader: ReadSeek {
 
     /// Parse ID Table
     #[instrument(skip_all)]
-    fn id(&mut self, superblock: &SuperBlock, kind: Kind) -> Result<(u64, Vec<Id>), SquashfsError> {
+    fn id(&mut self, superblock: &SuperBlock, kind: Kind) -> Result<(u64, Vec<Id>), BackhandError> {
         let ptr = superblock.id_table;
         let count = superblock.id_count as u64;
         let (ptr, table) = self.lookup_table::<Id>(superblock, ptr, count, kind)?;
@@ -249,7 +249,7 @@ pub trait SquashFsReader: ReadSeek {
         seek: u64,
         size: u64,
         kind: Kind,
-    ) -> Result<(u64, Vec<T>), SquashfsError> {
+    ) -> Result<(u64, Vec<T>), BackhandError> {
         // find the pointer at the initial offset
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
@@ -277,7 +277,7 @@ pub trait SquashFsReader: ReadSeek {
         seek: u64,
         count: u64,
         kind: Kind,
-    ) -> Result<Vec<T>, SquashfsError> {
+    ) -> Result<Vec<T>, BackhandError> {
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
 

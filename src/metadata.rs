@@ -5,7 +5,7 @@ use deku::prelude::*;
 use tracing::{instrument, trace};
 
 use crate::compressor::{self};
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::squashfs::{Kind, SuperBlock};
 
@@ -40,7 +40,7 @@ impl MetadataWriter {
     }
 
     #[instrument(skip_all)]
-    pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), SquashfsError> {
+    pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), BackhandError> {
         for cb in &self.compressed_bytes {
             trace!("len: {:02x?}", cb.len());
             //trace!("total: {:02x?}", out.len());
@@ -97,7 +97,7 @@ pub fn read_block<R: Read + ?Sized>(
     reader: &mut R,
     superblock: &SuperBlock,
     kind: Kind,
-) -> Result<Vec<u8>, SquashfsError> {
+) -> Result<Vec<u8>, BackhandError> {
     let mut buf = [0u8; 2];
     reader.read_exact(&mut buf)?;
 

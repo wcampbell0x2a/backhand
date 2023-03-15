@@ -6,7 +6,7 @@ use deku::prelude::*;
 use tracing::instrument;
 
 use crate::compressor::compress;
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::filesystem::reader::SquashfsRawData;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::fragment::Fragment;
@@ -122,7 +122,7 @@ impl DataWriter {
         &mut self,
         mut reader: SquashfsRawData<'_, R>,
         writer: &mut W,
-    ) -> Result<(usize, Added), SquashfsError> {
+    ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
         let mut block_sizes = reader.file.basic.block_sizes.clone();
         let mut read_buf = vec![];
@@ -204,7 +204,7 @@ impl DataWriter {
         &mut self,
         reader: impl Read,
         writer: &mut W,
-    ) -> Result<(usize, Added), SquashfsError> {
+    ) -> Result<(usize, Added), BackhandError> {
         let mut chunk_reader = DataWriterChunkReader {
             chunk: vec![0u8; self.block_size as usize],
             file_len: 0,
@@ -264,7 +264,7 @@ impl DataWriter {
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear
     /// current fragment_bytes
-    pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), SquashfsError> {
+    pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), BackhandError> {
         let start = writer.stream_position()?;
         let cb = compress(&self.fragment_bytes, self.compressor, self.block_size)?;
 

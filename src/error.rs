@@ -7,8 +7,9 @@ use thiserror::Error;
 use crate::compressor::Compressor;
 use crate::inode::InodeInner;
 
+/// Errors generated from library
 #[derive(Error, Debug)]
-pub enum SquashfsError {
+pub enum BackhandError {
     #[error("std io error: {0}")]
     StdIo(#[from] io::Error),
 
@@ -43,24 +44,24 @@ pub enum SquashfsError {
     InvalidCompressionOption,
 }
 
-impl From<SquashfsError> for io::Error {
-    fn from(value: SquashfsError) -> Self {
+impl From<BackhandError> for io::Error {
+    fn from(value: BackhandError) -> Self {
         match value {
-            SquashfsError::StdIo(io) => io,
-            SquashfsError::Deku(e) => e.into(),
-            SquashfsError::StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            SquashfsError::StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ SquashfsError::UnsupportedCompression(_) => {
+            BackhandError::StdIo(io) => io,
+            BackhandError::Deku(e) => e.into(),
+            BackhandError::StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            BackhandError::StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ BackhandError::UnsupportedCompression(_) => {
                 Self::new(io::ErrorKind::Unsupported, e)
             },
-            e @ SquashfsError::FileNotFound => Self::new(io::ErrorKind::NotFound, e),
-            e @ SquashfsError::Unreachable => Self::new(io::ErrorKind::InvalidData, e),
-            e @ SquashfsError::UnexpectedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ SquashfsError::UnsupportedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ SquashfsError::CorruptedOrInvalidSquashfs => {
+            e @ BackhandError::FileNotFound => Self::new(io::ErrorKind::NotFound, e),
+            e @ BackhandError::Unreachable => Self::new(io::ErrorKind::InvalidData, e),
+            e @ BackhandError::UnexpectedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ BackhandError::UnsupportedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ BackhandError::CorruptedOrInvalidSquashfs => {
                 Self::new(io::ErrorKind::InvalidData, e)
             },
-            e @ SquashfsError::InvalidCompressionOption => Self::new(io::ErrorKind::InvalidData, e),
+            e @ BackhandError::InvalidCompressionOption => Self::new(io::ErrorKind::InvalidData, e),
         }
     }
 }

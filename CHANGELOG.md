@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `id_table` is now properly a u64 pointer
 - Data is now *not* copied when during the use of a `FilesystemWriter` you decide to change the compression used.
   Thanks [@rbran](https://github.com/rbran/)
+### Changed
+- Renamed `SquashfsError` to `BackhandError`
 
 ## [v0.10.1] - 2023-02-22
 ### Added

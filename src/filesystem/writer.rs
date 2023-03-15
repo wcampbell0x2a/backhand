@@ -9,7 +9,7 @@ use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataWriter;
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::filesystem::dummy::DummyReadSeek;
 use crate::filesystem::node::SquashfsSymlink;
 use crate::fragment::Fragment;
@@ -193,7 +193,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Inherit filesystem structure and properties from `reader`
-    pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, SquashfsError> {
+    pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, BackhandError> {
         let nodes = reader
             .nodes
             .iter()
@@ -216,7 +216,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
                     inner,
                 })
             })
-            .collect::<Result<_, SquashfsError>>()?;
+            .collect::<Result<_, BackhandError>>()?;
         Ok(Self {
             kind: reader.kind,
             block_size: reader.block_size,
@@ -308,10 +308,10 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         find_path: S,
         reader: impl Read + 'a,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(), BackhandError> {
         let file = self
             .mut_file(find_path)
-            .ok_or(SquashfsError::FileNotFound)?;
+            .ok_or(BackhandError::FileNotFound)?;
         file.reader = SquashfsFileSource::UserDefined(RefCell::new(Box::new(reader)));
         Ok(())
     }
@@ -407,7 +407,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &self,
         w: &mut W,
         offset: u64,
-    ) -> Result<(SuperBlock, u64), SquashfsError> {
+    ) -> Result<(SuperBlock, u64), BackhandError> {
         let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
     }
@@ -417,7 +417,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
     #[instrument(skip_all)]
-    pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(SuperBlock, u64), SquashfsError> {
+    pub fn write<W: Write + Seek>(&self, w: &mut W) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock = SuperBlock::new(self.compressor.id, self.kind);
 
         trace!("{:#02x?}", self.nodes);
@@ -475,7 +475,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &self,
         w: &mut W,
         superblock: &mut SuperBlock,
-    ) -> Result<u64, SquashfsError> {
+    ) -> Result<u64, BackhandError> {
         // Pad out block_size to 4K
         info!("Writing Padding");
         superblock.bytes_used = w.stream_position()?;
@@ -518,7 +518,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         w: &mut W,
         id_table: &Vec<Id>,
         write_superblock: &mut SuperBlock,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(), BackhandError> {
         let id_table_dat = w.stream_position()?;
         let mut id_bytes = Vec::with_capacity(id_table.len() * ((u32::BITS / 8) as usize));
         for i in &self.id_table {
@@ -547,7 +547,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         w: &mut W,
         frag_table: Vec<Fragment>,
         write_superblock: &mut SuperBlock,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(), BackhandError> {
         let frag_table_dat = w.stream_position()?;
         let mut frag_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
         for f in &frag_table {
@@ -625,7 +625,7 @@ pub struct FilesystemCompressor {
 }
 
 impl FilesystemCompressor {
-    pub fn new(id: Compressor, options: Option<CompressionOptions>) -> Result<Self, SquashfsError> {
+    pub fn new(id: Compressor, options: Option<CompressionOptions>) -> Result<Self, BackhandError> {
         if matches!(id, Compressor::None) {
             let extra = None;
             return Ok(Self { id, options, extra });
@@ -674,17 +674,17 @@ impl FilesystemCompressor {
         }
 
         error!("invalid compression settings");
-        Err(SquashfsError::InvalidCompressionOption)
+        Err(BackhandError::InvalidCompressionOption)
     }
 
-    pub fn extra(&mut self, extra: CompressionExtra) -> Result<(), SquashfsError> {
+    pub fn extra(&mut self, extra: CompressionExtra) -> Result<(), BackhandError> {
         if matches!(extra, CompressionExtra::Xz(_)) && matches!(self.id, Compressor::Xz) {
             self.extra = Some(extra);
             return Ok(());
         }
 
         error!("invalid extra compression settings");
-        Err(SquashfsError::InvalidCompressionOption)
+        Err(BackhandError::InvalidCompressionOption)
     }
 }
 
@@ -702,9 +702,9 @@ pub struct ExtraXz {
 
 impl ExtraXz {
     /// Set compress preset level. Must be in range `0..=9`
-    pub fn level(&mut self, level: u32) -> Result<(), SquashfsError> {
+    pub fn level(&mut self, level: u32) -> Result<(), BackhandError> {
         if level > 9 {
-            return Err(SquashfsError::InvalidCompressionOption);
+            return Err(BackhandError::InvalidCompressionOption);
         }
         self.level = Some(level);
 

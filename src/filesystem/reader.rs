@@ -3,7 +3,7 @@ use std::io::{Read, SeekFrom};
 
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::data::DataSize;
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::BasicFile;
 use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
@@ -43,7 +43,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     ///
     /// With default kind: [`crate::kind::LE_V4_0`] and offset `0`.
-    pub fn from_reader(reader: R) -> Result<Self, SquashfsError> {
+    pub fn from_reader(reader: R) -> Result<Self, BackhandError> {
         let squashfs = Squashfs::from_reader(reader)?;
         squashfs.into_filesystem_reader()
     }
@@ -51,7 +51,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
 
 impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
-    pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, SquashfsError> {
+    pub fn from_reader_with_offset(reader: R, offset: u64) -> Result<Self, BackhandError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
         squashfs.into_filesystem_reader()
     }
@@ -61,7 +61,7 @@ impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
         reader: R,
         offset: u64,
         kind: Kind,
-    ) -> Result<Self, SquashfsError> {
+    ) -> Result<Self, BackhandError> {
         let squashfs = Squashfs::from_reader_with_offset_and_kind(reader, offset, kind)?;
         squashfs.into_filesystem_reader()
     }
@@ -74,7 +74,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
     }
 
     /// Read and return all the bytes from the file
-    pub fn read_file(&self, basic_file: &BasicFile) -> Result<Vec<u8>, SquashfsError> {
+    pub fn read_file(&self, basic_file: &BasicFile) -> Result<Vec<u8>, BackhandError> {
         let file = FilesystemReaderFile::new(self, basic_file);
         let mut reader = file.reader();
         let mut bytes = Vec::with_capacity(basic_file.file_size as usize);
@@ -190,7 +190,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         &mut self,
         data: &mut Vec<u8>,
         block: &BlockFragment<'a>,
-    ) -> Result<RawDataBlock, SquashfsError> {
+    ) -> Result<RawDataBlock, BackhandError> {
         match block {
             BlockFragment::Block(block) => {
                 let block_size = block.size() as usize;
@@ -234,7 +234,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         }
     }
 
-    pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, SquashfsError>> {
+    pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
         self.current_block
             .next()
             .map(|next| self.read_raw_data(buf, &next))
@@ -255,7 +255,7 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         data: RawDataBlock,
         input_buf: &mut Vec<u8>,
         output_buf: &mut Vec<u8>,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(), BackhandError> {
         //append to the output_buf is not allowed, it need to be empty
         assert!(output_buf.is_empty());
         //input is already decompress, so just swap the input/output, so the
@@ -321,7 +321,7 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
         read_len
     }
 
-    fn read_next_block(&mut self) -> Result<(), SquashfsError> {
+    fn read_next_block(&mut self) -> Result<(), BackhandError> {
         let block = match self.raw_data.next_block(&mut self.buf_read) {
             Some(block) => block?,
             None => return Ok(()),

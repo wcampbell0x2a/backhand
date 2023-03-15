@@ -10,7 +10,7 @@ use tracing::trace;
 
 use crate::data::{Added, DataWriter};
 use crate::entry::Entry;
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
 use crate::reader::{ReadSeek, WriteSeek};
@@ -136,7 +136,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         system_write: &FilesystemWriter<'a, R>,
         writer: &mut W,
         data_writer: &mut DataWriter,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(), BackhandError> {
         match &mut self.inner {
             InnerTreeNode::FilePhase1(file) => {
                 let (filesize, added) = match &file.reader {
@@ -180,7 +180,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         parent_inode: u32,
         superblock: SuperBlock,
         kind: Kind,
-    ) -> Result<(Option<Entry>, u64), SquashfsError> {
+    ) -> Result<(Option<Entry>, u64), BackhandError> {
         // If no children, just return since it doesn't have anything recursive/new
         // directories
         if !self.have_children() {

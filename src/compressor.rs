@@ -13,7 +13,7 @@ use xz2::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]
 use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
@@ -114,7 +114,7 @@ pub(crate) fn decompress(
     bytes: &[u8],
     out: &mut Vec<u8>,
     compressor: Compressor,
-) -> Result<(), SquashfsError> {
+) -> Result<(), BackhandError> {
     match compressor {
         #[cfg(feature = "gzip")]
         Compressor::Gzip => {
@@ -133,7 +133,7 @@ pub(crate) fn decompress(
             let out_size = out_size.len();
             out.truncate(out_size);
             if error != rust_lzo::LZOError::OK {
-                return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+                return Err(BackhandError::CorruptedOrInvalidSquashfs);
             }
         },
         #[cfg(feature = "zstd")]
@@ -141,7 +141,7 @@ pub(crate) fn decompress(
             let mut decoder = zstd::bulk::Decompressor::new().unwrap();
             decoder.decompress_to_buffer(bytes, out)?;
         },
-        _ => return Err(SquashfsError::UnsupportedCompression(compressor)),
+        _ => return Err(BackhandError::UnsupportedCompression(compressor)),
     }
     Ok(())
 }
@@ -151,7 +151,7 @@ pub(crate) fn compress(
     bytes: &[u8],
     fc: FilesystemCompressor,
     block_size: u32,
-) -> Result<Vec<u8>, SquashfsError> {
+) -> Result<Vec<u8>, BackhandError> {
     match (fc.id, fc.options, fc.extra) {
         #[cfg(feature = "xz")]
         (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
@@ -222,7 +222,7 @@ pub(crate) fn compress(
             let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
             let error = lzo.compress(bytes, &mut buf);
             if error != rust_lzo::LZOError::OK {
-                return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+                return Err(BackhandError::CorruptedOrInvalidSquashfs);
             }
             Ok(buf)
         },
@@ -238,6 +238,6 @@ pub(crate) fn compress(
             encoder.compress_to_buffer(bytes, &mut buf)?;
             Ok(buf)
         },
-        _ => Err(SquashfsError::UnsupportedCompression(fc.id)),
+        _ => Err(BackhandError::UnsupportedCompression(fc.id)),
     }
 }

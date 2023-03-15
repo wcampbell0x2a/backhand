@@ -13,7 +13,7 @@ use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::Dir;
-use crate::error::SquashfsError;
+use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::reader::{ReadSeek, SquashFsReader, SquashfsReaderWithOffset};
@@ -389,7 +389,7 @@ impl<R: ReadSeek> Squashfs<R> {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
-    pub fn from_reader(reader: R) -> Result<Squashfs<R>, SquashfsError> {
+    pub fn from_reader(reader: R) -> Result<Squashfs<R>, BackhandError> {
         Self::inner_from_reader(reader)
     }
 }
@@ -401,7 +401,7 @@ impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
     pub fn from_reader_with_offset(
         reader: R,
         offset: u64,
-    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, SquashfsError> {
+    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, BackhandError> {
         Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset)?)
     }
 
@@ -410,20 +410,20 @@ impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
         reader: R,
         offset: u64,
         kind: Kind,
-    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, SquashfsError> {
+    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, BackhandError> {
         Self::inner_from_reader_with_kind(SquashfsReaderWithOffset::new(reader, offset)?, kind)
     }
 }
 
 impl<R: ReadSeek> Squashfs<R> {
-    fn inner_from_reader(reader: R) -> Result<Squashfs<R>, SquashfsError> {
+    fn inner_from_reader(reader: R) -> Result<Squashfs<R>, BackhandError> {
         Self::inner_from_reader_with_kind(reader, LE_V4_0)
     }
 
     fn inner_from_reader_with_kind(
         mut reader: R,
         kind: Kind,
-    ) -> Result<Squashfs<R>, SquashfsError> {
+    ) -> Result<Squashfs<R>, BackhandError> {
         reader.rewind()?;
 
         // Size of metadata + optional compression options metadata block
@@ -442,12 +442,12 @@ impl<R: ReadSeek> Squashfs<R> {
             || !power_of_two
         {
             error!("block_size({:#02x}) invalid", superblock.block_size);
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
             error!("block size.log2() != block_log");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // Parse Compression Options, if any
@@ -490,36 +490,36 @@ impl<R: ReadSeek> Squashfs<R> {
         reader.rewind()?;
         if superblock.bytes_used > total_length {
             error!("corrupted or invalid bytes_used");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // check required fields
         if superblock.id_table > total_length {
             error!("corrupted or invalid xattr_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
         if superblock.inode_table > total_length {
             error!("corrupted or invalid inode_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
         if superblock.dir_table > total_length {
             error!("corrupted or invalid dir_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // check optional fields
         if superblock.xattr_table != SuperBlock::NOT_SET && superblock.xattr_table > total_length {
             error!("corrupted or invalid frag_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
         if superblock.frag_table != SuperBlock::NOT_SET && superblock.frag_table > total_length {
             error!("corrupted or invalid frag_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
         if superblock.export_table != SuperBlock::NOT_SET && superblock.export_table > total_length
         {
             error!("corrupted or invalid export_table");
-            return Err(SquashfsError::CorruptedOrInvalidSquashfs);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // Read all fields from filesystem to make a Squashfs
@@ -625,7 +625,7 @@ impl<R: ReadSeek> Squashfs<R> {
         block_index: u64,
         file_size: u32,
         block_offset: usize,
-    ) -> Result<Option<Vec<Dir>>, SquashfsError> {
+    ) -> Result<Option<Vec<Dir>>, BackhandError> {
         trace!("- block index : {:02x?}", block_index);
         trace!("- file_size   : {:02x?}", file_size);
         trace!("- block offset: {:02x?}", block_offset);
@@ -659,7 +659,7 @@ impl<R: ReadSeek> Squashfs<R> {
     /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
     /// like structure in-memory
     #[instrument(skip_all)]
-    pub fn into_filesystem_reader(self) -> Result<FilesystemReader<R>, SquashfsError> {
+    pub fn into_filesystem_reader(self) -> Result<FilesystemReader<R>, BackhandError> {
         let mut nodes = Vec::with_capacity(self.superblock.inode_count as usize);
         let path: PathBuf = "/".into();
 
@@ -692,7 +692,7 @@ impl<R: ReadSeek> Squashfs<R> {
         nodes: &mut Vec<Node<SquashfsFileReader>>,
         dir_inode: &Inode,
         path: &Path,
-    ) -> Result<(), SquashfsError> {
+    ) -> Result<(), BackhandError> {
         let dirs = match &dir_inode.inner {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
@@ -710,7 +710,7 @@ impl<R: ReadSeek> Squashfs<R> {
                     ext_dir.block_offset as usize,
                 )?
             },
-            _ => return Err(SquashfsError::UnexpectedInode(dir_inode.inner.clone())),
+            _ => return Err(BackhandError::UnexpectedInode(dir_inode.inner.clone())),
         };
         if let Some(dirs) = dirs {
             trace!("extracing dir: {dirs:#?}");
@@ -747,7 +747,7 @@ impl<R: ReadSeek> Squashfs<R> {
                                 InodeInner::BasicFile(file) => file.clone(),
                                 InodeInner::ExtendedFile(file) => file.into(),
                                 _ => {
-                                    return Err(SquashfsError::UnexpectedInode(
+                                    return Err(BackhandError::UnexpectedInode(
                                         found_inode.inner.clone(),
                                     ))
                                 },
@@ -790,7 +790,7 @@ impl<R: ReadSeek> Squashfs<R> {
                             nodes.push(node);
                         },
                         InodeId::ExtendedFile => {
-                            return Err(SquashfsError::UnsupportedInode(found_inode.inner.clone()))
+                            return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
                         },
                     }
                 }
@@ -805,14 +805,14 @@ impl<R: ReadSeek> Squashfs<R> {
     /// # Returns
     /// `Ok(original, link)
     #[instrument(skip_all)]
-    fn symlink(&self, inode: &Inode) -> Result<PathBuf, SquashfsError> {
+    fn symlink(&self, inode: &Inode) -> Result<PathBuf, BackhandError> {
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
             let path = OsString::from_vec(basic_sym.target_path.clone());
             return Ok(PathBuf::from(path));
         }
 
         error!("symlink not found");
-        Err(SquashfsError::FileNotFound)
+        Err(BackhandError::FileNotFound)
     }
 
     /// Char Device Details
@@ -820,13 +820,13 @@ impl<R: ReadSeek> Squashfs<R> {
     /// # Returns
     /// `Ok(dev_num)`
     #[instrument(skip_all)]
-    fn char_device(&self, inode: &Inode) -> Result<u32, SquashfsError> {
+    fn char_device(&self, inode: &Inode) -> Result<u32, BackhandError> {
         if let InodeInner::BasicCharacterDevice(spc_file) = &inode.inner {
             return Ok(spc_file.device_number);
         }
 
         error!("char dev not found");
-        Err(SquashfsError::FileNotFound)
+        Err(BackhandError::FileNotFound)
     }
 
     /// Block Device Details
@@ -834,12 +834,12 @@ impl<R: ReadSeek> Squashfs<R> {
     /// # Returns
     /// `Ok(dev_num)`
     #[instrument(skip_all)]
-    fn block_device(&self, inode: &Inode) -> Result<u32, SquashfsError> {
+    fn block_device(&self, inode: &Inode) -> Result<u32, BackhandError> {
         if let InodeInner::BasicBlockDevice(spc_file) = &inode.inner {
             return Ok(spc_file.device_number);
         }
 
         error!("block dev not found");
-        Err(SquashfsError::FileNotFound)
+        Err(BackhandError::FileNotFound)
     }
 }

@@ -62,6 +62,7 @@ mod reader;
 mod squashfs;
 mod tree;
 
+pub use crate::error::BackhandError;
 pub use crate::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,

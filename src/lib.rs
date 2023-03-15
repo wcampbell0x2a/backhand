@@ -8,13 +8,16 @@
 //! backhand = "0.10.0"
 //! ```
 //!
+//! ### Reading
 //! For reading an image and extracting its details and contents, use
 //! [`FilesystemReader::from_reader`].
+//!
+//! ### Writing
 //! For creating a modified or new image, use [`FilesystemWriter::from_fs_reader`].
 //! [`FilesystemWriter`] can also be created from scratch, without a previous image to base itself
 //! on.
 //!
-//!### Reading/Writing/Modifying Firmware
+//!### Example
 //!```rust,no_run
 //! # use std::fs::File;
 //! # use std::io::Cursor;

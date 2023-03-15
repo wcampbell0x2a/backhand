@@ -11,6 +11,54 @@ use crate::squashfs::{Cache, Id, Kind};
 use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image
+/// - Use [`Self::from_reader`] to read into `Self` from a `reader`
+///
+/// # Read direct into [`Self`]
+/// Usual workflow, reading from image into a default squashfs [`Self`]
+/// ```rust,no_run
+/// # use std::fs::File;
+/// # use backhand::{
+/// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+/// #     SquashfsDir, SquashfsSymlink,
+/// # };
+/// // Read into filesystem
+/// let file = File::open("image.squashfs").unwrap();
+/// let filesystem = FilesystemReader::from_reader(file).unwrap();
+///
+/// // Iterate through nodes
+/// // (See src/bin/unsquashfs.rs for more examples on extraction)
+/// for node in &filesystem.nodes {
+///     // extract
+///     match &node.inner {
+///         InnerNode::File(_) => (),
+///         InnerNode::Symlink(_) => (),
+///         InnerNode::Dir(_) => (),
+///         InnerNode::CharacterDevice(_) => (),
+///         InnerNode::BlockDevice(_) => (),
+///     }
+/// }
+/// ```
+///
+/// # Read from [`Squashfs`]
+/// Performance wise, you may want to read into a [`Squashfs`] first, if for instance you are
+/// optionally not extracting and only listing some Superblock fields.
+/// ```rust,no_run
+/// # use std::fs::File;
+/// # use backhand::{
+/// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+/// #     SquashfsDir, SquashfsSymlink,
+/// # };
+/// // Read into Squashfs
+/// let file = File::open("image.squashfs").unwrap();
+/// let squashfs = Squashfs::from_reader_with_offset(file, 0).unwrap();
+///
+/// // Display the Superblock info
+/// let superblock = squashfs.superblock;
+/// println!("{superblock:#08x?}");
+///
+/// // Now read into filesystem
+/// let filesystem = squashfs.into_filesystem_reader().unwrap();
+/// ```
 #[derive(Debug)]
 pub struct FilesystemReader<R: ReadSeek> {
     pub kind: Kind,

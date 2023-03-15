@@ -62,6 +62,7 @@ mod reader;
 mod squashfs;
 mod tree;
 
+pub use crate::data::DataSize;
 pub use crate::error::BackhandError;
 pub use crate::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
@@ -72,7 +73,7 @@ pub use crate::filesystem::writer::{
     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
 };
 pub use crate::fragment::Fragment;
-pub use crate::inode::Inode;
+pub use crate::inode::{BasicFile, Inode};
 pub use crate::reader::ReadSeek;
 pub use crate::squashfs::{
     Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,

@@ -192,6 +192,11 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         self.pad_len = pad_kib * 1024;
     }
 
+    /// Set *no* padding(zero bytes) added to the end of the image after calling [`write`].
+    pub fn set_no_padding(&mut self) {
+        self.pad_len = 0;
+    }
+
     /// Inherit filesystem structure and properties from `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, BackhandError> {
         let nodes = reader
@@ -476,28 +481,33 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         w: &mut W,
         superblock: &mut SuperBlock,
     ) -> Result<u64, BackhandError> {
-        // Pad out block_size to 4K
-        info!("Writing Padding");
         superblock.bytes_used = w.stream_position()?;
-        let blocks_used = superblock.bytes_used as u32 / self.pad_len;
-        let total_pad_len = (blocks_used + 1) * self.pad_len;
-        let pad_len = total_pad_len - superblock.bytes_used as u32;
 
-        // Write 1K at a time
-        let mut total_written = 0;
-        while w.stream_position()? < (superblock.bytes_used + pad_len as u64) {
-            let arr = &[0x00; 1024];
+        // pad bytes if required
+        let mut pad_len = 0;
+        if self.pad_len != 0 {
+            // Pad out block_size to 4K
+            info!("Writing Padding");
+            let blocks_used = superblock.bytes_used as u32 / self.pad_len;
+            let total_pad_len = (blocks_used + 1) * self.pad_len;
+            pad_len = total_pad_len - superblock.bytes_used as u32;
 
-            // check if last block to write
-            let len = if (pad_len - total_written) < 1024 {
-                (pad_len - total_written) % 1024
-            } else {
-                // else, full 1K
-                1024
-            };
+            // Write 1K at a time
+            let mut total_written = 0;
+            while w.stream_position()? < (superblock.bytes_used + pad_len as u64) {
+                let arr = &[0x00; 1024];
 
-            w.write_all(&arr[..len as usize])?;
-            total_written += len;
+                // check if last block to write
+                let len = if (pad_len - total_written) < 1024 {
+                    (pad_len - total_written) % 1024
+                } else {
+                    // else, full 1K
+                    1024
+                };
+
+                w.write_all(&arr[..len as usize])?;
+                total_written += len;
+            }
         }
 
         // Seek back the beginning and write the superblock

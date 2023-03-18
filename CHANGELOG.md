@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 ### Added
+- Append no padding to image: `FilesystemWriter::set_no_padding()`
 - Modify FilesystemCompressor options: `FilesystemCompressor::options(&mut self, options: CompressionOptions)`
 
 ## [v0.11.0] - 2023-03-14

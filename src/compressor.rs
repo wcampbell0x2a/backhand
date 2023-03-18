@@ -201,17 +201,18 @@ pub(crate) fn compress(
             Ok(buf)
         },
         #[cfg(feature = "gzip")]
-        (Compressor::Gzip, Some(CompressionOptions::Gzip(gzip)), _) => {
-            // TODO(#8): Use window_size and strategies
-            let mut encoder =
-                ZlibEncoder::new(Cursor::new(bytes), Compression::new(gzip.compression_level));
-            let mut buf = vec![];
-            encoder.read_to_end(&mut buf)?;
-            Ok(buf)
-        },
-        #[cfg(feature = "gzip")]
-        (Compressor::Gzip, None, _) => {
-            let mut encoder = ZlibEncoder::new(Cursor::new(bytes), Compression::new(9));
+        (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
+            let compression_level = match option {
+                None => Compression::best(), // 9
+                Some(CompressionOptions::Gzip(option)) => {
+                    Compression::new(option.compression_level)
+                },
+                Some(_) => unreachable!(),
+            };
+
+            // TODO(#8): Use window_size and strategies (current window size defaults to 15)
+
+            let mut encoder = ZlibEncoder::new(Cursor::new(bytes), compression_level);
             let mut buf = vec![];
             encoder.read_to_end(&mut buf)?;
             Ok(buf)

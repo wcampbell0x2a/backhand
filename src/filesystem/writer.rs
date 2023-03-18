@@ -677,6 +677,16 @@ impl FilesystemCompressor {
         Err(BackhandError::InvalidCompressionOption)
     }
 
+    /// Set options that are originally derived from the image if from a [`FilesystemReader`].
+    /// These options will be written to the image when
+    /// <https://github.com/wcampbell0x2a/backhand/issues/53> is fixed.
+    pub fn options(&mut self, options: CompressionOptions) -> Result<(), BackhandError> {
+        self.options = Some(options);
+        Ok(())
+    }
+
+    /// Extra options that are *only* using during compression and are *not* stored in the
+    /// resulting image
     pub fn extra(&mut self, extra: CompressionExtra) -> Result<(), BackhandError> {
         if matches!(extra, CompressionExtra::Xz(_)) && matches!(self.id, Compressor::Xz) {
             self.extra = Some(extra);

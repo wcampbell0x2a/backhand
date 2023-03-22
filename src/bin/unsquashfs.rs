@@ -167,6 +167,9 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
     // TODO: fixup perms for this?
     let _ = fs::create_dir_all(&args.dest);
 
+    // alloc required space for file data readers
+    let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
+
     for node in &filesystem.nodes {
         let path = &node.path;
         let path: PathBuf = path.iter().skip(1).collect();
@@ -183,7 +186,10 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
 
                 // write to file
                 let mut fd = File::create(&filepath).unwrap();
-                let mut reader = filesystem.file(&file.basic).reader();
+                let mut reader = filesystem
+                    .file(&file.basic)
+                    .reader(&mut buf_read, &mut buf_decompress);
+
                 match io::copy(&mut reader, &mut fd) {
                     Ok(_) => {
                         if args.info {

@@ -95,6 +95,14 @@ impl<R: ReadSeek> FilesystemReader<R> {
         let squashfs = Squashfs::from_reader(reader)?;
         squashfs.into_filesystem_reader()
     }
+
+    /// Allocate two properly sized buffers for [`FilesystemReaderFile::reader`]
+    pub fn alloc_read_buffers(&self) -> (Vec<u8>, Vec<u8>) {
+        let buf_read = Vec::with_capacity(self.block_size as usize);
+        let buf_decompress = Vec::with_capacity(self.block_size as usize);
+
+        (buf_read, buf_decompress)
+    }
 }
 
 impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
@@ -120,15 +128,6 @@ impl<R: ReadSeek> FilesystemReader<R> {
     pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile<'a, R> {
         FilesystemReaderFile::new(self, basic_file)
     }
-
-    /// Read and return all the bytes from the file
-    pub fn read_file(&self, basic_file: &BasicFile) -> Result<Vec<u8>, BackhandError> {
-        let file = FilesystemReaderFile::new(self, basic_file);
-        let mut reader = file.reader();
-        let mut bytes = Vec::with_capacity(basic_file.file_size as usize);
-        reader.read_to_end(&mut bytes)?;
-        Ok(bytes)
-    }
 }
 
 /// Filesystem handle for file
@@ -152,8 +151,26 @@ impl<'a, R: ReadSeek> FilesystemReaderFile<'a, R> {
         Self { system, basic }
     }
 
-    pub fn reader(&self) -> SquashfsReadFile<'a, R> {
-        self.raw_data_reader().into_reader()
+    /// Create [`SquashfsReadFile`] that impls [`std::io::Read`] from [`FilesystemReaderFile`].
+    /// This can be used to then call functions from [`std::io::Read`]
+    /// to de-compress and read the data from this file.
+    ///
+    /// # Arguments
+    ///
+    /// * `buf_read` - Pre-allocated buffer of `block_size`, from [alloc_read_buffers].
+    ///     Calls [Vec::clear] after final [Read::read] call.
+    /// * `buf_decompress` - Pre-allocated buffer of `block_size`, from [alloc_read_buffers].
+    ///     Calls [Vec::clear] after final [Read::read] call.
+    ///
+    /// [alloc_read_buffers]: FilesystemReader::alloc_read_buffers
+    /// [Read::read]: std::io::Read::read
+    /// [Vec::clear]: Vec::clear
+    pub fn reader(
+        &self,
+        buf_read: &'a mut Vec<u8>,
+        buf_decompress: &'a mut Vec<u8>,
+    ) -> SquashfsReadFile<'a, R> {
+        self.raw_data_reader().into_reader(buf_read, buf_decompress)
     }
 
     pub fn fragment(&self) -> Option<&'a Fragment> {
@@ -332,10 +349,12 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
         Ok(())
     }
 
-    pub fn into_reader(self) -> SquashfsReadFile<'a, R> {
+    pub fn into_reader(
+        self,
+        buf_read: &'a mut Vec<u8>,
+        buf_decompress: &'a mut Vec<u8>,
+    ) -> SquashfsReadFile<'a, R> {
         let bytes_available = self.file.basic.file_size as usize;
-        let buf_read = Vec::with_capacity(self.file.system.block_size as usize);
-        let buf_decompress = Vec::with_capacity(self.file.system.block_size as usize);
         SquashfsReadFile {
             raw_data: self,
             buf_read,
@@ -348,8 +367,8 @@ impl<'a, R: ReadSeek> SquashfsRawData<'a, R> {
 
 pub struct SquashfsReadFile<'a, R: ReadSeek> {
     raw_data: SquashfsRawData<'a, R>,
-    buf_read: Vec<u8>,
-    buf_decompress: Vec<u8>,
+    buf_read: &'a mut Vec<u8>,
+    buf_decompress: &'a mut Vec<u8>,
     //offset of buf_decompress to start reading
     last_read: usize,
     bytes_available: usize,
@@ -370,13 +389,13 @@ impl<'a, R: ReadSeek> SquashfsReadFile<'a, R> {
     }
 
     fn read_next_block(&mut self) -> Result<(), BackhandError> {
-        let block = match self.raw_data.next_block(&mut self.buf_read) {
+        let block = match self.raw_data.next_block(self.buf_read) {
             Some(block) => block?,
             None => return Ok(()),
         };
         self.buf_decompress.clear();
         self.raw_data
-            .decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
+            .decompress(block, self.buf_read, self.buf_decompress)?;
         self.last_read = 0;
         Ok(())
     }
@@ -386,6 +405,8 @@ impl<'a, R: ReadSeek> Read for SquashfsReadFile<'a, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // file was fully consumed
         if self.bytes_available == 0 {
+            self.buf_read.clear();
+            self.buf_decompress.clear();
             return Ok(0);
         }
         //no data available, read the next block

@@ -365,10 +365,6 @@ pub struct Squashfs<R: ReadSeek> {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
-    /// Section containing compressed/uncompressed file data and fragments.
-    ///
-    /// This also contains the superblock and option bytes for file offset reasons.
-    pub data_and_fragments: Vec<u8>,
     // All Inodes
     pub inodes: FxHashMap<u32, Inode>,
     /// Root Inode
@@ -523,9 +519,6 @@ impl<R: ReadSeek> Squashfs<R> {
         }
 
         // Read all fields from filesystem to make a Squashfs
-        info!("Reading Data and Fragments");
-        let data_and_fragments = reader.data_and_fragments(&superblock)?;
-
         info!("Reading Inodes");
         let inodes = reader.inodes(&superblock, kind)?;
 
@@ -565,7 +558,6 @@ impl<R: ReadSeek> Squashfs<R> {
             kind,
             superblock,
             compression_options,
-            data_and_fragments,
             inodes,
             root_inode,
             dir_blocks,

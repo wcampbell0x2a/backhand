@@ -73,14 +73,6 @@ impl<T: ReadSeek> SquashFsReader for T {}
 
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
 pub trait SquashFsReader: ReadSeek {
-    /// Read in entire data and fragments
-    #[instrument(skip_all)]
-    fn data_and_fragments(&mut self, superblock: &SuperBlock) -> Result<Vec<u8>, BackhandError> {
-        let mut buf = vec![0u8; superblock.inode_table as usize];
-        self.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
     #[instrument(skip_all)]
     fn inodes(

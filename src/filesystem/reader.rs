@@ -14,7 +14,8 @@ use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
 /// - Use [`Self::from_reader`] to read into `Self` from a `reader`
 ///
 /// # Read direct into [`Self`]
-/// Usual workflow, reading from image into a default squashfs [`Self`]
+/// Usual workflow, reading from image into a default squashfs [`Self`]. See [`crate::InnerNode`] for more
+/// details for `.nodes`.
 /// ```rust,no_run
 /// # use std::fs::File;
 /// # use backhand::{
@@ -125,6 +126,36 @@ impl<R: ReadSeek> FilesystemReader<SquashfsReaderWithOffset<R>> {
 
 impl<R: ReadSeek> FilesystemReader<R> {
     /// Return a file handler for this file
+    ///
+    ///
+    /// # Example
+    /// Used when extracting a file from the image, for example using [`crate::FilesystemReaderFile`]:
+    /// ```rust,no_run
+    /// # use std::fs::File;
+    /// # use backhand::{
+    /// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+    /// #     SquashfsDir, SquashfsSymlink,
+    /// # };
+    /// # let file = File::open("image.squashfs").unwrap();
+    /// # let filesystem = FilesystemReader::from_reader(file).unwrap();
+    /// // <creating FilesystemReader>
+    ///
+    /// // alloc required space for file data readers
+    /// let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
+    ///
+    /// for node in &filesystem.nodes {
+    ///     // extract
+    ///     match &node.inner {
+    ///         InnerNode::File(file) => {
+    ///             let mut reader = filesystem
+    ///                 .file(&file.basic)
+    ///                 .reader(&mut buf_read, &mut buf_decompress);
+    ///             // Then, do something with the reader
+    ///         },
+    ///         _ => (),
+    ///     }
+    /// }
+    /// ```
     pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile<'a, R> {
         FilesystemReaderFile::new(self, basic_file)
     }

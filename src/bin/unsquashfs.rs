@@ -128,7 +128,11 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
     // Only chown when root
     if root_process {
         // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
-        let path_bytes = PathBuf::from(path).as_os_str().as_bytes().as_ptr() as *const i8;
+        let path_bytes = PathBuf::from(path)
+            .as_os_str()
+            .as_bytes()
+            .as_ptr()
+            .cast::<i8>();
         unsafe {
             lchown(path_bytes, u32::from(header.uid), u32::from(header.gid));
         }
@@ -224,8 +228,11 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
 
                 if root_process {
                     // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
-                    let path_bytes =
-                        PathBuf::from(&filepath).as_os_str().as_bytes().as_ptr() as *const i8;
+                    let path_bytes = PathBuf::from(&filepath)
+                        .as_os_str()
+                        .as_bytes()
+                        .as_ptr()
+                        .cast::<i8>();
                     unsafe {
                         lchown(path_bytes, u32::from(header.uid), u32::from(header.gid));
                     }

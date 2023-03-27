@@ -11,7 +11,8 @@ use tracing::{error, instrument, trace};
 use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::Inode;
-use crate::squashfs::{Export, Id, Kind, SuperBlock};
+use crate::kinds::Kind;
+use crate::squashfs::{Export, Id, SuperBlock};
 use crate::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file

@@ -7,7 +7,8 @@ use tracing::{instrument, trace};
 use crate::compressor::{self};
 use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
-use crate::squashfs::{Kind, SuperBlock};
+use crate::kinds::Kind;
+use crate::squashfs::SuperBlock;
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 

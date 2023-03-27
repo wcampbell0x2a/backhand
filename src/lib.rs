@@ -60,6 +60,7 @@ mod error;
 mod filesystem;
 mod fragment;
 mod inode;
+mod kinds;
 mod metadata;
 mod reader;
 mod squashfs;
@@ -85,7 +86,7 @@ pub use crate::squashfs::{
 
 /// Support the wonderful world of vendor formats
 pub mod kind {
-    pub use crate::squashfs::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
+    pub use crate::kinds::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
 }
 
 /// Compression Choice and Options

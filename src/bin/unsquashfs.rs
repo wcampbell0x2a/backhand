@@ -2,11 +2,14 @@ use std::fs::{self, File, Permissions};
 use std::io;
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
+use backhand::kind::Kind;
 use backhand::{
     FilesystemReader, InnerNode, NodeHeader, ReadSeek, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
+use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::Parser;
 use libc::lchown;
 use nix::libc::geteuid;
@@ -43,6 +46,19 @@ struct Args {
     /// Display filesystem superblock information
     #[arg(short, long)]
     stat: bool,
+
+    /// Kind(type of image) to parse
+    #[arg(short, long,
+          default_value = "le_v4_0",
+          value_parser = PossibleValuesParser::new(
+              [
+                "be_v4_0",
+                "le_v4_0",
+                "amv_be_v4_0",
+              ]
+          ).map(|s| Kind::from_str(&s).unwrap())
+    )]
+    kind: Kind,
 }
 
 fn main() {
@@ -51,7 +67,8 @@ fn main() {
     let args = Args::parse();
 
     let file = File::open(&args.filesystem).unwrap();
-    let squashfs = Squashfs::from_reader_with_offset(file, args.offset).unwrap();
+    let squashfs =
+        Squashfs::from_reader_with_offset_and_kind(file, args.offset, args.kind).unwrap();
     let root_process = unsafe { geteuid() == 0 };
     if root_process {
         umask(Mode::from_bits(0).unwrap());

@@ -153,7 +153,13 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
                         {
                             data_writer.just_copy_it(file.raw_data_reader(), writer)?
                         } else {
-                            data_writer.add_bytes(file.reader(), writer)?
+                            let mut buf_read = Vec::with_capacity(file.system.block_size as usize);
+                            let mut buf_decompress =
+                                Vec::with_capacity(file.system.block_size as usize);
+                            data_writer.add_bytes(
+                                file.reader(&mut buf_read, &mut buf_decompress),
+                                writer,
+                            )?
                         }
                     },
                 };

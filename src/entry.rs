@@ -10,8 +10,9 @@ use crate::inode::{
     BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
     InodeInner,
 };
+use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
-use crate::squashfs::{Kind, SuperBlock};
+use crate::squashfs::SuperBlock;
 use crate::{
     NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };

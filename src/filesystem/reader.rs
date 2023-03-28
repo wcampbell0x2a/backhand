@@ -6,8 +6,9 @@ use crate::data::DataSize;
 use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::BasicFile;
+use crate::kinds::Kind;
 use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
-use crate::squashfs::{Cache, Id, Kind};
+use crate::squashfs::{Cache, Id};
 use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image

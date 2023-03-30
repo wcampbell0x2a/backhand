@@ -237,8 +237,6 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
-    /// This will make parent directories as needed with the same metadata of `header`
-    ///
     /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: AsRef<Path>>(
         &mut self,
@@ -252,16 +250,6 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         header.uid = self.lookup_add_id(header.uid as u32);
 
         let fullpath = normalize_squashfs_path(path.as_ref());
-        //if the file exists, remove it
-        if let Some(file_index) = self
-            .nodes
-            .iter()
-            .enumerate()
-            .find_map(|(i, node)| (&node.path == &fullpath).then_some(i))
-        {
-            self.nodes.remove(file_index);
-        }
-
         let reader = RefCell::new(Box::new(reader));
         let new_file = InnerNode::File(SquashfsFileWriter {
             header,
@@ -335,15 +323,6 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         header.gid = self.lookup_add_id(header.gid as u32);
 
         let fullpath = normalize_squashfs_path(path.as_ref());
-        //if the file exists, remove it
-        if let Some(file_index) = self
-            .nodes
-            .iter()
-            .enumerate()
-            .find_map(|(i, node)| (&node.path == &fullpath).then_some(i))
-        {
-            self.nodes.remove(file_index);
-        }
         let new_dir = InnerNode::Dir(SquashfsDir { header });
         let node = Node::new(fullpath, new_dir);
         self.nodes.push(node);

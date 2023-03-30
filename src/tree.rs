@@ -100,14 +100,12 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         match (is_file, children) {
             //this file already exists
             (true, Some(_file)) => return Err(BackhandError::DuplicatedFileName),
-            //this file don't exist in this dir, add it
-            (true, None) => {
+            //directory, and it already exists, insert into it
+            (false, Some(dir)) => dir.insert(rest, node)?,
+            //file or directory, but doesn't exists, create it
+            (_, None) => {
                 dir.insert(first.into(), node);
             },
-            //directory, and it already exists
-            (false, Some(dir)) => dir.insert(rest, node)?,
-            //directory, but the dir don't exits
-            (false, None) => return Err(BackhandError::InvalidFilePath),
         }
         Ok(())
     }

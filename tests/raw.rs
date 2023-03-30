@@ -13,7 +13,7 @@ use test_assets::TestAssetDef;
 fn test_raw_00() {
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
-        hash: "a2970a4e82014740b2333f4555eecf321898633ccadb443affec966f47f3acb3".to_string(),
+        hash: "cf259f67e8115c3aba07c12f271ef5c3017552dbdcd63eabeb6582a99ee18b6f".to_string(),
         url: "wcampbell.dev/squashfs/testing/test_raw_00/control.squashfs".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_raw_00";
@@ -59,6 +59,9 @@ fn test_raw_00() {
         "usr/bin/heyo",
         header,
     );
+    fs.push_dir("this", o_header);
+    fs.push_dir("this/is", o_header);
+    fs.push_dir("this/is/a", o_header);
     fs.push_file(
         std::io::Cursor::new(vec![0x0f; 0xff]),
         "this/is/a/file",

@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::bitvec::BitVec;
@@ -240,7 +240,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// This will make parent directories as needed with the same metadata of `header`
     ///
     /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
-    pub fn push_file<P: Into<PathBuf>>(
+    pub fn push_file<P: AsRef<Path>>(
         &mut self,
         reader: impl Read + 'a,
         path: P,
@@ -250,35 +250,16 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         header.gid = self.lookup_add_id(header.gid as u32);
         // create uid and replace uid with index
         header.uid = self.lookup_add_id(header.uid as u32);
-        let path = path.into();
 
-        if path.parent().is_some() {
-            let mut full_path = PathBuf::new();
-            let components: Vec<_> = path.components().map(|comp| comp.as_os_str()).collect();
-            'component: for dir in components.iter().take(components.len() - 1) {
-                let dir = Path::new(dir);
-                // add to path
-                full_path.push(dir);
-
-                // skip root directory
-                if dir != Path::new("/") {
-                    // check if exists
-                    for node in &mut self.nodes {
-                        if let InnerNode::Dir(_) = &node.inner {
-                            let left = &node.path;
-                            let right = &full_path;
-                            if left == right {
-                                continue 'component;
-                            }
-                        }
-                    }
-
-                    // not found, add to dir
-                    let new_dir = InnerNode::Dir(SquashfsDir { header });
-                    let node = Node::new(full_path.clone(), new_dir);
-                    self.nodes.push(node);
-                }
-            }
+        let fullpath = normalize_squashfs_path(path.as_ref());
+        //if the file exists, remove it
+        if let Some(file_index) = self
+            .nodes
+            .iter()
+            .enumerate()
+            .find_map(|(i, node)| (&node.path == &fullpath).then_some(i))
+        {
+            self.nodes.remove(file_index);
         }
 
         let reader = RefCell::new(Box::new(reader));
@@ -286,7 +267,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             header,
             reader: SquashfsFileSource::UserDefined(reader),
         });
-        let node = Node::new(path, new_file);
+        let node = Node::new(fullpath, new_file);
         self.nodes.push(node);
     }
 
@@ -347,15 +328,24 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     /// Insert empty `dir` at `path`
     ///
     /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
-    pub fn push_dir<P: Into<PathBuf>>(&mut self, path: P, mut header: NodeHeader) {
+    pub fn push_dir<P: AsRef<Path>>(&mut self, path: P, mut header: NodeHeader) {
         // create uid and replace uid with index
         header.uid = self.lookup_add_id(header.uid as u32);
         // create uid and replace gid with index
         header.gid = self.lookup_add_id(header.gid as u32);
-        let path = path.into();
 
+        let fullpath = normalize_squashfs_path(path.as_ref());
+        //if the file exists, remove it
+        if let Some(file_index) = self
+            .nodes
+            .iter()
+            .enumerate()
+            .find_map(|(i, node)| (&node.path == &fullpath).then_some(i))
+        {
+            self.nodes.remove(file_index);
+        }
         let new_dir = InnerNode::Dir(SquashfsDir { header });
-        let node = Node::new(path, new_dir);
+        let node = Node::new(fullpath, new_dir);
         self.nodes.push(node);
     }
 
@@ -594,6 +584,24 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
             },
         }
     }
+}
+
+//normalize the path, always starting with root, and not allowing relative
+//dirs and prefix
+fn normalize_squashfs_path(src: &Path) -> PathBuf {
+    let mut path = PathBuf::new();
+    path.push("/");
+    path.extend(src.components().filter_map(|dir| match dir {
+        //TODO return error, don't panic
+        //only happen in windows
+        Component::Prefix(_) => todo!(),
+        // relative directory is not allowed
+        Component::CurDir | Component::ParentDir => todo!(),
+        // skip root directory, already added by the iter
+        Component::RootDir => None,
+        Component::Normal(dir) => Some(dir),
+    }));
+    path
 }
 
 struct WriterWithOffset<W: WriteSeek> {

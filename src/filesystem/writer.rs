@@ -427,7 +427,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
 
         trace!("{:#02x?}", self.nodes);
         info!("Creating Tree");
-        let mut tree: TreeNode<R> = self.into();
+        let mut tree: TreeNode<R> = self.try_into()?;
         info!("Tree Created");
 
         // Empty Squashfs Superblock

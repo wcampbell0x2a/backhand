@@ -3,6 +3,8 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use tempfile::tempdir;
 
+/// test the new squashfs vs the original squashfs with squashfs-tool/unsquashfs
+/// by extract
 pub fn test_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
     let control_dir = tempdir().unwrap();
     Command::new("unsquashfs")
@@ -38,6 +40,8 @@ pub fn test_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
     assert!(!d.expect("couldn't compare dirs"));
 }
 
+/// test the new squashfs vs the original squashfs with squashfs-tool/unsquashfs
+/// by list
 pub fn test_unsquashfs_list(control: &str, new: &str, control_offset: Option<u64>) {
     let output_control = Command::new("unsquashfs")
         .args([

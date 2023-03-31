@@ -306,6 +306,7 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
 
 impl<'a, 'b, R: ReadSeek> TryFrom<&'b FilesystemWriter<'a, R>> for TreeNode<'a, 'b, R> {
     type Error = BackhandError;
+
     fn try_from(fs: &'b FilesystemWriter<'a, R>) -> Result<Self, Self::Error> {
         let mut tree = TreeNode {
             fullpath: "/".into(),

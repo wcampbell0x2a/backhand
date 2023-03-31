@@ -259,26 +259,36 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         self.nodes.push(node);
     }
 
+    //find the node relative to this path and return a mutable reference
+    fn mut_node<S: AsRef<Path>>(
+        &mut self,
+        find_path: S,
+    ) -> Option<&mut InnerNode<SquashfsFileWriter<'a, R>>> {
+        //the search path root prefix is optional, so remove it if present to
+        //not affect the search
+        let find_path = find_path.as_ref().strip_prefix("/").unwrap();
+        self.nodes.iter_mut().find_map(|node| {
+            let node_path = node.path.strip_prefix("/").unwrap();
+            (node_path == find_path).then_some(&mut node.inner)
+        })
+    }
+
     /// Take a mutable reference to existing file at `find_path`
-    pub fn mut_file<S: Into<PathBuf>>(
+    pub fn mut_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
     ) -> Option<&mut SquashfsFileWriter<'a, R>> {
-        let find_path = find_path.into();
-        find_path.strip_prefix("/").unwrap();
-        for node in &mut self.nodes {
-            if let InnerNode::File(file) = &mut node.inner {
-                if node.path == find_path {
-                    return Some(file);
-                }
+        self.mut_node(find_path).and_then(|node| {
+            if let InnerNode::File(file) = node {
+                Some(file)
+            } else {
+                None
             }
-        }
-
-        None
+        })
     }
 
     /// Replace an existing file
-    pub fn replace_file<S: Into<PathBuf>>(
+    pub fn replace_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
         reader: impl Read + 'a,

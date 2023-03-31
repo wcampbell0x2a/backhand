@@ -259,6 +259,23 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         self.nodes.push(node);
     }
 
+    //find the node relative to this path
+    fn node<S: AsRef<Path>>(&self, find_path: S) -> Option<&InnerNode<SquashfsFileWriter<'a, R>>> {
+        //the search path root prefix is optional, so remove it if present to
+        //not affect the search
+        let find_path: &Path = find_path.as_ref();
+        let find_path = find_path
+            .strip_prefix(Component::RootDir)
+            .unwrap_or(find_path);
+        self.nodes.iter().find_map(|node| {
+            let node_path = node
+                .path
+                .strip_prefix(Component::RootDir)
+                .unwrap_or(&node.path);
+            (node_path == find_path).then_some(&node.inner)
+        })
+    }
+
     //find the node relative to this path and return a mutable reference
     fn mut_node<S: AsRef<Path>>(
         &mut self,
@@ -266,9 +283,15 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ) -> Option<&mut InnerNode<SquashfsFileWriter<'a, R>>> {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
-        let find_path = find_path.as_ref().strip_prefix("/").unwrap();
+        let find_path: &Path = find_path.as_ref();
+        let find_path = find_path
+            .strip_prefix(Component::RootDir)
+            .unwrap_or(find_path);
         self.nodes.iter_mut().find_map(|node| {
-            let node_path = node.path.strip_prefix("/").unwrap();
+            let node_path = node
+                .path
+                .strip_prefix(Component::RootDir)
+                .unwrap_or(&node.path);
             (node_path == find_path).then_some(&mut node.inner)
         })
     }
@@ -336,6 +359,29 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         let new_dir = InnerNode::Dir(SquashfsDir { header });
         let node = Node::new(fullpath, new_dir);
         self.nodes.push(node);
+    }
+
+    /// Recursively create an empty directory and all of its parent components
+    /// if they are missing.
+    ///
+    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    pub fn push_dir_all<P: AsRef<Path>>(&mut self, path: P, header: NodeHeader) {
+        //create a list of ancestors and iterate over then from the
+        //base (skip root) to the directory file
+        let path: &Path = path.as_ref();
+        let dirs: Vec<&Path> = path.ancestors().collect();
+        //dirs will always end with "" or "/", so skip it
+        for dir in dirs.iter().rev().skip(1) {
+            match self.node(dir) {
+                //if directory doesn't exist, create it
+                None => self.push_dir(dir, header),
+                //if it exist, do nothing
+                Some(InnerNode::Dir(_)) => {},
+                //if exists, but is not a directory, return an error
+                //TODO return an error, don't panic
+                Some(_) => todo!(),
+            }
+        }
     }
 
     /// Insert character device with `device_number` at `path`

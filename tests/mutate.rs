@@ -66,6 +66,7 @@ fn test_add_00() {
     };
 
     // Add file
+    new_filesystem.push_dir_all("a/d/e", h);
     let bytes = Cursor::new(b"this is a new file, wowo!");
     new_filesystem.push_file(bytes, "a/d/e/new_file", h);
     // Add file

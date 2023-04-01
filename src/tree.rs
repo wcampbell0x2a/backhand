@@ -82,32 +82,32 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
         }
     }
 
-    fn insert(&mut self, components: &[&OsStr], node: TreeNode<'a, 'b, R>) {
+    fn insert(
+        &mut self,
+        components: &[&OsStr],
+        node: TreeNode<'a, 'b, R>,
+    ) -> Result<(), BackhandError> {
         let dir = match &mut self.inner {
             InnerTreeNode::Dir(_, dir) => dir,
-            _ => todo!("Error node inside non-Dir"),
+            _ => return Err(BackhandError::InvalidFilePath),
         };
 
-        let (first, rest) = match components {
-            [first, rest @ ..] => (first, rest),
-            [] => todo!("Error node have no name"),
-        };
+        let (first, rest) = components
+            .split_first()
+            .ok_or(BackhandError::InvalidFilePath)?;
         let is_file = rest.is_empty();
         let children = dir.get_mut(*first);
         match (is_file, children) {
             //this file already exists
-            (true, Some(_file)) => {
-                //TODO directory is allowed to be duplicated??? ignore the second file?
-            },
-            //this file don't exist in this dir, add it
-            (true, None) => {
+            (true, Some(_file)) => return Err(BackhandError::DuplicatedFileName),
+            //directory, and it already exists, insert into it
+            (false, Some(dir)) => dir.insert(rest, node)?,
+            //file or directory, but doesn't exists, create it
+            (_, None) => {
                 dir.insert(first.into(), node);
             },
-            //not a file, dir, and it already exists
-            (false, Some(dir)) => dir.insert(rest, node),
-            //not a file, dir, but the dir don't exits
-            (false, None) => todo!("Error Dir don't exists"),
         }
+        Ok(())
     }
 
     fn children(&self) -> Option<&BTreeMap<OsString, TreeNode<'a, 'b, R>>> {
@@ -304,8 +304,10 @@ impl<'a, 'b, R: ReadSeek> TreeNode<'a, 'b, R> {
     }
 }
 
-impl<'a, 'b, R: ReadSeek> From<&'b FilesystemWriter<'a, R>> for TreeNode<'a, 'b, R> {
-    fn from(fs: &'b FilesystemWriter<'a, R>) -> Self {
+impl<'a, 'b, R: ReadSeek> TryFrom<&'b FilesystemWriter<'a, R>> for TreeNode<'a, 'b, R> {
+    type Error = BackhandError;
+
+    fn try_from(fs: &'b FilesystemWriter<'a, R>) -> Result<Self, Self::Error> {
         let mut tree = TreeNode {
             fullpath: "/".into(),
             inner: InnerTreeNode::Dir(&fs.root_inode, BTreeMap::new()),
@@ -322,11 +324,11 @@ impl<'a, 'b, R: ReadSeek> From<&'b FilesystemWriter<'a, R>> for TreeNode<'a, 'b,
             }
             let fullpath = comp.iter().collect();
             let node = Self::from_inner_node(fullpath, &node.inner);
-            tree.insert(&comp, node);
+            tree.insert(&comp, node)?;
         }
 
         let mut inode = 1;
         tree.calculate_inode(&mut inode);
-        tree
+        Ok(tree)
     }
 }

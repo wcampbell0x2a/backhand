@@ -42,26 +42,35 @@ pub enum BackhandError {
 
     #[error("invalid squashfs compression options")]
     InvalidCompressionOption,
+
+    #[error("Invalid file path in the squashfs image")]
+    InvalidFilePath,
+
+    #[error("file inside squashfs image have no name")]
+    UndefineFileName,
+
+    #[error("file duplicated in squashfs image")]
+    DuplicatedFileName,
 }
 
 impl From<BackhandError> for io::Error {
     fn from(value: BackhandError) -> Self {
+        use BackhandError::*;
         match value {
-            BackhandError::StdIo(io) => io,
-            BackhandError::Deku(e) => e.into(),
-            BackhandError::StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            BackhandError::StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ BackhandError::UnsupportedCompression(_) => {
-                Self::new(io::ErrorKind::Unsupported, e)
-            },
-            e @ BackhandError::FileNotFound => Self::new(io::ErrorKind::NotFound, e),
-            e @ BackhandError::Unreachable => Self::new(io::ErrorKind::InvalidData, e),
-            e @ BackhandError::UnexpectedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ BackhandError::UnsupportedInode(_) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ BackhandError::CorruptedOrInvalidSquashfs => {
-                Self::new(io::ErrorKind::InvalidData, e)
-            },
-            e @ BackhandError::InvalidCompressionOption => Self::new(io::ErrorKind::InvalidData, e),
+            StdIo(io) => io,
+            Deku(e) => e.into(),
+            StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            e @ UnsupportedCompression(_) => Self::new(io::ErrorKind::Unsupported, e),
+            e @ FileNotFound => Self::new(io::ErrorKind::NotFound, e),
+            e @ (Unreachable
+            | UnexpectedInode(_)
+            | UnsupportedInode(_)
+            | CorruptedOrInvalidSquashfs
+            | InvalidCompressionOption
+            | InvalidFilePath
+            | UndefineFileName
+            | DuplicatedFileName) => Self::new(io::ErrorKind::InvalidData, e),
         }
     }
 }

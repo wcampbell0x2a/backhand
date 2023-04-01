@@ -1,7 +1,9 @@
+mod bin;
 mod common;
 use std::fs::File;
 
 use backhand::{FilesystemReader, FilesystemWriter};
+use bin::test_bin_unsquashfs;
 use common::{test_unsquashfs, test_unsquashfs_list};
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -50,12 +52,15 @@ fn full_test(
     let created_file = File::open(&new_path).unwrap();
     let _new_filesystem = FilesystemReader::from_reader_with_offset(created_file, offset).unwrap();
 
-    info!("starting unsquashfs test");
     match verify {
         Verify::Extract => {
+            info!("starting squashfs-tools/unsquashfs test");
             test_unsquashfs(&og_path, &new_path, Some(offset));
+            info!("starting backhand/unsquashfs test");
+            test_bin_unsquashfs(&og_path, &new_path, Some(offset));
         },
         Verify::List => {
+            info!("starting --list test");
             test_unsquashfs_list(&og_path, &new_path, Some(offset));
         },
     }
@@ -275,7 +280,7 @@ fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "b635ffdd24ecde8991cbc829773ca049994145cb2194c7c3987a87591153e58b".to_string(),
+        hash: "78368f6c9c7080da7e3d7ceea8e64a8352c0f4ce39eb97d51de99943fd222e03".to_string(),
         url: "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_firefox";

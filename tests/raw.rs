@@ -91,12 +91,12 @@ fn test_raw_00() {
             version_major: 0x4,
             version_minor: 0x0,
             root_inode: 0xe0,
-            bytes_used: 0x1ec,
-            id_table: 0x1e4,
+            bytes_used: 0x1e8,
+            id_table: 0x1e0,
             xattr_table: 0xffffffffffffffff,
             inode_table: 0xac,
-            dir_table: 0x136,
-            frag_table: 0x1d6,
+            dir_table: 0x132,
+            frag_table: 0x1d2,
             export_table: 0xffffffffffffffff,
         }
     );

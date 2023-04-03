@@ -13,7 +13,6 @@ pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>
             control_dir.path().to_str().unwrap(),
             "-o",
             &control_offset.unwrap_or(0).to_string(),
-            "-l",
             control,
         ])
         .unwrap();

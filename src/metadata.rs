@@ -4,7 +4,7 @@ use deku::bitvec::{BitVec, BitView};
 use deku::prelude::*;
 use tracing::{instrument, trace};
 
-use crate::compressor::{self};
+use crate::compressor;
 use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::kinds::Kind;

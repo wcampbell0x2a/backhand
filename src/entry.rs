@@ -13,9 +13,7 @@ use crate::inode::{
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
-use crate::{
-    NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
-};
+use crate::{NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {
@@ -36,7 +34,7 @@ impl<'a> Entry<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn path(
         name: &'a OsStr,
-        path: &SquashfsDir,
+        header: NodeHeader,
         inode: u32,
         parent_inode: u32,
         inode_writer: &mut MetadataWriter,
@@ -50,7 +48,7 @@ impl<'a> Entry<'a> {
             id: InodeId::BasicDirectory,
             header: InodeHeader {
                 inode_number: inode,
-                ..path.header.into()
+                ..header.into()
             },
             inner: InodeInner::BasicDirectory(BasicDirectory {
                 block_index,
@@ -68,7 +66,7 @@ impl<'a> Entry<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn file(
         node_path: &'a OsStr,
-        header: &NodeHeader,
+        header: NodeHeader,
         inode: u32,
         inode_writer: &mut MetadataWriter,
         file_size: usize,
@@ -105,7 +103,7 @@ impl<'a> Entry<'a> {
             id: InodeId::BasicFile,
             header: InodeHeader {
                 inode_number: inode,
-                ..header.to_owned().into()
+                ..header.into()
             },
             inner: InodeInner::BasicFile(basic_file),
         };
@@ -116,6 +114,7 @@ impl<'a> Entry<'a> {
     /// Write data and metadata for symlink node
     pub fn symlink(
         node_path: &'a OsStr,
+        header: NodeHeader,
         symlink: &SquashfsSymlink,
         inode: u32,
         inode_writer: &mut MetadataWriter,
@@ -127,7 +126,7 @@ impl<'a> Entry<'a> {
             id: InodeId::BasicSymlink,
             header: InodeHeader {
                 inode_number: inode,
-                ..symlink.header.into()
+                ..header.into()
             },
             inner: InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
@@ -142,6 +141,7 @@ impl<'a> Entry<'a> {
     /// Write data and metadata for char device node
     pub fn char(
         node_path: &'a OsStr,
+        header: NodeHeader,
         char_device: &SquashfsCharacterDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
@@ -152,7 +152,7 @@ impl<'a> Entry<'a> {
             id: InodeId::BasicCharacterDevice,
             header: InodeHeader {
                 inode_number: inode,
-                ..char_device.header.into()
+                ..header.into()
             },
             inner: InodeInner::BasicCharacterDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,
@@ -166,6 +166,7 @@ impl<'a> Entry<'a> {
     /// Write data and metadata for block device node
     pub fn block_device(
         node_path: &'a OsStr,
+        header: NodeHeader,
         block_device: &SquashfsBlockDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
@@ -176,7 +177,7 @@ impl<'a> Entry<'a> {
             id: InodeId::BasicBlockDevice,
             header: InodeHeader {
                 inode_number: inode,
-                ..block_device.header.into()
+                ..header.into()
             },
             inner: InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,

@@ -9,7 +9,7 @@ use crate::inode::BasicFile;
 use crate::kinds::Kind;
 use crate::reader::{ReadSeek, SquashfsReaderWithOffset};
 use crate::squashfs::{Cache, Id};
-use crate::{Node, Squashfs, SquashfsDir, SquashfsFileReader};
+use crate::{Node, Squashfs, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image
 /// - Use [`Self::from_reader`] to read into `Self` from a `reader`
@@ -79,10 +79,8 @@ pub struct FilesystemReader<R: ReadSeek> {
     pub id_table: Vec<Id>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
-    /// Information for the `/` node
-    pub root_inode: SquashfsDir,
     /// All files and directories in filesystem
-    pub nodes: Vec<Node<SquashfsFileReader>>,
+    pub root: Node<SquashfsFileReader>,
     // File reader
     pub(crate) reader: RefCell<R>,
     // Cache used in the decompression
@@ -159,6 +157,11 @@ impl<R: ReadSeek> FilesystemReader<R> {
     /// ```
     pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile<'a, R> {
         FilesystemReaderFile::new(self, basic_file)
+    }
+
+    /// return a iterator of all files
+    pub fn files(&self) -> impl Iterator<Item = &Node<SquashfsFileReader>> {
+        self.root.iter_inner_nodes()
     }
 }
 

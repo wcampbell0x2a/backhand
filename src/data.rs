@@ -55,8 +55,8 @@ impl DataSize {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) enum Added {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Added {
     // Only Data was added
     Data {
         blocks_start: u32,

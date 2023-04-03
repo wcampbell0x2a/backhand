@@ -65,16 +65,27 @@ fn test_add_00() {
         mtime: 0,
     };
 
+    //create directories
+    new_filesystem.push_dir_all("a/d/e", h).unwrap();
+    new_filesystem.push_dir_all("a/b/c/d/e", h).unwrap();
     // Add file
-    new_filesystem.push_dir_all("a/d/e", h);
     let bytes = Cursor::new(b"this is a new file, wowo!");
-    new_filesystem.push_file(bytes, "a/d/e/new_file", h);
+    new_filesystem
+        .push_file(bytes, "a/d/e/new_file", h)
+        .unwrap();
     // Add file
-    new_filesystem.push_file(Cursor::new("i am (g)root"), "root_file", h);
-    // Add file
-    new_filesystem.push_file(Cursor::new("dude"), "a/b/c/d/dude", h);
+    new_filesystem
+        .push_file(Cursor::new("i am (g)root"), "root_file", h)
+        .unwrap();
 
-    new_filesystem.push_symlink("a/b/c/d/dude", "ptr", h);
+    // Add file
+    new_filesystem
+        .push_file(Cursor::new("dude"), "a/b/c/d/dude", h)
+        .unwrap();
+
+    new_filesystem
+        .push_symlink("a/b/c/d/dude", "ptr", h)
+        .unwrap();
 
     // Modify file
     new_filesystem

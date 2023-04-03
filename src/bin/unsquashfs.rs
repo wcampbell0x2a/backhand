@@ -1,7 +1,7 @@
 use std::fs::{self, File, Permissions};
 use std::io;
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use backhand::kind::Kind;
@@ -86,8 +86,8 @@ fn main() {
 }
 
 fn list<R: std::io::Read + std::io::Seek>(filesystem: FilesystemReader<R>) {
-    for node in &filesystem.nodes {
-        let path = &node.path;
+    for node in filesystem.files() {
+        let path = &node.fullpath;
         println!("{}", path.display());
     }
 }
@@ -187,9 +187,9 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
     // alloc required space for file data readers
     let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
 
-    for node in &filesystem.nodes {
-        let path = &node.path;
-        let path: PathBuf = path.iter().skip(1).collect();
+    for node in filesystem.files() {
+        let path = &node.fullpath;
+        let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
         match &node.inner {
             InnerNode::File(file) => {
                 // read file
@@ -213,7 +213,7 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                             println!("[-] success, wrote {}", filepath.display());
                         }
 
-                        set_attributes(&filepath, &file.header, root_process, true);
+                        set_attributes(&filepath, &node.header, root_process, true);
                     },
                     Err(e) => {
                         println!("[!] failed write: {} : {e}", filepath.display());
@@ -221,10 +221,10 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                     },
                 }
             },
-            InnerNode::Symlink(SquashfsSymlink { link, header }) => {
+            InnerNode::Symlink(SquashfsSymlink { link }) => {
                 // create symlink
                 let link_display = link.display();
-                let filepath = Path::new(&args.dest).join(&path);
+                let filepath = Path::new(&args.dest).join(path);
 
                 // check if file exists
                 if !args.force && filepath.exists() {
@@ -257,13 +257,17 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                         .as_ptr()
                         .cast::<i8>();
                     unsafe {
-                        lchown(path_bytes, u32::from(header.uid), u32::from(header.gid));
+                        lchown(
+                            path_bytes,
+                            u32::from(node.header.uid),
+                            u32::from(node.header.gid),
+                        );
                     }
                 }
 
                 // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
                 // Make sure this doesn't follow symlinks when changed to std library!
-                let timespec = TimeSpec::new(i64::from(header.mtime), 0);
+                let timespec = TimeSpec::new(i64::from(node.header.mtime), 0);
                 utimensat(
                     None,
                     &filepath,
@@ -284,16 +288,13 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                     println!("[-] success, wrote {}", &path.display());
                 }
             },
-            InnerNode::CharacterDevice(SquashfsCharacterDevice {
-                header,
-                device_number,
-            }) => {
+            InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
                 let path = Path::new(&args.dest).join(path);
                 if root_process {
                     match mknod(
                         &path,
                         SFlag::S_IFCHR,
-                        Mode::from_bits(u32::from(header.permissions)).unwrap(),
+                        Mode::from_bits(u32::from(node.header.permissions)).unwrap(),
                         u64::from(*device_number),
                     ) {
                         Ok(_) => {
@@ -301,7 +302,7 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                                 println!("[-] char device created: {}", path.display());
                             }
 
-                            set_attributes(&path, header, root_process, true);
+                            set_attributes(&path, &node.header, root_process, true);
                         },
                         Err(_) => {
                             println!(
@@ -319,15 +320,12 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                     continue;
                 }
             },
-            InnerNode::BlockDevice(SquashfsBlockDevice {
-                header,
-                device_number,
-            }) => {
+            InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
                 let path = Path::new(&args.dest).join(path);
                 match mknod(
                     &path,
                     SFlag::S_IFBLK,
-                    Mode::from_bits(u32::from(header.permissions)).unwrap(),
+                    Mode::from_bits(u32::from(node.header.permissions)).unwrap(),
                     u64::from(*device_number),
                 ) {
                     Ok(_) => {
@@ -335,7 +333,7 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                             println!("[-] block device created: {}", path.display());
                         }
 
-                        set_attributes(&path, header, root_process, true);
+                        set_attributes(&path, &node.header, root_process, true);
                     },
                     Err(_) => {
                         println!(
@@ -346,16 +344,17 @@ fn extract_all<R: std::io::Read + std::io::Seek>(
                     },
                 }
             },
+            InnerNode::FilePhase2(_, _) => unreachable!(),
         }
     }
 
     // fixup dir permissions
-    for node in &filesystem.nodes {
-        let path = &node.path;
-        let path: PathBuf = path.iter().skip(1).collect();
-        if let InnerNode::Dir(SquashfsDir { header }) = &node.inner {
+    for node in filesystem.files() {
+        if let InnerNode::Dir(SquashfsDir { .. }) = &node.inner {
+            let path = &node.fullpath;
+            let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
             let path = Path::new(&args.dest).join(path);
-            set_attributes(&path, header, root_process, false);
+            set_attributes(&path, &node.header, root_process, false);
         }
     }
 }

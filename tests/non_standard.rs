@@ -29,7 +29,7 @@ fn full_test(
     info!("calling from_reader");
     let og_filesystem =
         FilesystemReader::from_reader_with_offset_and_kind(file, offset, kind).unwrap();
-    let new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
+    let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // convert to bytes
     info!("calling to_bytes");

@@ -29,10 +29,11 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 ///
 /// // Iterate through nodes
 /// // (See src/bin/unsquashfs.rs for more examples on extraction)
-/// for node in &filesystem.nodes {
+/// for node in filesystem.files() {
 ///     // extract
 ///     match &node.inner {
 ///         InnerNode::File(_) => (),
+///         InnerNode::FilePhase2(_, _) => unreachable!(),
 ///         InnerNode::Symlink(_) => (),
 ///         InnerNode::Dir(_) => (),
 ///         InnerNode::CharacterDevice(_) => (),
@@ -142,7 +143,7 @@ impl<R: ReadSeek> FilesystemReader<R> {
     /// // alloc required space for file data readers
     /// let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
     ///
-    /// for node in &filesystem.nodes {
+    /// for node in filesystem.files() {
     ///     // extract
     ///     match &node.inner {
     ///         InnerNode::File(file) => {

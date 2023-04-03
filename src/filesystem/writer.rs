@@ -32,8 +32,10 @@ use crate::{
 /// - Use [`Self::default`] to create an empty SquashFS image without an original image. For example:
 /// ```rust
 /// # use std::time::SystemTime;
-/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra};
+/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter as Tmp, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra, DummyReadSeek};
 /// // Add empty default FilesytemWriter
+/// # //compiler figure this out for us, but here this is required
+/// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
 /// let mut fs = FilesystemWriter::default();
 /// fs.set_current_time();
 /// fs.set_block_size(DEFAULT_BLOCK_SIZE);
@@ -86,7 +88,7 @@ impl<R: ReadSeek> Default for FilesystemWriter<'_, R> {
     /// kind: [`Kind::default()`], and mod_time: `0`.
     fn default() -> Self {
         let block_size = DEFAULT_BLOCK_SIZE;
-        let root = Node::new_root(NodeHeader::default());
+        let root: Node<SquashfsFileWriter<R>> = Node::new_root(NodeHeader::default());
         Self {
             block_size,
             mod_time: 0,
@@ -117,7 +119,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ///
     /// # Example: Set to `Wed Oct 19 01:26:15 2022`
     /// ```rust
-    /// # use backhand::{FilesystemWriter, kind};
+    /// # use backhand::{FilesystemWriter as Tmp, kind, DummyReadSeek};
+    /// # //compiler figure this out for us, but here this is required
+    /// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
     /// let mut fs = FilesystemWriter::default();
     /// fs.set_time(0x634f_5237);
     /// ```
@@ -137,7 +141,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ///
     /// # Example: Set kind to default V4.0
     /// ```rust
-    /// # use backhand::{FilesystemWriter, kind};
+    /// # use backhand::{FilesystemWriter as Tmp, kind, DummyReadSeek};
+    /// # //compiler figure this out for us, but here this is required
+    /// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
     /// let mut fs = FilesystemWriter::default();
     /// fs.set_kind(kind::LE_V4_0);
     /// ```
@@ -149,7 +155,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ///
     /// # Example
     ///```rust
-    /// # use backhand::FilesystemWriter;
+    /// # use backhand::{FilesystemWriter as Tmp, DummyReadSeek};
+    /// # //compiler figure this out for us, but here this is required
+    /// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
     /// let mut fs = FilesystemWriter::default();
     /// fs.set_root_mode(0o777);
     /// ```

@@ -70,7 +70,7 @@ pub use crate::error::BackhandError;
 pub use crate::filesystem::dummy::DummyReadSeek;
 pub use crate::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsFileSource, SquashfsFileWriter, SquashfsSymlink,
+    SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
 pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsReadFile};
 pub use crate::filesystem::writer::{

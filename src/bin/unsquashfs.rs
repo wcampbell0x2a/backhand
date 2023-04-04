@@ -340,7 +340,6 @@ fn extract_all(args: &Args, filesystem: FilesystemReader, root_process: bool) {
                     },
                 }
             },
-            InnerNode::FilePhase2(_, _) => unreachable!(),
         }
     }
 

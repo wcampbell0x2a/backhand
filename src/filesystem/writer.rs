@@ -22,8 +22,8 @@ use crate::squashfs::{Id, SuperBlock};
 //use crate::tree::TreeNode;
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileReader, SquashfsFileSource, SquashfsFileWriter, DEFAULT_BLOCK_SIZE,
-    DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    SquashfsDir, SquashfsFileReader, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
+    MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -206,11 +206,8 @@ impl<'a> FilesystemWriter<'a> {
                 let inner = match &node.inner {
                     InnerNode::File(file) => {
                         let reader = reader.file(&file.basic);
-                        InnerNode::File(SquashfsFileWriter {
-                            reader: SquashfsFileSource::SquashfsFile(reader),
-                        })
+                        InnerNode::File(SquashfsFileWriter::SquashfsFile(reader))
                     },
-                    InnerNode::FilePhase2(_, _) => unreachable!(),
                     InnerNode::Symlink(x) => InnerNode::Symlink(x.clone()),
                     InnerNode::Dir(dir) => {
                         let children = Self::from_children(reader, dir)?;
@@ -313,9 +310,7 @@ impl<'a> FilesystemWriter<'a> {
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
         let reader = RefCell::new(Box::new(reader));
-        let new_file = InnerNode::File(SquashfsFileWriter {
-            reader: SquashfsFileSource::UserDefined(reader),
-        });
+        let new_file = InnerNode::File(SquashfsFileWriter::UserDefined(reader));
         self.insert_node(path, header, new_file)
     }
 
@@ -342,7 +337,7 @@ impl<'a> FilesystemWriter<'a> {
         let file = self
             .mut_file(find_path)
             .ok_or(BackhandError::FileNotFound)?;
-        file.reader = SquashfsFileSource::UserDefined(RefCell::new(Box::new(reader)));
+        *file = SquashfsFileWriter::UserDefined(RefCell::new(Box::new(reader)));
         Ok(())
     }
 

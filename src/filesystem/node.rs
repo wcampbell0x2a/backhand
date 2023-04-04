@@ -147,11 +147,11 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
     ) -> Result<(), BackhandError> {
         match &mut self.inner {
             InnerNode::File(file) => {
-                let (filesize, added) = match &file.reader {
-                    SquashfsFileSource::UserDefined(file) => {
+                let (filesize, added) = match &file {
+                    SquashfsFileWriter::UserDefined(file) => {
                         data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
                     },
-                    SquashfsFileSource::SquashfsFile(file) => {
+                    SquashfsFileWriter::SquashfsFile(file) => {
                         // if the source file and the destination files are both
                         // squashfs files and use the same compressor and block_size
                         // just copy the data, don't compress->decompress
@@ -170,8 +170,9 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
                             )?
                         }
                     },
+                    SquashfsFileWriter::Consumed(_, _) => unreachable!(),
                 };
-                self.inner = InnerNode::FilePhase2(filesize, added);
+                *file = SquashfsFileWriter::Consumed(filesize, added);
             },
             InnerNode::Dir(dir) => {
                 dir.children.values_mut().try_for_each(|child| {
@@ -236,7 +237,7 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
                     &superblock,
                     kind,
                 ),
-                InnerNode::FilePhase2(filesize, added) => Entry::file(
+                InnerNode::File(SquashfsFileWriter::Consumed(filesize, added)) => Entry::file(
                     &node.path,
                     node.header,
                     node_id,
@@ -246,6 +247,7 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
                     &superblock,
                     kind,
                 ),
+                InnerNode::File(_) => unreachable!(),
                 InnerNode::Symlink(symlink) => Entry::symlink(
                     &node.path,
                     node.header,
@@ -273,7 +275,6 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
                     &superblock,
                     kind,
                 ),
-                InnerNode::File(_) => unreachable!(),
             };
             write_entries.push(entry);
         }
@@ -319,7 +320,6 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
 pub enum InnerNode<T> {
     /// Either [`SquashfsFileReader`] or [`SquashfsFileWriter`]
     File(T),
-    FilePhase2(usize, Added),
     Symlink(SquashfsSymlink),
     Dir(SquashfsDir<T>),
     CharacterDevice(SquashfsCharacterDevice),
@@ -332,19 +332,17 @@ pub struct SquashfsFileReader {
     pub basic: BasicFile,
 }
 
-/// Read file
-pub struct SquashfsFileWriter<'a> {
-    pub reader: SquashfsFileSource<'a>,
+/// Read file from other SquashfsFile or an user file
+pub enum SquashfsFileWriter<'a> {
+    UserDefined(RefCell<Box<dyn Read + 'a>>),
+    SquashfsFile(FilesystemReaderFile<'a>),
+    Consumed(usize, Added),
 }
 
 impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FileWriter").finish()
     }
-}
-pub enum SquashfsFileSource<'a> {
-    UserDefined(RefCell<Box<dyn Read + 'a>>),
-    SquashfsFile(FilesystemReaderFile<'a>),
 }
 
 /// Symlink for filesystem

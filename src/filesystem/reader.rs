@@ -33,7 +33,6 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 ///     // extract
 ///     match &node.inner {
 ///         InnerNode::File(_) => (),
-///         InnerNode::FilePhase2(_, _) => unreachable!(),
 ///         InnerNode::Symlink(_) => (),
 ///         InnerNode::Dir(_) => (),
 ///         InnerNode::CharacterDevice(_) => (),

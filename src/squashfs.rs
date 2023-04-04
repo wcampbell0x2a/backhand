@@ -513,33 +513,6 @@ impl<R: ReadSeek> Squashfs<R> {
         Ok(Some(dirs))
     }
 
-    /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
-    /// like structure in-memory
-    #[instrument(skip_all)]
-    pub fn into_filesystem_reader(self) -> Result<FilesystemReader<R>, BackhandError> {
-        let mut root = Node::new_root(self.root_inode.header.into());
-        self.extract_dir(
-            &mut PathBuf::from("/"),
-            root.mut_inner_nodes().unwrap(),
-            &self.root_inode,
-        )?;
-
-        let filesystem = FilesystemReader {
-            kind: self.kind,
-            block_size: self.superblock.block_size,
-            block_log: self.superblock.block_log,
-            compressor: self.superblock.compressor,
-            compression_options: self.compression_options,
-            mod_time: self.superblock.mod_time,
-            id_table: self.id.clone(),
-            fragments: self.fragments,
-            root,
-            reader: RefCell::new(self.file),
-            cache: RefCell::new(Cache::default()),
-        };
-        Ok(filesystem)
-    }
-
     #[instrument(skip_all)]
     fn extract_dir(
         &self,
@@ -703,5 +676,34 @@ impl<R: ReadSeek> Squashfs<R> {
 
         error!("block dev not found");
         Err(BackhandError::FileNotFound)
+    }
+}
+
+impl<R: ReadSeek + 'static> Squashfs<R> {
+    /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
+    /// like structure in-memory
+    #[instrument(skip_all)]
+    pub fn into_filesystem_reader(self) -> Result<FilesystemReader, BackhandError> {
+        let mut root = Node::new_root(self.root_inode.header.into());
+        self.extract_dir(
+            &mut PathBuf::from("/"),
+            root.mut_inner_nodes().unwrap(),
+            &self.root_inode,
+        )?;
+
+        let filesystem = FilesystemReader {
+            kind: self.kind,
+            block_size: self.superblock.block_size,
+            block_log: self.superblock.block_log,
+            compressor: self.superblock.compressor,
+            compression_options: self.compression_options,
+            mod_time: self.superblock.mod_time,
+            id_table: self.id.clone(),
+            fragments: self.fragments,
+            root,
+            reader: RefCell::new(Box::new(self.file)),
+            cache: RefCell::new(Cache::default()),
+        };
+        Ok(filesystem)
     }
 }

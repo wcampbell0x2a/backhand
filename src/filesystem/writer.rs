@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::ffi::OsStr;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
 use std::rc::Rc;
@@ -294,7 +293,8 @@ impl<'a> FilesystemWriter<'a> {
             .ok_or(BackhandError::InvalidFilePath)?;
 
         let node = Node::new(path, Rc::clone(&file), header, node);
-        dir.insert(node)
+        dir.insert(node)?;
+        Ok(())
     }
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
@@ -308,7 +308,8 @@ impl<'a> FilesystemWriter<'a> {
     ) -> Result<(), BackhandError> {
         let reader = RefCell::new(Box::new(reader));
         let new_file = InnerNode::File(SquashfsFileWriter::UserDefined(reader));
-        self.insert_node(path, header, new_file)
+        self.insert_node(path, header, new_file)?;
+        Ok(())
     }
 
     /// Take a mutable reference to existing file at `find_path`
@@ -348,7 +349,8 @@ impl<'a> FilesystemWriter<'a> {
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
         let new_symlink = InnerNode::Symlink(SquashfsSymlink { link: link.into() });
-        self.insert_node(path, header, new_symlink)
+        self.insert_node(path, header, new_symlink)?;
+        Ok(())
     }
 
     /// Insert empty `dir` at `path`
@@ -360,7 +362,8 @@ impl<'a> FilesystemWriter<'a> {
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
         let new_dir = InnerNode::Dir(SquashfsDir::default());
-        self.insert_node(path, header, new_dir)
+        self.insert_node(path, header, new_dir)?;
+        Ok(())
     }
 
     /// Recursively create an empty directory and all of its parent components
@@ -372,43 +375,37 @@ impl<'a> FilesystemWriter<'a> {
         path: P,
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
-        //this function is just a helper to convert the iter into recursive,
-        //this is not exacly the most elegant solution, but works here
-        fn create_dir_inside<'a, 'b, 'c>(
-            fullpath: &mut PathBuf,
-            mut iter_dir: impl Iterator<Item = &'b OsStr> + 'b,
-            dir: &'c mut SquashfsDir<SquashfsFileWriter<'a>>,
-            header: NodeHeader,
-        ) -> Result<(), BackhandError> {
-            let filename = if let Some(filename) = iter_dir.next() {
-                fullpath.push(filename);
-                Rc::from(filename)
+        //the search path root prefix is optional, so remove it if present to
+        //not affect the search
+        let find_path = normalize_squashfs_path(path.as_ref())?;
+        let mut path_iter = find_path.iter();
+        //the fist file, need to be root "/"
+        assert_eq!(path_iter.next(), Some(Component::RootDir.as_os_str()));
+
+        let mut fullpath = PathBuf::from(Component::RootDir.as_os_str());
+        let mut current_node = self.root.mut_dir().unwrap();
+        for file in path_iter {
+            fullpath.push(file);
+            let dir = if current_node.get_mut(file).is_none() {
+                //if the dir don't exists, create it
+                let new_node = current_node.insert(Node::new(
+                    fullpath.clone(),
+                    Rc::from(file),
+                    header,
+                    InnerNode::Dir(SquashfsDir::default()),
+                ))?;
+                new_node.mut_dir().unwrap()
             } else {
-                //no more dirs, just finish it
-                return Ok(());
+                //if exists, but is not a directory, return an error
+                current_node
+                    .get_mut(file)
+                    .unwrap()
+                    .mut_dir()
+                    .ok_or(BackhandError::InvalidFilePath)?
             };
-            //if directory doesn't exist, create it
-            match dir.insert(Node::new(
-                fullpath.clone(),
-                filename,
-                header,
-                InnerNode::Dir(SquashfsDir::default()),
-            )) {
-                Ok(_) | Err(BackhandError::DuplicatedFileName) => {},
-                e @ Err(_) => return e,
-            };
-            //then go creating dirs inside of it
-            create_dir_inside(fullpath, iter_dir, dir, header)
+            current_node = dir;
         }
-        //create a list of ancestors and iterate over then from the
-        //base to the directory file
-        let path = normalize_squashfs_path(path.as_ref())?;
-        create_dir_inside(
-            &mut PathBuf::from(Component::RootDir.as_os_str()),
-            path.iter().skip(1),
-            self.root.mut_dir().unwrap(),
-            header,
-        )
+        Ok(())
     }
 
     /// Insert character device with `device_number` at `path`
@@ -421,7 +418,8 @@ impl<'a> FilesystemWriter<'a> {
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
         let new_device = InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number });
-        self.insert_node(path, header, new_device)
+        self.insert_node(path, header, new_device)?;
+        Ok(())
     }
 
     /// Insert block device with `device_number` at `path`
@@ -434,7 +432,8 @@ impl<'a> FilesystemWriter<'a> {
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
         let new_device = InnerNode::BlockDevice(SquashfsBlockDevice { device_number });
-        self.insert_node(path, header, new_device)
+        self.insert_node(path, header, new_device)?;
+        Ok(())
     }
 
     /// Same as [`Self::write`], but seek'ing to `offset` in `w` before reading. This offset

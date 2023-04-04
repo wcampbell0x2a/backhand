@@ -381,18 +381,18 @@ impl<T> SquashfsDir<T> {
         self.get_index(filename).map(|i| &self.children[i])
     }
 
-    pub fn get_mut(&mut self, filename: &OsStr) -> Option<&mut Node<T>> {
+    pub fn get_mut<'a>(&'a mut self, filename: &OsStr) -> Option<&'a mut Node<T>> {
         self.get_index(filename).map(|i| &mut self.children[i])
     }
 
-    pub fn insert(&mut self, new: Node<T>) -> Result<(), BackhandError> {
+    pub fn insert(&mut self, new: Node<T>) -> Result<&mut Node<T>, BackhandError> {
         match self.children.binary_search(&new) {
             //this path is already in this directory
             Ok(_i) => Err(BackhandError::DuplicatedFileName),
             //insert at this position
             Err(i) => {
                 self.children.insert(i, new);
-                Ok(())
+                Ok(&mut self.children[i])
             },
         }
     }

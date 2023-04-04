@@ -10,7 +10,7 @@ use crate::error::BackhandError;
 use crate::filesystem::reader::SquashfsRawData;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::fragment::Fragment;
-use crate::reader::{ReadSeek, WriteSeek};
+use crate::reader::WriteSeek;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
@@ -118,9 +118,9 @@ impl DataWriter {
 
     /// Add to data writer, either a pre-compressed Data or Fragment
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
-    pub(crate) fn just_copy_it<W: WriteSeek, R: ReadSeek>(
+    pub(crate) fn just_copy_it<W: WriteSeek>(
         &mut self,
-        mut reader: SquashfsRawData<'_, R>,
+        mut reader: SquashfsRawData<'_>,
         writer: &mut W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it

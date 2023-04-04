@@ -85,7 +85,7 @@ fn main() {
     }
 }
 
-fn list<R: std::io::Read + std::io::Seek>(filesystem: FilesystemReader<R>) {
+fn list(filesystem: FilesystemReader) {
     for node in filesystem.files() {
         let path = &node.fullpath;
         println!("{}", path.display());
@@ -176,11 +176,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
     }
 }
 
-fn extract_all<R: std::io::Read + std::io::Seek>(
-    args: &Args,
-    filesystem: FilesystemReader<R>,
-    root_process: bool,
-) {
+fn extract_all(args: &Args, filesystem: FilesystemReader, root_process: bool) {
     // TODO: fixup perms for this?
     let _ = fs::create_dir_all(&args.dest);
 

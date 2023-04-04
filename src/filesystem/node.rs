@@ -15,7 +15,7 @@ use crate::entry::Entry;
 use crate::inode::{BasicFile, InodeHeader};
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
-use crate::reader::{ReadSeek, WriteSeek};
+use crate::reader::WriteSeek;
 use crate::{BackhandError, FilesystemCompressor, FilesystemReaderFile, SuperBlock};
 
 /// File information for Node
@@ -137,7 +137,7 @@ impl<T> Node<T> {
     }
 }
 
-impl<'a, R: ReadSeek> Node<SquashfsFileWriter<'a, R>> {
+impl<'a> Node<SquashfsFileWriter<'a>> {
     pub(crate) fn write_data<W: WriteSeek>(
         &mut self,
         compressor: &FilesystemCompressor,
@@ -333,18 +333,18 @@ pub struct SquashfsFileReader {
 }
 
 /// Read file
-pub struct SquashfsFileWriter<'a, R: ReadSeek> {
-    pub reader: SquashfsFileSource<'a, R>,
+pub struct SquashfsFileWriter<'a> {
+    pub reader: SquashfsFileSource<'a>,
 }
 
-impl<'a, R: ReadSeek> fmt::Debug for SquashfsFileWriter<'a, R> {
+impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FileWriter").finish()
     }
 }
-pub enum SquashfsFileSource<'a, R: ReadSeek> {
+pub enum SquashfsFileSource<'a> {
     UserDefined(RefCell<Box<dyn Read + 'a>>),
-    SquashfsFile(FilesystemReaderFile<'a, R>),
+    SquashfsFile(FilesystemReaderFile<'a>),
 }
 
 /// Symlink for filesystem

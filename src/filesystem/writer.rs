@@ -13,12 +13,11 @@ use super::node::InnerNode;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataWriter;
 use crate::error::BackhandError;
-use crate::filesystem::dummy::DummyReadSeek;
 use crate::filesystem::node::SquashfsSymlink;
 use crate::fragment::Fragment;
 use crate::kind::Kind;
 use crate::metadata::{self, MetadataWriter};
-use crate::reader::{ReadSeek, WriteSeek};
+use crate::reader::WriteSeek;
 use crate::squashfs::{Id, SuperBlock};
 //use crate::tree::TreeNode;
 use crate::{
@@ -32,10 +31,8 @@ use crate::{
 /// - Use [`Self::default`] to create an empty SquashFS image without an original image. For example:
 /// ```rust
 /// # use std::time::SystemTime;
-/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter as Tmp, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra, DummyReadSeek};
+/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra};
 /// // Add empty default FilesytemWriter
-/// # //compiler figure this out for us, but here this is required
-/// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
 /// let mut fs = FilesystemWriter::default();
 /// fs.set_current_time();
 /// fs.set_block_size(DEFAULT_BLOCK_SIZE);
@@ -63,7 +60,7 @@ use crate::{
 /// fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/file", header);
 /// ```
 #[derive(Debug)]
-pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
+pub struct FilesystemWriter<'a> {
     pub(crate) kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub(crate) block_size: u32,
@@ -75,20 +72,20 @@ pub struct FilesystemWriter<'a, R: ReadSeek = DummyReadSeek> {
     /// Compressor used when writing
     pub(crate) compressor: FilesystemCompressor,
     /// All files and directories in filesystem, including root
-    pub(crate) root: Node<SquashfsFileWriter<'a, R>>,
+    pub(crate) root: Node<SquashfsFileWriter<'a>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
     pub(crate) pad_len: u32,
 }
 
-impl<R: ReadSeek> Default for FilesystemWriter<'_, R> {
+impl Default for FilesystemWriter<'_> {
     /// Create default FilesystemWriter
     ///
     /// block_size: [`DEFAULT_BLOCK_SIZE`], compressor: default XZ compression, no nodes,
     /// kind: [`Kind::default()`], and mod_time: `0`.
     fn default() -> Self {
         let block_size = DEFAULT_BLOCK_SIZE;
-        let root: Node<SquashfsFileWriter<R>> = Node::new_root(NodeHeader::default());
+        let root: Node<SquashfsFileWriter> = Node::new_root(NodeHeader::default());
         Self {
             block_size,
             mod_time: 0,
@@ -102,7 +99,7 @@ impl<R: ReadSeek> Default for FilesystemWriter<'_, R> {
     }
 }
 
-impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
+impl<'a> FilesystemWriter<'a> {
     /// Set block size
     ///
     /// # Panics
@@ -119,9 +116,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ///
     /// # Example: Set to `Wed Oct 19 01:26:15 2022`
     /// ```rust
-    /// # use backhand::{FilesystemWriter as Tmp, kind, DummyReadSeek};
-    /// # //compiler figure this out for us, but here this is required
-    /// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
+    /// # use backhand::{FilesystemWriter, kind};
     /// let mut fs = FilesystemWriter::default();
     /// fs.set_time(0x634f_5237);
     /// ```
@@ -141,9 +136,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ///
     /// # Example: Set kind to default V4.0
     /// ```rust
-    /// # use backhand::{FilesystemWriter as Tmp, kind, DummyReadSeek};
-    /// # //compiler figure this out for us, but here this is required
-    /// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
+    /// # use backhand::{FilesystemWriter, kind};
     /// let mut fs = FilesystemWriter::default();
     /// fs.set_kind(kind::LE_V4_0);
     /// ```
@@ -155,9 +148,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ///
     /// # Example
     ///```rust
-    /// # use backhand::{FilesystemWriter as Tmp, DummyReadSeek};
-    /// # //compiler figure this out for us, but here this is required
-    /// # type FilesystemWriter<'a> = Tmp::<'a, DummyReadSeek>;
+    /// # use backhand::FilesystemWriter;
     /// let mut fs = FilesystemWriter::default();
     /// fs.set_root_mode(0o777);
     /// ```
@@ -205,9 +196,9 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     fn from_children(
-        reader: &'a FilesystemReader<R>,
+        reader: &'a FilesystemReader,
         children: &'a SquashfsDir<SquashfsFileReader>,
-    ) -> Result<SquashfsDir<SquashfsFileWriter<'a, R>>, BackhandError> {
+    ) -> Result<SquashfsDir<SquashfsFileWriter<'a>>, BackhandError> {
         let children = children
             .children
             .iter()
@@ -243,7 +234,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     }
 
     /// Inherit filesystem structure and properties from `reader`
-    pub fn from_fs_reader(reader: &'a FilesystemReader<R>) -> Result<Self, BackhandError> {
+    pub fn from_fs_reader(reader: &'a FilesystemReader) -> Result<Self, BackhandError> {
         let root = if let InnerNode::Dir(root_dir) = &reader.root.inner {
             let fullpath = reader.root.fullpath.clone();
             let path = Rc::clone(&reader.root.path);
@@ -269,7 +260,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     fn mut_node<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut Node<SquashfsFileWriter<'a, R>>> {
+    ) -> Option<&mut Node<SquashfsFileWriter<'a>>> {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
         let find_path = normalize_squashfs_path(find_path.as_ref()).ok()?;
@@ -289,7 +280,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
         &mut self,
         path: P,
         mut header: NodeHeader,
-        node: InnerNode<SquashfsFileWriter<'a, R>>,
+        node: InnerNode<SquashfsFileWriter<'a>>,
     ) -> Result<(), BackhandError> {
         // create uid and replace gid with index
         header.gid = self.lookup_add_id(header.gid as u32);
@@ -332,7 +323,7 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     pub fn mut_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut SquashfsFileWriter<'a, R>> {
+    ) -> Option<&mut SquashfsFileWriter<'a>> {
         self.mut_node(find_path).and_then(|node| {
             if let InnerNode::File(file) = &mut node.inner {
                 Some(file)
@@ -391,10 +382,10 @@ impl<'a, R: ReadSeek> FilesystemWriter<'a, R> {
     ) -> Result<(), BackhandError> {
         //this function is just a helper to convert the iter into recursive,
         //this is not exacly the most elegant solution, but works here
-        fn create_dir_inside<'a, 'b, 'c, R: ReadSeek>(
+        fn create_dir_inside<'a, 'b, 'c>(
             fullpath: &mut PathBuf,
             mut iter_dir: impl Iterator<Item = &'b OsStr> + 'b,
-            dir: &'c mut Node<SquashfsFileWriter<'a, R>>,
+            dir: &'c mut Node<SquashfsFileWriter<'a>>,
             header: NodeHeader,
         ) -> Result<(), BackhandError> {
             let filename = if let Some(filename) = iter_dir.next() {

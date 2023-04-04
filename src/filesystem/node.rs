@@ -122,6 +122,13 @@ impl<T> Node<T> {
         self.dir().map_or(false, |nodes| !nodes.children.is_empty())
     }
 
+    /// iterator for this file and all files inside this one
+    pub fn all_children(&self) -> impl Iterator<Item = &Node<T>> {
+        [self]
+            .into_iter()
+            .chain(self.dir().into_iter().flat_map(|d| d.files()))
+    }
+
     ///number of nodes in this tree
     pub(crate) fn inode_number(&self) -> usize {
         match &self.inner {
@@ -395,6 +402,15 @@ impl<T> SquashfsDir<T> {
                 Ok(&mut self.children[i])
             },
         }
+    }
+
+    /// iterator for all files inside this dir
+    pub fn files(&self) -> impl Iterator<Item = &Node<T>> {
+        self.children.iter().flat_map(|c| {
+            let children = c.all_children();
+            let dyn_children: Box<dyn Iterator<Item = _>> = Box::new(children);
+            dyn_children
+        })
     }
 }
 

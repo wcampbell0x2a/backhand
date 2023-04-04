@@ -67,7 +67,6 @@ mod squashfs;
 
 pub use crate::data::DataSize;
 pub use crate::error::BackhandError;
-pub use crate::filesystem::dummy::DummyReadSeek;
 pub use crate::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,

@@ -1,8 +1,7 @@
 //! Read from on-disk image
 
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::io::SeekFrom;
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
@@ -517,7 +516,7 @@ impl<R: ReadSeek> Squashfs<R> {
     fn extract_dir(
         &self,
         fullpath: &mut PathBuf,
-        nodes: &mut HashMap<Rc<OsStr>, Node<SquashfsFileReader>>,
+        nodes: &mut SquashfsDir<SquashfsFileReader>,
         dir_inode: &Inode,
     ) -> Result<(), BackhandError> {
         let dirs = match &dir_inode.inner {
@@ -552,26 +551,18 @@ impl<R: ReadSeek> Squashfs<R> {
                     let new_path = entry.name();
                     fullpath.push(&new_path);
 
-                    match entry.t {
+                    let inner: InnerNode<SquashfsFileReader> = match entry.t {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
-                            let path = Rc::from(new_path.as_os_str());
-                            let mut children = HashMap::new();
+                            let mut dir: SquashfsDir<SquashfsFileReader> =
+                                SquashfsDir { children: vec![] };
                             // its a dir, extract all children inodes
-                            self.extract_dir(fullpath, &mut children, found_inode)?;
-
-                            let inner = InnerNode::Dir(SquashfsDir { children });
-                            let node =
-                                Node::new(fullpath.clone(), Rc::clone(&path), header.into(), inner);
-                            if let Some(_dup_file) = nodes.insert(Rc::clone(&path), node) {
-                                return Err(BackhandError::DuplicatedFileName);
-                            }
+                            self.extract_dir(fullpath, &mut dir, found_inode)?;
+                            InnerNode::Dir(dir)
                         },
                         // BasicFile
                         InodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
-                            let path = Rc::from(new_path.as_os_str());
-                            let header = header.into();
                             let basic = match &found_inode.inner {
                                 InodeInner::BasicFile(file) => file.clone(),
                                 InodeInner::ExtendedFile(file) => file.into(),
@@ -581,52 +572,30 @@ impl<R: ReadSeek> Squashfs<R> {
                                     ))
                                 },
                             };
-                            let inner = InnerNode::File(SquashfsFileReader { basic });
-                            let node = Node::new(fullpath.clone(), Rc::clone(&path), header, inner);
-                            if let Some(_dup_file) = nodes.insert(path, node) {
-                                return Err(BackhandError::DuplicatedFileName);
-                            }
+                            InnerNode::File(SquashfsFileReader { basic })
                         },
                         // Basic Symlink
                         InodeId::BasicSymlink => {
                             let link = self.symlink(found_inode)?;
-                            let path = Rc::from(new_path.as_os_str());
-                            let inner = InnerNode::Symlink(SquashfsSymlink { link });
-                            let node =
-                                Node::new(fullpath.clone(), Rc::clone(&path), header.into(), inner);
-                            if let Some(_dup_file) = nodes.insert(path, node) {
-                                return Err(BackhandError::DuplicatedFileName);
-                            }
+                            InnerNode::Symlink(SquashfsSymlink { link })
                         },
                         // Basic CharacterDevice
                         InodeId::BasicCharacterDevice => {
                             let device_number = self.char_device(found_inode)?;
-                            let path = Rc::from(new_path.as_os_str());
-                            let inner = InnerNode::CharacterDevice(SquashfsCharacterDevice {
-                                device_number,
-                            });
-                            let node =
-                                Node::new(fullpath.clone(), Rc::clone(&path), header.into(), inner);
-                            if let Some(_dup_file) = nodes.insert(path, node) {
-                                return Err(BackhandError::DuplicatedFileName);
-                            }
+                            InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number })
                         },
                         // Basic CharacterDevice
                         InodeId::BasicBlockDevice => {
                             let device_number = self.block_device(found_inode)?;
-                            let path = Rc::from(new_path.as_os_str());
-                            let inner =
-                                InnerNode::BlockDevice(SquashfsBlockDevice { device_number });
-                            let node =
-                                Node::new(fullpath.clone(), Rc::clone(&path), header.into(), inner);
-                            if let Some(_dup_file) = nodes.insert(path, node) {
-                                return Err(BackhandError::DuplicatedFileName);
-                            }
+                            InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
                         },
                         InodeId::ExtendedFile => {
                             return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
                         },
-                    }
+                    };
+                    let path = Rc::from(new_path.as_os_str());
+                    let node = Node::new(fullpath.clone(), Rc::clone(&path), header.into(), inner);
+                    nodes.insert(node)?;
                     fullpath.pop();
                 }
             }
@@ -687,7 +656,7 @@ impl<R: ReadSeek + 'static> Squashfs<R> {
         let mut root = Node::new_root(self.root_inode.header.into());
         self.extract_dir(
             &mut PathBuf::from("/"),
-            root.mut_inner_nodes().unwrap(),
+            root.mut_dir().unwrap(),
             &self.root_inode,
         )?;
 

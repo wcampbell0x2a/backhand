@@ -199,10 +199,10 @@ impl<'a> FilesystemWriter<'a> {
         reader: &'a FilesystemReader,
         children: &'a SquashfsDir<SquashfsFileReader>,
     ) -> Result<SquashfsDir<SquashfsFileWriter<'a>>, BackhandError> {
-        let children = children
+        let mut children: Vec<Node<_>> = children
             .children
             .iter()
-            .map(|(path, node)| {
+            .map(|node| {
                 let inner = match &node.inner {
                     InnerNode::File(file) => {
                         let reader = reader.file(&file.basic);
@@ -216,17 +216,17 @@ impl<'a> FilesystemWriter<'a> {
                     InnerNode::CharacterDevice(x) => InnerNode::CharacterDevice(x.clone()),
                     InnerNode::BlockDevice(x) => InnerNode::BlockDevice(x.clone()),
                 };
-                let path = Rc::clone(path);
                 let node = Node {
                     fullpath: node.fullpath.clone(),
-                    path: node.path.clone(),
+                    path: Rc::clone(&node.path),
                     header: node.header,
                     inner,
                     inode_id: None,
                 };
-                Ok((path, node))
+                Ok(node)
             })
             .collect::<Result<_, BackhandError>>()?;
+        children.sort();
         Ok(SquashfsDir { children })
     }
 
@@ -267,8 +267,8 @@ impl<'a> FilesystemWriter<'a> {
         assert_eq!(path_iter.next(), Some(Component::RootDir.as_os_str()));
 
         for path in path_iter {
-            let inner_nodes = current_node.mut_inner_nodes()?;
-            current_node = inner_nodes.get_mut(path)?;
+            let dir = current_node.mut_dir()?;
+            current_node = dir.get_mut(path)?;
         }
         Some(current_node)
     }
@@ -290,14 +290,11 @@ impl<'a> FilesystemWriter<'a> {
 
         let dir = self
             .mut_node(parent)
-            .and_then(Node::mut_inner_nodes)
+            .and_then(Node::mut_dir)
             .ok_or(BackhandError::InvalidFilePath)?;
 
         let node = Node::new(path, Rc::clone(&file), header, node);
-        if let Some(_dup_file) = dir.insert(file, node) {
-            return Err(BackhandError::DuplicatedFileName);
-        }
-        Ok(())
+        dir.insert(node)
     }
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
@@ -380,7 +377,7 @@ impl<'a> FilesystemWriter<'a> {
         fn create_dir_inside<'a, 'b, 'c>(
             fullpath: &mut PathBuf,
             mut iter_dir: impl Iterator<Item = &'b OsStr> + 'b,
-            dir: &'c mut Node<SquashfsFileWriter<'a>>,
+            dir: &'c mut SquashfsDir<SquashfsFileWriter<'a>>,
             header: NodeHeader,
         ) -> Result<(), BackhandError> {
             let filename = if let Some(filename) = iter_dir.next() {
@@ -390,21 +387,18 @@ impl<'a> FilesystemWriter<'a> {
                 //no more dirs, just finish it
                 return Ok(());
             };
-            let entry = dir
-                .mut_inner_nodes()
-                .ok_or(BackhandError::InvalidFilePath)?
-                .entry(Rc::clone(&filename));
             //if directory doesn't exist, create it
-            let entry = entry.or_insert_with(|| {
-                Node::new(
-                    fullpath.clone(),
-                    filename,
-                    header,
-                    InnerNode::Dir(SquashfsDir::default()),
-                )
-            });
+            match dir.insert(Node::new(
+                fullpath.clone(),
+                filename,
+                header,
+                InnerNode::Dir(SquashfsDir::default()),
+            )) {
+                Ok(_) | Err(BackhandError::DuplicatedFileName) => {},
+                e @ Err(_) => return e,
+            };
             //then go creating dirs inside of it
-            create_dir_inside(fullpath, iter_dir, entry, header)
+            create_dir_inside(fullpath, iter_dir, dir, header)
         }
         //create a list of ancestors and iterate over then from the
         //base to the directory file
@@ -412,7 +406,7 @@ impl<'a> FilesystemWriter<'a> {
         create_dir_inside(
             &mut PathBuf::from(Component::RootDir.as_os_str()),
             path.iter().skip(1),
-            &mut self.root,
+            self.root.mut_dir().unwrap(),
             header,
         )
     }

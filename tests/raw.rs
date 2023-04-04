@@ -11,8 +11,6 @@ use test_assets::TestAssetDef;
 #[test]
 #[cfg(feature = "xz")]
 fn test_raw_00() {
-    use backhand::DummyReadSeek;
-
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
         hash: "e3d8f94f8402412ecf742d44680f1dd5d8fd28cc3d1a502e5fcfcc9e2f5f949a".to_string(),
@@ -45,7 +43,7 @@ fn test_raw_00() {
     let time = 0x634f_5237;
 
     // (some of these are already set with default(), but just testing...)
-    let mut fs: FilesystemWriter<DummyReadSeek> = FilesystemWriter::default();
+    let mut fs: FilesystemWriter = FilesystemWriter::default();
     fs.set_time(time);
     fs.set_block_size(DEFAULT_BLOCK_SIZE);
     fs.set_only_root_id();

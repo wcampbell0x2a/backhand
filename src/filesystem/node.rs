@@ -1,6 +1,5 @@
 use core::fmt;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -50,13 +49,30 @@ impl From<InodeHeader> for NodeHeader {
 }
 
 /// Filesystem Node
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct Node<T> {
     pub fullpath: PathBuf,
     pub path: Rc<OsStr>,
     pub header: NodeHeader,
     pub inner: InnerNode<T>,
     pub(crate) inode_id: Option<u32>,
+}
+
+impl<T> PartialEq for Node<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.fullpath.eq(&other.fullpath)
+    }
+}
+impl<T> Eq for Node<T> {}
+impl<T> PartialOrd for Node<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl<T> Ord for Node<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.fullpath.cmp(&other.fullpath)
+    }
 }
 
 impl<T> Node<T> {
@@ -88,38 +104,29 @@ impl<T> Node<T> {
         }
     }
 
-    pub(crate) fn iter_inner_nodes<'a>(&'a self) -> impl Iterator<Item = &'a Node<T>> {
-        let inner: Box<dyn Iterator<Item = &'a Node<T>>> = Box::new(
-            self.inner_nodes()
-                .into_iter()
-                .flat_map(|nodes| nodes.values()),
-        );
-        [self].into_iter().chain(inner)
-    }
-
-    pub(crate) fn mut_inner_nodes(&mut self) -> Option<&mut HashMap<Rc<OsStr>, Node<T>>> {
+    pub(crate) fn mut_dir(&mut self) -> Option<&mut SquashfsDir<T>> {
         match &mut self.inner {
-            InnerNode::Dir(node) => Some(&mut node.children),
+            InnerNode::Dir(node) => Some(node),
             _ => None,
         }
     }
 
-    pub fn inner_nodes(&self) -> Option<&HashMap<Rc<OsStr>, Node<T>>> {
+    pub fn dir(&self) -> Option<&SquashfsDir<T>> {
         match &self.inner {
-            InnerNode::Dir(node) => Some(&node.children),
+            InnerNode::Dir(node) => Some(node),
             _ => None,
         }
     }
 
     fn have_children(&self) -> bool {
-        self.inner_nodes().map_or(false, |nodes| !nodes.is_empty())
+        self.dir().map_or(false, |nodes| !nodes.children.is_empty())
     }
 
     ///number of nodes in this tree
     pub(crate) fn inode_number(&self) -> usize {
         match &self.inner {
             InnerNode::Dir(node) => {
-                let num_children: usize = node.children.values().map(Node::inode_number).sum();
+                let num_children: usize = node.children.iter().map(Node::inode_number).sum();
                 num_children + 1
             },
             _ => 1,
@@ -130,9 +137,9 @@ impl<T> Node<T> {
         self.inode_id = Some(*inode_counter);
         *inode_counter += 1;
 
-        self.mut_inner_nodes()
+        self.mut_dir()
             .into_iter()
-            .flat_map(|nodes| nodes.values_mut())
+            .flat_map(|nodes| nodes.children.iter_mut())
             .for_each(|child| child.calculate_inode(inode_counter));
     }
 }
@@ -175,7 +182,7 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
                 *file = SquashfsFileWriter::Consumed(filesize, added);
             },
             InnerNode::Dir(dir) => {
-                dir.children.values_mut().try_for_each(|child| {
+                dir.children.iter_mut().try_for_each(|child| {
                     child.write_data(compressor, block_size, writer, data_writer)
                 })?;
             },
@@ -203,7 +210,7 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
             return Ok((None, 0));
         }
 
-        let dir = self.inner_nodes().unwrap();
+        let dir = self.dir().unwrap();
 
         // ladies and gentlemen, we have a directory
         let mut write_entries = vec![];
@@ -213,7 +220,7 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
         let this_inode = self.inode_id.unwrap();
 
         // tree has children, this is a Dir, get information of every child node
-        for child in dir.values() {
+        for child in dir.children.iter() {
             let (l_dir_entries, _) =
                 child.write_inode_dir(inode_writer, dir_writer, this_inode, superblock, kind)?;
             if let Some(entry) = l_dir_entries {
@@ -222,7 +229,7 @@ impl<'a> Node<SquashfsFileWriter<'a>> {
         }
 
         // write child inodes
-        for node in dir.values().filter(|c| !c.have_children()) {
+        for node in dir.children.iter().filter(|c| !c.have_children()) {
             let node_id = node.inode_id.unwrap();
             let entry = match &node.inner {
                 InnerNode::Dir(_dir) => Entry::path(
@@ -354,12 +361,39 @@ pub struct SquashfsSymlink {
 /// Directory for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsDir<T> {
-    pub children: HashMap<Rc<OsStr>, Node<T>>,
+    pub children: Vec<Node<T>>,
 }
 impl<T> Default for SquashfsDir<T> {
     fn default() -> Self {
         Self {
-            children: HashMap::default(),
+            children: Vec::default(),
+        }
+    }
+}
+impl<T> SquashfsDir<T> {
+    fn get_index(&self, filename: &OsStr) -> Option<usize> {
+        self.children
+            .binary_search_by(|node| node.path.as_ref().cmp(filename))
+            .ok()
+    }
+
+    pub fn get(&self, filename: &OsStr) -> Option<&Node<T>> {
+        self.get_index(filename).map(|i| &self.children[i])
+    }
+
+    pub fn get_mut(&mut self, filename: &OsStr) -> Option<&mut Node<T>> {
+        self.get_index(filename).map(|i| &mut self.children[i])
+    }
+
+    pub fn insert(&mut self, new: Node<T>) -> Result<(), BackhandError> {
+        match self.children.binary_search(&new) {
+            //this path is already in this directory
+            Ok(_i) => Err(BackhandError::DuplicatedFileName),
+            //insert at this position
+            Err(i) => {
+                self.children.insert(i, new);
+                Ok(())
+            },
         }
     }
 }

@@ -159,7 +159,13 @@ impl FilesystemReader {
 
     /// return a iterator of all files
     pub fn files(&self) -> impl Iterator<Item = &Node<SquashfsFileReader>> {
-        self.root.iter_inner_nodes()
+        let inner: Box<dyn Iterator<Item = &Node<SquashfsFileReader>>> = Box::new(
+            self.root
+                .dir()
+                .into_iter()
+                .flat_map(|nodes| nodes.children.iter()),
+        );
+        [&self.root].into_iter().chain(inner)
     }
 }
 

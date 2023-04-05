@@ -20,10 +20,10 @@ pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>
     cmd.assert().code(&[0] as &[i32]);
 
     let new_dir = tempdir().unwrap();
-    Command::new("unsquashfs")
+    let cmd = Command::new("unsquashfs")
         .args([
             "-d",
-            new_dir.path().to_str().unwrap(),
+            new_dir.path().join("squashfs-root").to_str().unwrap(),
             "-o",
             &control_offset.unwrap_or(0).to_string(),
             // we don't run as root, avoid special file errors
@@ -31,9 +31,9 @@ pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>
             "-no-exit-code",
             new,
         ])
-        .assert()
-        .code(&[0] as &[i32]);
+        .unwrap();
+    cmd.assert().code(&[0] as &[i32]);
 
-    let d = dir_diff::is_different(control_dir.path(), new_dir.path());
+    let d = dir_diff::is_different(control_dir.path(), new_dir.path().join("squashfs-root"));
     assert!(!d.expect("couldn't compare dirs"));
 }

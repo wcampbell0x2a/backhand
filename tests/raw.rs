@@ -43,7 +43,7 @@ fn test_raw_00() {
     let time = 0x634f_5237;
 
     // (some of these are already set with default(), but just testing...)
-    let mut fs = FilesystemWriter::default();
+    let mut fs: FilesystemWriter = FilesystemWriter::default();
     fs.set_time(time);
     fs.set_block_size(DEFAULT_BLOCK_SIZE);
     fs.set_only_root_id();
@@ -53,18 +53,20 @@ fn test_raw_00() {
     fs.set_kib_padding(8);
 
     //don't do anything if the directory exists
-    fs.push_dir_all("usr/bin", o_header);
+    fs.push_dir_all("usr/bin", o_header).unwrap();
     fs.push_file(
         std::io::Cursor::new(vec![0x00, 0x01]),
         "usr/bin/heyo",
         header,
-    );
-    fs.push_dir_all("this/is/a", o_header);
+    )
+    .unwrap();
+    fs.push_dir_all("this/is/a", o_header).unwrap();
     fs.push_file(
         std::io::Cursor::new(vec![0x0f; 0xff]),
         "this/is/a/file",
         header,
-    );
+    )
+    .unwrap();
 
     // create the modified squashfs
     let mut output = std::fs::File::create(&new_path).unwrap();

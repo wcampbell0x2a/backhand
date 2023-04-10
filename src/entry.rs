@@ -237,15 +237,17 @@ impl<'a> Entry<'a> {
         dir
     }
 
-    /// Create alphabetically sorted entries
+    /// Create entries, input need to be alphabetically sorted
     #[instrument(skip_all)]
-    pub(crate) fn into_dir(mut entries: Vec<Self>) -> Vec<Dir> {
-        entries.sort_unstable_by(|a, b| a.name.cmp(b.name));
-
+    pub(crate) fn into_dir(entries: Vec<Self>) -> Vec<Dir> {
         let mut dirs = vec![];
         let mut creating_dir = vec![];
-        let mut creating_start = entries[0].start;
         let mut iter = entries.iter().peekable();
+        let mut creating_start = if let Some(entry) = iter.peek() {
+            entry.start
+        } else {
+            return vec![];
+        };
 
         while let Some(e) = iter.next() {
             creating_dir.push(e);
@@ -267,7 +269,7 @@ impl<'a> Entry<'a> {
             }
         }
 
-        trace!("DIIIIIIIIIIR: {:#02x?}", dirs);
+        trace!("DIIIIIIIIIIR: {:#02x?}", &dirs);
         dirs
     }
 }
@@ -289,19 +291,19 @@ mod tests {
             },
             Entry {
                 start: 1,
-                offset: 0x200,
-                inode: 6,
-                t: InodeId::BasicDirectory,
-                name_size: 0x01,
-                name: b"zz",
-            },
-            Entry {
-                start: 1,
                 offset: 0x300,
                 inode: 5,
                 t: InodeId::BasicDirectory,
                 name_size: 0x01,
                 name: b"bb",
+            },
+            Entry {
+                start: 1,
+                offset: 0x200,
+                inode: 6,
+                t: InodeId::BasicDirectory,
+                name_size: 0x01,
+                name: b"zz",
             },
         ];
 

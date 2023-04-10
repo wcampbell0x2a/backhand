@@ -5,7 +5,6 @@ use std::ffi::OsString;
 use std::io::SeekFrom;
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use deku::bitvec::{BitVec, BitView, Msb0};
 use deku::prelude::*;
@@ -15,7 +14,7 @@ use tracing::{error, info, instrument, trace};
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::Dir;
 use crate::error::BackhandError;
-use crate::filesystem::node::InnerNode;
+use crate::filesystem::node::{InnerNode, Nodes};
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
@@ -516,7 +515,7 @@ impl<R: ReadSeek> Squashfs<R> {
     fn extract_dir(
         &self,
         fullpath: &mut PathBuf,
-        nodes: &mut SquashfsDir<SquashfsFileReader>,
+        root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
     ) -> Result<(), BackhandError> {
         let dirs = match &dir_inode.inner {
@@ -554,11 +553,9 @@ impl<R: ReadSeek> Squashfs<R> {
                     let inner: InnerNode<SquashfsFileReader> = match entry.t {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
-                            let mut dir: SquashfsDir<SquashfsFileReader> =
-                                SquashfsDir { children: vec![] };
                             // its a dir, extract all children inodes
-                            self.extract_dir(fullpath, &mut dir, found_inode)?;
-                            InnerNode::Dir(dir)
+                            self.extract_dir(fullpath, root, found_inode)?;
+                            InnerNode::Dir(SquashfsDir::default())
                         },
                         // BasicFile
                         InodeId::BasicFile => {
@@ -593,14 +590,13 @@ impl<R: ReadSeek> Squashfs<R> {
                             return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
                         },
                     };
-                    let path = Rc::from(new_path.as_os_str());
-                    let node = Node::new(fullpath.clone(), Rc::clone(&path), header.into(), inner);
-                    nodes.insert(node)?;
+                    let node = Node::new(fullpath.clone(), header.into(), inner);
+                    root.nodes.push(node);
                     fullpath.pop();
                 }
             }
         }
-
+        //TODO: todo!("verify all the paths are valid");
         Ok(())
     }
 
@@ -653,12 +649,9 @@ impl<R: ReadSeek + 'static> Squashfs<R> {
     /// like structure in-memory
     #[instrument(skip_all)]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader, BackhandError> {
-        let mut root = Node::new_root(self.root_inode.header.into());
-        self.extract_dir(
-            &mut PathBuf::from("/"),
-            root.mut_dir().unwrap(),
-            &self.root_inode,
-        )?;
+        let mut root = Nodes::new_root(self.root_inode.header.into());
+        self.extract_dir(&mut PathBuf::from("/"), &mut root, &self.root_inode)?;
+        root.nodes.sort();
 
         let filesystem = FilesystemReader {
             kind: self.kind,

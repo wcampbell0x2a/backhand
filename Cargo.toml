@@ -27,6 +27,7 @@ clap = { version = "4.2.0", features = ["derive"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 byte-unit = "4.0.18"
 libc = "0.2.140"
+zune-inflate = "0.2.53"
 
 [features]
 default = ["xz", "gzip", "lzo", "zstd"]

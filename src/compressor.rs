@@ -1,6 +1,6 @@
 //! Types of supported compression algorithms
 
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Write};
 
 use deku::prelude::*;
 #[cfg(feature = "gzip")]
@@ -118,8 +118,13 @@ pub(crate) fn decompress(
     match compressor {
         #[cfg(feature = "gzip")]
         Compressor::Gzip => {
-            let mut decoder = flate2::read::ZlibDecoder::new(bytes);
-            decoder.read_to_end(out)?;
+            //let mut decoder = flate2::read::ZlibDecoder::new(bytes);
+            //decoder.read_to_end(out)?;
+
+            let mut decoder = zune_inflate::DeflateDecoder::new(bytes);
+            // panic on errors, because that's the cool way to go
+            let decompressed_data = decoder.decode_zlib().unwrap();
+            out.write_all(&decompressed_data)?;
         },
         #[cfg(feature = "xz")]
         Compressor::Xz => {

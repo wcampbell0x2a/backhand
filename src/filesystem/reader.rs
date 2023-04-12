@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::io::{Read, SeekFrom};
 
+use super::node::Nodes;
 use crate::compressor::{self, CompressionOptions, Compressor};
 use crate::data::DataSize;
 use crate::error::BackhandError;
@@ -79,7 +80,7 @@ pub struct FilesystemReader {
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
     /// All files and directories in filesystem
-    pub root: Node<SquashfsFileReader>,
+    pub root: Nodes<SquashfsFileReader>,
     // File reader
     pub(crate) reader: RefCell<Box<dyn ReadSeek>>,
     // Cache used in the decompression
@@ -159,7 +160,7 @@ impl FilesystemReader {
 
     /// iterator of all files, including the root
     pub fn files(&self) -> impl Iterator<Item = &Node<SquashfsFileReader>> {
-        self.root.all_children()
+        self.root.nodes.iter()
     }
 }
 

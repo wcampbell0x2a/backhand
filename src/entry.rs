@@ -2,13 +2,13 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::os::unix::prelude::OsStrExt;
 
-use tracing::{instrument, trace};
+use tracing::instrument;
 
 use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
 use crate::inode::{
-    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
-    InodeInner,
+    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory, Inode,
+    InodeHeader, InodeId, InodeInner,
 };
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
@@ -30,7 +30,7 @@ impl<'a> Entry<'a> {
         std::str::from_utf8(self.name).unwrap().to_string()
     }
 
-    /// Write data and metadata for path node
+    /// Write data and metadata for path node (Basic Directory or ExtendedDirectory)
     #[allow(clippy::too_many_arguments)]
     pub fn path(
         name: &'a OsStr,
@@ -38,25 +38,49 @@ impl<'a> Entry<'a> {
         inode: u32,
         parent_inode: u32,
         inode_writer: &mut MetadataWriter,
-        file_size: u16,
+        file_size: usize,
         block_offset: u16,
         block_index: u32,
         superblock: &SuperBlock,
         kind: Kind,
     ) -> Self {
-        let dir_inode = Inode {
-            id: InodeId::BasicDirectory,
-            header: InodeHeader {
-                inode_number: inode,
-                ..header.into()
-            },
-            inner: InodeInner::BasicDirectory(BasicDirectory {
-                block_index,
-                link_count: 2,
-                file_size,
-                block_offset,
-                parent_inode,
-            }),
+        // if entry won't fit in file_size of regular dir entry, create extended directory
+        let dir_inode = if file_size > u16::MAX as usize {
+            Inode {
+                id: InodeId::ExtendedDirectory,
+                header: InodeHeader {
+                    inode_number: inode,
+                    ..header.into()
+                },
+                inner: InodeInner::ExtendedDirectory(ExtendedDirectory {
+                    link_count: 2,
+                    file_size: file_size.try_into().unwrap(), // u32
+                    block_index,
+                    parent_inode,
+                    // TODO: Support Directory Index
+                    index_count: 0,
+                    block_offset,
+                    // TODO(#32): Support xattr
+                    xattr_index: 0xffff_ffff,
+                    // TODO: Support Directory Index
+                    dir_index: vec![],
+                }),
+            }
+        } else {
+            Inode {
+                id: InodeId::BasicDirectory,
+                header: InodeHeader {
+                    inode_number: inode,
+                    ..header.into()
+                },
+                inner: InodeInner::BasicDirectory(BasicDirectory {
+                    block_index,
+                    link_count: 2,
+                    file_size: file_size.try_into().unwrap(), // u16
+                    block_offset,
+                    parent_inode,
+                }),
+            }
         };
 
         dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
@@ -269,7 +293,6 @@ impl<'a> Entry<'a> {
             }
         }
 
-        trace!("DIIIIIIIIIIR: {:#02x?}", &dirs);
         dirs
     }
 }

@@ -21,7 +21,6 @@ use crate::kind::Kind;
 use crate::metadata::{self, MetadataWriter};
 use crate::reader::WriteSeek;
 use crate::squashfs::{Id, SuperBlock};
-//use crate::tree::TreeNode;
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
@@ -459,7 +458,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Create SquashFS file system from each node of Tree
     ///
-    /// This works my recursively creating Inodes and Dirs for each node in the tree. This also
+    /// This works by recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
     fn write_inode_dir<'b>(
@@ -521,7 +520,8 @@ impl<'a> FilesystemWriter<'a> {
                     kind,
                 ))
             },
-            InnerNode::Dir(_) => {},
+            // if dir, fall through
+            InnerNode::Dir(_) => (),
         };
 
         // ladies and gentlemen, we have a directory
@@ -569,7 +569,7 @@ impl<'a> FilesystemWriter<'a> {
             node_id.get().try_into().unwrap(),
             parent_node_id,
             inode_writer,
-            total_size.try_into().unwrap(),
+            total_size,
             block_offset,
             block_index,
             superblock,

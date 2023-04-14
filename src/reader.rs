@@ -12,6 +12,7 @@ use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::Inode;
 use crate::kinds::Kind;
+use crate::metadata::METADATA_MAXSIZE;
 use crate::squashfs::{Export, Id, SuperBlock};
 use crate::{fragment, metadata};
 
@@ -253,7 +254,7 @@ pub trait SquashFsReader: ReadSeek {
         let bv = buf.view_bits::<deku::bitvec::Msb0>();
         let (_, ptr) = u64::read(bv, kind.type_endian)?;
 
-        let block_count = (size as f32 / 8192_f32).ceil() as u64;
+        let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
 
         let ptr = ptr;
         trace!("ptr: {:02x?}", ptr);

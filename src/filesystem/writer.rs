@@ -18,7 +18,7 @@ use crate::error::BackhandError;
 use crate::filesystem::node::SquashfsSymlink;
 use crate::fragment::Fragment;
 use crate::kind::Kind;
-use crate::metadata::{self, MetadataWriter};
+use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
 use crate::squashfs::{Id, SuperBlock};
 //use crate::tree::TreeNode;
@@ -691,6 +691,7 @@ impl<'a> FilesystemWriter<'a> {
         Ok(superblock.bytes_used + pad_len as u64)
     }
 
+    /// TODO: Write like `write_frag_table` when ID's don't fit in one metadata
     fn write_id_table<W: Write + Seek>(
         &self,
         w: &mut W,
@@ -720,32 +721,76 @@ impl<'a> FilesystemWriter<'a> {
         Ok(())
     }
 
+    /// ```text
+    ///  ┌──────────────────────────────┐
+    ///  │Metadata                      │◄───┐
+    ///  │┌────────────────────────────┐│    │
+    ///  ││pointer to fragment block   ││    │
+    ///  │├────────────────────────────┤│    │
+    ///  ││pointer to fragment block   ││    │
+    ///  │└────────────────────────────┘│    │
+    ///  └──────────────────────────────┘    │
+    ///  ┌──────────────────────────────┐    │
+    ///  │Metadata                      │◄─┐ │
+    ///  │┌────────────────────────────┐│  │ │
+    ///  ││pointer to fragment block   ││  │ │
+    ///  │├────────────────────────────┤│  │ │
+    ///  ││pointer to fragment block   ││  │ │
+    ///  │└────────────────────────────┘│  │ │
+    ///  └──────────────────────────────┘  │ │
+    ///  ┌──────────────────────────────┐──│─│───►superblock.frag_table
+    ///  │Frag Table                    │  │ │
+    ///  │┌────────────────────────────┐│  │ │
+    ///  ││fragment0(u64)         ─────────│─┘
+    ///  │├────────────────────────────┤│  │
+    ///  ││fragment1(u64)         ─────────┘
+    ///  │└────────────────────────────┘│
+    ///  └──────────────────────────────┘
+    ///  ```
     fn write_frag_table<W: Write + Seek>(
         &self,
         w: &mut W,
         frag_table: Vec<Fragment>,
         write_superblock: &mut SuperBlock,
     ) -> Result<(), BackhandError> {
-        let frag_table_dat = w.stream_position()?;
-        let mut frag_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
+
+        let mut ptrs: Vec<u64> = vec![];
+        let mut frag_table_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
         for f in &frag_table {
+            // convert fragment ptr to bytes
             let mut bv = BitVec::new();
             f.write(&mut bv, self.kind)?;
-            frag_bytes.write_all(bv.as_raw_slice())?;
-        }
-        // write metdata_length
-        let mut bv = BitVec::new();
-        metadata::set_if_uncompressed(frag_bytes.len() as u16)
-            .write(&mut bv, self.kind.data_endian)?;
-        w.write_all(bv.as_raw_slice())?;
+            frag_table_bytes.write_all(bv.as_raw_slice())?;
 
-        w.write_all(&frag_bytes)?;
+            // once frag_table_bytes + next is over the maximum size of a metadata block, write
+            // them
+            if ((frag_table_bytes.len() + fragment::SIZE) > METADATA_MAXSIZE)
+                || *f == *frag_table.last().unwrap()
+            {
+                ptrs.push(w.stream_position()?);
+
+                let mut bv = BitVec::new();
+                // write metadata len
+                let len = metadata::set_if_uncompressed(frag_table_bytes.len() as u16);
+                len.write(&mut bv, self.kind.data_endian)?;
+                w.write_all(bv.as_raw_slice())?;
+                // write metadata bytes
+                w.write_all(&frag_table_bytes)?;
+
+                frag_table_bytes.clear();
+            }
+        }
+
+        // ptr position
         write_superblock.frag_table = w.stream_position()?;
         write_superblock.frag_count = frag_table.len() as u32;
 
-        let mut bv = BitVec::new();
-        frag_table_dat.write(&mut bv, self.kind.type_endian)?;
-        w.write_all(bv.as_raw_slice())?;
+        // write ptr
+        for ptr in ptrs {
+            let mut bv = BitVec::new();
+            ptr.write(&mut bv, self.kind.type_endian)?;
+            w.write_all(bv.as_raw_slice())?;
+        }
 
         Ok(())
     }

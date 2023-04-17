@@ -547,6 +547,7 @@ impl<'a> FilesystemWriter<'a> {
                 )
             })
             .collect::<Result<_, _>>()?;
+        let children_num = entries.len();
 
         // write dir
         let block_index = dir_writer.metadata_start;
@@ -567,6 +568,7 @@ impl<'a> FilesystemWriter<'a> {
             filename,
             node.header,
             node_id.get().try_into().unwrap(),
+            children_num,
             parent_node_id,
             inode_writer,
             total_size,

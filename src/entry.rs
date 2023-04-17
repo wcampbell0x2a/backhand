@@ -36,6 +36,7 @@ impl<'a> Entry<'a> {
         name: &'a OsStr,
         header: NodeHeader,
         inode: u32,
+        children_num: usize,
         parent_inode: u32,
         inode_writer: &mut MetadataWriter,
         file_size: usize,
@@ -53,7 +54,7 @@ impl<'a> Entry<'a> {
                     ..header.into()
                 },
                 inner: InodeInner::ExtendedDirectory(ExtendedDirectory {
-                    link_count: 2,
+                    link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u32
                     block_index,
                     parent_inode,
@@ -75,7 +76,7 @@ impl<'a> Entry<'a> {
                 },
                 inner: InodeInner::BasicDirectory(BasicDirectory {
                     block_index,
-                    link_count: 2,
+                    link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u16
                     block_offset,
                     parent_inode,

@@ -72,6 +72,22 @@ pub enum InodeId {
     BasicCharacterDevice = 5,
     ExtendedDirectory    = 8,
     ExtendedFile         = 9,
+    // TODO:
+    // Extended Symlink = 10
+    // Extended Block Device = 11
+    // Extended Character Device = 12
+    // Extended Named Pipe (FIFO) = 13
+    // Extended Socked = 14
+}
+
+impl InodeId {
+    pub(crate) fn into_base_type(self) -> Self {
+        match self {
+            Self::ExtendedDirectory => InodeId::BasicDirectory,
+            Self::ExtendedFile => InodeId::BasicFile,
+            _ => self,
+        }
+    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
@@ -133,18 +149,6 @@ pub struct BasicDirectory {
     pub file_size: u16,
     pub block_offset: u16,
     pub parent_inode: u32,
-}
-
-impl From<&ExtendedDirectory> for BasicDirectory {
-    fn from(ex_dir: &ExtendedDirectory) -> Self {
-        Self {
-            block_index: ex_dir.block_index,
-            link_count: ex_dir.link_count,
-            file_size: ex_dir.file_size as u16,
-            block_offset: ex_dir.block_offset,
-            parent_inode: ex_dir.parent_inode,
-        }
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

@@ -252,7 +252,7 @@ impl<'a> Entry<'a> {
             let new_entry = DirEntry {
                 offset: e.offset,
                 inode_offset: (e.inode - lowest_inode.unwrap()) as i16,
-                t: e.t,
+                t: e.t.into_base_type(),
                 name_size: e.name_size,
                 name: e.name.to_vec(),
             };

@@ -155,7 +155,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
         }
     } else if is_file {
         // bitwise-not if not rooted (disable write permissions for user/group). Following
-        // squashfs-tools/unsquashfs behaviour
+        // squashfs-tools/unsquashfs behavior
         mode &= !0o022;
     }
 
@@ -278,7 +278,7 @@ fn extract_all(args: &Args, filesystem: FilesystemReader, root_process: bool) {
                 let path = Path::new(&args.dest).join(path);
                 let _ = std::fs::create_dir(&path);
 
-                // These permissionsn are corrected later (user default permissions for now)
+                // These permissions are corrected later (user default permissions for now)
 
                 if args.info {
                     println!("[-] success, wrote {}", &path.display());

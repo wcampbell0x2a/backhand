@@ -1,12 +1,12 @@
 use std::fs::{self, File, Permissions};
-use std::io;
+use std::io::{self, BufReader};
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use backhand::kind::Kind;
 use backhand::{
-    FilesystemReader, InnerNode, NodeHeader, ReadSeek, Squashfs, SquashfsBlockDevice,
+    FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
 use clap::builder::{PossibleValuesParser, TypedValueParser};
@@ -66,7 +66,7 @@ fn main() {
 
     let args = Args::parse();
 
-    let file = File::open(&args.filesystem).unwrap();
+    let file = BufReader::new(File::open(&args.filesystem).unwrap());
     let squashfs =
         Squashfs::from_reader_with_offset_and_kind(file, args.offset, args.kind).unwrap();
     let root_process = unsafe { geteuid() == 0 };
@@ -92,7 +92,7 @@ fn list(filesystem: FilesystemReader) {
     }
 }
 
-fn stat<R: ReadSeek>(squashfs: Squashfs<R>) {
+fn stat(squashfs: Squashfs) {
     let superblock = squashfs.superblock;
     // show info about flags
     println!("{superblock:#08x?}");

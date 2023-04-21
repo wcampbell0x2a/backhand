@@ -690,6 +690,8 @@ impl<'a> FilesystemWriter<'a> {
 
         info!("Writing Finished");
 
+        //clean any cache, make sure the output is on disk
+        w.flush()?;
         Ok(superblock.bytes_used + u64::try_from(pad_len).unwrap())
     }
 

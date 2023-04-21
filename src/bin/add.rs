@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::BufReader;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
@@ -48,6 +49,7 @@ fn main() {
     // read of squashfs
     let file = File::open(args.image).unwrap();
     let meta = file.metadata().unwrap();
+    let file = BufReader::new(file);
 
     let mode = args.mode.unwrap_or(meta.mode() as u16) & 0xfff;
     let uid = args.uid.unwrap_or(meta.uid() as u16);

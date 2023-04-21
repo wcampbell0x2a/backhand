@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 use std::ffi::OsString;
-use std::io::SeekFrom;
+use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
 
@@ -17,8 +17,8 @@ use crate::error::BackhandError;
 use crate::filesystem::node::{InnerNode, Nodes};
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
-use crate::kinds::{Kind, LE_V4_0};
-use crate::reader::{ReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::kinds::Kind;
+use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::{
     metadata, FilesystemReader, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsSymlink,
@@ -223,7 +223,7 @@ pub(crate) struct Cache {
 /// Squashfs Image initial read information
 ///
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
-pub struct Squashfs<R: ReadSeek> {
+pub struct Squashfs {
     pub kind: Kind,
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
@@ -241,48 +241,46 @@ pub struct Squashfs<R: ReadSeek> {
     /// Id Lookup Table
     pub id: Vec<Id>,
     //file reader
-    file: R,
+    file: Box<dyn BufReadSeek>,
 }
 
-impl<R: ReadSeek> Squashfs<R> {
+impl Squashfs {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
-    pub fn from_reader(reader: R) -> Result<Squashfs<R>, BackhandError> {
-        Self::inner_from_reader(reader)
+    pub fn from_reader(reader: impl BufReadSeek + 'static) -> Result<Squashfs, BackhandError> {
+        Self::from_reader_with_offset(reader, 0)
     }
-}
 
-impl<R: ReadSeek> Squashfs<SquashfsReaderWithOffset<R>> {
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before Reading
     ///
     /// Uses default [`Kind`]: [`LE_V4_0`]
     pub fn from_reader_with_offset(
-        reader: R,
+        reader: impl BufReadSeek + 'static,
         offset: u64,
-    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, BackhandError> {
-        Self::inner_from_reader(SquashfsReaderWithOffset::new(reader, offset)?)
+    ) -> Result<Squashfs, BackhandError> {
+        Self::from_reader_with_offset_and_kind(reader, offset, Kind::default())
     }
 
     /// Same as [`Self::from_reader_with_offset`], but including custom `kind`
     pub fn from_reader_with_offset_and_kind(
-        reader: R,
+        reader: impl BufReadSeek + 'static,
         offset: u64,
         kind: Kind,
-    ) -> Result<Squashfs<SquashfsReaderWithOffset<R>>, BackhandError> {
-        Self::inner_from_reader_with_kind(SquashfsReaderWithOffset::new(reader, offset)?, kind)
+    ) -> Result<Squashfs, BackhandError> {
+        let reader: Box<dyn BufReadSeek> = if offset == 0 {
+            Box::new(reader)
+        } else {
+            let reader = SquashfsReaderWithOffset::new(reader, offset)?;
+            Box::new(reader)
+        };
+        Self::inner_from_reader_with_offset_and_kind(reader, kind)
     }
-}
 
-impl<R: ReadSeek> Squashfs<R> {
-    fn inner_from_reader(reader: R) -> Result<Squashfs<R>, BackhandError> {
-        Self::inner_from_reader_with_kind(reader, LE_V4_0)
-    }
-
-    fn inner_from_reader_with_kind(
-        mut reader: R,
+    fn inner_from_reader_with_offset_and_kind(
+        mut reader: Box<dyn BufReadSeek>,
         kind: Kind,
-    ) -> Result<Squashfs<R>, BackhandError> {
+    ) -> Result<Squashfs, BackhandError> {
         reader.rewind()?;
 
         // Size of metadata + optional compression options metadata block
@@ -643,9 +641,7 @@ impl<R: ReadSeek> Squashfs<R> {
         error!("block dev not found");
         Err(BackhandError::FileNotFound)
     }
-}
 
-impl<R: ReadSeek + 'static> Squashfs<R> {
     /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
     /// like structure in-memory
     #[instrument(skip_all)]

@@ -77,7 +77,7 @@ pub use crate::filesystem::writer::{
 };
 pub use crate::fragment::Fragment;
 pub use crate::inode::{BasicFile, Inode};
-pub use crate::reader::ReadSeek;
+pub use crate::reader::BufReadSeek;
 pub use crate::squashfs::{
     Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
     MIN_BLOCK_SIZE,

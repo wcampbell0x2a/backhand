@@ -1,7 +1,7 @@
 //! Reader traits
 
 use std::collections::HashMap;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 
 use deku::bitvec::{BitView, Msb0};
 use deku::prelude::*;
@@ -18,26 +18,36 @@ use crate::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file
 #[derive(Debug)]
-pub struct SquashfsReaderWithOffset<R: ReadSeek> {
+pub(crate) struct SquashfsReaderWithOffset<R: BufReadSeek> {
     io: R,
     /// Offset from start of file to squashfs
     offset: u64,
 }
 
-impl<R: ReadSeek> SquashfsReaderWithOffset<R> {
+impl<R: BufReadSeek> SquashfsReaderWithOffset<R> {
     pub fn new(mut io: R, offset: u64) -> std::io::Result<Self> {
         io.seek(SeekFrom::Start(offset))?;
         Ok(Self { io, offset })
     }
 }
 
-impl<R: ReadSeek> Read for SquashfsReaderWithOffset<R> {
+impl<R: BufReadSeek> BufRead for SquashfsReaderWithOffset<R> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        self.io.fill_buf()
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.io.consume(amt)
+    }
+}
+
+impl<R: BufReadSeek> Read for SquashfsReaderWithOffset<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.io.read(buf)
     }
 }
 
-impl<R: ReadSeek> Seek for SquashfsReaderWithOffset<R> {
+impl<R: BufReadSeek> Seek for SquashfsReaderWithOffset<R> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         let seek = match pos {
             SeekFrom::Start(start) => SeekFrom::Start(self.offset + start),
@@ -59,22 +69,26 @@ impl<T: Seek> SeekRewind for T {
     }
 }
 
-/// Pseudo-Trait for Read + Seek
+/// Pseudo-Trait for Read + SeekRewind
 pub trait ReadRewind: Read + SeekRewind {}
 impl<T: Read + SeekRewind> ReadRewind for T {}
 
-/// Pseudo-Trait for Read + Seek
-pub trait ReadSeek: Read + Seek {}
-impl<T: Read + Seek> ReadSeek for T {}
+/// Pseudo-Trait for BufRead + SeekRewind
+pub trait BufReadRewind: BufRead + SeekRewind {}
+impl<T: BufRead + SeekRewind> BufReadRewind for T {}
+
+/// Pseudo-Trait for BufRead + Seek
+pub trait BufReadSeek: BufRead + Seek {}
+impl<T: BufRead + Seek> BufReadSeek for T {}
 
 /// Pseudo-Trait for Write + Seek
 pub trait WriteSeek: Write + Seek {}
 impl<T: Write + Seek> WriteSeek for T {}
 
-impl<T: ReadSeek> SquashFsReader for T {}
+impl<T: BufReadSeek> SquashFsReader for T {}
 
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
-pub trait SquashFsReader: ReadSeek {
+pub trait SquashFsReader: BufReadSeek {
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
     #[instrument(skip_all)]
     fn inodes(

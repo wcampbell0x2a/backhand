@@ -522,15 +522,15 @@ impl<R: ReadSeek> Squashfs<R> {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
                 self.dir_from_index(
-                    basic_dir.block_index as u64,
-                    basic_dir.file_size as u32,
+                    basic_dir.block_index.try_into().unwrap(),
+                    basic_dir.file_size.try_into().unwrap(),
                     basic_dir.block_offset as usize,
                 )?
             },
             InodeInner::ExtendedDirectory(ext_dir) => {
                 trace!("EXT_DIR: {:#02x?}", ext_dir);
                 self.dir_from_index(
-                    ext_dir.block_index as u64,
+                    ext_dir.block_index.try_into().unwrap(),
                     ext_dir.file_size,
                     ext_dir.block_offset as usize,
                 )?
@@ -542,8 +542,9 @@ impl<R: ReadSeek> Squashfs<R> {
             for d in &dirs {
                 trace!("extracing entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
-                    let inode_key = (d.inode_num as i32 + entry.inode_offset as i32) as u32;
-                    trace!("extracing inode: {inode_key}");
+                    let inode_key = (d.inode_num as i32 + entry.inode_offset as i32)
+                        .try_into()
+                        .unwrap();
                     let found_inode = &self.inodes[&inode_key];
                     trace!("extracing inode: {found_inode:?}");
                     let header = found_inode.header;

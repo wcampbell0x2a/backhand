@@ -344,3 +344,61 @@ fn test_re815xe() {
     const TEST_PATH: &str = "test-assets/test_re815_xev160";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
 }
+
+#[test]
+#[cfg(feature = "xz")]
+fn test_archlinux_iso_rootfs() {
+    const FILE_NAME: &str = "airootfs.sfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "faa5cecaa23943a3412a4d6938994708fb9ffa33a622704e29c13a34fc1f0e28".to_string(),
+        url: format!(
+            "http://mirrors.edge.kernel.org/archlinux/iso/2023.03.01/arch/x86_64/{FILE_NAME}"
+        ),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_archlinux_iso_rootfs";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+}
+
+#[test]
+#[cfg(feature = "gzip")]
+fn test_many_files() {
+    const FILE_NAME: &str = "many_files.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "43723443fa8acedbd67384ba9b02806f8a1e53014282eb9c871aa78ec08a0e44".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_many_files/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_many_files";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+}
+
+#[test]
+#[cfg(feature = "gzip")]
+fn test_many_dirs() {
+    const FILE_NAME: &str = "many_dirs.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "2606237d69ebeee9a5da22a63c564921f3ec267c5377ddfbb3aa99409558daf0".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_many_dirs/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_many_dirs";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+}
+
+#[test]
+#[cfg(feature = "gzip")]
+fn test_few_dirs_many_files() {
+    const FILE_NAME: &str = "few_dirs_many_files.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "66543a46cf96d5e59b47203c421f7967ad552057f09c625fc08131325bc995bd".to_string(),
+        url: format!("wcampbell.dev/squashfs/testing/test_few_dirs_many_files/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/test_few_dirs_many_files";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+}

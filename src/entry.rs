@@ -2,13 +2,13 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::os::unix::prelude::OsStrExt;
 
-use tracing::{instrument, trace};
+use tracing::instrument;
 
 use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
 use crate::inode::{
-    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, Inode, InodeHeader, InodeId,
-    InodeInner,
+    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory, Inode,
+    InodeHeader, InodeId, InodeInner,
 };
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
@@ -30,33 +30,58 @@ impl<'a> Entry<'a> {
         std::str::from_utf8(self.name).unwrap().to_string()
     }
 
-    /// Write data and metadata for path node
+    /// Write data and metadata for path node (Basic Directory or ExtendedDirectory)
     #[allow(clippy::too_many_arguments)]
     pub fn path(
         name: &'a OsStr,
         header: NodeHeader,
         inode: u32,
+        children_num: usize,
         parent_inode: u32,
         inode_writer: &mut MetadataWriter,
-        file_size: u16,
+        file_size: usize,
         block_offset: u16,
         block_index: u32,
         superblock: &SuperBlock,
         kind: Kind,
     ) -> Self {
-        let dir_inode = Inode {
-            id: InodeId::BasicDirectory,
-            header: InodeHeader {
-                inode_number: inode,
-                ..header.into()
-            },
-            inner: InodeInner::BasicDirectory(BasicDirectory {
-                block_index,
-                link_count: 2,
-                file_size,
-                block_offset,
-                parent_inode,
-            }),
+        // if entry won't fit in file_size of regular dir entry, create extended directory
+        let dir_inode = if file_size > u16::MAX as usize {
+            Inode {
+                id: InodeId::ExtendedDirectory,
+                header: InodeHeader {
+                    inode_number: inode,
+                    ..header.into()
+                },
+                inner: InodeInner::ExtendedDirectory(ExtendedDirectory {
+                    link_count: 2 + u32::try_from(children_num).unwrap(),
+                    file_size: file_size.try_into().unwrap(), // u32
+                    block_index,
+                    parent_inode,
+                    // TODO: Support Directory Index
+                    index_count: 0,
+                    block_offset,
+                    // TODO(#32): Support xattr
+                    xattr_index: 0xffff_ffff,
+                    // TODO: Support Directory Index
+                    dir_index: vec![],
+                }),
+            }
+        } else {
+            Inode {
+                id: InodeId::BasicDirectory,
+                header: InodeHeader {
+                    inode_number: inode,
+                    ..header.into()
+                },
+                inner: InodeInner::BasicDirectory(BasicDirectory {
+                    block_index,
+                    link_count: 2 + u32::try_from(children_num).unwrap(),
+                    file_size: file_size.try_into().unwrap(), // u16
+                    block_offset,
+                    parent_inode,
+                }),
+            }
         };
 
         dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
@@ -130,7 +155,7 @@ impl<'a> Entry<'a> {
             },
             inner: InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
-                target_size: link.len() as u32,
+                target_size: link.len().try_into().unwrap(),
                 target_path: link.to_vec(),
             }),
         };
@@ -218,16 +243,17 @@ impl<'a> Entry<'a> {
         }
 
         let mut dir = Dir::new(lowest_inode.unwrap());
-        dir.count = creating_dir.len() as u32;
+        dir.count = creating_dir.len().try_into().unwrap();
         if dir.count >= 256 {
             panic!("dir.count({}) >= 256:", dir.count);
         }
         dir.start = start;
         for e in creating_dir {
+            let inode = e.inode;
             let new_entry = DirEntry {
                 offset: e.offset,
-                inode_offset: (e.inode - lowest_inode.unwrap()) as i16,
-                t: e.t,
+                inode_offset: (inode - lowest_inode.unwrap()).try_into().unwrap(),
+                t: e.t.into_base_type(),
                 name_size: e.name_size,
                 name: e.name.to_vec(),
             };
@@ -242,6 +268,7 @@ impl<'a> Entry<'a> {
     pub(crate) fn into_dir(entries: Vec<Self>) -> Vec<Dir> {
         let mut dirs = vec![];
         let mut creating_dir = vec![];
+        let mut lowest_inode = u32::MAX;
         let mut iter = entries.iter().peekable();
         let mut creating_start = if let Some(entry) = iter.peek() {
             entry.start
@@ -250,16 +277,22 @@ impl<'a> Entry<'a> {
         };
 
         while let Some(e) = iter.next() {
+            if e.inode < lowest_inode {
+                lowest_inode = e.inode;
+            }
             creating_dir.push(e);
 
             // last entry
             if let Some(next) = &iter.peek() {
+                // if the next entry would be > the lowest_inode
+                let max_inode = (next.inode as u64).abs_diff(lowest_inode as u64) > i16::MAX as u64;
                 // make sure entires have the correct start and amount of directories
-                if next.start != creating_start || creating_dir.len() >= 255 {
+                if next.start != creating_start || creating_dir.len() >= 255 || max_inode {
                     let dir = Self::create_dir(&creating_dir, creating_start);
                     dirs.push(dir);
                     creating_dir = vec![];
                     creating_start = next.start;
+                    lowest_inode = u32::MAX;
                 }
             }
             // last entry
@@ -269,7 +302,6 @@ impl<'a> Entry<'a> {
             }
         }
 
-        trace!("DIIIIIIIIIIR: {:#02x?}", &dirs);
         dirs
     }
 }

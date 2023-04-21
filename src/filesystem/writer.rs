@@ -20,7 +20,7 @@ use crate::fragment::Fragment;
 use crate::kind::Kind;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
-use crate::squashfs::{Id, SuperBlock};
+use crate::squashfs::{Flags, Id, SuperBlock};
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
@@ -596,6 +596,24 @@ impl<'a> FilesystemWriter<'a> {
 
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
+
+        // Write compression options, if any
+        if let Some(options) = &self.compressor.options {
+            superblock.flags |= Flags::CompressorOptionsArePresent as u16;
+            let mut buf = BitVec::new();
+            match options {
+                CompressionOptions::Gzip(gzip) => gzip.write(&mut buf, self.kind.type_endian)?,
+                CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.type_endian)?,
+                CompressionOptions::Zstd(zstd) => zstd.write(&mut buf, self.kind.type_endian)?,
+                CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.type_endian)?,
+                CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.type_endian)?,
+                CompressionOptions::Lzma => {},
+            }
+            let mut metadata = MetadataWriter::new(self.compressor, self.block_size, self.kind);
+            metadata.write_all(buf.as_raw_slice())?;
+            metadata.finalize(w)?;
+        }
+
         let mut data_writer = DataWriter::new(self.compressor, self.block_size);
         let mut inode_writer = MetadataWriter::new(self.compressor, self.block_size, self.kind);
         let mut dir_writer = MetadataWriter::new(self.compressor, self.block_size, self.kind);
@@ -851,55 +869,32 @@ pub struct FilesystemCompressor {
 
 impl FilesystemCompressor {
     pub fn new(id: Compressor, options: Option<CompressionOptions>) -> Result<Self, BackhandError> {
-        if matches!(id, Compressor::None) {
-            let extra = None;
-            return Ok(Self { id, options, extra });
+        match (id, options) {
+            // lz4 always requires options
+            (Compressor::Lz4, None) => {
+                error!("Lz4 compression options missing");
+                return Err(BackhandError::InvalidCompressionOption);
+            },
+            //others having no options is always valid
+            (_, None) => {},
+            //only the corresponding option are valid
+            (Compressor::Gzip, Some(CompressionOptions::Gzip(_)))
+            | (Compressor::Lzma, Some(CompressionOptions::Lzma))
+            | (Compressor::Lzo, Some(CompressionOptions::Lzo(_)))
+            | (Compressor::Xz, Some(CompressionOptions::Xz(_)))
+            | (Compressor::Lz4, Some(CompressionOptions::Lz4(_)))
+            | (Compressor::Zstd, Some(CompressionOptions::Zstd(_))) => {},
+            //other combinations are invalid
+            _ => {
+                error!("invalid compression settings");
+                return Err(BackhandError::InvalidCompressionOption);
+            },
         }
-
-        if matches!(id, Compressor::Gzip)
-            && (options.is_none() || matches!(options, Some(CompressionOptions::Gzip(_))))
-        {
-            let extra = None;
-            return Ok(Self { id, options, extra });
-        }
-
-        if matches!(id, Compressor::Lzma)
-            && (options.is_none() || matches!(options, Some(CompressionOptions::Lzma)))
-        {
-            let extra = None;
-            return Ok(Self { id, options, extra });
-        }
-
-        if matches!(id, Compressor::Lzo)
-            && (options.is_none() || matches!(options, Some(CompressionOptions::Lzo(_))))
-        {
-            let extra = None;
-            return Ok(Self { id, options, extra });
-        }
-
-        if matches!(id, Compressor::Xz)
-            && (options.is_none() || matches!(options, Some(CompressionOptions::Xz(_))))
-        {
-            let extra = None;
-            return Ok(Self { id, options, extra });
-        }
-
-        if matches!(id, Compressor::Lz4)
-            && (options.is_none() || matches!(options, Some(CompressionOptions::Lz4(_))))
-        {
-            let extra = None;
-            return Ok(Self { id, options, extra });
-        }
-
-        if matches!(id, Compressor::Zstd)
-            && (options.is_none() || matches!(options, Some(CompressionOptions::Zstd(_))))
-        {
-            let extra = None;
-            return Ok(Self { id, options, extra });
-        }
-
-        error!("invalid compression settings");
-        Err(BackhandError::InvalidCompressionOption)
+        Ok(Self {
+            id,
+            options,
+            extra: None,
+        })
     }
 
     /// Set options that are originally derived from the image if from a [`FilesystemReader`].

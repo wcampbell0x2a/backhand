@@ -20,10 +20,10 @@
 //!### Example
 //!```rust,no_run
 //! # use std::fs::File;
-//! # use std::io::Cursor;
+//! # use std::io::{Cursor, BufReader};
 //! # use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 //! // read
-//! let file = File::open("file.squashfs").unwrap();
+//! let file = BufReader::new(File::open("file.squashfs").unwrap());
 //! let read_filesystem = FilesystemReader::from_reader(file).unwrap();
 //!
 //! // convert to writer

@@ -20,12 +20,13 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 /// details for `.nodes`.
 /// ```rust,no_run
 /// # use std::fs::File;
+/// # use std::io::BufReader;
 /// # use backhand::{
-/// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+/// #     FilesystemReader, InnerNode, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
 /// #     SquashfsDir, SquashfsSymlink,
 /// # };
 /// // Read into filesystem
-/// let file = File::open("image.squashfs").unwrap();
+/// let file = BufReader::new(File::open("image.squashfs").unwrap());
 /// let filesystem = FilesystemReader::from_reader(file).unwrap();
 ///
 /// // Iterate through nodes
@@ -47,12 +48,13 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 /// optionally not extracting and only listing some Superblock fields.
 /// ```rust,no_run
 /// # use std::fs::File;
+/// # use std::io::BufReader;
 /// # use backhand::{
-/// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+/// #     FilesystemReader, InnerNode, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
 /// #     SquashfsDir, SquashfsSymlink,
 /// # };
 /// // Read into Squashfs
-/// let file = File::open("image.squashfs").unwrap();
+/// let file = BufReader::new(File::open("image.squashfs").unwrap());
 /// let squashfs = Squashfs::from_reader_with_offset(file, 0).unwrap();
 ///
 /// // Display the Superblock info
@@ -130,11 +132,12 @@ impl FilesystemReader {
     /// Used when extracting a file from the image, for example using [`crate::FilesystemReaderFile`]:
     /// ```rust,no_run
     /// # use std::fs::File;
+    /// # use std::io::BufReader;
     /// # use backhand::{
-    /// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+    /// #     FilesystemReader, InnerNode, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
     /// #     SquashfsDir, SquashfsSymlink,
     /// # };
-    /// # let file = File::open("image.squashfs").unwrap();
+    /// # let file = BufReader::new(File::open("image.squashfs").unwrap());
     /// # let filesystem = FilesystemReader::from_reader(file).unwrap();
     /// // <creating FilesystemReader>
     ///

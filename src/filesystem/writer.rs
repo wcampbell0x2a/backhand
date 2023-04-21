@@ -619,7 +619,7 @@ impl<'a> FilesystemWriter<'a> {
         )?;
 
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
-        superblock.inode_count = self.root.nodes.len() as u32;
+        superblock.inode_count = self.root.nodes.len().try_into().unwrap();
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;
@@ -658,13 +658,13 @@ impl<'a> FilesystemWriter<'a> {
         if self.pad_len != 0 {
             // Pad out block_size to 4K
             info!("Writing Padding");
-            let blocks_used = superblock.bytes_used as u32 / self.pad_len;
+            let blocks_used: u32 = u32::try_from(superblock.bytes_used).unwrap() / self.pad_len;
             let total_pad_len = (blocks_used + 1) * self.pad_len;
-            pad_len = total_pad_len - superblock.bytes_used as u32;
+            pad_len = total_pad_len - u32::try_from(superblock.bytes_used).unwrap();
 
             // Write 1K at a time
             let mut total_written = 0;
-            while w.stream_position()? < (superblock.bytes_used + pad_len as u64) {
+            while w.stream_position()? < (superblock.bytes_used + u64::try_from(pad_len).unwrap()) {
                 let arr = &[0x00; 1024];
 
                 // check if last block to write
@@ -675,7 +675,7 @@ impl<'a> FilesystemWriter<'a> {
                     1024
                 };
 
-                w.write_all(&arr[..len as usize])?;
+                w.write_all(&arr[..len.try_into().unwrap()])?;
                 total_written += len;
             }
         }
@@ -690,7 +690,7 @@ impl<'a> FilesystemWriter<'a> {
 
         info!("Writing Finished");
 
-        Ok(superblock.bytes_used + pad_len as u64)
+        Ok(superblock.bytes_used + u64::try_from(pad_len).unwrap())
     }
 
     /// TODO: Write like `write_frag_table` when ID's don't fit in one metadata
@@ -701,7 +701,8 @@ impl<'a> FilesystemWriter<'a> {
         write_superblock: &mut SuperBlock,
     ) -> Result<(), BackhandError> {
         let id_table_dat = w.stream_position()?;
-        let mut id_bytes = Vec::with_capacity(id_table.len() * ((u32::BITS / 8) as usize));
+        let mut id_bytes =
+            Vec::with_capacity(id_table.len() * usize::try_from(u32::BITS / 8).unwrap());
         for i in &self.id_table {
             let mut bv = BitVec::new();
             i.write(&mut bv, self.kind)?;
@@ -709,12 +710,12 @@ impl<'a> FilesystemWriter<'a> {
         }
         // write metdata_length
         let mut bv = BitVec::new();
-        metadata::set_if_uncompressed(id_bytes.len() as u16)
+        metadata::set_if_uncompressed(id_bytes.len().try_into().unwrap())
             .write(&mut bv, self.kind.data_endian)?;
         w.write_all(bv.as_raw_slice())?;
         w.write_all(&id_bytes)?;
         write_superblock.id_table = w.stream_position()?;
-        write_superblock.id_count = id_table.len() as u16;
+        write_superblock.id_count = id_table.len().try_into().unwrap();
 
         let mut bv = BitVec::new();
         id_table_dat.write(&mut bv, self.kind.type_endian)?;
@@ -755,7 +756,6 @@ impl<'a> FilesystemWriter<'a> {
         frag_table: Vec<Fragment>,
         write_superblock: &mut SuperBlock,
     ) -> Result<(), BackhandError> {
-
         let mut ptrs: Vec<u64> = vec![];
         let mut frag_table_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
         for f in &frag_table {

@@ -155,7 +155,7 @@ impl<'a> Entry<'a> {
             },
             inner: InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
-                target_size: link.len() as u32,
+                target_size: link.len().try_into().unwrap(),
                 target_path: link.to_vec(),
             }),
         };
@@ -243,15 +243,16 @@ impl<'a> Entry<'a> {
         }
 
         let mut dir = Dir::new(lowest_inode.unwrap());
-        dir.count = creating_dir.len() as u32;
+        dir.count = creating_dir.len().try_into().unwrap();
         if dir.count >= 256 {
             panic!("dir.count({}) >= 256:", dir.count);
         }
         dir.start = start;
         for e in creating_dir {
+            let inode = e.inode;
             let new_entry = DirEntry {
                 offset: e.offset,
-                inode_offset: (e.inode - lowest_inode.unwrap()) as i16,
+                inode_offset: (inode - lowest_inode.unwrap()).try_into().unwrap(),
                 t: e.t.into_base_type(),
                 name_size: e.name_size,
                 name: e.name.to_vec(),
@@ -267,6 +268,7 @@ impl<'a> Entry<'a> {
     pub(crate) fn into_dir(entries: Vec<Self>) -> Vec<Dir> {
         let mut dirs = vec![];
         let mut creating_dir = vec![];
+        let mut lowest_inode = u32::MAX;
         let mut iter = entries.iter().peekable();
         let mut creating_start = if let Some(entry) = iter.peek() {
             entry.start
@@ -275,16 +277,22 @@ impl<'a> Entry<'a> {
         };
 
         while let Some(e) = iter.next() {
+            if e.inode < lowest_inode {
+                lowest_inode = e.inode;
+            }
             creating_dir.push(e);
 
             // last entry
             if let Some(next) = &iter.peek() {
+                // if the next entry would be > the lowest_inode
+                let max_inode = (next.inode as u64).abs_diff(lowest_inode as u64) > i16::MAX as u64;
                 // make sure entires have the correct start and amount of directories
-                if next.start != creating_start || creating_dir.len() >= 255 {
+                if next.start != creating_start || creating_dir.len() >= 255 || max_inode {
                     let dir = Self::create_dir(&creating_dir, creating_start);
                     dirs.push(dir);
                     creating_dir = vec![];
                     creating_start = next.start;
+                    lowest_inode = u32::MAX;
                 }
             }
             // last entry

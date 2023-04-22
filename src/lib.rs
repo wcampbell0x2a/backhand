@@ -20,10 +20,10 @@
 //!### Example
 //!```rust,no_run
 //! # use std::fs::File;
-//! # use std::io::Cursor;
+//! # use std::io::{Cursor, BufReader};
 //! # use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 //! // read
-//! let file = File::open("file.squashfs").unwrap();
+//! let file = BufReader::new(File::open("file.squashfs").unwrap());
 //! let read_filesystem = FilesystemReader::from_reader(file).unwrap();
 //!
 //! // convert to writer
@@ -77,7 +77,7 @@ pub use crate::filesystem::writer::{
 };
 pub use crate::fragment::Fragment;
 pub use crate::inode::{BasicFile, Inode};
-pub use crate::reader::ReadSeek;
+pub use crate::reader::BufReadSeek;
 pub use crate::squashfs::{
     Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
     MIN_BLOCK_SIZE,

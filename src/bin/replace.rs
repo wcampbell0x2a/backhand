@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use backhand::{FilesystemReader, FilesystemWriter};
@@ -29,7 +30,7 @@ fn main() {
     let args = Args::parse();
 
     // read of squashfs
-    let file = File::open(args.image).unwrap();
+    let file = BufReader::new(File::open(args.image).unwrap());
     let filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 

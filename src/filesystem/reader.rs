@@ -8,7 +8,7 @@ use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::inode::BasicFile;
 use crate::kinds::Kind;
-use crate::reader::ReadSeek;
+use crate::reader::BufReadSeek;
 use crate::squashfs::{Cache, Id};
 use crate::{Node, Squashfs, SquashfsFileReader};
 
@@ -20,12 +20,13 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 /// details for `.nodes`.
 /// ```rust,no_run
 /// # use std::fs::File;
+/// # use std::io::BufReader;
 /// # use backhand::{
-/// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+/// #     FilesystemReader, InnerNode, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
 /// #     SquashfsDir, SquashfsSymlink,
 /// # };
 /// // Read into filesystem
-/// let file = File::open("image.squashfs").unwrap();
+/// let file = BufReader::new(File::open("image.squashfs").unwrap());
 /// let filesystem = FilesystemReader::from_reader(file).unwrap();
 ///
 /// // Iterate through nodes
@@ -47,12 +48,13 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 /// optionally not extracting and only listing some Superblock fields.
 /// ```rust,no_run
 /// # use std::fs::File;
+/// # use std::io::BufReader;
 /// # use backhand::{
-/// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+/// #     FilesystemReader, InnerNode, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
 /// #     SquashfsDir, SquashfsSymlink,
 /// # };
 /// // Read into Squashfs
-/// let file = File::open("image.squashfs").unwrap();
+/// let file = BufReader::new(File::open("image.squashfs").unwrap());
 /// let squashfs = Squashfs::from_reader_with_offset(file, 0).unwrap();
 ///
 /// // Display the Superblock info
@@ -82,7 +84,7 @@ pub struct FilesystemReader {
     /// All files and directories in filesystem
     pub root: Nodes<SquashfsFileReader>,
     // File reader
-    pub(crate) reader: RefCell<Box<dyn ReadSeek>>,
+    pub(crate) reader: RefCell<Box<dyn BufReadSeek>>,
     // Cache used in the decompression
     pub(crate) cache: RefCell<Cache>,
 }
@@ -91,7 +93,7 @@ impl FilesystemReader {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     ///
     /// With default kind: [`crate::kind::LE_V4_0`] and offset `0`.
-    pub fn from_reader<R: ReadSeek + 'static>(reader: R) -> Result<Self, BackhandError> {
+    pub fn from_reader<R: BufReadSeek + 'static>(reader: R) -> Result<Self, BackhandError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, 0)?;
         squashfs.into_filesystem_reader()
     }
@@ -105,7 +107,7 @@ impl FilesystemReader {
     }
 
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
-    pub fn from_reader_with_offset<R: ReadSeek + 'static>(
+    pub fn from_reader_with_offset<R: BufReadSeek + 'static>(
         reader: R,
         offset: u64,
     ) -> Result<Self, BackhandError> {
@@ -114,7 +116,7 @@ impl FilesystemReader {
     }
 
     /// Same as [`Self::from_reader_with_offset`], but setting custom `kind`
-    pub fn from_reader_with_offset_and_kind<R: ReadSeek + 'static>(
+    pub fn from_reader_with_offset_and_kind<R: BufReadSeek + 'static>(
         reader: R,
         offset: u64,
         kind: Kind,
@@ -130,11 +132,12 @@ impl FilesystemReader {
     /// Used when extracting a file from the image, for example using [`crate::FilesystemReaderFile`]:
     /// ```rust,no_run
     /// # use std::fs::File;
+    /// # use std::io::BufReader;
     /// # use backhand::{
-    /// #     FilesystemReader, InnerNode, ReadSeek, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+    /// #     FilesystemReader, InnerNode, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
     /// #     SquashfsDir, SquashfsSymlink,
     /// # };
-    /// # let file = File::open("image.squashfs").unwrap();
+    /// # let file = BufReader::new(File::open("image.squashfs").unwrap());
     /// # let filesystem = FilesystemReader::from_reader(file).unwrap();
     /// // <creating FilesystemReader>
     ///

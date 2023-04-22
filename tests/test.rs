@@ -1,6 +1,7 @@
 mod bin;
 mod common;
 use std::fs::File;
+use std::io::{BufReader, BufWriter};
 
 use backhand::{FilesystemReader, FilesystemWriter};
 use bin::test_bin_unsquashfs;
@@ -32,14 +33,14 @@ fn full_test(
 
     let og_path = format!("{test_path}/{filepath}");
     let new_path = format!("{test_path}/bytes.squashfs");
-    let file = File::open(&og_path).unwrap();
+    let file = BufReader::new(File::open(&og_path).unwrap());
     info!("calling from_reader");
     let og_filesystem = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
     // convert to bytes
     info!("calling to_bytes");
-    let mut output = File::create(&new_path).unwrap();
+    let mut output = BufWriter::new(File::create(&new_path).unwrap());
     new_filesystem
         .write_with_offset(&mut output, offset)
         .unwrap();
@@ -49,7 +50,7 @@ fn full_test(
 
     // assert that our library can atleast read the output, use unsquashfs to really assert this
     info!("calling from_reader");
-    let created_file = File::open(&new_path).unwrap();
+    let created_file = BufReader::new(File::open(&new_path).unwrap());
     let _new_filesystem = FilesystemReader::from_reader_with_offset(created_file, offset).unwrap();
 
     match verify {

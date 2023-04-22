@@ -228,31 +228,20 @@ impl<'a> fmt::Debug for Entry<'a> {
 }
 
 impl<'a> Entry<'a> {
-    fn create_dir(creating_dir: &Vec<&Self>, start: u32) -> Dir {
-        // find lowest inode number
-        let mut lowest_inode = None;
-        for e in creating_dir {
-            if lowest_inode.is_none() {
-                lowest_inode = Some(e.inode);
-            }
-            if let Some(low) = lowest_inode {
-                if e.inode < low {
-                    lowest_inode = Some(e.inode);
-                }
-            }
-        }
+    fn create_dir(creating_dir: &Vec<&Self>, start: u32, lowest_inode: u32) -> Dir {
+        let mut dir = Dir::new(lowest_inode);
 
-        let mut dir = Dir::new(lowest_inode.unwrap());
         dir.count = creating_dir.len().try_into().unwrap();
         if dir.count >= 256 {
             panic!("dir.count({}) >= 256:", dir.count);
         }
+
         dir.start = start;
         for e in creating_dir {
             let inode = e.inode;
             let new_entry = DirEntry {
                 offset: e.offset,
-                inode_offset: (inode - lowest_inode.unwrap()).try_into().unwrap(),
+                inode_offset: (inode - lowest_inode).try_into().unwrap(),
                 t: e.t.into_base_type(),
                 name_size: e.name_size,
                 name: e.name.to_vec(),
@@ -288,7 +277,7 @@ impl<'a> Entry<'a> {
                 let max_inode = (next.inode as u64).abs_diff(lowest_inode as u64) > i16::MAX as u64;
                 // make sure entires have the correct start and amount of directories
                 if next.start != creating_start || creating_dir.len() >= 255 || max_inode {
-                    let dir = Self::create_dir(&creating_dir, creating_start);
+                    let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode);
                     dirs.push(dir);
                     creating_dir = vec![];
                     creating_start = next.start;
@@ -297,7 +286,7 @@ impl<'a> Entry<'a> {
             }
             // last entry
             if iter.peek().is_none() {
-                let dir = Self::create_dir(&creating_dir, creating_start);
+                let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode);
                 dirs.push(dir);
             }
         }

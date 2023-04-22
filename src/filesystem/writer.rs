@@ -16,7 +16,6 @@ use crate::data::DataWriter;
 use crate::entry::Entry;
 use crate::error::BackhandError;
 use crate::filesystem::node::SquashfsSymlink;
-use crate::fragment::Fragment;
 use crate::kind::Kind;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
@@ -633,10 +632,16 @@ impl<'a> FilesystemWriter<'a> {
         dir_writer.finalize(w)?;
 
         info!("Writing Frag Lookup Table");
-        self.write_frag_table(w, data_writer.fragment_table, &mut superblock)?;
+        let (table_position, count) =
+            self.write_lookup_table(w, data_writer.fragment_table, fragment::SIZE)?;
+        superblock.frag_table = table_position;
+        superblock.frag_count = count;
 
         info!("Writing Id Lookup Table");
-        self.write_id_table(w, &self.id_table, &mut superblock)?;
+        let (table_position, count) =
+            self.write_lookup_table(w, self.id_table.clone(), Id::SIZE)?;
+        superblock.id_table = table_position;
+        superblock.id_count = count.try_into().unwrap();
 
         info!("Finalize Superblock and End Bytes");
         let bytes_written = self.finalize(w, &mut superblock)?;
@@ -693,37 +698,7 @@ impl<'a> FilesystemWriter<'a> {
         Ok(superblock.bytes_used + u64::try_from(pad_len).unwrap())
     }
 
-    /// TODO: Write like `write_frag_table` when ID's don't fit in one metadata
-    fn write_id_table<W: Write + Seek>(
-        &self,
-        w: &mut W,
-        id_table: &Vec<Id>,
-        write_superblock: &mut SuperBlock,
-    ) -> Result<(), BackhandError> {
-        let id_table_dat = w.stream_position()?;
-        let mut id_bytes =
-            Vec::with_capacity(id_table.len() * usize::try_from(u32::BITS / 8).unwrap());
-        for i in &self.id_table {
-            let mut bv = BitVec::new();
-            i.write(&mut bv, self.kind)?;
-            id_bytes.write_all(bv.as_raw_slice())?;
-        }
-        // write metdata_length
-        let mut bv = BitVec::new();
-        metadata::set_if_uncompressed(id_bytes.len().try_into().unwrap())
-            .write(&mut bv, self.kind.data_endian)?;
-        w.write_all(bv.as_raw_slice())?;
-        w.write_all(&id_bytes)?;
-        write_superblock.id_table = w.stream_position()?;
-        write_superblock.id_count = id_table.len().try_into().unwrap();
-
-        let mut bv = BitVec::new();
-        id_table_dat.write(&mut bv, self.kind.type_endian)?;
-        w.write_all(bv.as_raw_slice())?;
-
-        Ok(())
-    }
-
+    /// For example, writing a fragment table:
     /// ```text
     ///  ┌──────────────────────────────┐
     ///  │Metadata                      │◄───┐
@@ -750,42 +725,40 @@ impl<'a> FilesystemWriter<'a> {
     ///  │└────────────────────────────┘│
     ///  └──────────────────────────────┘
     ///  ```
-    fn write_frag_table<W: Write + Seek>(
+    fn write_lookup_table<D: DekuWrite<Kind> + PartialEq, W: Write + Seek>(
         &self,
         w: &mut W,
-        frag_table: Vec<Fragment>,
-        write_superblock: &mut SuperBlock,
-    ) -> Result<(), BackhandError> {
+        table: Vec<D>,
+        element_size: usize,
+    ) -> Result<(u64, u32), BackhandError> {
         let mut ptrs: Vec<u64> = vec![];
-        let mut frag_table_bytes = Vec::with_capacity(frag_table.len() * fragment::SIZE);
-        for f in &frag_table {
+        let mut table_bytes = Vec::with_capacity(table.len() * fragment::SIZE);
+        for t in &table {
             // convert fragment ptr to bytes
             let mut bv = BitVec::new();
-            f.write(&mut bv, self.kind)?;
-            frag_table_bytes.write_all(bv.as_raw_slice())?;
+            t.write(&mut bv, self.kind)?;
+            table_bytes.write_all(bv.as_raw_slice())?;
 
-            // once frag_table_bytes + next is over the maximum size of a metadata block, write
-            // them
-            if ((frag_table_bytes.len() + fragment::SIZE) > METADATA_MAXSIZE)
-                || *f == *frag_table.last().unwrap()
+            // once table_bytes + next is over the maximum size of a metadata block, write
+            if ((table_bytes.len() + element_size) > METADATA_MAXSIZE)
+                || *t == *table.last().unwrap()
             {
                 ptrs.push(w.stream_position()?);
 
                 let mut bv = BitVec::new();
                 // write metadata len
-                let len = metadata::set_if_uncompressed(frag_table_bytes.len() as u16);
+                let len = metadata::set_if_uncompressed(table_bytes.len() as u16);
                 len.write(&mut bv, self.kind.data_endian)?;
                 w.write_all(bv.as_raw_slice())?;
                 // write metadata bytes
-                w.write_all(&frag_table_bytes)?;
+                w.write_all(&table_bytes)?;
 
-                frag_table_bytes.clear();
+                table_bytes.clear();
             }
         }
 
-        // ptr position
-        write_superblock.frag_table = w.stream_position()?;
-        write_superblock.frag_count = frag_table.len() as u32;
+        let table_position = w.stream_position()?;
+        let count = table.len() as u32;
 
         // write ptr
         for ptr in ptrs {
@@ -794,7 +767,7 @@ impl<'a> FilesystemWriter<'a> {
             w.write_all(bv.as_raw_slice())?;
         }
 
-        Ok(())
+        Ok((table_position, count))
     }
 
     /// Return index of id, adding if required

@@ -50,6 +50,8 @@ pub struct Export(pub u64);
 pub struct Id(pub u32);
 
 impl Id {
+    pub const SIZE: usize = (u32::BITS / 8) as usize;
+
     pub fn root() -> Vec<Id> {
         vec![Id(0)]
     }

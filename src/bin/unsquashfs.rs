@@ -1,12 +1,12 @@
 use std::fs::{self, File, Permissions};
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, Seek, SeekFrom};
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use backhand::kind::Kind;
 use backhand::{
-    FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
+    BufReadSeek, FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
 use clap::builder::{PossibleValuesParser, TypedValueParser};
@@ -67,6 +67,12 @@ fn main() {
     let args = Args::parse();
 
     let file = BufReader::new(File::open(&args.filesystem).unwrap());
+
+    if args.stat {
+        stat(args, file);
+        return;
+    }
+
     let squashfs =
         Squashfs::from_reader_with_offset_and_kind(file, args.offset, args.kind).unwrap();
     let root_process = unsafe { geteuid() == 0 };
@@ -77,8 +83,6 @@ fn main() {
     if args.list {
         let filesystem = squashfs.into_filesystem_reader().unwrap();
         list(filesystem);
-    } else if args.stat {
-        stat(squashfs);
     } else {
         let filesystem = squashfs.into_filesystem_reader().unwrap();
         extract_all(&args, filesystem, root_process);
@@ -92,10 +96,17 @@ fn list(filesystem: FilesystemReader) {
     }
 }
 
-fn stat(squashfs: Squashfs) {
-    let superblock = squashfs.superblock;
+fn stat(args: Args, mut file: BufReader<File>) {
+    file.seek(SeekFrom::Start(args.offset)).unwrap();
+    let mut reader: Box<dyn BufReadSeek> = Box::new(file);
+    let (superblock, compression_options) =
+        Squashfs::superblock_and_compression_options(&mut reader, args.kind).unwrap();
+
     // show info about flags
     println!("{superblock:#08x?}");
+
+    // show info about compression options
+    println!("Compression Options: {compression_options:#08x?}");
 
     // show info about flags
     if superblock.inodes_uncompressed() {

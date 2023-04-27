@@ -247,6 +247,76 @@ pub struct Squashfs {
 }
 
 impl Squashfs {
+    /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
+    /// and dirs
+    ///
+    /// Used for unsquashfs --stat
+    pub fn superblock_and_compression_options(
+        reader: &mut Box<dyn BufReadSeek>,
+        kind: Kind,
+    ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
+        // Size of metadata + optional compression options metadata block
+        let mut superblock = [0u8; 96];
+        reader.read_exact(&mut superblock)?;
+
+        // Parse SuperBlock
+        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
+        let (_, superblock) = SuperBlock::read(bs, kind)?;
+        info!("{superblock:#08x?}");
+
+        let power_of_two = superblock.block_size != 0
+            && (superblock.block_size & (superblock.block_size - 1)) == 0;
+        if (superblock.block_size > MAX_BLOCK_SIZE)
+            || (superblock.block_size < MIN_BLOCK_SIZE)
+            || !power_of_two
+        {
+            error!("block_size({:#02x}) invalid", superblock.block_size);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
+            error!("block size.log2() != block_log");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // Parse Compression Options, if any
+        info!("Reading Compression options");
+        let compression_options = if superblock.compressor != Compressor::None {
+            match superblock.compression_options_size() {
+                Some(size) => {
+                    let bytes = metadata::read_block(reader, &superblock, kind)?;
+
+                    // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
+                    // squashfs-tools/unsquashfs complains about this also
+                    if bytes.len() != size {
+                        tracing::warn!(
+                            "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
+                            bytes
+                        );
+                    }
+                    // data -> compression options
+                    let bv = BitVec::from_slice(&bytes);
+                    match CompressionOptions::read(
+                        &bv,
+                        (deku::ctx::Endian::Little, superblock.compressor),
+                    ) {
+                        Ok(co) => Some(co.1),
+                        Err(e) => {
+                            error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                            None
+                        },
+                    }
+                },
+                None => None,
+            }
+        } else {
+            None
+        };
+        info!("compression_options: {compression_options:02x?}");
+
+        Ok((superblock, compression_options))
+    }
+
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
@@ -283,66 +353,8 @@ impl Squashfs {
         mut reader: Box<dyn BufReadSeek>,
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
-        reader.rewind()?;
-
-        // Size of metadata + optional compression options metadata block
-        let mut superblock = [0u8; 96];
-        reader.read_exact(&mut superblock)?;
-
-        // Parse SuperBlock
-        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
-        let (_, superblock) = SuperBlock::read(bs, kind)?;
-        info!("{superblock:#08x?}");
-
-        let power_of_two = superblock.block_size != 0
-            && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > MAX_BLOCK_SIZE)
-            || (superblock.block_size < MIN_BLOCK_SIZE)
-            || !power_of_two
-        {
-            error!("block_size({:#02x}) invalid", superblock.block_size);
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
-            error!("block size.log2() != block_log");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        // Parse Compression Options, if any
-        info!("Reading Compression options");
-        let compression_options = if superblock.compressor != Compressor::None {
-            match superblock.compression_options_size() {
-                Some(size) => {
-                    let bytes = metadata::read_block(&mut reader, &superblock, kind)?;
-
-                    // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
-                    // squashfs-tools/unsquashfs complains about this also
-                    if bytes.len() != size {
-                        tracing::warn!(
-                            "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
-                            bytes
-                        );
-                    }
-                    // data -> compression options
-                    let bv = BitVec::from_slice(&bytes);
-                    match CompressionOptions::read(
-                        &bv,
-                        (deku::ctx::Endian::Little, superblock.compressor),
-                    ) {
-                        Ok(co) => Some(co.1),
-                        Err(e) => {
-                            error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
-                            None
-                        },
-                    }
-                },
-                None => None,
-            }
-        } else {
-            None
-        };
-        info!("compression_options: {compression_options:02x?}");
+        let (superblock, compression_options) =
+            Self::superblock_and_compression_options(&mut reader, kind)?;
 
         // Check if legal image
         let total_length = reader.seek(SeekFrom::End(0))?;

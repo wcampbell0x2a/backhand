@@ -16,9 +16,27 @@ use nix::libc::geteuid;
 use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
 
+pub fn after_help() -> String {
+    let mut s = "Decompressors available:\n".to_string();
+
+    #[cfg(feature = "gzip")]
+    s.push_str("\tgzip\n");
+
+    #[cfg(feature = "xz")]
+    s.push_str("\txz\n");
+
+    #[cfg(feature = "lzo")]
+    s.push_str("\tlzo\n");
+
+    #[cfg(feature = "zstd")]
+    s.push_str("\tzstd\n");
+
+    s
+}
+
 /// tool to uncompress, extract and list squashfs filesystems
 #[derive(Parser, Debug)]
-#[command(author, version, name = "unsquashfs-backhand")]
+#[command(author, version, name = "unsquashfs-backhand", after_help=after_help())]
 struct Args {
     /// Squashfs file
     filesystem: PathBuf,

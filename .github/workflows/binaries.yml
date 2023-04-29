@@ -1,0 +1,51 @@
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master ]
+
+name: binaries
+
+jobs:
+  # release binaries
+  release-bins:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        targets:
+          - x86_64-unknown-linux-musl
+        bins:
+          - unsquashfs
+          - add
+          - replace
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.targets }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-quickinstall
+      - run: cargo quickinstall cross@0.2.5 --force
+      - run: cross build --bin ${{ matrix.bins }} --locked --release --target ${{ matrix.targets }}
+
+      - name: archive
+        run: |
+          tar -czvf ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz \
+              -C target/${{ matrix.targets }}/release/ ${{ matrix.bins }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          path: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+
+      - name: Upload binary to release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          asset_name: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true

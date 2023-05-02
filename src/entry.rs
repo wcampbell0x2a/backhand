@@ -43,17 +43,17 @@ impl<'a> Entry<'a> {
         block_offset: u16,
         block_index: u32,
         superblock: &SuperBlock,
-        kind: Kind,
+        kind: &Kind,
     ) -> Self {
         // if entry won't fit in file_size of regular dir entry, create extended directory
         let dir_inode = if file_size > u16::MAX as usize {
-            Inode {
-                id: InodeId::ExtendedDirectory,
-                header: InodeHeader {
+            Inode::new(
+                InodeId::ExtendedDirectory,
+                InodeHeader {
                     inode_number: inode,
                     ..header.into()
                 },
-                inner: InodeInner::ExtendedDirectory(ExtendedDirectory {
+                InodeInner::ExtendedDirectory(ExtendedDirectory {
                     link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u32
                     block_index,
@@ -66,22 +66,22 @@ impl<'a> Entry<'a> {
                     // TODO: Support Directory Index
                     dir_index: vec![],
                 }),
-            }
+            )
         } else {
-            Inode {
-                id: InodeId::BasicDirectory,
-                header: InodeHeader {
+            Inode::new(
+                InodeId::BasicDirectory,
+                InodeHeader {
                     inode_number: inode,
                     ..header.into()
                 },
-                inner: InodeInner::BasicDirectory(BasicDirectory {
+                InodeInner::BasicDirectory(BasicDirectory {
                     block_index,
                     link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u16
                     block_offset,
                     parent_inode,
                 }),
-            }
+            )
         };
 
         dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
@@ -97,7 +97,7 @@ impl<'a> Entry<'a> {
         file_size: usize,
         added: &Added,
         superblock: &SuperBlock,
-        kind: Kind,
+        kind: &Kind,
     ) -> Self {
         let basic_file = match added {
             Added::Data {
@@ -124,14 +124,14 @@ impl<'a> Entry<'a> {
             },
         };
 
-        let file_inode = Inode {
-            id: InodeId::BasicFile,
-            header: InodeHeader {
+        let file_inode = Inode::new(
+            InodeId::BasicFile,
+            InodeHeader {
                 inode_number: inode,
                 ..header.into()
             },
-            inner: InodeInner::BasicFile(basic_file),
-        };
+            InodeInner::BasicFile(basic_file),
+        );
 
         file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
@@ -144,21 +144,21 @@ impl<'a> Entry<'a> {
         inode: u32,
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
-        kind: Kind,
+        kind: &Kind,
     ) -> Self {
         let link = symlink.link.as_os_str().as_bytes();
-        let sym_inode = Inode {
-            id: InodeId::BasicSymlink,
-            header: InodeHeader {
+        let sym_inode = Inode::new(
+            InodeId::BasicSymlink,
+            InodeHeader {
                 inode_number: inode,
                 ..header.into()
             },
-            inner: InodeInner::BasicSymlink(BasicSymlink {
+            InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
                 target_size: link.len().try_into().unwrap(),
                 target_path: link.to_vec(),
             }),
-        };
+        );
 
         sym_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
@@ -171,19 +171,19 @@ impl<'a> Entry<'a> {
         inode: u32,
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
-        kind: Kind,
+        kind: &Kind,
     ) -> Self {
-        let char_inode = Inode {
-            id: InodeId::BasicCharacterDevice,
-            header: InodeHeader {
+        let char_inode = Inode::new(
+            InodeId::BasicCharacterDevice,
+            InodeHeader {
                 inode_number: inode,
                 ..header.into()
             },
-            inner: InodeInner::BasicCharacterDevice(BasicDeviceSpecialFile {
+            InodeInner::BasicCharacterDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,
                 device_number: char_device.device_number,
             }),
-        };
+        );
 
         char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
@@ -196,19 +196,19 @@ impl<'a> Entry<'a> {
         inode: u32,
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
-        kind: Kind,
+        kind: &Kind,
     ) -> Self {
-        let block_inode = Inode {
-            id: InodeId::BasicBlockDevice,
-            header: InodeHeader {
+        let block_inode = Inode::new(
+            InodeId::BasicBlockDevice,
+            InodeHeader {
                 inode_number: inode,
                 ..header.into()
             },
-            inner: InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
+            InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,
                 device_number: block_device.device_number,
             }),
-        };
+        );
 
         block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }

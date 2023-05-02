@@ -3,6 +3,7 @@ use std::ffi::OsStr;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::bitvec::BitVec;
@@ -17,6 +18,7 @@ use crate::entry::Entry;
 use crate::error::BackhandError;
 use crate::filesystem::node::SquashfsSymlink;
 use crate::kind::Kind;
+use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
 use crate::squashfs::{Flags, Id, SuperBlock};
@@ -31,13 +33,13 @@ use crate::{
 /// - Use [`Self::default`] to create an empty SquashFS image without an original image. For example:
 /// ```rust
 /// # use std::time::SystemTime;
-/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra};
+/// # use backhand::{NodeHeader, Id, FilesystemCompressor, FilesystemWriter, SquashfsDir, compression::Compressor, kind, DEFAULT_BLOCK_SIZE, ExtraXz, CompressionExtra, kind::Kind};
 /// // Add empty default FilesytemWriter
 /// let mut fs = FilesystemWriter::default();
 /// fs.set_current_time();
 /// fs.set_block_size(DEFAULT_BLOCK_SIZE);
 /// fs.set_only_root_id();
-/// fs.set_kind(kind::LE_V4_0);
+/// fs.set_kind(Kind::from_const(kind::LE_V4_0).unwrap());
 ///
 /// // set root image permissions
 /// let header = NodeHeader {
@@ -70,7 +72,7 @@ pub struct FilesystemWriter<'a> {
     /// 32 bit user and group IDs
     pub(crate) id_table: Vec<Id>,
     /// Compressor used when writing
-    pub(crate) compressor: FilesystemCompressor,
+    pub(crate) fs_compressor: FilesystemCompressor,
     /// All files and directories in filesystem, including root
     pub(crate) root: Nodes<SquashfsFileWriter<'a>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
@@ -78,19 +80,21 @@ pub struct FilesystemWriter<'a> {
     pub(crate) pad_len: u32,
 }
 
-impl Default for FilesystemWriter<'_> {
+impl<'a> Default for FilesystemWriter<'a> {
     /// Create default FilesystemWriter
     ///
     /// block_size: [`DEFAULT_BLOCK_SIZE`], compressor: default XZ compression, no nodes,
-    /// kind: [`Kind::default()`], and mod_time: `0`.
+    /// kind: [`LE_V4_0`], and mod_time: `0`.
     fn default() -> Self {
         let block_size = DEFAULT_BLOCK_SIZE;
         Self {
             block_size,
             mod_time: 0,
             id_table: vec![],
-            compressor: FilesystemCompressor::default(),
-            kind: Kind::default(),
+            fs_compressor: FilesystemCompressor::default(),
+            kind: Kind {
+                inner: Rc::new(LE_V4_0),
+            },
             root: Nodes::new_root(NodeHeader::default()),
             block_log: (block_size as f32).log2() as u16,
             pad_len: DEFAULT_PAD_LEN,
@@ -135,9 +139,9 @@ impl<'a> FilesystemWriter<'a> {
     ///
     /// # Example: Set kind to default V4.0
     /// ```rust
-    /// # use backhand::{FilesystemWriter, kind};
+    /// # use backhand::{FilesystemWriter, kind::Kind, kind};
     /// let mut fs = FilesystemWriter::default();
-    /// fs.set_kind(kind::LE_V4_0);
+    /// fs.set_kind(Kind::from_const(kind::LE_V4_0).unwrap());
     /// ```
     pub fn set_kind(&mut self, kind: Kind) {
         self.kind = kind;
@@ -172,10 +176,10 @@ impl<'a> FilesystemWriter<'a> {
     /// let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
     /// ```
     pub fn set_compressor(&mut self, compressor: FilesystemCompressor) {
-        self.compressor = compressor;
+        self.fs_compressor = compressor;
     }
 
-    /// Set id_table to `Id::root()`, removing old entries
+    /// Set id_table to [`Id::root`], removing old entries
     pub fn set_only_root_id(&mut self) {
         self.id_table = Id::root();
     }
@@ -220,10 +224,15 @@ impl<'a> FilesystemWriter<'a> {
             .collect();
         root.sort();
         Ok(Self {
-            kind: reader.kind,
+            kind: Kind {
+                inner: reader.kind.inner.clone(),
+            },
             block_size: reader.block_size,
             block_log: reader.block_log,
-            compressor: FilesystemCompressor::new(reader.compressor, reader.compression_options)?,
+            fs_compressor: FilesystemCompressor::new(
+                reader.compressor,
+                reader.compression_options,
+            )?,
             mod_time: reader.mod_time,
             id_table: reader.id_table.clone(),
             root: Nodes { nodes: root },
@@ -467,7 +476,7 @@ impl<'a> FilesystemWriter<'a> {
         parent_node_id: u32,
         node_id: NonZeroUsize,
         superblock: &SuperBlock,
-        kind: Kind,
+        kind: &Kind,
     ) -> Result<Entry<'b>, BackhandError> {
         let node = &self.root.node(node_id).unwrap();
         let filename = node.fullpath.file_name().unwrap_or(OsStr::new("/"));
@@ -554,10 +563,8 @@ impl<'a> FilesystemWriter<'a> {
         trace!("WRITING DIR: {block_offset:#02x?}");
         let mut total_size: usize = 3;
         for dir in Entry::into_dir(entries) {
-            trace!("WRITING DIR: {dir:#02x?}");
-
             let mut bv = BitVec::new();
-            dir.write(&mut bv, kind)?;
+            dir.write(&mut bv, kind.inner.type_endian)?;
             let bytes = bv.as_raw_slice();
             dir_writer.write_all(bv.as_raw_slice())?;
 
@@ -589,7 +596,12 @@ impl<'a> FilesystemWriter<'a> {
         &mut self,
         w: &mut W,
     ) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut superblock = SuperBlock::new(self.compressor.id, self.kind);
+        let mut superblock = SuperBlock::new(
+            self.fs_compressor.id,
+            Kind {
+                inner: self.kind.inner.clone(),
+            },
+        );
 
         trace!("{:#02x?}", self.root);
 
@@ -597,30 +609,56 @@ impl<'a> FilesystemWriter<'a> {
         w.write_all(&[0x00; 96])?;
 
         // Write compression options, if any
-        if let Some(options) = &self.compressor.options {
+        if let Some(options) = &self.fs_compressor.options {
             superblock.flags |= Flags::CompressorOptionsArePresent as u16;
             let mut buf = BitVec::new();
             match options {
-                CompressionOptions::Gzip(gzip) => gzip.write(&mut buf, self.kind.type_endian)?,
-                CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.type_endian)?,
-                CompressionOptions::Zstd(zstd) => zstd.write(&mut buf, self.kind.type_endian)?,
-                CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.type_endian)?,
-                CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.type_endian)?,
+                CompressionOptions::Gzip(gzip) => {
+                    gzip.write(&mut buf, self.kind.inner.type_endian)?
+                },
+                CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.inner.type_endian)?,
+                CompressionOptions::Zstd(zstd) => {
+                    zstd.write(&mut buf, self.kind.inner.type_endian)?
+                },
+                CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.inner.type_endian)?,
+                CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.inner.type_endian)?,
                 CompressionOptions::Lzma => {},
             }
-            let mut metadata = MetadataWriter::new(self.compressor, self.block_size, self.kind);
+            let mut metadata = MetadataWriter::new(
+                self.fs_compressor,
+                self.block_size,
+                Kind {
+                    inner: self.kind.inner.clone(),
+                },
+            );
             metadata.write_all(buf.as_raw_slice())?;
             metadata.finalize(w)?;
         }
 
-        let mut data_writer = DataWriter::new(self.compressor, self.block_size);
-        let mut inode_writer = MetadataWriter::new(self.compressor, self.block_size, self.kind);
-        let mut dir_writer = MetadataWriter::new(self.compressor, self.block_size, self.kind);
+        let mut data_writer = DataWriter::new(
+            self.kind.inner.compressor,
+            self.fs_compressor,
+            self.block_size,
+        );
+        let mut inode_writer = MetadataWriter::new(
+            self.fs_compressor,
+            self.block_size,
+            Kind {
+                inner: self.kind.inner.clone(),
+            },
+        );
+        let mut dir_writer = MetadataWriter::new(
+            self.fs_compressor,
+            self.block_size,
+            Kind {
+                inner: self.kind.inner.clone(),
+            },
+        );
 
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", &self.root);
         info!("Writing Data");
-        self.write_data(self.compressor, self.block_size, w, &mut data_writer)?;
+        self.write_data(self.fs_compressor, self.block_size, w, &mut data_writer)?;
         info!("Writing Data Fragments");
         // Compress fragments and write
         data_writer.finalize(w)?;
@@ -632,7 +670,7 @@ impl<'a> FilesystemWriter<'a> {
             0,
             1.try_into().unwrap(),
             &superblock,
-            self.kind,
+            &self.kind,
         )?;
 
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
@@ -651,20 +689,18 @@ impl<'a> FilesystemWriter<'a> {
 
         info!("Writing Frag Lookup Table");
         let (table_position, count) =
-            self.write_lookup_table(w, data_writer.fragment_table, fragment::SIZE)?;
+            self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
         superblock.frag_table = table_position;
         superblock.frag_count = count;
 
         info!("Writing Id Lookup Table");
-        let (table_position, count) =
-            self.write_lookup_table(w, self.id_table.clone(), Id::SIZE)?;
+        let (table_position, count) = self.write_lookup_table(w, &self.id_table, Id::SIZE)?;
         superblock.id_table = table_position;
         superblock.id_count = count.try_into().unwrap();
 
         info!("Finalize Superblock and End Bytes");
         let bytes_written = self.finalize(w, &mut superblock)?;
 
-        info!("Superblock: {:#02x?}", superblock);
         info!("Success");
         Ok((superblock, bytes_written))
     }
@@ -705,10 +741,17 @@ impl<'a> FilesystemWriter<'a> {
 
         // Seek back the beginning and write the superblock
         info!("Writing Superblock");
-        trace!("{:#02x?}", superblock);
         w.rewind()?;
         let mut bv = BitVec::new();
-        superblock.write(&mut bv, self.kind)?;
+        superblock.write(
+            &mut bv,
+            (
+                self.kind.inner.magic,
+                self.kind.inner.version_major,
+                self.kind.inner.version_minor,
+                self.kind.inner.type_endian,
+            ),
+        )?;
         w.write_all(bv.as_raw_slice())?;
 
         info!("Writing Finished");
@@ -745,30 +788,29 @@ impl<'a> FilesystemWriter<'a> {
     ///  │└────────────────────────────┘│
     ///  └──────────────────────────────┘
     ///  ```
-    fn write_lookup_table<D: DekuWrite<Kind> + PartialEq, W: Write + Seek>(
+    fn write_lookup_table<D: DekuWrite<deku::ctx::Endian>, W: Write + Seek>(
         &self,
         w: &mut W,
-        table: Vec<D>,
+        table: &Vec<D>,
         element_size: usize,
     ) -> Result<(u64, u32), BackhandError> {
         let mut ptrs: Vec<u64> = vec![];
-        let mut table_bytes = Vec::with_capacity(table.len() * fragment::SIZE);
-        for t in &table {
+        let mut table_bytes = Vec::with_capacity(table.len() * element_size);
+        let mut iter = table.iter().peekable();
+        while let Some(t) = iter.next() {
             // convert fragment ptr to bytes
             let mut bv = BitVec::new();
-            t.write(&mut bv, self.kind)?;
+            t.write(&mut bv, self.kind.inner.type_endian)?;
             table_bytes.write_all(bv.as_raw_slice())?;
 
             // once table_bytes + next is over the maximum size of a metadata block, write
-            if ((table_bytes.len() + element_size) > METADATA_MAXSIZE)
-                || *t == *table.last().unwrap()
-            {
+            if ((table_bytes.len() + element_size) > METADATA_MAXSIZE) || iter.peek().is_none() {
                 ptrs.push(w.stream_position()?);
 
                 let mut bv = BitVec::new();
                 // write metadata len
                 let len = metadata::set_if_uncompressed(table_bytes.len() as u16);
-                len.write(&mut bv, self.kind.data_endian)?;
+                len.write(&mut bv, self.kind.inner.data_endian)?;
                 w.write_all(bv.as_raw_slice())?;
                 // write metadata bytes
                 w.write_all(&table_bytes)?;
@@ -783,7 +825,7 @@ impl<'a> FilesystemWriter<'a> {
         // write ptr
         for ptr in ptrs {
             let mut bv = BitVec::new();
-            ptr.write(&mut bv, self.kind.type_endian)?;
+            ptr.write(&mut bv, self.kind.inner.type_endian)?;
             w.write_all(bv.as_raw_slice())?;
         }
 
@@ -792,12 +834,12 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Return index of id, adding if required
     fn lookup_add_id(&mut self, id: u32) -> u16 {
-        let found = self.id_table.iter().position(|a| a.0 == id);
+        let found = self.id_table.iter().position(|a| a.num == id);
 
         match found {
             Some(found) => found as u16,
             None => {
-                self.id_table.push(Id(id));
+                self.id_table.push(Id::new(id));
                 self.id_table.len() as u16 - 1
             },
         }

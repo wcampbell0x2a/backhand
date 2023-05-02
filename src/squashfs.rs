@@ -5,6 +5,7 @@ use std::ffi::OsString;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use deku::bitvec::{BitVec, BitView, Msb0};
 use deku::prelude::*;
@@ -17,7 +18,7 @@ use crate::error::BackhandError;
 use crate::filesystem::node::{InnerNode, Nodes};
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
-use crate::kinds::Kind;
+use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::{
     metadata, FilesystemReader, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
@@ -41,28 +42,39 @@ pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
 
 /// NFS export support
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
-pub struct Export(pub u64);
+#[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]
+pub struct Export {
+    pub num: u64,
+}
 
 /// 32 bit user and group IDs
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
-pub struct Id(pub u32);
+#[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]
+pub struct Id {
+    pub num: u32,
+}
 
 impl Id {
     pub const SIZE: usize = (u32::BITS / 8) as usize;
 
+    pub fn new(num: u32) -> Id {
+        Id { num }
+    }
+
     pub fn root() -> Vec<Id> {
-        vec![Id(0)]
+        vec![Id { num: 0 }]
     }
 }
 
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "kind.type_endian", ctx = "kind: Kind")]
+#[deku(
+    endian = "ctx_type_endian",
+    ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
+)]
 pub struct SuperBlock {
     /// Must be set to 0x73717368 ("hsqs" on disk).
-    #[deku(assert_eq = "kind.magic")]
+    #[deku(assert_eq = "ctx_magic")]
     pub magic: [u8; 4],
     /// The number of inodes stored in the archive.
     pub inode_count: u32,
@@ -81,10 +93,10 @@ pub struct SuperBlock {
     pub flags: u16,
     /// The number of entries in the ID lookup table.
     pub id_count: u16,
-    #[deku(assert_eq = "kind.version_major")]
+    #[deku(assert_eq = "ctx_version_major")]
     /// Major version of the format. Must be set to 4.
     pub version_major: u16,
-    #[deku(assert_eq = "kind.version_minor")]
+    #[deku(assert_eq = "ctx_version_minor")]
     /// Minor version of the format. Must be set to 0.
     pub version_minor: u16,
     /// A reference to the inode of the root directory.
@@ -102,33 +114,9 @@ pub struct SuperBlock {
     pub export_table: u64,
 }
 
+pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
+
 impl SuperBlock {
-    pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
-
-    pub fn new(compressor: Compressor, kind: Kind) -> Self {
-        Self {
-            magic: kind.magic,
-            inode_count: 0,
-            mod_time: 0,
-            block_size: DEFAULT_BLOCK_SIZE,
-            frag_count: 0,
-            compressor,
-            block_log: DEFAULT_BLOCK_LOG,
-            flags: 0,
-            id_count: 0,
-            version_major: kind.version_major,
-            version_minor: kind.version_minor,
-            root_inode: 0,
-            bytes_used: 0,
-            id_table: 0,
-            xattr_table: Self::NOT_SET,
-            inode_table: 0,
-            dir_table: 0,
-            frag_table: Self::NOT_SET,
-            export_table: Self::NOT_SET,
-        }
-    }
-
     /// Extract size of optional compression options
     fn compression_options_size(&self) -> Option<usize> {
         if self.compressor_options_are_present() {
@@ -198,6 +186,32 @@ impl SuperBlock {
     }
 }
 
+impl SuperBlock {
+    pub fn new(compressor: Compressor, kind: Kind) -> Self {
+        Self {
+            magic: kind.inner.magic,
+            inode_count: 0,
+            mod_time: 0,
+            block_size: DEFAULT_BLOCK_SIZE,
+            frag_count: 0,
+            compressor,
+            block_log: DEFAULT_BLOCK_LOG,
+            flags: 0,
+            id_count: 0,
+            version_major: kind.inner.version_major,
+            version_minor: kind.inner.version_minor,
+            root_inode: 0,
+            bytes_used: 0,
+            id_table: 0,
+            xattr_table: NOT_SET,
+            inode_table: 0,
+            dir_table: 0,
+            frag_table: NOT_SET,
+            export_table: NOT_SET,
+        }
+    }
+}
+
 #[rustfmt::skip]
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
@@ -253,7 +267,7 @@ impl Squashfs {
     /// Used for unsquashfs --stat
     pub fn superblock_and_compression_options(
         reader: &mut Box<dyn BufReadSeek>,
-        kind: Kind,
+        kind: &Kind,
     ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
         // Size of metadata + optional compression options metadata block
         let mut superblock = [0u8; 96];
@@ -261,8 +275,15 @@ impl Squashfs {
 
         // Parse SuperBlock
         let bs = superblock.view_bits::<deku::bitvec::Msb0>();
-        let (_, superblock) = SuperBlock::read(bs, kind)?;
-        info!("{superblock:#08x?}");
+        let (_, superblock) = SuperBlock::read(
+            bs,
+            (
+                kind.inner.magic,
+                kind.inner.version_major,
+                kind.inner.version_minor,
+                kind.inner.type_endian,
+            ),
+        )?;
 
         let power_of_two = superblock.block_size != 0
             && (superblock.block_size & (superblock.block_size - 1)) == 0;
@@ -331,7 +352,13 @@ impl Squashfs {
         reader: impl BufReadSeek + 'static,
         offset: u64,
     ) -> Result<Squashfs, BackhandError> {
-        Self::from_reader_with_offset_and_kind(reader, offset, Kind::default())
+        Self::from_reader_with_offset_and_kind(
+            reader,
+            offset,
+            Kind {
+                inner: Rc::new(LE_V4_0),
+            },
+        )
     }
 
     /// Same as [`Self::from_reader_with_offset`], but including custom `kind`
@@ -354,7 +381,7 @@ impl Squashfs {
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
         let (superblock, compression_options) =
-            Self::superblock_and_compression_options(&mut reader, kind)?;
+            Self::superblock_and_compression_options(&mut reader, &kind)?;
 
         // Check if legal image
         let total_length = reader.seek(SeekFrom::End(0))?;
@@ -379,39 +406,38 @@ impl Squashfs {
         }
 
         // check optional fields
-        if superblock.xattr_table != SuperBlock::NOT_SET && superblock.xattr_table > total_length {
+        if superblock.xattr_table != NOT_SET && superblock.xattr_table > total_length {
             error!("corrupted or invalid frag_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.frag_table != SuperBlock::NOT_SET && superblock.frag_table > total_length {
+        if superblock.frag_table != NOT_SET && superblock.frag_table > total_length {
             error!("corrupted or invalid frag_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.export_table != SuperBlock::NOT_SET && superblock.export_table > total_length
-        {
+        if superblock.export_table != NOT_SET && superblock.export_table > total_length {
             error!("corrupted or invalid export_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Inodes");
-        let inodes = reader.inodes(&superblock, kind)?;
+        let inodes = reader.inodes(&superblock, &kind)?;
 
         info!("Reading Root Inode");
-        let root_inode = reader.root_inode(&superblock, kind)?;
+        let root_inode = reader.root_inode(&superblock, &kind)?;
 
         info!("Reading Fragments");
-        let fragments = reader.fragments(&superblock, kind)?;
-        let fragment_ptr = fragments.clone().map(|a| a.0);
+        let fragments = reader.fragments(&superblock, &kind)?;
+        let fragment_ptr = fragments.as_ref().map(|frag| frag.0);
         let fragment_table = fragments.map(|a| a.1);
 
         info!("Reading Exports");
-        let export = reader.export(&superblock, kind)?;
-        let export_ptr = export.clone().map(|a| a.0);
+        let export = reader.export(&superblock, &kind)?;
+        let export_ptr = export.as_ref().map(|export| export.0);
         let export_table = export.map(|a| a.1);
 
         info!("Reading Ids");
-        let id = reader.id(&superblock, kind)?;
+        let id = reader.id(&superblock, &kind)?;
         let id_ptr = id.0;
         let id_table = id.1;
 
@@ -427,7 +453,7 @@ impl Squashfs {
         };
 
         info!("Reading Dirs");
-        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, kind)?;
+        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, &kind)?;
 
         let squashfs = Squashfs {
             kind,
@@ -514,7 +540,7 @@ impl Squashfs {
         let mut dirs = vec![];
         let mut all_bytes = bytes.view_bits::<Msb0>();
         // Read until we fail to turn bytes into `T`
-        while let Ok((rest, t)) = Dir::read(all_bytes, self.kind) {
+        while let Ok((rest, t)) = Dir::read(all_bytes, self.kind.inner.type_endian) {
             dirs.push(t);
             all_bytes = rest;
         }
@@ -550,7 +576,6 @@ impl Squashfs {
             _ => return Err(BackhandError::UnexpectedInode(dir_inode.inner.clone())),
         };
         if let Some(dirs) = dirs {
-            trace!("extracing dir: {dirs:#?}");
             for d in &dirs {
                 trace!("extracing entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
@@ -558,7 +583,6 @@ impl Squashfs {
                         .try_into()
                         .unwrap();
                     let found_inode = &self.inodes[&inode_key];
-                    trace!("extracing inode: {found_inode:?}");
                     let header = found_inode.header;
                     let new_path = entry.name();
                     fullpath.push(&new_path);
@@ -671,7 +695,7 @@ impl Squashfs {
             compressor: self.superblock.compressor,
             compression_options: self.compression_options,
             mod_time: self.superblock.mod_time,
-            id_table: self.id.clone(),
+            id_table: self.id,
             fragments: self.fragments,
             root,
             reader: RefCell::new(Box::new(self.file)),

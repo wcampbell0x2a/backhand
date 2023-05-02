@@ -11,11 +11,10 @@ use std::path::PathBuf;
 use deku::prelude::*;
 
 use crate::inode::InodeId;
-use crate::kind::Kind;
 
-#[derive(Debug, DekuRead, DekuWrite, Clone, Default, PartialEq, Eq)]
-#[deku(ctx = "kind: Kind")]
-#[deku(endian = "kind.type_endian")]
+#[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
+#[deku(ctx = "type_endian: deku::ctx::Endian")]
+#[deku(endian = "type_endian")]
 pub struct Dir {
     /// Number of entries following the header.
     pub(crate) count: u32,
@@ -32,8 +31,10 @@ pub struct Dir {
 impl Dir {
     pub fn new(lowest_inode: u32) -> Self {
         Self {
+            count: u32::default(),
+            start: u32::default(),
             inode_num: lowest_inode,
-            ..Self::default()
+            dir_entries: vec![],
         }
     }
 

@@ -1,6 +1,9 @@
 //! Types of image formats
 
-use std::str::FromStr;
+use core::fmt;
+use std::rc::Rc;
+
+use crate::compressor::{CompressionAction, DefaultCompressor};
 
 /// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -28,12 +31,7 @@ pub enum Endian {
     Big,
 }
 
-/// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
-///
-/// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
-// TODO: we probably want a `from_reader` for this, so they can get a `Kind` from the magic bytes.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Kind {
+pub struct InnerKind<C: CompressionAction + ?Sized + 'static> {
     /// Magic at the beginning of the image
     pub(crate) magic: [u8; 4],
     /// Endian used for all data types
@@ -44,112 +42,230 @@ pub struct Kind {
     pub(crate) version_major: u16,
     /// Minor version
     pub(crate) version_minor: u16,
+    /// Compression impl
+    pub(crate) compressor: &'static C,
 }
 
-impl FromStr for Kind {
-    type Err = String;
+/// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
+///
+/// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
+pub struct Kind {
+    /// "Easier for the eyes" type for the real Kind
+    pub(crate) inner: Rc<InnerKind<dyn CompressionAction>>,
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "avm_be_v4_0" => Ok(AVM_BE_V4_0),
-            "be_v4_0" => Ok(BE_V4_0),
-            "le_v4_0" => Ok(LE_V4_0),
-            _ => Err("not a valid kind".to_string()),
-        }
+impl fmt::Debug for Kind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FilesystemWriter")
+            .field("magic", &self.inner.magic)
+            .field("type_endian", &self.inner.type_endian)
+            .field("data_endian", &self.inner.data_endian)
+            .field("version_major", &self.inner.version_major)
+            .field("version_minor", &self.inner.version_minor)
+            .finish()
     }
 }
 
 impl Kind {
-    /// Create with default Kind: [`LE_V4_0`]
-    pub fn new() -> Self {
-        LE_V4_0
+    /// Create [`LE_V4_0`] with custom `compressor`.
+    ///
+    /// Use other [`Kind`] functions such as [`Kind::with_magic`] to change other settings other than
+    /// `compressor`.
+    ///
+    /// Use [`Kind::new_with_const`] when using a custom compressor with something other than
+    /// [`LE_V4_0`].
+    ///
+    /// # Example
+    /// ```rust
+    /// # use backhand::{compression::Compressor, kind, FilesystemCompressor, kind::Kind, compression::CompressionAction, compression::DefaultCompressor, BackhandError};
+    /// # use std::io::Write;
+    /// #[derive(Copy, Clone)]
+    /// pub struct CustomCompressor;
+    ///
+    /// // Special decompress that only has support for the Rust version of gzip: zune-inflate for
+    /// // decompression.
+    /// impl CompressionAction for CustomCompressor {
+    ///     fn decompress(
+    ///         &self,
+    ///         bytes: &[u8],
+    ///         out: &mut Vec<u8>,
+    ///         compressor: Compressor,
+    ///     ) -> Result<(), BackhandError> {
+    ///         if let Compressor::Gzip = compressor {
+    ///             let mut decoder = zune_inflate::DeflateDecoder::new(bytes);
+    ///             let decompressed_data = decoder.decode_zlib().unwrap();
+    ///             out.write_all(&decompressed_data)?;
+    ///         } else {
+    ///             unimplemented!();
+    ///         }
+    ///
+    ///         Ok(())
+    ///     }
+    ///
+    ///     // Just pass to default compressor
+    ///     fn compress(
+    ///         &self,
+    ///         bytes: &[u8],
+    ///         fc: FilesystemCompressor,
+    ///         block_size: u32,
+    ///     ) -> Result<Vec<u8>, BackhandError> {
+    ///         DefaultCompressor.compress(bytes, fc, block_size)
+    ///     }
+    /// }
+    ///
+    /// let kind = Kind::new(&CustomCompressor);
+    /// ```
+    pub fn new<C: CompressionAction>(compressor: &'static C) -> Self {
+        Self {
+            inner: Rc::new(InnerKind {
+                compressor,
+                ..LE_V4_0
+            }),
+        }
+    }
+
+    pub fn new_with_const<C: CompressionAction>(
+        compressor: &'static C,
+        c: InnerKind<dyn CompressionAction>,
+    ) -> Self {
+        Self {
+            inner: Rc::new(InnerKind { compressor, ..c }),
+        }
+    }
+
+    /// From a string, return a kind
+    ///
+    /// # Example
+    /// Get a default [`Kind`]
+    /// ```rust
+    /// # use backhand::{kind, kind::Kind};
+    /// let kind = Kind::from_target("le_v4_0").unwrap();
+    /// ```
+    /// # Returns
+    /// - `"le_v4_0"`: [`LE_V4_0`]
+    /// - `"be_v4_0"`: [`BE_V4_0`]
+    /// - `"avm_be_v4_0"`: [`AVM_BE_V4_0`]
+    pub fn from_target(s: &str) -> Result<Kind, String> {
+        let kind = match s {
+            "avm_be_v4_0" => AVM_BE_V4_0,
+            "be_v4_0" => BE_V4_0,
+            "le_v4_0" => LE_V4_0,
+            _ => return Err("not a valid kind".to_string()),
+        };
+
+        Ok(Kind {
+            inner: Rc::new(kind),
+        })
+    }
+
+    /// From a known Squashfs image Kind, return a [`Kind`]
+    ///
+    /// # Example
+    /// Get a default [`Kind`]
+    ///
+    /// ```rust
+    /// # use backhand::{kind, kind::Kind};
+    /// let kind = Kind::from_const(kind::LE_V4_0).unwrap();
+    /// ```
+    pub fn from_const(inner: InnerKind<dyn CompressionAction>) -> Result<Kind, String> {
+        Ok(Kind {
+            inner: Rc::new(inner),
+        })
+    }
+
+    // TODO: example
+    pub fn from_kind(kind: &Kind) -> Kind {
+        Self {
+            inner: kind.inner.clone(),
+        }
     }
 
     /// Set magic type at the beginning of the image
+    // TODO: example
     pub fn with_magic(mut self, magic: Magic) -> Self {
-        self.magic = magic.magic();
+        Rc::get_mut(&mut self.inner).unwrap().magic = magic.magic();
         self
     }
 
     /// Set endian used for data types
+    // TODO: example
     pub fn with_type_endian(mut self, endian: Endian) -> Self {
         match endian {
             Endian::Little => {
-                self.type_endian = deku::ctx::Endian::Little;
+                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
             },
             Endian::Big => {
-                self.type_endian = deku::ctx::Endian::Big;
+                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
             },
         }
         self
     }
 
     /// Set endian used for Metadata lengths
+    // TODO: example
     pub fn with_data_endian(mut self, endian: Endian) -> Self {
         match endian {
             Endian::Little => {
-                self.data_endian = deku::ctx::Endian::Little;
+                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
             },
             Endian::Big => {
-                self.data_endian = deku::ctx::Endian::Big;
+                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
             },
         }
         self
     }
 
     /// Set both type and data endian
+    // TODO: example
     pub fn with_all_endian(mut self, endian: Endian) -> Self {
         match endian {
             Endian::Little => {
-                self.type_endian = deku::ctx::Endian::Little;
-                self.data_endian = deku::ctx::Endian::Little;
+                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
+                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
             },
             Endian::Big => {
-                self.type_endian = deku::ctx::Endian::Big;
-                self.data_endian = deku::ctx::Endian::Big;
+                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
+                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
             },
         }
         self
     }
 
     /// Set major and minor version
+    // TODO: example
     pub fn with_version(mut self, major: u16, minor: u16) -> Self {
-        self.version_major = major;
-        self.version_minor = minor;
+        Rc::get_mut(&mut self.inner).unwrap().version_major = major;
+        Rc::get_mut(&mut self.inner).unwrap().version_minor = minor;
         self
     }
 }
 
-impl Default for Kind {
-    /// Same as [`Self::new`]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Default `Kind` for linux kernel and squashfs-tools/mksquashfs. Little-Endian v4.0
-pub const LE_V4_0: Kind = Kind {
+pub const LE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
     version_major: 4,
     version_minor: 0,
+    compressor: &DefaultCompressor,
 };
 
 /// Big-Endian Superblock v4.0
-pub const BE_V4_0: Kind = Kind {
+pub const BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,
     version_major: 4,
     version_minor: 0,
+    compressor: &DefaultCompressor,
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
-pub const AVM_BE_V4_0: Kind = Kind {
+pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Little,
     version_major: 4,
     version_minor: 0,
+    compressor: &DefaultCompressor,
 };

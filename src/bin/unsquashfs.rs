@@ -2,14 +2,12 @@ use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, Seek, SeekFrom};
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
-use std::str::FromStr;
 
 use backhand::kind::Kind;
 use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
-use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::Parser;
 use libc::lchown;
 use nix::libc::geteuid;
@@ -35,7 +33,7 @@ pub fn after_help() -> String {
 }
 
 /// tool to uncompress, extract and list squashfs filesystems
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(author, version, name = "unsquashfs-backhand", after_help=after_help())]
 struct Args {
     /// Squashfs file
@@ -66,17 +64,8 @@ struct Args {
     stat: bool,
 
     /// Kind(type of image) to parse
-    #[arg(short, long,
-          default_value = "le_v4_0",
-          value_parser = PossibleValuesParser::new(
-              [
-                "be_v4_0",
-                "le_v4_0",
-                "amv_be_v4_0",
-              ]
-          ).map(|s| Kind::from_str(&s).unwrap())
-    )]
-    kind: Kind,
+    #[arg(short, long, default_value = "le_v4_0")]
+    kind: String,
 }
 
 fn main() {
@@ -84,15 +73,16 @@ fn main() {
 
     let args = Args::parse();
 
+    let kind = Kind::from_target(&args.kind).unwrap();
+
     let file = BufReader::new(File::open(&args.filesystem).unwrap());
 
     if args.stat {
-        stat(args, file);
+        stat(args, file, kind);
         return;
     }
 
-    let squashfs =
-        Squashfs::from_reader_with_offset_and_kind(file, args.offset, args.kind).unwrap();
+    let squashfs = Squashfs::from_reader_with_offset_and_kind(file, args.offset, kind).unwrap();
     let root_process = unsafe { geteuid() == 0 };
     if root_process {
         umask(Mode::from_bits(0).unwrap());
@@ -114,11 +104,11 @@ fn list(filesystem: FilesystemReader) {
     }
 }
 
-fn stat(args: Args, mut file: BufReader<File>) {
+fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
     file.seek(SeekFrom::Start(args.offset)).unwrap();
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, compression_options) =
-        Squashfs::superblock_and_compression_options(&mut reader, args.kind).unwrap();
+        Squashfs::superblock_and_compression_options(&mut reader, &kind).unwrap();
 
     // show info about flags
     println!("{superblock:#08x?}");
@@ -228,9 +218,8 @@ fn extract_all(args: &Args, filesystem: FilesystemReader, root_process: bool) {
 
                 // write to file
                 let mut fd = File::create(&filepath).unwrap();
-                let mut reader = filesystem
-                    .file(&file.basic)
-                    .reader(&mut buf_read, &mut buf_decompress);
+                let file = filesystem.file(&file.basic);
+                let mut reader = file.reader(&mut buf_read, &mut buf_decompress);
 
                 match io::copy(&mut reader, &mut fd) {
                     Ok(_) => {

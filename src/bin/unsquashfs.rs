@@ -8,7 +8,8 @@ use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::{generate, Shell};
 use libc::lchown;
 use nix::libc::geteuid;
 use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
@@ -37,7 +38,8 @@ pub fn after_help() -> String {
 #[command(author, version, name = "unsquashfs-backhand", after_help=after_help())]
 struct Args {
     /// Squashfs file
-    filesystem: PathBuf,
+    #[arg(required_unless_present = "completions")]
+    filesystem: Option<PathBuf>,
 
     /// Skip BYTES at the start of FILESYSTEM
     #[arg(short, long, default_value_t = 0, name = "BYTES")]
@@ -66,6 +68,10 @@ struct Args {
     /// Kind(type of image) to parse
     #[arg(short, long, default_value = "le_v4_0")]
     kind: String,
+
+    /// Emit shell completion scripts
+    #[arg(long)]
+    completions: Option<Shell>,
 }
 
 fn main() {
@@ -73,9 +79,16 @@ fn main() {
 
     let args = Args::parse();
 
+    if let Some(completions) = args.completions {
+        let mut cmd = Args::command();
+        let name = cmd.get_name().to_string();
+        generate(completions, &mut cmd, name, &mut io::stdout());
+        return;
+    }
+
     let kind = Kind::from_target(&args.kind).unwrap();
 
-    let file = BufReader::new(File::open(&args.filesystem).unwrap());
+    let file = BufReader::new(File::open(args.filesystem.as_ref().unwrap()).unwrap());
 
     if args.stat {
         stat(args, file, kind);

@@ -163,6 +163,23 @@ pub trait SquashFsReader: BufReadSeek {
         let seek = superblock.inode_table + root_inode_start as u64;
         self.seek(SeekFrom::Start(seek))?;
         let mut bytes_01 = metadata::read_block(self, superblock, kind)?;
+
+        // try reading just one metdata block
+        let new_bytes = &bytes_01[root_inode_offset..];
+        let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
+        if let Ok((_, inode)) = Inode::read(
+            input_bits,
+            (
+                superblock.bytes_used,
+                superblock.block_size,
+                superblock.block_log,
+                kind.inner.type_endian,
+            ),
+        ) {
+            return Ok(inode);
+        }
+
+        // if that doesn't work, we need another block
         let bytes_02 = metadata::read_block(self, superblock, kind)?;
         bytes_01.write_all(&bytes_02)?;
         if root_inode_offset > bytes_01.len() {

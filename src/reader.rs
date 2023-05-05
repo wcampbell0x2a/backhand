@@ -101,43 +101,47 @@ pub trait SquashFsReader: BufReadSeek {
         // Using this size, a SquashFS reader can determine if another header with further entries
         // should be following once it reaches the end of a run.
 
-        let mut ret_bytes = vec![];
+        let mut ret_bytes = Vec::with_capacity(METADATA_MAXSIZE);
 
-        //let og_len = buf.len();
         let mut metadata_offsets = vec![];
-        //let mut rest = buf;
+        let mut ret_vec = HashMap::default();
         let start = self.stream_position()?;
+
         while self.stream_position()? < superblock.dir_table {
             trace!("offset: {:02x?}", self.stream_position());
             metadata_offsets.push(self.stream_position()? - start);
             // parse into metadata
             let mut bytes = metadata::read_block(self, superblock, kind)?;
-            ret_bytes.append(&mut bytes);
-        }
-        //tracing::trace!("TRACE: TOTAL BYTES: {02x?}", ret_bytes.len());
 
-        let mut ret_vec = HashMap::default();
-        while !ret_bytes.is_empty() {
-            let input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
-            match Inode::read(
-                input_bits,
-                (
-                    superblock.bytes_used,
-                    superblock.block_size,
-                    superblock.block_log,
-                    kind.type_endian,
-                ),
-            ) {
-                Ok((rest, inode)) => {
-                    // Push the new Inode to the return, with the position this was read from
-                    ret_vec.insert(inode.header.inode_number, inode);
-                    ret_bytes = rest.domain().region().unwrap().1.to_vec();
-                },
-                Err(e) => {
-                    error!("corrupted or invalid squashfs {e}");
-                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-                },
+            // parse as many inodes as you can
+            ret_bytes.append(&mut bytes);
+
+            let mut input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
+            while !input_bits.is_empty() {
+                match Inode::read(
+                    input_bits,
+                    (
+                        superblock.bytes_used,
+                        superblock.block_size,
+                        superblock.block_log,
+                        kind.inner.type_endian,
+                    ),
+                ) {
+                    Ok((rest, inode)) => {
+                        // Push the new Inode to the return, with the position this was read from
+                        ret_vec.insert(inode.header.inode_number, inode);
+                        input_bits = rest;
+                    },
+                    Err(_) => {
+                        // try next block, inodes can span multiple blocks!
+                        break;
+                    },
+                }
             }
+
+            // save leftover bits to new bits to leave for the next metadata block
+            // this is safe, input_bits is always byte aligned
+            ret_bytes = ret_bytes[(ret_bytes.len() - (input_bits.len() / 8))..].to_vec();
         }
 
         Ok(ret_vec)

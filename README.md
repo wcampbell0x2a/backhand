@@ -9,6 +9,14 @@ backhand
 Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
+- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs images, 
+including the extraction and modification of images.
+- **Feature Flags** — Supported compression and decompression are feature flagged, so your final binary (or `unsquashfs`)
+only needs to include code to extract one type of image.
+- **Unconventional Support** — As well as supporting normal linux kernel SquashFS 4.0, we also support
+the "wonderful world of vendor formats" with a `Kind` struct.
+This allows changing the magic bytes, custom compression algorithms, and the Endian-ness of either the Data or Metadata fields.
+
 ## Library
 Add the following to your `Cargo.toml` file:
 ```toml
@@ -108,6 +116,10 @@ Options:
   -h, --help       Print help
   -V, --version    Print version
 ```
+
+## Performance
+While there is still work to do, in most cases our speed is comparable or better than single-threaded `squashfs-tools/unsquashfs`.
+Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB`.
 
 ## Testing
 This library is extensively tested with all library features and images from openwrt and extracted from manufacturers devices.

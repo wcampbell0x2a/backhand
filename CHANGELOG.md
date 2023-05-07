@@ -5,13 +5,340 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-### Added
-- Append no padding to image: `FilesystemWriter::set_no_padding()`
-- Modify FilesystemCompressor options: `FilesystemCompressor::options(&mut self, options: CompressionOptions)`
+# [v0.12.0] - 2023-05-07
+Thanks [@rbran](https://github.com/rbran/) for the contributions!
 
-## [v0.11.0] - 2023-03-14
-### Added
+## backhand
+- `Kind` has been extended to take an `CompressionAction` to have a custom compression and decompression
+  algorithm. This defaults to the `DefaultCompressor` in most situations to be like the Linux kernel
+  squashfs code. This should allow an ever greater array of custom vendor Squashfs image support.
+  Many API changes were done to support this, Most of the following changes focus on the Public API that
+  we expect the normal developer to be using.
+- Added method to allow creating image without padding: `FilesystemWriter::set_no_padding()`
+- Added method to allow modification to Compression options: `FilesystemCompressor::options(&mut self, options: CompressionOptions)`
+- Added `FilesytemWriter::push_dir_all`, following behavior of `std::fs::create_dir_all` and create required parent directories
+- Added `FilesystemReader::files()` and `file()` as the new method of reading files from an image.
+This change also reduced allocations in use when reading.
+```diff
+- for node in &filesystem.nodes {
++ for node in filesystem.files() {
+```
+- Compression Options are now written to the image during `FilesystemWriter.write(..)`
+- Removed non-used allocation in `SquashFsReader`. No change in public API.
+- Changed  `SquashfsReadFile::reader(..)` to reduce the amount of allocation when extracting a file.
+This required adding `alloc_read_buffers` to initialize the re-used buffers.
+```diff, rust
++// alloc required space for file data readers
++let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
+
+-let mut reader = filesystem.file(&file.basic).reader();
++let mut reader = filesystem
++    .file(&file.basic)
++    .reader(&mut buf_read, &mut buf_decompress);
+```
+- Removed `FilesystemReader::read_file`
+- Changed `FilesytemWriter::push_file<P: Into<PathBuf>>(` into `push_file<P: AsRef<Path>>(`.
+NOTE: The function will no longer create parent directories! Instead use new `FilesytemWriter::push_dir_all`
+- Removed `SquashfsFileSource`
+- Changed `FilesystemWriter::push_*()` functions to now return `BackhandError` to avoid duplicate files and invalid file paths.
+The following `BackhandError`s were added to support this: `DuplicatedFileName`, `UndefineFileName`, and `InvalidFilePath`.
+- Changed `FilesystemWriter::push_block_device<P: Into<PathBuf>>()` into `P: AsRef<Path>`
+- Changed `FilesystemWriter::push_block_device<P: Into<PathBuf>>()` into `P: AsRef<Path>`
+- Changed `FilesystemWriter::write_with_offset()` to now take `&mut self`
+- Changed `FilesystemWriter::write()` to now take `&mut self`
+- Removed trait bound from `FilesystemReader`, `FilesystemReaderFile`, and `FilesystemWriter`:
+```diff
+-pub struct backhand::FilesystemReader<R: backhand::ReadSeek>
++pub struct backhand::FilesystemReader
+-pub struct backhand::FilesystemReaderFile<'a, R: backhand::ReadSeek>
++pub struct backhand::FilesystemReaderFile<'a>
+-pub struct backhand::FilesystemWriter<'a, R: backhand::ReadSeek>
++pub struct backhand::FilesystemWriter<'a>
+```
+- Changed public fields in `FilesystemReader`:
+```diff
+-pub root_inode: SquashfsDir,
+-pub nodes: Vec<Node<SquashfsFileReader>>,
++pub root: Nodes<SquashfsFileReader>,
+```
+- `FilesystemReader::from_reader_*()` functions now take `BufReadSeek` for an increase in performance during reading for some images.
+
+### Detailed Changed/Added/Removed
+
+```
+$ cargo public-api -ss diff v0.11.0..HEAD
+```
+
+<details>
+<summary>Click to expand</summary>
+
+```diff
+Removed items from the public API
+=================================
+-pub fn backhand::kind::Kind::new() -> Self
+-impl core::default::Default for backhand::kind::Kind
+-pub fn backhand::kind::Kind::default() -> Self
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::Export
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::Export
+-pub fn backhand::kind::Kind::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::kind::Kind::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::kind::Kind::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::kind::Kind::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::Fragment
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::Fragment
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::Id
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::Id
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::SuperBlock
+-impl deku::DekuRead<'_, backhand::kind::Kind> for backhand::SuperBlock
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::Export
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::Export
+-pub fn backhand::kind::Kind::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::kind::Kind::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::kind::Kind::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::kind::Kind::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::Fragment
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::Fragment
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::Id
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::Id
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::SuperBlock
+-impl deku::DekuWrite<backhand::kind::Kind> for backhand::SuperBlock
+-impl core::clone::Clone for backhand::kind::Kind
+-pub fn backhand::kind::Kind::clone(&self) -> backhand::kind::Kind
+-impl core::cmp::Eq for backhand::kind::Kind
+-impl core::cmp::PartialEq<backhand::kind::Kind> for backhand::kind::Kind
+-pub fn backhand::kind::Kind::eq(&self, other: &backhand::kind::Kind) -> bool
+-impl core::marker::Copy for backhand::kind::Kind
+-impl core::marker::StructuralEq for backhand::kind::Kind
+-impl core::marker::StructuralPartialEq for backhand::kind::Kind
+-pub enum backhand::SquashfsFileSource<'a, R: backhand::ReadSeek>
+-pub backhand::SquashfsFileSource::SquashfsFile(backhand::FilesystemReaderFile<'a, R>)
+-pub backhand::SquashfsFileSource::UserDefined(core::cell::RefCell<alloc::boxed::Box<(dyn std::io::Read + 'a)>>)
+-pub fn backhand::Export::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::Export::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-pub backhand::FilesystemReader::nodes: alloc::vec::Vec<backhand::Node<backhand::SquashfsFileReader>>
+-pub backhand::FilesystemReader::root_inode: backhand::SquashfsDir
+-impl<R: backhand::ReadSeek> backhand::FilesystemReader<R>
+-impl<R: backhand::ReadSeek> backhand::FilesystemReader<R>
+-pub fn backhand::FilesystemReader::file<'a>(&'a self, basic_file: &'a backhand::BasicFile) -> backhand::FilesystemReaderFile<'a, R>
+-pub fn backhand::FilesystemReader::read_file(&self, basic_file: &backhand::BasicFile) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
+-pub fn backhand::FilesystemReader::from_reader(reader: R) -> core::result::Result<Self, backhand::BackhandError>
+-impl<R: backhand::ReadSeek> backhand::FilesystemReader<SquashfsReaderWithOffset<R>>
+-pub fn backhand::FilesystemReader::from_reader_with_offset(reader: R, offset: u64) -> core::result::Result<Self, backhand::BackhandError>
+-pub fn backhand::FilesystemReader::from_reader_with_offset_and_kind(reader: R, offset: u64, kind: backhand::kind::Kind) -> core::result::Result<Self, backhand::BackhandError>
+-impl<R: core::fmt::Debug + backhand::ReadSeek> core::fmt::Debug for backhand::FilesystemReader<R>
+-pub fn backhand::FilesystemReader::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+-impl<'a, R: backhand::ReadSeek> backhand::FilesystemReaderFile<'a, R>
+-pub fn backhand::FilesystemReaderFile::new(system: &'a backhand::FilesystemReader<R>, basic: &'a backhand::BasicFile) -> Self
+-pub fn backhand::FilesystemReaderFile::reader(&self) -> SquashfsReadFile<'a, R>
+-impl<'a, R: backhand::ReadSeek> core::clone::Clone for backhand::FilesystemReaderFile<'a, R>
+-impl<'a, R: backhand::ReadSeek> core::iter::traits::collect::IntoIterator for backhand::FilesystemReaderFile<'a, R>
+-impl<'a, R: core::marker::Copy + backhand::ReadSeek> core::marker::Copy for backhand::FilesystemReaderFile<'a, R>
+-impl<'a, R: backhand::ReadSeek> backhand::FilesystemWriter<'a, R>
+-pub fn backhand::FilesystemWriter::from_fs_reader(reader: &'a backhand::FilesystemReader<R>) -> core::result::Result<Self, backhand::BackhandError>
+-pub fn backhand::FilesystemWriter::mut_file<S: core::convert::Into<std::path::PathBuf>>(&mut self, find_path: S) -> core::option::Option<&mut backhand::SquashfsFileWriter<'a, R>>
+-pub fn backhand::FilesystemWriter::push_block_device<P: core::convert::Into<std::path::PathBuf>>(&mut self, device_number: u32, path: P, header: backhand::NodeHeader)
+-pub fn backhand::FilesystemWriter::push_char_device<P: core::convert::Into<std::path::PathBuf>>(&mut self, device_number: u32, path: P, header: backhand::NodeHeader)
+-pub fn backhand::FilesystemWriter::push_dir<P: core::convert::Into<std::path::PathBuf>>(&mut self, path: P, header: backhand::NodeHeader)
+-pub fn backhand::FilesystemWriter::push_file<P: core::convert::Into<std::path::PathBuf>>(&mut self, reader: impl std::io::Read + 'a, path: P, header: backhand::NodeHeader)
+-pub fn backhand::FilesystemWriter::push_symlink<P: core::convert::Into<std::path::PathBuf>, S: core::convert::Into<std::path::PathBuf>>(&mut self, link: S, path: P, header: backhand::NodeHeader)
+-pub fn backhand::FilesystemWriter::replace_file<S: core::convert::Into<std::path::PathBuf>>(&mut self, find_path: S, reader: impl std::io::Read + 'a) -> core::result::Result<(), backhand::BackhandError>
+-pub fn backhand::FilesystemWriter::write<W: std::io::Write + std::io::Seek>(&self, w: &mut W) -> core::result::Result<(backhand::SuperBlock, u64), backhand::BackhandError>
+-pub fn backhand::FilesystemWriter::write_with_offset<W: std::io::Write + std::io::Seek>(&self, w: &mut W, offset: u64) -> core::result::Result<(backhand::SuperBlock, u64), backhand::BackhandError>
+-impl core::default::Default for backhand::FilesystemWriter<'_>
+-impl<'a, R: core::fmt::Debug + backhand::ReadSeek> core::fmt::Debug for backhand::FilesystemWriter<'a, R>
+-pub fn backhand::Fragment::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::Fragment::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::Id::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::Id::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-impl deku::DekuRead<'_, (u64, u32, u16, backhand::kind::Kind)> for backhand::Inode
+-pub fn backhand::Inode::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, (bytes_used, block_size, block_log, kind): (u64, u32, u16, backhand::kind::Kind)) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-impl deku::DekuWrite<(u64, u32, u16, backhand::kind::Kind)> for backhand::Inode
+-pub fn backhand::Inode::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, (bytes_used, block_size, block_log, kind): (u64, u32, u16, backhand::kind::Kind)) -> core::result::Result<(), deku::error::DekuError>
+-pub backhand::Node::path: std::path::PathBuf
+-pub fn backhand::Node::new(path: std::path::PathBuf, inner: backhand::InnerNode<T>) -> Self
+-impl<T: core::cmp::Eq> core::cmp::Eq for backhand::Node<T>
+-impl<T: core::cmp::PartialEq> core::cmp::PartialEq<backhand::Node<T>> for backhand::Node<T>
+-pub fn backhand::Node::eq(&self, other: &backhand::Node<T>) -> bool
+-impl<T> core::marker::StructuralEq for backhand::Node<T>
+-impl<T> core::marker::StructuralPartialEq for backhand::Node<T>
+-pub backhand::Squashfs::data_and_fragments: alloc::vec::Vec<u8>
+-impl<R: backhand::ReadSeek> backhand::Squashfs<R>
+-impl<R: backhand::ReadSeek> backhand::Squashfs<R>
+-pub fn backhand::Squashfs::from_reader(reader: R) -> core::result::Result<backhand::Squashfs<R>, backhand::BackhandError>
+-pub fn backhand::Squashfs::into_filesystem_reader(self) -> core::result::Result<backhand::FilesystemReader<R>, backhand::BackhandError>
+-impl<R: backhand::ReadSeek> backhand::Squashfs<SquashfsReaderWithOffset<R>>
+-pub fn backhand::Squashfs::from_reader_with_offset(reader: R, offset: u64) -> core::result::Result<backhand::Squashfs<SquashfsReaderWithOffset<R>>, backhand::BackhandError>
+-pub fn backhand::Squashfs::from_reader_with_offset_and_kind(reader: R, offset: u64, kind: backhand::kind::Kind) -> core::result::Result<backhand::Squashfs<SquashfsReaderWithOffset<R>>, backhand::BackhandError>
+-pub backhand::SquashfsBlockDevice::header: backhand::NodeHeader
+-pub backhand::SquashfsCharacterDevice::header: backhand::NodeHeader
+-pub backhand::SquashfsDir::header: backhand::NodeHeader
+-pub backhand::SquashfsFileReader::header: backhand::NodeHeader
+-pub struct backhand::SquashfsFileWriter<'a, R: backhand::ReadSeek>
+-pub backhand::SquashfsFileWriter::header: backhand::NodeHeader
+-pub backhand::SquashfsFileWriter::reader: backhand::SquashfsFileSource<'a, R>
+-impl<'a, R: backhand::ReadSeek> core::fmt::Debug for backhand::SquashfsFileWriter<'a, R>
+-pub backhand::SquashfsSymlink::header: backhand::NodeHeader
+-pub const backhand::SuperBlock::NOT_SET: u64
+-pub fn backhand::SuperBlock::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
+-pub fn backhand::SuperBlock::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, kind: backhand::kind::Kind) -> core::result::Result<(), deku::error::DekuError>
+-pub trait backhand::ReadSeek: std::io::Read + std::io::Seek
+-impl<T: std::io::Read + std::io::Seek> backhand::ReadSeek for T
+
+Changed items in the public API
+===============================
+-pub struct backhand::Export(pub u64)
++pub struct backhand::Export
+-pub struct backhand::FilesystemReader<R: backhand::ReadSeek>
++pub struct backhand::FilesystemReader
+-pub struct backhand::FilesystemReaderFile<'a, R: backhand::ReadSeek>
++pub struct backhand::FilesystemReaderFile<'a>
+-pub struct backhand::FilesystemWriter<'a, R: backhand::ReadSeek>
++pub struct backhand::FilesystemWriter<'a>
+-pub struct backhand::Id(pub u32)
++pub struct backhand::Id
+-pub struct backhand::Squashfs<R: backhand::ReadSeek>
++pub struct backhand::Squashfs
+
+Added items to the public API
+=============================
++pub struct backhand::compression::DefaultCompressor
++impl backhand::compression::CompressionAction for backhand::compression::DefaultCompressor
++impl backhand::compression::CompressionAction for backhand::compression::DefaultCompressor
++pub fn backhand::compression::DefaultCompressor::compress(&self, bytes: &[u8], fc: backhand::FilesystemCompressor, block_size: u32) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
++pub fn backhand::compression::DefaultCompressor::decompress(&self, bytes: &[u8], out: &mut alloc::vec::Vec<u8>, compressor: backhand::compression::Compressor) -> core::result::Result<(), backhand::BackhandError>
++impl core::clone::Clone for backhand::compression::DefaultCompressor
++pub fn backhand::compression::DefaultCompressor::clone(&self) -> backhand::compression::DefaultCompressor
++impl core::marker::Copy for backhand::compression::DefaultCompressor
++pub trait backhand::compression::CompressionAction
++pub fn backhand::compression::CompressionAction::compress(&self, bytes: &[u8], fc: backhand::FilesystemCompressor, block_size: u32) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
++pub fn backhand::compression::CompressionAction::compress(&self, bytes: &[u8], fc: backhand::FilesystemCompressor, block_size: u32) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
++pub fn backhand::compression::CompressionAction::decompress(&self, bytes: &[u8], out: &mut alloc::vec::Vec<u8>, compressor: backhand::compression::Compressor) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::compression::CompressionAction::decompress(&self, bytes: &[u8], out: &mut alloc::vec::Vec<u8>, compressor: backhand::compression::Compressor) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::kind::Kind::from_const(inner: InnerKind<dyn backhand::compression::CompressionAction>) -> core::result::Result<backhand::kind::Kind, alloc::string::String>
++pub fn backhand::kind::Kind::from_kind(kind: &backhand::kind::Kind) -> backhand::kind::Kind
++pub fn backhand::kind::Kind::from_target(s: &str) -> core::result::Result<backhand::kind::Kind, alloc::string::String>
++pub fn backhand::kind::Kind::new<C: backhand::compression::CompressionAction>(compressor: &'static C) -> Self
++pub fn backhand::kind::Kind::new_with_const<C: backhand::compression::CompressionAction>(compressor: &'static C, c: InnerKind<dyn backhand::compression::CompressionAction>) -> Self
++pub backhand::BackhandError::DuplicatedFileName
++pub backhand::BackhandError::InvalidFilePath
++pub backhand::BackhandError::UndefineFileName
++pub enum backhand::SquashfsFileWriter<'a>
++pub backhand::SquashfsFileWriter::Consumed(usize, Added)
++pub backhand::SquashfsFileWriter::SquashfsFile(backhand::FilesystemReaderFile<'a>)
++pub backhand::SquashfsFileWriter::UserDefined(core::cell::RefCell<alloc::boxed::Box<(dyn std::io::Read + 'a)>>)
++impl<'a> core::fmt::Debug for backhand::SquashfsFileWriter<'a>
++pub backhand::Export::num: u64
++impl deku::DekuRead<'_, deku::ctx::Endian> for backhand::Export
++pub fn backhand::Export::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, type_endian: deku::ctx::Endian) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
++impl deku::DekuWrite<deku::ctx::Endian> for backhand::Export
++pub fn backhand::Export::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::FilesystemCompressor::options(&mut self, options: backhand::compression::CompressionOptions) -> core::result::Result<(), backhand::BackhandError>
++pub backhand::FilesystemReader::root: Nodes<backhand::SquashfsFileReader>
++impl backhand::FilesystemReader
++pub fn backhand::FilesystemReader::alloc_read_buffers(&self) -> (alloc::vec::Vec<u8>, alloc::vec::Vec<u8>)
++pub fn backhand::FilesystemReader::file<'a>(&'a self, basic_file: &'a backhand::BasicFile) -> backhand::FilesystemReaderFile<'_>
++pub fn backhand::FilesystemReader::files(&self) -> impl core::iter::traits::iterator::Iterator<Item = &backhand::Node<backhand::SquashfsFileReader>>
++pub fn backhand::FilesystemReader::from_reader<R: backhand::BufReadSeek + 'static>(reader: R) -> core::result::Result<Self, backhand::BackhandError>
++pub fn backhand::FilesystemReader::from_reader_with_offset<R: backhand::BufReadSeek + 'static>(reader: R, offset: u64) -> core::result::Result<Self, backhand::BackhandError>
++pub fn backhand::FilesystemReader::from_reader_with_offset_and_kind<R: backhand::BufReadSeek + 'static>(reader: R, offset: u64, kind: backhand::kind::Kind) -> core::result::Result<Self, backhand::BackhandError>
++impl<'a> backhand::FilesystemReaderFile<'a>
++pub fn backhand::FilesystemReaderFile::new(system: &'a backhand::FilesystemReader, basic: &'a backhand::BasicFile) -> Self
++pub fn backhand::FilesystemReaderFile::reader(&self, buf_read: &'a mut alloc::vec::Vec<u8>, buf_decompress: &'a mut alloc::vec::Vec<u8>) -> backhand::SquashfsReadFile<'_>
++impl<'a> core::clone::Clone for backhand::FilesystemReaderFile<'a>
++impl<'a> core::iter::traits::collect::IntoIterator for backhand::FilesystemReaderFile<'a>
++impl<'a> core::marker::Copy for backhand::FilesystemReaderFile<'a>
++impl<'a> backhand::FilesystemWriter<'a>
++pub fn backhand::FilesystemWriter::from_fs_reader(reader: &'a backhand::FilesystemReader) -> core::result::Result<Self, backhand::BackhandError>
++pub fn backhand::FilesystemWriter::mut_file<S: core::convert::AsRef<std::path::Path>>(&mut self, find_path: S) -> core::option::Option<&mut backhand::SquashfsFileWriter<'a>>
++pub fn backhand::FilesystemWriter::push_block_device<P: core::convert::AsRef<std::path::Path>>(&mut self, device_number: u32, path: P, header: backhand::NodeHeader) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::push_char_device<P: core::convert::AsRef<std::path::Path>>(&mut self, device_number: u32, path: P, header: backhand::NodeHeader) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::push_dir<P: core::convert::AsRef<std::path::Path>>(&mut self, path: P, header: backhand::NodeHeader) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::push_dir_all<P: core::convert::AsRef<std::path::Path>>(&mut self, path: P, header: backhand::NodeHeader) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::push_file<P: core::convert::AsRef<std::path::Path>>(&mut self, reader: impl std::io::Read + 'a, path: P, header: backhand::NodeHeader) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::push_symlink<P: core::convert::AsRef<std::path::Path>, S: core::convert::Into<std::path::PathBuf>>(&mut self, link: S, path: P, header: backhand::NodeHeader) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::replace_file<S: core::convert::AsRef<std::path::Path>>(&mut self, find_path: S, reader: impl std::io::Read + 'a) -> core::result::Result<(), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::set_no_padding(&mut self)
++pub fn backhand::FilesystemWriter::write<W: std::io::Write + std::io::Seek>(&mut self, w: &mut W) -> core::result::Result<(backhand::SuperBlock, u64), backhand::BackhandError>
++pub fn backhand::FilesystemWriter::write_with_offset<W: std::io::Write + std::io::Seek>(&mut self, w: &mut W, offset: u64) -> core::result::Result<(backhand::SuperBlock, u64), backhand::BackhandError>
++impl<'a> core::default::Default for backhand::FilesystemWriter<'a>
++impl<'a> core::fmt::Debug for backhand::FilesystemWriter<'a>
++impl backhand::Fragment
++pub fn backhand::Fragment::new(start: u64, size: backhand::DataSize, unused: u32) -> Self
++impl deku::DekuRead<'_, deku::ctx::Endian> for backhand::Fragment
++pub fn backhand::Fragment::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, type_endian: deku::ctx::Endian) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
++impl deku::DekuWrite<deku::ctx::Endian> for backhand::Fragment
++pub fn backhand::Fragment::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub backhand::Id::num: u32
++pub const backhand::Id::SIZE: usize
++pub fn backhand::Id::new(num: u32) -> backhand::Id
++impl deku::DekuRead<'_, deku::ctx::Endian> for backhand::Id
++pub fn backhand::Id::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, type_endian: deku::ctx::Endian) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
++impl deku::DekuWrite<deku::ctx::Endian> for backhand::Id
++pub fn backhand::Id::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++impl backhand::Inode
++pub fn backhand::Inode::new(id: InodeId, header: InodeHeader, inner: InodeInner) -> Self
++impl deku::DekuRead<'_, (u64, u32, u16, deku::ctx::Endian)> for backhand::Inode
++pub fn backhand::Inode::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, (bytes_used, block_size, block_log, type_endian): (u64, u32, u16, deku::ctx::Endian)) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
++impl deku::DekuWrite<(u64, u32, u16, deku::ctx::Endian)> for backhand::Inode
++pub fn backhand::Inode::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, (bytes_used, block_size, block_log, type_endian): (u64, u32, u16, deku::ctx::Endian)) -> core::result::Result<(), deku::error::DekuError>
++pub backhand::Node::fullpath: std::path::PathBuf
++pub backhand::Node::header: backhand::NodeHeader
++pub fn backhand::Node::new_root(header: backhand::NodeHeader) -> Self
++impl<T> core::cmp::Eq for backhand::Node<T>
++impl<T> core::cmp::Ord for backhand::Node<T>
++pub fn backhand::Node::cmp(&self, other: &Self) -> core::cmp::Ordering
++impl<T> core::cmp::PartialEq<backhand::Node<T>> for backhand::Node<T>
++pub fn backhand::Node::eq(&self, other: &Self) -> bool
++impl<T> core::cmp::PartialOrd<backhand::Node<T>> for backhand::Node<T>
++pub fn backhand::Node::partial_cmp(&self, other: &Self) -> core::option::Option<core::cmp::Ordering>
++impl<T: core::clone::Clone> core::clone::Clone for backhand::Node<T>
++pub fn backhand::Node::clone(&self) -> backhand::Node<T>
++impl backhand::Squashfs
++pub fn backhand::Squashfs::from_reader(reader: impl backhand::BufReadSeek + 'static) -> core::result::Result<backhand::Squashfs, backhand::BackhandError>
++pub fn backhand::Squashfs::from_reader_with_offset(reader: impl backhand::BufReadSeek + 'static, offset: u64) -> core::result::Result<backhand::Squashfs, backhand::BackhandError>
++pub fn backhand::Squashfs::from_reader_with_offset_and_kind(reader: impl backhand::BufReadSeek + 'static, offset: u64, kind: backhand::kind::Kind) -> core::result::Result<backhand::Squashfs, backhand::BackhandError>
++pub fn backhand::Squashfs::into_filesystem_reader(self) -> core::result::Result<backhand::FilesystemReader, backhand::BackhandError>
++pub fn backhand::Squashfs::superblock_and_compression_options(reader: &mut alloc::boxed::Box<dyn backhand::BufReadSeek>, kind: &backhand::kind::Kind) -> core::result::Result<(backhand::SuperBlock, core::option::Option<backhand::compression::CompressionOptions>), backhand::BackhandError>
++impl core::marker::Copy for backhand::SquashfsBlockDevice
++impl core::marker::Copy for backhand::SquashfsCharacterDevice
++impl core::default::Default for backhand::SquashfsDir
++pub fn backhand::SquashfsDir::default() -> backhand::SquashfsDir
++impl core::marker::Copy for backhand::SquashfsDir
++pub struct backhand::SquashfsReadFile<'a>
++impl<'a> std::io::Read for backhand::SquashfsReadFile<'a>
++pub fn backhand::SquashfsReadFile::read(&mut self, buf: &mut [u8]) -> std::io::error::Result<usize>
++impl backhand::SuperBlock
++impl deku::DekuRead<'_, ([u8; 4], u16, u16, deku::ctx::Endian)> for backhand::SuperBlock
++pub fn backhand::SuperBlock::read(__deku_input_bits: &bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, (ctx_magic, ctx_version_major, ctx_version_minor, ctx_type_endian): ([u8; 4], u16, u16, deku::ctx::Endian)) -> core::result::Result<(&bitvec::slice::BitSlice<u8, bitvec::order::Msb0>, Self), deku::error::DekuError>
++impl deku::DekuWrite<([u8; 4], u16, u16, deku::ctx::Endian)> for backhand::SuperBlock
++pub fn backhand::SuperBlock::write(&self, __deku_output: &mut bitvec::vec::BitVec<u8, bitvec::order::Msb0>, (ctx_magic, ctx_version_major, ctx_version_minor, ctx_type_endian): ([u8; 4], u16, u16, deku::ctx::Endian)) -> core::result::Result<(), deku::error::DekuError>
++pub trait backhand::BufReadSeek: std::io::BufRead + std::io::Seek
++impl<T: std::io::BufRead + std::io::Seek> backhand::BufReadSeek for T
+```
+
+</details>
+
+## `unsquashfs`
+- Added `--kind` for custom squashfs type image extraction
+```
+  -k, --kind <KIND>      Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0, amv_be_v4_0]
+```
+- Added `--completions` for the generation of shell completions scripts
+
+### Performance
+See https://github.com/wcampbell0x2a/backhand/discussions/145 for more details.
+These are benchmarked against the SquashFS image from `TP-Link AXE5400 Mesh Wi-Fi 6E Range Extender`.
+
+#### Speed
+For single threaded mode `squashfs-tools/unsquashfs-v4.6.1`, testing on my machine lets me know that 
+our `backhand/unsquashfs` is around the same speed performance with a single thread.
+
+#### Allocations
+Only testing single threaded mode, peak heap memory consumption for `squashfs-tools/unsquashfs-v4.6.1`
+is 74.8MB, while our `backhand/unsquashfs` only uses 18.1MB.
+
+# [v0.11.0] - 2023-03-14
+## Added
 - Support for Read/Write of non-standard custom squashfs images:
     - `LE_V4_0`: (linux kernel) Little-Endian default official v4.0
     - `BE_V4_0`: Big-Endian v4.0
@@ -29,65 +356,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `add`: now reads file details to derive the details when the file is added the image
 - `add`: `--mtime`, `--uid`, `--gid` and `--permission` to override file details derived from file
 - `unsquashfs`: now correctly extracts ownership and permission details
-### Fixed
+## Fixed
 - `ID` now supports multiple IDs for GUI and UID in the table
 - `id_table` is now properly a u64 pointer
 - Data is now *not* copied when during the use of a `FilesystemWriter` you decide to change the compression used.
   Thanks [@rbran](https://github.com/rbran/)
-### Changed
+## Changed
 - Renamed `SquashfsError` to `BackhandError`
 
-## [v0.10.1] - 2023-02-22
-### Added
+# [v0.10.1] - 2023-02-22
+## Added
 - Zstd compression support 
 
-### Fixed
+## Fixed
 - `FilesystemWriter` Debug impl now works
 - `FilesystemReader::from_reader_with_offset(..)` now properly respects given offsets
 - `FilesystemWriter::write_with_offset(..)` now properly respects given offsets
 
-## [v0.10.0] - 2023-02-20
-### Added
+# [v0.10.0] - 2023-02-20
+## Added
 - Fuzz testing with `cargo fuzz`. Mostly fuzz bytes as bytes/image input into this library.
 - `unsquashfs`: Add `-o, --out <OUT>` flag for output squashfs image destination
 - `replace`: Add binary to replace file in squashfs filesystems
 - Add support for Lzo compression, and feature `lzo`
 
-### Fixed
+## Fixed
 - Fixed many issues found with fuzz testing related to legal images.
   Checks are now added at every stop possible to prevent many soundness issues.
 - Fixed `Compressor` id values for Lzo and Lzma
 
-### Changed
+## Changed
 - Pass internal raw data by reference, improving `only_read` benchmarks by ~9%.
 - Invalid `Superblock.block_size` is now checked against MiB(1) instead of MB(1)
 
-## [v0.9.1] - 2023-02-16
-### Fixed
+# [v0.9.1] - 2023-02-16
+## Fixed
 - Fix `unsquashfs` extracting wrong file data
 
-## [v0.9.0] - 2023-02-13
-### Fixed
+# [v0.9.0] - 2023-02-13
+## Fixed
 - `FilesystemWriter::push_file(..)` correctly enters file into filesystem
-### Changed
+## Changed
 - Remove Result return type from `FilesystemWriter::{push_file(..), push_dir(..), push_symlink(..), push_char_device(..) and push_block_devivce(..)`.
 - Remove unused errors: `FieldNotInitialized` and `OsStringToStr`.
 
-## [v0.8.1] - 2023-02-11
+# [v0.8.1] - 2023-02-11
 - Fix `src/lib.rs` version for docs.rs
 
-## [v0.8.0] - 2023-02-11
-### Added
+# [v0.8.0] - 2023-02-11
+## Added
 - unsquashfs: Add `--stat`, `--force`, `--info` flags.
 - unsquashfs: Add support for Char and Block device file creation when superuser.
 - features: `xz` and `gzip`. By default both are enabled, but conditionally you may compile only one type of decompressor.
 - `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
   These are all returned by the public API of filesystem and more panics were removed.
 
-### Fixed
+## Fixed
 - `inode_count` is fixed, previously was +1 the actual inode count.
 
-### Changed
+## Changed
 - The Public API of the library has been condensed, lmk if you have lost access to a required struct/field/enum.
 - Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.
   This significantly speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.
@@ -109,7 +436,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +NodeHeader
   ```
 
-### Performance
+## Performance
 This releases allows massive performance improvements by only reading files from disk when required 
 and reducing the amount of memory required to read and write an image.
 

@@ -57,7 +57,8 @@ write_filesystem.write(&mut output).unwrap();
 ## Binaries
 These are currently under development and are missing features, MR's welcome!
 
-To install, run `cargo install backhand --locked`.
+To install, run `cargo install backhand --locked`, or download from the
+[latest github release](https://github.com/wcampbell0x2a/backhand/releases/latest).
 
 ### unsquashfs-backhand
 ```no_test

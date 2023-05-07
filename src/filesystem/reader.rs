@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::io::{Read, SeekFrom};
 
 use super::node::Nodes;
-use crate::compressor::{self, CompressionOptions, Compressor};
+use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataSize;
 use crate::error::BackhandError;
 use crate::fragment::Fragment;
@@ -16,7 +16,7 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 /// - Use [`Self::from_reader`] to read into `Self` from a `reader`
 ///
 /// # Read direct into [`Self`]
-/// Usual workflow, reading from image into a default squashfs [`Self`]. See [`crate::InnerNode`] for more
+/// Usual workflow, reading from image into a default squashfs [`Self`]. See [InnerNode] for more
 /// details for `.nodes`.
 /// ```rust,no_run
 /// # use std::fs::File;
@@ -64,6 +64,7 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 /// // Now read into filesystem
 /// let filesystem = squashfs.into_filesystem_reader().unwrap();
 /// ```
+/// [InnerNode]: [`crate::InnerNode`]
 pub struct FilesystemReader {
     pub kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
@@ -126,10 +127,14 @@ impl FilesystemReader {
     }
 
     /// Return a file handler for this file
-    ///
+    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile {
+        FilesystemReaderFile::new(self, basic_file)
+    }
+
+    /// Iterator of all files, including the root
     ///
     /// # Example
-    /// Used when extracting a file from the image, for example using [`crate::FilesystemReaderFile`]:
+    /// Used when extracting a file from the image, for example using [`FilesystemReaderFile`]:
     /// ```rust,no_run
     /// # use std::fs::File;
     /// # use std::io::BufReader;
@@ -139,7 +144,7 @@ impl FilesystemReader {
     /// # };
     /// # let file = BufReader::new(File::open("image.squashfs").unwrap());
     /// # let filesystem = FilesystemReader::from_reader(file).unwrap();
-    /// // <creating FilesystemReader>
+    /// // [snip: creating FilesystemReader]
     ///
     /// // alloc required space for file data readers
     /// let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
@@ -157,11 +162,6 @@ impl FilesystemReader {
     ///     }
     /// }
     /// ```
-    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile {
-        FilesystemReaderFile::new(self, basic_file)
-    }
-
-    /// iterator of all files, including the root
     pub fn files(&self) -> impl Iterator<Item = &Node<SquashfsFileReader>> {
         self.root.nodes.iter()
     }
@@ -174,7 +174,7 @@ pub struct FilesystemReaderFile<'a> {
     pub(crate) basic: &'a BasicFile,
 }
 
-impl Clone for FilesystemReaderFile<'_> {
+impl<'a> Clone for FilesystemReaderFile<'a> {
     fn clone(&self) -> Self {
         Self {
             system: self.system,
@@ -206,7 +206,7 @@ impl<'a> FilesystemReaderFile<'a> {
         &self,
         buf_read: &'a mut Vec<u8>,
         buf_decompress: &'a mut Vec<u8>,
-    ) -> SquashfsReadFile<'a> {
+    ) -> SquashfsReadFile {
         self.raw_data_reader().into_reader(buf_read, buf_decompress)
     }
 
@@ -221,7 +221,7 @@ impl<'a> FilesystemReaderFile<'a> {
         }
     }
 
-    pub(crate) fn raw_data_reader(&self) -> SquashfsRawData<'a> {
+    pub(crate) fn raw_data_reader(&self) -> SquashfsRawData {
         SquashfsRawData::new(Self {
             system: self.system,
             basic: self.basic,
@@ -291,7 +291,7 @@ impl<'a> SquashfsRawData<'a> {
     fn read_raw_data(
         &mut self,
         data: &mut Vec<u8>,
-        block: &BlockFragment<'a>,
+        block: &BlockFragment,
     ) -> Result<RawDataBlock, BackhandError> {
         match block {
             BlockFragment::Block(block) => {
@@ -366,7 +366,11 @@ impl<'a> SquashfsRawData<'a> {
             std::mem::swap(input_buf, output_buf);
         } else {
             output_buf.reserve(self.file.system.block_size as usize);
-            compressor::decompress(input_buf, output_buf, self.file.system.compressor)?;
+            self.file.system.kind.inner.compressor.decompress(
+                input_buf,
+                output_buf,
+                self.file.system.compressor,
+            )?;
             // store the cache, so decompression is not duplicated
             if data.fragment {
                 self.file

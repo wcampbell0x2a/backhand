@@ -5,7 +5,7 @@ use std::io::{Read, Seek, Write};
 use deku::prelude::*;
 use tracing::instrument;
 
-use crate::compressor::compress;
+use crate::compressor::CompressionAction;
 use crate::error::BackhandError;
 use crate::filesystem::reader::SquashfsRawData;
 use crate::filesystem::writer::FilesystemCompressor;
@@ -96,21 +96,26 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct DataWriter {
+pub(crate) struct DataWriter<'a> {
+    kind: &'a dyn CompressionAction,
     block_size: u32,
-    compressor: FilesystemCompressor,
+    fs_compressor: FilesystemCompressor,
     /// Un-written fragment_bytes
     pub(crate) fragment_bytes: Vec<u8>,
     pub(crate) fragment_table: Vec<Fragment>,
 }
 
-impl DataWriter {
+impl<'a> DataWriter<'a> {
     #[instrument(skip_all)]
-    pub fn new(compressor: FilesystemCompressor, block_size: u32) -> Self {
+    pub fn new(
+        kind: &'a dyn CompressionAction,
+        fs_compressor: FilesystemCompressor,
+        block_size: u32,
+    ) -> Self {
         Self {
+            kind,
             block_size,
-            compressor,
+            fs_compressor,
             fragment_bytes: Vec::with_capacity(block_size as usize),
             fragment_table: vec![],
         }
@@ -120,7 +125,7 @@ impl DataWriter {
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
     pub(crate) fn just_copy_it<W: WriteSeek>(
         &mut self,
-        mut reader: SquashfsRawData<'_>,
+        mut reader: SquashfsRawData,
         writer: &mut W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
@@ -172,7 +177,9 @@ impl DataWriter {
             if block.fragment {
                 reader.decompress(block, &mut read_buf, &mut decompress_buf)?;
                 // TODO: support tail-end fragments, for now just treat it like a block
-                let cb = compress(&decompress_buf, self.compressor, self.block_size)?;
+                let cb =
+                    self.kind
+                        .compress(&decompress_buf, self.fs_compressor, self.block_size)?;
                 // compression didn't reduce size
                 if cb.len() > decompress_buf.len() {
                     // store uncompressed
@@ -237,7 +244,9 @@ impl DataWriter {
             let blocks_start = writer.stream_position()? as u32;
             let mut block_sizes = vec![];
             while !chunk.is_empty() {
-                let cb = compress(chunk, self.compressor, self.block_size)?;
+                let cb = self
+                    .kind
+                    .compress(chunk, self.fs_compressor, self.block_size)?;
 
                 // compression didn't reduce size
                 if cb.len() > chunk.len() {
@@ -266,7 +275,9 @@ impl DataWriter {
     /// current fragment_bytes
     pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), BackhandError> {
         let start = writer.stream_position()?;
-        let cb = compress(&self.fragment_bytes, self.compressor, self.block_size)?;
+        let cb = self
+            .kind
+            .compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
 
         // compression didn't reduce size
         let size = if cb.len() > self.fragment_bytes.len() {
@@ -278,11 +289,7 @@ impl DataWriter {
             writer.write_all(&cb)?;
             DataSize::new_compressed(cb.len() as u32)
         };
-        self.fragment_table.push(Fragment {
-            start,
-            size,
-            unused: 0,
-        });
+        self.fragment_table.push(Fragment::new(start, size, 0));
         self.fragment_bytes.clear();
         Ok(())
     }

@@ -90,5 +90,8 @@ pub mod kind {
 
 /// Compression Choice and Options
 pub mod compression {
-    pub use crate::compressor::{CompressionOptions, Compressor, Gzip, Lz4, Lzo, Xz, Zstd};
+    pub use crate::compressor::{
+        CompressionAction, CompressionOptions, Compressor, DefaultCompressor, Gzip, Lz4, Lzo, Xz,
+        Zstd,
+    };
 }

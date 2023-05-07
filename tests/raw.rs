@@ -11,6 +11,8 @@ use test_assets::TestAssetDef;
 #[test]
 #[cfg(feature = "xz")]
 fn test_raw_00() {
+    use backhand::kind::Kind;
+
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
         hash: "e3d8f94f8402412ecf742d44680f1dd5d8fd28cc3d1a502e5fcfcc9e2f5f949a".to_string(),
@@ -49,7 +51,7 @@ fn test_raw_00() {
     fs.set_only_root_id();
     fs.set_root_mode(0o777);
     fs.set_compressor(compressor);
-    fs.set_kind(kind::LE_V4_0);
+    fs.set_kind(Kind::from_const(kind::LE_V4_0).unwrap());
     fs.set_kib_padding(8);
 
     //don't do anything if the directory exists

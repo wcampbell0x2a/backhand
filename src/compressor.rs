@@ -108,137 +108,188 @@ pub struct Zstd {
     pub compression_level: u32,
 }
 
-/// Using the current compressor from the superblock, decompress bytes
-#[instrument(skip_all)]
-pub(crate) fn decompress(
-    bytes: &[u8],
-    out: &mut Vec<u8>,
-    compressor: Compressor,
-) -> Result<(), BackhandError> {
-    match compressor {
-        #[cfg(feature = "gzip")]
-        Compressor::Gzip => {
-            let mut decoder = flate2::read::ZlibDecoder::new(bytes);
-            decoder.read_to_end(out)?;
-        },
-        #[cfg(feature = "xz")]
-        Compressor::Xz => {
-            let mut decoder = XzDecoder::new(bytes);
-            decoder.read_to_end(out)?;
-        },
-        #[cfg(feature = "lzo")]
-        Compressor::Lzo => {
-            out.resize(out.capacity(), 0);
-            let (out_size, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
-            let out_size = out_size.len();
-            out.truncate(out_size);
-            if error != rust_lzo::LZOError::OK {
-                return Err(BackhandError::CorruptedOrInvalidSquashfs);
-            }
-        },
-        #[cfg(feature = "zstd")]
-        Compressor::Zstd => {
-            let mut decoder = zstd::bulk::Decompressor::new().unwrap();
-            decoder.decompress_to_buffer(bytes, out)?;
-        },
-        _ => return Err(BackhandError::UnsupportedCompression(compressor)),
-    }
-    Ok(())
+/// Custom Compression support
+///
+/// For most instances, one should just use the [`DefaultCompressor`]. This will correctly
+/// implement the Squashfs found within `squashfs-tools` and the Linux kernel.
+///
+/// However, the "wonderful world of vendor formats" has other ideas and has implemented their own
+/// ideas of compression with custom tables and such! Thus, if the need arises you can implemented
+/// your own [`CompressionAction`] to override the compression and de-compression used in this
+/// library by default.
+pub trait CompressionAction {
+    /// Decompress function used for all decompression actions
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - Input compressed bytes
+    /// * `out` - Output uncompressed bytes
+    /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
+    /// compressor doesn't follow the normal values of the Compressor Id.
+    ///
+    /// [SuperBlock]: [`crate::SuperBlock`]
+    fn decompress(
+        &self,
+        bytes: &[u8],
+        out: &mut Vec<u8>,
+        compressor: Compressor,
+    ) -> Result<(), BackhandError>;
+
+    /// Compression function used for all compression actions
+    ///
+    /// # Arguments
+    /// * `bytes` - Input uncompressed bytes
+    /// * `fc` - Information from both the derived image and options added during compression
+    /// * `block_size` - Block size from [SuperBlock]
+    ///
+    /// [SuperBlock]: [`crate::SuperBlock`]
+    fn compress(
+        &self,
+        bytes: &[u8],
+        fc: FilesystemCompressor,
+        block_size: u32,
+    ) -> Result<Vec<u8>, BackhandError>;
 }
 
-#[instrument(skip_all)]
-pub(crate) fn compress(
-    bytes: &[u8],
-    fc: FilesystemCompressor,
-    block_size: u32,
-) -> Result<Vec<u8>, BackhandError> {
-    match (fc.id, fc.options, fc.extra) {
-        #[cfg(feature = "xz")]
-        (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
-            let dict_size = match option {
-                None => block_size,
-                Some(CompressionOptions::Xz(option)) => option.dictionary_size,
-                Some(_) => unreachable!(),
-            };
-            let default_level = 6; // LZMA_DEFAULT
-            let level = match extra {
-                None => default_level,
-                Some(CompressionExtra::Xz(xz)) => {
-                    if let Some(level) = xz.level {
-                        level
-                    } else {
-                        default_level
-                    }
-                },
-            };
-            let check = Check::Crc32;
-            let mut opts = LzmaOptions::new_preset(level).unwrap();
-            opts.dict_size(dict_size);
+/// Default compressor that handles the compression features that are enabled
+#[derive(Copy, Clone)]
+pub struct DefaultCompressor;
 
-            let mut filters = Filters::new();
-            if let Some(CompressionOptions::Xz(xz)) = option {
-                match xz.filters {
-                    XzFilter::X86 => filters.x86(),
-                    XzFilter::PowerPC => filters.powerpc(),
-                    XzFilter::IA64 => filters.ia64(),
-                    XzFilter::Arm => filters.arm(),
-                    XzFilter::ArmThumb => filters.arm_thumb(),
-                    XzFilter::Sparc => filters.sparc(),
+impl CompressionAction for DefaultCompressor {
+    /// Using the current compressor from the superblock, decompress bytes
+    #[instrument(skip_all)]
+    fn decompress(
+        &self,
+        bytes: &[u8],
+        out: &mut Vec<u8>,
+        compressor: Compressor,
+    ) -> Result<(), BackhandError> {
+        match compressor {
+            #[cfg(feature = "gzip")]
+            Compressor::Gzip => {
+                let mut decoder = flate2::read::ZlibDecoder::new(bytes);
+                decoder.read_to_end(out)?;
+            },
+            #[cfg(feature = "xz")]
+            Compressor::Xz => {
+                let mut decoder = XzDecoder::new(bytes);
+                decoder.read_to_end(out)?;
+            },
+            #[cfg(feature = "lzo")]
+            Compressor::Lzo => {
+                out.resize(out.capacity(), 0);
+                let (out_size, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
+                let out_size = out_size.len();
+                out.truncate(out_size);
+                if error != rust_lzo::LZOError::OK {
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
+            },
+            #[cfg(feature = "zstd")]
+            Compressor::Zstd => {
+                let mut decoder = zstd::bulk::Decompressor::new().unwrap();
+                decoder.decompress_to_buffer(bytes, out)?;
+            },
+            _ => return Err(BackhandError::UnsupportedCompression(compressor)),
+        }
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
+    fn compress(
+        &self,
+        bytes: &[u8],
+        fc: FilesystemCompressor,
+        block_size: u32,
+    ) -> Result<Vec<u8>, BackhandError> {
+        match (fc.id, fc.options, fc.extra) {
+            #[cfg(feature = "xz")]
+            (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
+                let dict_size = match option {
+                    None => block_size,
+                    Some(CompressionOptions::Xz(option)) => option.dictionary_size,
+                    Some(_) => unreachable!(),
                 };
-            }
-            filters.lzma2(&opts);
+                let default_level = 6; // LZMA_DEFAULT
+                let level = match extra {
+                    None => default_level,
+                    Some(CompressionExtra::Xz(xz)) => {
+                        if let Some(level) = xz.level {
+                            level
+                        } else {
+                            default_level
+                        }
+                    },
+                };
+                let check = Check::Crc32;
+                let mut opts = LzmaOptions::new_preset(level).unwrap();
+                opts.dict_size(dict_size);
 
-            let stream = MtStreamBuilder::new()
-                .threads(2)
-                .filters(filters)
-                .check(check)
-                .encoder()
-                .unwrap();
+                let mut filters = Filters::new();
+                if let Some(CompressionOptions::Xz(xz)) = option {
+                    match xz.filters {
+                        XzFilter::X86 => filters.x86(),
+                        XzFilter::PowerPC => filters.powerpc(),
+                        XzFilter::IA64 => filters.ia64(),
+                        XzFilter::Arm => filters.arm(),
+                        XzFilter::ArmThumb => filters.arm_thumb(),
+                        XzFilter::Sparc => filters.sparc(),
+                    };
+                }
+                filters.lzma2(&opts);
 
-            let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
-            let mut buf = vec![];
-            encoder.read_to_end(&mut buf)?;
-            Ok(buf)
-        },
-        #[cfg(feature = "gzip")]
-        (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
-            let compression_level = match option {
-                None => Compression::best(), // 9
-                Some(CompressionOptions::Gzip(option)) => {
-                    Compression::new(option.compression_level)
-                },
-                Some(_) => unreachable!(),
-            };
+                let stream = MtStreamBuilder::new()
+                    .threads(2)
+                    .filters(filters)
+                    .check(check)
+                    .encoder()
+                    .unwrap();
 
-            // TODO(#8): Use window_size and strategies (current window size defaults to 15)
+                let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
+                let mut buf = vec![];
+                encoder.read_to_end(&mut buf)?;
+                Ok(buf)
+            },
+            #[cfg(feature = "gzip")]
+            (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
+                let compression_level = match option {
+                    None => Compression::best(), // 9
+                    Some(CompressionOptions::Gzip(option)) => {
+                        Compression::new(option.compression_level)
+                    },
+                    Some(_) => unreachable!(),
+                };
 
-            let mut encoder = ZlibEncoder::new(Cursor::new(bytes), compression_level);
-            let mut buf = vec![];
-            encoder.read_to_end(&mut buf)?;
-            Ok(buf)
-        },
-        #[cfg(feature = "lzo")]
-        (Compressor::Lzo, _, _) => {
-            let mut lzo = rust_lzo::LZOContext::new();
-            let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
-            let error = lzo.compress(bytes, &mut buf);
-            if error != rust_lzo::LZOError::OK {
-                return Err(BackhandError::CorruptedOrInvalidSquashfs);
-            }
-            Ok(buf)
-        },
-        #[cfg(feature = "zstd")]
-        (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None), _) => {
-            let compression_level = match option {
-                None => 3,
-                Some(CompressionOptions::Zstd(option)) => option.compression_level,
-                Some(_) => unreachable!(),
-            };
-            let mut encoder = zstd::bulk::Compressor::new(compression_level as i32)?;
-            let mut buf = vec![];
-            encoder.compress_to_buffer(bytes, &mut buf)?;
-            Ok(buf)
-        },
-        _ => Err(BackhandError::UnsupportedCompression(fc.id)),
+                // TODO(#8): Use window_size and strategies (current window size defaults to 15)
+
+                let mut encoder = ZlibEncoder::new(Cursor::new(bytes), compression_level);
+                let mut buf = vec![];
+                encoder.read_to_end(&mut buf)?;
+                Ok(buf)
+            },
+            #[cfg(feature = "lzo")]
+            (Compressor::Lzo, _, _) => {
+                let mut lzo = rust_lzo::LZOContext::new();
+                let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
+                let error = lzo.compress(bytes, &mut buf);
+                if error != rust_lzo::LZOError::OK {
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
+                Ok(buf)
+            },
+            #[cfg(feature = "zstd")]
+            (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None), _) => {
+                let compression_level = match option {
+                    None => 3,
+                    Some(CompressionOptions::Zstd(option)) => option.compression_level,
+                    Some(_) => unreachable!(),
+                };
+                let mut encoder = zstd::bulk::Compressor::new(compression_level as i32)?;
+                let mut buf = vec![];
+                encoder.compress_to_buffer(bytes, &mut buf)?;
+                Ok(buf)
+            },
+            _ => Err(BackhandError::UnsupportedCompression(fc.id)),
+        }
     }
 }

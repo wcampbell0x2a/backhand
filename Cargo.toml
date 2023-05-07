@@ -44,6 +44,7 @@ assert_cmd = { version = "2.0.7", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.0.0"
 criterion = "0.3"
+zune-inflate = "0.2.53"
 
 [[bench]]
 name = "benchmark"

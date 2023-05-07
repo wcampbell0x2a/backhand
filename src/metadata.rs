@@ -4,7 +4,6 @@ use deku::bitvec::{BitVec, BitView};
 use deku::prelude::*;
 use tracing::{instrument, trace};
 
-use crate::compressor;
 use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::kinds::Kind;
@@ -14,7 +13,6 @@ pub const METADATA_MAXSIZE: usize = 0x2000;
 
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 
-#[derive(Debug)]
 pub(crate) struct MetadataWriter {
     compressor: FilesystemCompressor,
     block_size: u32,
@@ -24,7 +22,7 @@ pub(crate) struct MetadataWriter {
     pub(crate) uncompressed_bytes: Vec<u8>,
     // All current bytes that are compressed
     pub(crate) compressed_bytes: Vec<Vec<u8>>,
-    pub(crate) kind: Kind,
+    pub kind: Kind,
 }
 
 impl MetadataWriter {
@@ -46,16 +44,20 @@ impl MetadataWriter {
             trace!("len: {:02x?}", cb.len());
             //trace!("total: {:02x?}", out.len());
             let mut bv = BitVec::new();
-            (cb.len() as u16).write(&mut bv, self.kind.data_endian)?;
+            (cb.len() as u16).write(&mut bv, self.kind.inner.data_endian)?;
             out.write_all(bv.as_raw_slice())?;
             out.write_all(cb)?;
         }
 
-        let b = compressor::compress(&self.uncompressed_bytes, self.compressor, self.block_size)?;
+        let b = self.kind.inner.compressor.compress(
+            &self.uncompressed_bytes,
+            self.compressor,
+            self.block_size,
+        )?;
 
         trace!("len: {:02x?}", b.len());
         let mut bv = BitVec::new();
-        (b.len() as u16).write(&mut bv, self.kind.data_endian)?;
+        (b.len() as u16).write(&mut bv, self.kind.inner.data_endian)?;
         out.write_all(bv.as_raw_slice())?;
         out.write_all(&b)?;
         Ok(())
@@ -71,7 +73,7 @@ impl Write for MetadataWriter {
         while self.uncompressed_bytes.len() >= METADATA_MAXSIZE {
             trace!("time to compress");
             // "Write" the to the saved metablock
-            let b = compressor::compress(
+            let b = self.kind.inner.compressor.compress(
                 &self.uncompressed_bytes[..METADATA_MAXSIZE],
                 self.compressor,
                 self.block_size,
@@ -97,14 +99,14 @@ impl Write for MetadataWriter {
 pub fn read_block<R: Read + ?Sized>(
     reader: &mut R,
     superblock: &SuperBlock,
-    kind: Kind,
+    kind: &Kind,
 ) -> Result<Vec<u8>, BackhandError> {
     let mut buf = [0u8; 2];
     reader.read_exact(&mut buf)?;
 
     let bv = buf.view_bits::<deku::bitvec::Msb0>();
     trace!("{:02x?}", buf);
-    let (_, metadata_len) = u16::read(bv, kind.data_endian)?;
+    let (_, metadata_len) = u16::read(bv, kind.inner.data_endian)?;
 
     let byte_len = len(metadata_len);
     tracing::trace!("len: 0x{:02x?}", byte_len);
@@ -114,7 +116,9 @@ pub fn read_block<R: Read + ?Sized>(
     let bytes = if is_compressed(metadata_len) {
         tracing::trace!("compressed");
         let mut out = Vec::with_capacity(8 * 1024);
-        compressor::decompress(&buf, &mut out, superblock.compressor)?;
+        kind.inner
+            .compressor
+            .decompress(&buf, &mut out, superblock.compressor)?;
         out
     } else {
         tracing::trace!("uncompressed");

@@ -55,20 +55,22 @@ To install, run `cargo install backhand --locked`.
 ```no_test
 tool to uncompress, extract and list squashfs filesystems
 
-Usage: unsquashfs [OPTIONS] <FILESYSTEM>
+Usage: unsquashfs [OPTIONS] [FILESYSTEM]
 
 Arguments:
-  <FILESYSTEM>  Squashfs file
+  [FILESYSTEM]  Squashfs file
 
 Options:
-  -o, --offset <BYTES>   Skip BYTES at the start of FILESYSTEM [default: 0]
-  -l, --list             List filesystem, do not write to DEST
-  -d, --dest <PATHNAME>  Extract to [PATHNAME] [default: squashfs-root]
-  -i, --info             Print files as they are extracted
-  -f, --force            If file already exists then overwrite
-  -s, --stat             Display filesystem superblock information
-  -h, --help             Print help information
-  -V, --version          Print version information
+  -o, --offset <BYTES>             Skip BYTES at the start of FILESYSTEM [default: 0]
+  -l, --list                       List filesystem, do not write to DEST
+  -d, --dest <PATHNAME>            Extract to [PATHNAME] [default: squashfs-root]
+  -i, --info                       Print files as they are extracted
+  -f, --force                      If file already exists then overwrite
+  -s, --stat                       Display filesystem superblock information
+  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0, amv_be_v4_0]
+      --completions <COMPLETIONS>  Emit shell completion scripts [possible values: bash, elvish, fish, powershell, zsh]
+  -h, --help                       Print help
+  -V, --version                    Print version
 ```
 
 ### add-backhand

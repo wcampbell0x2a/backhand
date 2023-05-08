@@ -8,6 +8,7 @@ use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
 };
+use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 use libc::lchown;
@@ -66,7 +67,16 @@ struct Args {
     stat: bool,
 
     /// Kind(type of image) to parse
-    #[arg(short, long, default_value = "le_v4_0")]
+    #[arg(short,
+          long,
+          default_value = "le_v4_0",
+          value_parser = PossibleValuesParser::new(
+          [
+              "be_v4_0",
+              "le_v4_0",
+              "avm_be_v4_0",
+          ]
+    ))]
     kind: String,
 
     /// Emit shell completion scripts

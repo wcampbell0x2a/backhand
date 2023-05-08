@@ -76,7 +76,7 @@ Options:
   -i, --info                       Print files as they are extracted
   -f, --force                      If file already exists then overwrite
   -s, --stat                       Display filesystem superblock information
-  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0, amv_be_v4_0]
+  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0, avm_be_v4_0]
       --completions <COMPLETIONS>  Emit shell completion scripts [possible values: bash, elvish, fish, powershell, zsh]
   -h, --help                       Print help
   -V, --version                    Print version

@@ -5,8 +5,8 @@ use std::path::{Component, Path, PathBuf};
 
 use backhand::kind::Kind;
 use backhand::{
-    BufReadSeek, FilesystemReader, InnerNode, NodeHeader, Squashfs, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsSymlink,
+    BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
@@ -34,11 +34,28 @@ pub fn after_help() -> String {
     s
 }
 
+fn required_root(a: &str) -> Result<PathBuf, String> {
+    let p = PathBuf::try_from(a).or(Err("could not".to_string()))?;
+
+    if p.has_root() {
+        Ok(p)
+    } else {
+        Err("argument requires root \"/\"".to_string())
+    }
+}
+
 /// tool to uncompress, extract and list squashfs filesystems
 #[derive(Parser)]
-#[command(author, version, name = "unsquashfs-backhand", after_help=after_help())]
+#[command(author,
+          version,
+          name = "unsquashfs-backhand",
+          after_help=after_help(),
+          max_term_width=120,
+)]
 struct Args {
     /// Squashfs file
+    ///
+    /// Required for all usage, except --completions
     #[arg(required_unless_present = "completions")]
     filesystem: Option<PathBuf>,
 
@@ -57,6 +74,17 @@ struct Args {
     /// Print files as they are extracted
     #[arg(short, long)]
     info: bool,
+
+    /// Limit filesystem extraction
+    ///
+    /// For example, "/www/webpages/data" will return all files under that dir, such as
+    /// "/www/webpages/data/region.json" and "/www/webpages/data/timezone.json". When given an
+    /// exact file, only that file will be extracted.
+    ///
+    /// Like normal operation, these will be extracted as {arg.dest}{arg.path_filter}{files} with
+    /// correct file permissions.
+    #[arg(long, default_value = "/", value_parser = required_root)]
+    path_filter: PathBuf,
 
     /// If file already exists then overwrite
     #[arg(short, long)]
@@ -111,17 +139,43 @@ fn main() {
         umask(Mode::from_bits(0).unwrap());
     }
 
+    let filesystem = squashfs.into_filesystem_reader().unwrap();
+
+    // if we can find a parent, then a filter must be applied and the exact parent dirs must be
+    // found above it
+    let mut files: Vec<&Node<SquashfsFileReader>> = vec![];
+    if args.path_filter.parent().is_some() {
+        let mut current = PathBuf::new();
+        current.push("/");
+        for part in args.path_filter.iter() {
+            current.push(part);
+            if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {
+                files.push(exact);
+            } else {
+                panic!("Invalid --path-filter, path doesn't exist");
+            }
+        }
+        // remove the final node, this is a file and will be caught in the following statement
+        files.pop();
+    }
+
+    // gather all files and dirs
+    let nodes = files.into_iter().chain(
+        filesystem
+            .files()
+            .filter(|a| a.fullpath.starts_with(&args.path_filter)),
+    );
+
+    // extract or list
     if args.list {
-        let filesystem = squashfs.into_filesystem_reader().unwrap();
-        list(filesystem);
+        list(nodes);
     } else {
-        let filesystem = squashfs.into_filesystem_reader().unwrap();
-        extract_all(&args, filesystem, root_process);
+        extract_all(&args, &filesystem, root_process, nodes);
     }
 }
 
-fn list(filesystem: FilesystemReader) {
-    for node in filesystem.files() {
+fn list<'a>(nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>) {
+    for node in nodes {
         let path = &node.fullpath;
         println!("{}", path.display());
     }
@@ -218,14 +272,19 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
     }
 }
 
-fn extract_all(args: &Args, filesystem: FilesystemReader, root_process: bool) {
+fn extract_all<'a>(
+    args: &Args,
+    filesystem: &'a FilesystemReader,
+    root_process: bool,
+    nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>,
+) {
     // TODO: fixup perms for this?
     let _ = fs::create_dir_all(&args.dest);
 
     // alloc required space for file data readers
     let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
 
-    for node in filesystem.files() {
+    for node in nodes {
         let path = &node.fullpath;
         let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
         match &node.inner {
@@ -385,7 +444,10 @@ fn extract_all(args: &Args, filesystem: FilesystemReader, root_process: bool) {
     }
 
     // fixup dir permissions
-    for node in filesystem.files() {
+    for node in filesystem
+        .files()
+        .filter(|a| a.fullpath.starts_with(&args.path_filter))
+    {
         if let InnerNode::Dir(SquashfsDir { .. }) = &node.inner {
             let path = &node.fullpath;
             let path = path.strip_prefix(Component::RootDir).unwrap_or(path);

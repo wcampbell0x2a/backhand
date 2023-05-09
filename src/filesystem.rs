@@ -7,8 +7,8 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::BackhandError;
 
-//normalize the path, always starts with root, solve relative paths and don't
-//allow prefix (windows stuff like "C:/")
+// normalize the path, always starts with root, solve relative paths and don't
+// allow prefix (windows stuff like "C:/")
 pub fn normalize_squashfs_path(src: &Path) -> Result<PathBuf, BackhandError> {
     //always starts with root "/"
     let mut ret = PathBuf::from(Component::RootDir.as_os_str());

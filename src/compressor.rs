@@ -79,19 +79,48 @@ pub struct Lzo {
 pub struct Xz {
     pub dictionary_size: u32,
     pub filters: XzFilter,
+
+    // the rest of these fields are from OpenWRT. These are optional, as the kernel will ignore
+    // these fields when seen. We follow the same behaviour and don't attempt to parse if the bytes
+    // for these aren't found
+    // TODO: both are currently unused in this library
+    // TODO: in openwrt, git-hash:f97ad870e11ebe5f3dcf833dda6c83b9165b37cb shows that before
+    // offical squashfs-tools had xz support they had the dictionary_size field as the last field
+    // in this struct. If we get test images, I guess we can support this in the future.
+    #[deku(cond = "!deku::rest.is_empty()")]
+    pub bit_opts: Option<u16>,
+    #[deku(cond = "!deku::rest.is_empty()")]
+    pub fb: Option<u16>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-#[deku(type = "u32")]
-#[rustfmt::skip]
-pub enum XzFilter {
-    X86      = 0x01,
-    PowerPC  = 0x02,
-    IA64     = 0x04,
-    Arm      = 0x08,
-    ArmThumb = 0x10,
-    Sparc    = 0x20,
+pub struct XzFilter(u32);
+
+impl XzFilter {
+    fn x86(&self) -> bool {
+        self.0 & 0x0001 == 0x0001
+    }
+
+    fn powerpc(&self) -> bool {
+        self.0 & 0x0002 == 0x0002
+    }
+
+    fn ia64(&self) -> bool {
+        self.0 & 0x0004 == 0x0004
+    }
+
+    fn arm(&self) -> bool {
+        self.0 & 0x0008 == 0x0008
+    }
+
+    fn armthumb(&self) -> bool {
+        self.0 & 0x0010 == 0x0010
+    }
+
+    fn sparc(&self) -> bool {
+        self.0 & 0x0020 == 0x0020
+    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
@@ -227,14 +256,24 @@ impl CompressionAction for DefaultCompressor {
 
                 let mut filters = Filters::new();
                 if let Some(CompressionOptions::Xz(xz)) = option {
-                    match xz.filters {
-                        XzFilter::X86 => filters.x86(),
-                        XzFilter::PowerPC => filters.powerpc(),
-                        XzFilter::IA64 => filters.ia64(),
-                        XzFilter::Arm => filters.arm(),
-                        XzFilter::ArmThumb => filters.arm_thumb(),
-                        XzFilter::Sparc => filters.sparc(),
-                    };
+                    if xz.filters.x86() {
+                        filters.x86();
+                    }
+                    if xz.filters.powerpc() {
+                        filters.powerpc();
+                    }
+                    if xz.filters.ia64() {
+                        filters.ia64();
+                    }
+                    if xz.filters.arm() {
+                        filters.arm();
+                    }
+                    if xz.filters.armthumb() {
+                        filters.arm_thumb();
+                    }
+                    if xz.filters.sparc() {
+                        filters.sparc();
+                    }
                 }
                 filters.lzma2(&opts);
 

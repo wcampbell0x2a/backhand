@@ -193,7 +193,7 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
     println!("{superblock:#08x?}");
 
     // show info about compression options
-    println!("Compression Options: {compression_options:#08x?}");
+    println!("Compression Options: {compression_options:#x?}");
 
     // show info about flags
     if superblock.inodes_uncompressed() {

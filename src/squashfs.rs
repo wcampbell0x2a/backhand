@@ -117,24 +117,6 @@ pub struct SuperBlock {
 pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
 impl SuperBlock {
-    /// Extract size of optional compression options
-    fn compression_options_size(&self) -> Option<usize> {
-        if self.compressor_options_are_present() {
-            let size = match self.compressor {
-                Compressor::Lzma => 0,
-                Compressor::Gzip => 8,
-                Compressor::Lzo => 8,
-                Compressor::Xz => 8,
-                Compressor::Lz4 => 8,
-                Compressor::Zstd => 4,
-                Compressor::None => 0,
-            };
-            Some(size)
-        } else {
-            None
-        }
-    }
-
     /// flag value
     pub fn inodes_uncompressed(&self) -> bool {
         self.flags & Flags::InodesStoredUncompressed as u16 != 0
@@ -302,33 +284,23 @@ impl Squashfs {
 
         // Parse Compression Options, if any
         info!("Reading Compression options");
-        let compression_options = if superblock.compressor != Compressor::None {
-            match superblock.compression_options_size() {
-                Some(size) => {
-                    let bytes = metadata::read_block(reader, &superblock, kind)?;
-
-                    // Some firmware (such as openwrt) that uses XZ compression has an extra 4 bytes.
-                    // squashfs-tools/unsquashfs complains about this also
-                    if bytes.len() != size {
-                        tracing::warn!(
-                            "Non standard compression options! CompressionOptions might be incorrect: {:02x?}",
-                            bytes
-                        );
+        let compression_options = if superblock.compressor != Compressor::None
+            && superblock.compressor_options_are_present()
+        {
+            let bytes = metadata::read_block(reader, &superblock, kind)?;
+            // data -> compression options
+            let bv = BitVec::from_slice(&bytes);
+            match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
+                Ok(co) => {
+                    if !co.0.is_empty() {
+                        error!("invalid compression options, bytes left over, using");
                     }
-                    // data -> compression options
-                    let bv = BitVec::from_slice(&bytes);
-                    match CompressionOptions::read(
-                        &bv,
-                        (deku::ctx::Endian::Little, superblock.compressor),
-                    ) {
-                        Ok(co) => Some(co.1),
-                        Err(e) => {
-                            error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
-                            None
-                        },
-                    }
+                    Some(co.1)
                 },
-                None => None,
+                Err(e) => {
+                    error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                    None
+                },
             }
         } else {
             None

@@ -31,6 +31,8 @@ pub fn after_help() -> String {
     #[cfg(feature = "zstd")]
     s.push_str("\tzstd\n");
 
+    s.push_str("\nEnvironment Variables:\n\t");
+    s.push_str(r#"RUST_LOG: See "https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables""#);
     s
 }
 

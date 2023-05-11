@@ -30,10 +30,11 @@ libc = "0.2.140"
 clap_complete = "4.2.1"
 
 [features]
-default = ["xz", "gzip", "lzo", "zstd"]
+default = ["xz", "gzip", "zstd"]
 xz = ["dep:xz2"]
 xz-static = ["dep:xz2", "xz2?/static"]
 gzip = ["dep:flate2"]
+# this library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
 zstd = ["dep:zstd"]
 

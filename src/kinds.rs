@@ -187,6 +187,10 @@ impl Kind {
         self
     }
 
+    pub fn magic(&self) -> [u8; 4] {
+        self.inner.magic
+    }
+
     /// Set endian used for data types
     // TODO: example
     pub fn with_type_endian(mut self, endian: Endian) -> Self {

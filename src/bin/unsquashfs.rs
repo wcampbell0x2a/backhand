@@ -1,7 +1,8 @@
 use std::fs::{self, File, Permissions};
-use std::io::{self, BufReader, Seek, SeekFrom};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
+use std::process::ExitCode;
 
 use backhand::kind::Kind;
 use backhand::{
@@ -46,6 +47,19 @@ fn required_root(a: &str) -> Result<PathBuf, String> {
     }
 }
 
+fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {
+    let mut magic = [0_u8; 4];
+    while file.read_exact(&mut magic).is_ok() {
+        if magic == kind.magic() {
+            let found = file.stream_position().unwrap() - magic.len() as u64;
+            file.rewind().unwrap();
+            return Some(found);
+        }
+    }
+    file.rewind().unwrap();
+    None
+}
+
 /// tool to uncompress, extract and list squashfs filesystems
 #[derive(Parser)]
 #[command(author,
@@ -64,6 +78,12 @@ struct Args {
     /// Skip BYTES at the start of FILESYSTEM
     #[arg(short, long, default_value_t = 0, name = "BYTES")]
     offset: u64,
+
+    /// Find first instance of squashfs --kind magic
+    ///
+    /// Will overwrite given --offset
+    #[arg(short, long)]
+    auto_offset: bool,
 
     /// List filesystem, do not write to DEST
     #[arg(short, long)]
@@ -114,25 +134,35 @@ struct Args {
     completions: Option<Shell>,
 }
 
-fn main() {
+fn main() -> ExitCode {
     tracing_subscriber::fmt::init();
 
-    let args = Args::parse();
+    let mut args = Args::parse();
 
     if let Some(completions) = args.completions {
         let mut cmd = Args::command();
         let name = cmd.get_name().to_string();
         generate(completions, &mut cmd, name, &mut io::stdout());
-        return;
+        return ExitCode::SUCCESS;
     }
 
     let kind = Kind::from_target(&args.kind).unwrap();
 
-    let file = BufReader::new(File::open(args.filesystem.as_ref().unwrap()).unwrap());
+    let mut file = BufReader::new(File::open(args.filesystem.as_ref().unwrap()).unwrap());
+
+    if args.auto_offset {
+        if let Some(found_offset) = find_offset(&mut file, &kind) {
+            println!("found: {found_offset:02x?}");
+            args.offset = found_offset;
+        } else {
+            println!("[!] magic not found");
+            return ExitCode::FAILURE;
+        }
+    }
 
     if args.stat {
         stat(args, file, kind);
-        return;
+        return ExitCode::SUCCESS;
     }
 
     let squashfs = Squashfs::from_reader_with_offset_and_kind(file, args.offset, kind).unwrap();
@@ -174,6 +204,8 @@ fn main() {
     } else {
         extract_all(&args, &filesystem, root_process, nodes);
     }
+
+    ExitCode::SUCCESS
 }
 
 fn list<'a>(nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>) {

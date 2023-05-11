@@ -60,6 +60,8 @@ These are currently under development and are missing features, MR's welcome!
 To install, run `cargo install backhand --locked`, or download from the
 [latest github release](https://github.com/wcampbell0x2a/backhand/releases/latest).
 
+See ``--help`` for more information.
+
 ### unsquashfs-backhand
 ```no_test
 tool to uncompress, extract and list squashfs filesystems
@@ -74,11 +76,13 @@ Options:
   -l, --list                       List filesystem, do not write to DEST
   -d, --dest <PATHNAME>            Extract to [PATHNAME] [default: squashfs-root]
   -i, --info                       Print files as they are extracted
+      --path-filter <PATH_FILTER>  Limit filesystem extraction [default: /]
   -f, --force                      If file already exists then overwrite
   -s, --stat                       Display filesystem superblock information
-  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0, avm_be_v4_0]
+  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0,
+                                   avm_be_v4_0]
       --completions <COMPLETIONS>  Emit shell completion scripts [possible values: bash, elvish, fish, powershell, zsh]
-  -h, --help                       Print help
+  -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
 

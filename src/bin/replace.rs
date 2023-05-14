@@ -1,3 +1,7 @@
+#[path = "../../common/common.rs"]
+mod common;
+use common::after_help;
+
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -7,7 +11,12 @@ use clap::Parser;
 
 /// tool to replace files in squashfs filesystems
 #[derive(Parser, Debug)]
-#[command(author, version, name = "replace-backhand")]
+#[command(author,
+          version,
+          name = "replace-backhand",
+          after_help=after_help(),
+          max_term_width=120,
+)]
 struct Args {
     /// Squashfs input image
     image: PathBuf,

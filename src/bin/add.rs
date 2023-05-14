@@ -1,3 +1,7 @@
+#[path = "../../common/common.rs"]
+mod common;
+use common::after_help;
+
 use std::fs::File;
 use std::io::BufReader;
 use std::os::unix::fs::MetadataExt;
@@ -8,7 +12,12 @@ use clap::Parser;
 
 /// tool to add files to squashfs filesystems
 #[derive(Parser, Debug)]
-#[command(author, version, name = "add-backhand")]
+#[command(author,
+          version,
+          name = "add-backhand",
+          after_help=after_help(),
+          max_term_width=120,
+)]
 struct Args {
     /// Squashfs input image
     image: PathBuf,

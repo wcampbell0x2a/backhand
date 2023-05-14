@@ -14,6 +14,7 @@ use backhand::{
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
+use common::after_help;
 use libc::lchown;
 use nix::libc::geteuid;
 use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};

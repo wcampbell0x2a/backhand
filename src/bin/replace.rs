@@ -1,13 +1,13 @@
 #[path = "../../common/common.rs"]
 mod common;
-use common::after_help;
-
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use backhand::{FilesystemReader, FilesystemWriter};
 use clap::Parser;
+use common::after_help;
 
 /// tool to replace files in squashfs filesystems
 #[derive(Parser, Debug)]
@@ -33,7 +33,7 @@ struct Args {
     out: PathBuf,
 }
 
-fn main() {
+fn main() -> ExitCode {
     tracing_subscriber::fmt::init();
 
     let args = Args::parse();
@@ -45,10 +45,15 @@ fn main() {
 
     // Modify file
     let new_file = File::open(&args.file).unwrap();
-    filesystem.replace_file(args.file_path, new_file).unwrap();
+    if let Err(e) = filesystem.replace_file(args.file_path, new_file) {
+        println!("[!] {e}");
+        return ExitCode::FAILURE;
+    }
 
     // write new file
     let mut output = File::create(&args.out).unwrap();
     filesystem.write(&mut output).unwrap();
     println!("replaced file and wrote to {}", args.out.display());
+
+    ExitCode::SUCCESS
 }

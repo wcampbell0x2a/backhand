@@ -15,8 +15,8 @@ use common::after_help;
 #[command(author,
           version,
           name = "add-backhand",
-          after_help=after_help(),
-          max_term_width=120,
+          after_help = after_help(),
+          max_term_width = 98,
 )]
 struct Args {
     /// Squashfs input image

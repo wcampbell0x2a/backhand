@@ -48,8 +48,8 @@ fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {
 #[command(author,
           version,
           name = "unsquashfs-backhand",
-          after_help=after_help(),
-          max_term_width=120,
+          after_help = after_help(),
+          max_term_width = 98,
 )]
 struct Args {
     /// Squashfs file

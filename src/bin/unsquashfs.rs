@@ -1,3 +1,5 @@
+#[path = "../../common/common.rs"]
+mod common;
 use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
@@ -12,32 +14,13 @@ use backhand::{
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
+use common::after_help;
 use libc::lchown;
 use nix::libc::geteuid;
 use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
 
-pub fn after_help() -> String {
-    let mut s = "Decompressors available:\n".to_string();
-
-    #[cfg(feature = "gzip")]
-    s.push_str("\tgzip\n");
-
-    #[cfg(feature = "xz")]
-    s.push_str("\txz\n");
-
-    #[cfg(feature = "lzo")]
-    s.push_str("\tlzo\n");
-
-    #[cfg(feature = "zstd")]
-    s.push_str("\tzstd\n");
-
-    s.push_str("\nEnvironment Variables:\n\t");
-    s.push_str(r#"RUST_LOG: See "https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables""#);
-    s
-}
-
-fn required_root(a: &str) -> Result<PathBuf, String> {
+pub fn required_root(a: &str) -> Result<PathBuf, String> {
     let p = PathBuf::try_from(a).or(Err("could not".to_string()))?;
 
     if p.has_root() {
@@ -65,8 +48,8 @@ fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {
 #[command(author,
           version,
           name = "unsquashfs-backhand",
-          after_help=after_help(),
-          max_term_width=120,
+          after_help = after_help(),
+          max_term_width = 98,
 )]
 struct Args {
     /// Squashfs file

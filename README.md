@@ -73,31 +73,34 @@ Arguments:
 
 Options:
   -o, --offset <BYTES>             Skip BYTES at the start of FILESYSTEM [default: 0]
+  -a, --auto-offset                Find first instance of squashfs --kind magic
   -l, --list                       List filesystem, do not write to DEST
   -d, --dest <PATHNAME>            Extract to [PATHNAME] [default: squashfs-root]
   -i, --info                       Print files as they are extracted
       --path-filter <PATH_FILTER>  Limit filesystem extraction [default: /]
   -f, --force                      If file already exists then overwrite
   -s, --stat                       Display filesystem superblock information
-  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0,
-                                   avm_be_v4_0]
-      --completions <COMPLETIONS>  Emit shell completion scripts [possible values: bash, elvish, fish, powershell, zsh]
+  -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible
+                                   values: be_v4_0, le_v4_0, avm_be_v4_0]
+      --completions <COMPLETIONS>  Emit shell completion scripts [possible values: bash, elvish,
+                                   fish, powershell, zsh]
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```
 
 ### add-backhand
 ```no_test
-tool to add files to squashfs filesystems
+tool to add a file or directory to squashfs filesystems
 
-Usage: add [OPTIONS] <IMAGE> <FILE> <FILE_PATH_IN_IMAGE>
+Usage: add [OPTIONS] <IMAGE> <FILE_PATH_IN_IMAGE>
 
 Arguments:
   <IMAGE>               Squashfs input image
-  <FILE>                Path of file to read, to write into squashfs
   <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
 
 Options:
+  -d, --dir            Create directory
+  -f, --file <FILE>    Path of file to read, to write into squashfs
   -o, --out <OUT>      Squashfs output image [default: added.squashfs]
       --mode <MODE>    Overide mode read from <FILE>
       --uid <UID>      Overide uid read from <FILE>

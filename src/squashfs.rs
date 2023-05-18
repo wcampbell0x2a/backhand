@@ -125,7 +125,7 @@ impl Squashfs {
 
         let block_size = superblock.block_size();
         let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
-        if (block_size > MAX_BLOCK_SIZE) || (block_size < MIN_BLOCK_SIZE) || !power_of_two {
+        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) || !power_of_two {
             error!("block_size({:#02x}) invalid", superblock.block_size);
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }

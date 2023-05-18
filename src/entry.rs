@@ -12,8 +12,9 @@ use crate::inode::{
 };
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
-use crate::{NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
+use crate::{
+    NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink, SuperBlock,
+};
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {

@@ -64,6 +64,7 @@ mod kinds;
 mod metadata;
 mod reader;
 mod squashfs;
+mod superblock;
 
 pub use crate::data::DataSize;
 pub use crate::error::BackhandError;
@@ -79,9 +80,10 @@ pub use crate::fragment::Fragment;
 pub use crate::inode::{BasicFile, Inode};
 pub use crate::reader::BufReadSeek;
 pub use crate::squashfs::{
-    Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
+    Export, Id, Squashfs, DEFAULT_BLOCK_LOG, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
     MIN_BLOCK_SIZE,
 };
+pub use crate::superblock::{SuperBlock, SuperBlockKind, SuperBlockTrait};
 
 /// Support the wonderful world of vendor formats
 pub mod kind {

@@ -21,11 +21,11 @@ use crate::kind::Kind;
 use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
-use crate::squashfs::{Flags, Id, SuperBlock};
+use crate::squashfs::Id;
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    SquashfsDir, SquashfsFileWriter, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
+    MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -610,7 +610,8 @@ impl<'a> FilesystemWriter<'a> {
 
         // Write compression options, if any
         if let Some(options) = &self.fs_compressor.options {
-            superblock.flags |= Flags::CompressorOptionsArePresent as u16;
+            superblock.flags |=
+                crate::superblock::SuperBlockFlags::CompressorOptionsArePresent as u16;
             let mut buf = BitVec::new();
             match options {
                 CompressionOptions::Gzip(gzip) => {

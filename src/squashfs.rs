@@ -20,9 +20,10 @@ use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::superblock::NOT_SET;
 use crate::{
     metadata, FilesystemReader, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsSymlink,
+    SquashfsFileReader, SquashfsSymlink, SuperBlock, SuperBlockKind, SuperBlockTrait,
 };
 
 /// 128KiB
@@ -32,7 +33,7 @@ pub const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
 pub const DEFAULT_PAD_LEN: u32 = 0x1000;
 
 /// log2 of 128KiB
-const DEFAULT_BLOCK_LOG: u16 = 0x11;
+pub const DEFAULT_BLOCK_LOG: u16 = 0x11;
 
 /// 1MiB
 pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
@@ -66,151 +67,6 @@ impl Id {
     }
 }
 
-/// Contains important information about the archive, including the locations of other sections
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(
-    endian = "ctx_type_endian",
-    ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
-)]
-pub struct SuperBlock {
-    /// Must be set to 0x73717368 ("hsqs" on disk).
-    #[deku(assert_eq = "ctx_magic")]
-    pub magic: [u8; 4],
-    /// The number of inodes stored in the archive.
-    pub inode_count: u32,
-    /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
-    /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
-    pub mod_time: u32,
-    /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
-    pub block_size: u32,
-    /// The number of entries in the fragment table.
-    pub frag_count: u32,
-    /// Compressor used for data
-    pub compressor: Compressor,
-    /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
-    pub block_log: u16,
-    /// Bit wise OR of the flag bits
-    pub flags: u16,
-    /// The number of entries in the ID lookup table.
-    pub id_count: u16,
-    #[deku(assert_eq = "ctx_version_major")]
-    /// Major version of the format. Must be set to 4.
-    pub version_major: u16,
-    #[deku(assert_eq = "ctx_version_minor")]
-    /// Minor version of the format. Must be set to 0.
-    pub version_minor: u16,
-    /// A reference to the inode of the root directory.
-    pub root_inode: u64,
-    /// The number of bytes used by the archive.
-    /// Because SquashFS archives must be padded to a multiple of the underlying device block size, this can be less than the actual file size.
-    pub bytes_used: u64,
-    pub id_table: u64,
-    //TODO: add read into Squashfs
-    pub xattr_table: u64,
-    pub inode_table: u64,
-    pub dir_table: u64,
-    pub frag_table: u64,
-    //TODO: add read into Squashfs
-    pub export_table: u64,
-}
-
-pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
-
-impl SuperBlock {
-    /// flag value
-    pub fn inodes_uncompressed(&self) -> bool {
-        self.flags & Flags::InodesStoredUncompressed as u16 != 0
-    }
-
-    /// flag value
-    pub fn data_block_stored_uncompressed(&self) -> bool {
-        self.flags & Flags::DataBlockStoredUncompressed as u16 != 0
-    }
-
-    /// flag value
-    pub fn fragments_stored_uncompressed(&self) -> bool {
-        self.flags & Flags::FragmentsStoredUncompressed as u16 != 0
-    }
-
-    /// flag value
-    pub fn fragments_are_not_used(&self) -> bool {
-        self.flags & Flags::FragmentsAreNotUsed as u16 != 0
-    }
-
-    /// flag value
-    pub fn fragments_are_always_generated(&self) -> bool {
-        self.flags & Flags::FragmentsAreAlwaysGenerated as u16 != 0
-    }
-
-    /// flag value
-    pub fn data_has_been_duplicated(&self) -> bool {
-        self.flags & Flags::DataHasBeenDeduplicated as u16 != 0
-    }
-
-    /// flag value
-    pub fn nfs_export_table_exists(&self) -> bool {
-        self.flags & Flags::NFSExportTableExists as u16 != 0
-    }
-
-    /// flag value
-    pub fn xattrs_are_stored_uncompressed(&self) -> bool {
-        self.flags & Flags::XattrsAreStoredUncompressed as u16 != 0
-    }
-
-    /// flag value
-    pub fn no_xattrs_in_archive(&self) -> bool {
-        self.flags & Flags::NoXattrsInArchive as u16 != 0
-    }
-
-    /// flag value
-    pub fn compressor_options_are_present(&self) -> bool {
-        self.flags & Flags::CompressorOptionsArePresent as u16 != 0
-    }
-}
-
-impl SuperBlock {
-    pub fn new(compressor: Compressor, kind: Kind) -> Self {
-        Self {
-            magic: kind.inner.magic,
-            inode_count: 0,
-            mod_time: 0,
-            block_size: DEFAULT_BLOCK_SIZE,
-            frag_count: 0,
-            compressor,
-            block_log: DEFAULT_BLOCK_LOG,
-            flags: 0,
-            id_count: 0,
-            version_major: kind.inner.version_major,
-            version_minor: kind.inner.version_minor,
-            root_inode: 0,
-            bytes_used: 0,
-            id_table: 0,
-            xattr_table: NOT_SET,
-            inode_table: 0,
-            dir_table: 0,
-            frag_table: NOT_SET,
-            export_table: NOT_SET,
-        }
-    }
-}
-
-#[rustfmt::skip]
-#[allow(dead_code)]
-#[derive(Debug, Copy, Clone)]
-pub(crate) enum Flags {
-    InodesStoredUncompressed    = 0b0000_0000_0000_0001,
-    DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
-    Unused                      = 0b0000_0000_0000_0100,
-    FragmentsStoredUncompressed = 0b0000_0000_0000_1000,
-    FragmentsAreNotUsed         = 0b0000_0000_0001_0000,
-    FragmentsAreAlwaysGenerated = 0b0000_0000_0010_0000,
-    DataHasBeenDeduplicated     = 0b0000_0000_0100_0000,
-    NFSExportTableExists        = 0b0000_0000_1000_0000,
-    XattrsAreStoredUncompressed = 0b0000_0001_0000_0000,
-    NoXattrsInArchive           = 0b0000_0010_0000_0000,
-    CompressorOptionsArePresent = 0b0000_0100_0000_0000,
-}
-
 #[derive(Default, Clone, Debug)]
 pub(crate) struct Cache {
     /// The first time a fragment bytes is read, those bytes are added to this map with the key
@@ -223,7 +79,7 @@ pub(crate) struct Cache {
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
 pub struct Squashfs {
     pub kind: Kind,
-    pub superblock: SuperBlock,
+    pub superblock: Box<dyn SuperBlockTrait>,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
     // All Inodes
@@ -250,7 +106,7 @@ impl Squashfs {
     pub fn superblock_and_compression_options(
         reader: &mut Box<dyn BufReadSeek>,
         kind: &Kind,
-    ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
+    ) -> Result<(Box<dyn SuperBlockTrait>, Option<CompressionOptions>), BackhandError> {
         // Size of metadata + optional compression options metadata block
         let mut superblock = [0u8; 96];
         reader.read_exact(&mut superblock)?;
@@ -267,17 +123,14 @@ impl Squashfs {
             ),
         )?;
 
-        let power_of_two = superblock.block_size != 0
-            && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > MAX_BLOCK_SIZE)
-            || (superblock.block_size < MIN_BLOCK_SIZE)
-            || !power_of_two
-        {
+        let block_size = superblock.block_size();
+        let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
+        if (block_size > MAX_BLOCK_SIZE) || (block_size < MIN_BLOCK_SIZE) || !power_of_two {
             error!("block_size({:#02x}) invalid", superblock.block_size);
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
-        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
+        if (block_size as f32).log2() != superblock.block_log as f32 {
             error!("block size.log2() != block_log");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
@@ -287,7 +140,7 @@ impl Squashfs {
         let compression_options = if superblock.compressor != Compressor::None
             && superblock.compressor_options_are_present()
         {
-            let bytes = metadata::read_block(reader, &superblock, kind)?;
+            let bytes = metadata::read_block(reader, superblock.compressor(), kind)?;
             // data -> compression options
             let bv = BitVec::from_slice(&bytes);
             match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
@@ -307,7 +160,7 @@ impl Squashfs {
         };
         info!("compression_options: {compression_options:02x?}");
 
-        Ok((superblock, compression_options))
+        Ok((Box::new(superblock), compression_options))
     }
 
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
@@ -358,35 +211,35 @@ impl Squashfs {
         // Check if legal image
         let total_length = reader.seek(SeekFrom::End(0))?;
         reader.rewind()?;
-        if superblock.bytes_used > total_length {
+        if superblock.bytes_used() > total_length {
             error!("corrupted or invalid bytes_used");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // check required fields
-        if superblock.id_table > total_length {
+        if superblock.id_table() > total_length {
             error!("corrupted or invalid xattr_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.inode_table > total_length {
+        if superblock.inode_table() > total_length {
             error!("corrupted or invalid inode_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.dir_table > total_length {
+        if superblock.dir_table() > total_length {
             error!("corrupted or invalid dir_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // check optional fields
-        if superblock.xattr_table != NOT_SET && superblock.xattr_table > total_length {
+        if superblock.xattr_table() != NOT_SET && superblock.xattr_table() > total_length {
             error!("corrupted or invalid frag_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.frag_table != NOT_SET && superblock.frag_table > total_length {
+        if superblock.frag_table() != NOT_SET && superblock.frag_table() > total_length {
             error!("corrupted or invalid frag_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if superblock.export_table != NOT_SET && superblock.export_table > total_length {
+        if superblock.export_table() != NOT_SET && superblock.export_table() > total_length {
             error!("corrupted or invalid export_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
@@ -427,19 +280,6 @@ impl Squashfs {
         info!("Reading Dirs");
         let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, &kind)?;
 
-        let squashfs = Squashfs {
-            kind,
-            superblock,
-            compression_options,
-            inodes,
-            root_inode,
-            dir_blocks,
-            fragments: fragment_table,
-            export: export_table,
-            id: id_table,
-            file: reader,
-        };
-
         // show info about flags
         if superblock.inodes_uncompressed() {
             info!("flag: inodes uncompressed");
@@ -476,6 +316,19 @@ impl Squashfs {
         if superblock.compressor_options_are_present() {
             info!("flag: compressor options are present");
         }
+
+        let squashfs = Squashfs {
+            kind,
+            superblock,
+            compression_options,
+            inodes,
+            root_inode,
+            dir_blocks,
+            fragments: fragment_table,
+            export: export_table,
+            id: id_table,
+            file: reader,
+        };
 
         info!("Successful Read");
         Ok(squashfs)
@@ -662,11 +515,11 @@ impl Squashfs {
 
         let filesystem = FilesystemReader {
             kind: self.kind,
-            block_size: self.superblock.block_size,
-            block_log: self.superblock.block_log,
-            compressor: self.superblock.compressor,
+            block_size: self.superblock.block_size(),
+            block_log: self.superblock.block_log(),
+            compressor: self.superblock.compressor(),
             compression_options: self.compression_options,
-            mod_time: self.superblock.mod_time,
+            mod_time: self.superblock.mod_time(),
             id_table: self.id,
             fragments: self.fragments,
             root,

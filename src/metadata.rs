@@ -4,10 +4,11 @@ use deku::bitvec::{BitVec, BitView};
 use deku::prelude::*;
 use tracing::{instrument, trace};
 
+use crate::compression::Compressor;
 use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::kinds::Kind;
-use crate::squashfs::SuperBlock;
+use crate::{SuperBlock, SuperBlockTrait};
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 
@@ -98,7 +99,7 @@ impl Write for MetadataWriter {
 #[instrument(skip_all)]
 pub fn read_block<R: Read + ?Sized>(
     reader: &mut R,
-    superblock: &SuperBlock,
+    compressor: Compressor,
     kind: &Kind,
 ) -> Result<Vec<u8>, BackhandError> {
     let mut buf = [0u8; 2];
@@ -118,7 +119,7 @@ pub fn read_block<R: Read + ?Sized>(
         let mut out = Vec::with_capacity(8 * 1024);
         kind.inner
             .compressor
-            .decompress(&buf, &mut out, superblock.compressor)?;
+            .decompress(&buf, &mut out, compressor)?;
         out
     } else {
         tracing::trace!("uncompressed");

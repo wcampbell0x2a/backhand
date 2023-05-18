@@ -11,8 +11,7 @@ use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
-use crate::NodeHeader;
+use crate::{NodeHeader, SuperBlock};
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]

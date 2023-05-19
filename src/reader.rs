@@ -165,6 +165,10 @@ pub trait SquashFsReader: BufReadSeek {
         let mut bytes_01 = metadata::read_block(self, superblock, kind)?;
 
         // try reading just one metdata block
+        if root_inode_offset > bytes_01.len() {
+            error!("root_inode_offset > bytes.len()");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
         let new_bytes = &bytes_01[root_inode_offset..];
         let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
         if let Ok((_, inode)) = Inode::read(

@@ -22,9 +22,10 @@ use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
 use crate::squashfs::Id;
+use crate::superblock::new;
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileWriter, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
+    SquashfsDir, SquashfsFileWriter, SuperBlockTrait, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
     MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
@@ -415,7 +416,7 @@ impl<'a> FilesystemWriter<'a> {
         &mut self,
         w: &mut W,
         offset: u64,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
+    ) -> Result<(Box<dyn SuperBlockTrait>, u64), BackhandError> {
         let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
     }
@@ -475,7 +476,7 @@ impl<'a> FilesystemWriter<'a> {
         dir_writer: &'_ mut MetadataWriter,
         parent_node_id: u32,
         node_id: NonZeroUsize,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Result<Entry<'b>, BackhandError> {
         let node = &self.root.node(node_id).unwrap();
@@ -595,22 +596,15 @@ impl<'a> FilesystemWriter<'a> {
     pub fn write<W: Write + Seek>(
         &mut self,
         w: &mut W,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut superblock = SuperBlock::new(
-            self.fs_compressor.id,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
-        );
-
-        trace!("{:#02x?}", self.root);
+    ) -> Result<(Box<dyn SuperBlockTrait>, u64), BackhandError> {
+        let mut superblock = crate::superblock::new(&self.kind, self.fs_compressor.id);
 
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
 
         // Write compression options, if any
         if let Some(options) = &self.fs_compressor.options {
-            superblock.flags |=
+            *superblock.mut_flags() |=
                 crate::superblock::SuperBlockFlags::CompressorOptionsArePresent as u16;
             let mut buf = BitVec::new();
             match options {
@@ -674,30 +668,31 @@ impl<'a> FilesystemWriter<'a> {
             &self.kind,
         )?;
 
-        superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
-        superblock.inode_count = self.root.nodes.len().try_into().unwrap();
-        superblock.block_size = self.block_size;
-        superblock.block_log = self.block_log;
-        superblock.mod_time = self.mod_time;
+        *superblock.mut_root_inode() =
+            ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
+        *superblock.mut_inode_count() = self.root.nodes.len().try_into().unwrap();
+        *superblock.mut_block_size() = self.block_size;
+        *superblock.mut_block_log() = self.block_log;
+        *superblock.mut_mod_time() = self.mod_time;
 
         info!("Writing Inodes");
-        superblock.inode_table = w.stream_position()?;
+        *superblock.mut_inode_table() = w.stream_position()?;
         inode_writer.finalize(w)?;
 
         info!("Writing Dirs");
-        superblock.dir_table = w.stream_position()?;
+        *superblock.mut_dir_table() = w.stream_position()?;
         dir_writer.finalize(w)?;
 
         info!("Writing Frag Lookup Table");
         let (table_position, count) =
             self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
-        superblock.frag_table = table_position;
-        superblock.frag_count = count;
+        *superblock.mut_frag_table() = table_position;
+        *superblock.mut_frag_count() = count;
 
         info!("Writing Id Lookup Table");
         let (table_position, count) = self.write_lookup_table(w, &self.id_table, Id::SIZE)?;
-        superblock.id_table = table_position;
-        superblock.id_count = count.try_into().unwrap();
+        *superblock.mut_id_table() = table_position;
+        *superblock.mut_id_count() = count.try_into().unwrap();
 
         info!("Finalize Superblock and End Bytes");
         let bytes_written = self.finalize(w, &mut superblock)?;
@@ -709,22 +704,23 @@ impl<'a> FilesystemWriter<'a> {
     fn finalize<W: Write + Seek>(
         &self,
         w: &mut W,
-        superblock: &mut SuperBlock,
+        superblock: &mut Box<dyn SuperBlockTrait>,
     ) -> Result<u64, BackhandError> {
-        superblock.bytes_used = w.stream_position()?;
+        *superblock.mut_bytes_used() = w.stream_position()?;
 
         // pad bytes if required
         let mut pad_len = 0;
         if self.pad_len != 0 {
             // Pad out block_size to 4K
             info!("Writing Padding");
-            let blocks_used: u32 = u32::try_from(superblock.bytes_used).unwrap() / self.pad_len;
+            let blocks_used: u32 = u32::try_from(superblock.bytes_used()).unwrap() / self.pad_len;
             let total_pad_len = (blocks_used + 1) * self.pad_len;
-            pad_len = total_pad_len - u32::try_from(superblock.bytes_used).unwrap();
+            pad_len = total_pad_len - u32::try_from(superblock.bytes_used()).unwrap();
 
             // Write 1K at a time
             let mut total_written = 0;
-            while w.stream_position()? < (superblock.bytes_used + u64::try_from(pad_len).unwrap()) {
+            while w.stream_position()? < (superblock.bytes_used() + u64::try_from(pad_len).unwrap())
+            {
                 let arr = &[0x00; 1024];
 
                 // check if last block to write
@@ -759,7 +755,7 @@ impl<'a> FilesystemWriter<'a> {
 
         //clean any cache, make sure the output is on disk
         w.flush()?;
-        Ok(superblock.bytes_used + u64::try_from(pad_len).unwrap())
+        Ok(superblock.bytes_used() + u64::try_from(pad_len).unwrap())
     }
 
     /// For example, writing a fragment table:

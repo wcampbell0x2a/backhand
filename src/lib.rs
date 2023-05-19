@@ -83,7 +83,7 @@ pub use crate::squashfs::{
     Export, Id, Squashfs, DEFAULT_BLOCK_LOG, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
     MIN_BLOCK_SIZE,
 };
-pub use crate::superblock::{SuperBlock, SuperBlockKind, SuperBlockTrait};
+pub use crate::superblock::{SuperBlockTrait, SuperBlock_V4_0};
 
 /// Support the wonderful world of vendor formats
 pub mod kind {

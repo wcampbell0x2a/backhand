@@ -13,7 +13,7 @@ use crate::inode::{
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
 use crate::{
-    NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink, SuperBlock,
+    NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink, SuperBlockTrait,
 };
 
 #[derive(Clone)]
@@ -43,7 +43,7 @@ impl<'a> Entry<'a> {
         file_size: usize,
         block_offset: u16,
         block_index: u32,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Self {
         // if entry won't fit in file_size of regular dir entry, create extended directory
@@ -97,7 +97,7 @@ impl<'a> Entry<'a> {
         inode_writer: &mut MetadataWriter,
         file_size: usize,
         added: &Added,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Self {
         let basic_file = match added {
@@ -144,7 +144,7 @@ impl<'a> Entry<'a> {
         symlink: &SquashfsSymlink,
         inode: u32,
         inode_writer: &mut MetadataWriter,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Self {
         let link = symlink.link.as_os_str().as_bytes();
@@ -171,7 +171,7 @@ impl<'a> Entry<'a> {
         char_device: &SquashfsCharacterDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Self {
         let char_inode = Inode::new(
@@ -196,7 +196,7 @@ impl<'a> Entry<'a> {
         block_device: &SquashfsBlockDevice,
         inode: u32,
         inode_writer: &mut MetadataWriter,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Self {
         let block_inode = Inode::new(

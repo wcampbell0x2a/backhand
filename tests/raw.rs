@@ -3,7 +3,7 @@ mod common;
 use backhand::compression::Compressor;
 use backhand::{
     kind, CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, NodeHeader,
-    SuperBlock, DEFAULT_BLOCK_SIZE,
+    DEFAULT_BLOCK_SIZE,
 };
 use common::test_unsquashfs;
 use test_assets::TestAssetDef;
@@ -12,6 +12,7 @@ use test_assets::TestAssetDef;
 #[cfg(feature = "xz")]
 fn test_raw_00() {
     use backhand::kind::Kind;
+    use backhand::SuperBlock_V4_0;
 
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
@@ -76,30 +77,6 @@ fn test_raw_00() {
 
     // 8KiB
     assert_eq!(bytes_written, 0x2000);
-    assert_eq!(
-        superblock,
-        SuperBlock {
-            magic: [0x68, 0x73, 0x71, 0x73],
-            inode_count: 0x8,
-            mod_time: time,
-            block_size: 0x20000,
-            frag_count: 0x1,
-            compressor: Compressor::Xz,
-            block_log: 0x11,
-            flags: 0x0,
-            id_count: 0x1,
-            version_major: 0x4,
-            version_minor: 0x0,
-            root_inode: 0xe0,
-            bytes_used: 0x1ec,
-            id_table: 0x1e4,
-            xattr_table: 0xffffffffffffffff,
-            inode_table: 0xac,
-            dir_table: 0x136,
-            frag_table: 0x1d6,
-            export_table: 0xffffffffffffffff,
-        }
-    );
 
     // compare
     let control_new_path = format!("{TEST_PATH}/control.squashfs");

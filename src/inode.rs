@@ -11,7 +11,7 @@ use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
-use crate::{NodeHeader, SuperBlock};
+use crate::{NodeHeader, SuperBlockTrait};
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]
@@ -33,7 +33,7 @@ impl Inode {
         &self,
         name: &'a [u8],
         m_writer: &mut MetadataWriter,
-        superblock: &SuperBlock,
+        superblock: &Box<dyn SuperBlockTrait>,
         kind: &Kind,
     ) -> Entry<'a> {
         let mut v = BitVec::<u8, Msb0>::new();
@@ -41,8 +41,8 @@ impl Inode {
             &mut v,
             (
                 0xffff_ffff_ffff_ffff, // bytes_used is unused for ctx. set to max
-                superblock.block_size,
-                superblock.block_log,
+                superblock.block_size(),
+                superblock.block_log(),
                 kind.inner.type_endian,
             ),
         )

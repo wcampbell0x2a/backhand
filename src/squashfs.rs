@@ -23,7 +23,7 @@ use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::superblock::NOT_SET;
 use crate::{
     metadata, FilesystemReader, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsSymlink, SuperBlock, SuperBlockKind, SuperBlockTrait,
+    SquashfsFileReader, SquashfsSymlink, SuperBlockTrait, SuperBlock_V4_0,
 };
 
 /// 128KiB
@@ -113,15 +113,20 @@ impl Squashfs {
 
         // Parse SuperBlock
         let bs = superblock.view_bits::<deku::bitvec::Msb0>();
-        let (_, superblock) = SuperBlock::read(
-            bs,
-            (
-                kind.inner.magic,
-                kind.inner.version_major,
-                kind.inner.version_minor,
-                kind.inner.type_endian,
-            ),
-        )?;
+
+        // For every version, parse a SuperBlock using the DekuRead::read(..) function
+        let (_, superblock) = match (kind.inner.version_major, kind.inner.version_minor) {
+            (4, 0) => SuperBlock_V4_0::read(
+                bs,
+                (
+                    kind.inner.magic,
+                    kind.inner.version_major,
+                    kind.inner.version_minor,
+                    kind.inner.type_endian,
+                ),
+            )?,
+            _ => unimplemented!(),
+        };
 
         let block_size = superblock.block_size();
         let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;

@@ -8,7 +8,7 @@ use crate::compression::Compressor;
 use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::kinds::Kind;
-use crate::{SuperBlock, SuperBlockTrait};
+use crate::SuperBlockTrait;
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 

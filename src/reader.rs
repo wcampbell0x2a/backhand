@@ -15,7 +15,7 @@ use crate::kinds::Kind;
 use crate::metadata::METADATA_MAXSIZE;
 use crate::squashfs::{Export, Id};
 use crate::superblock::NOT_SET;
-use crate::{fragment, metadata, SuperBlock, SuperBlockTrait};
+use crate::{fragment, metadata, SuperBlockTrait, SuperBlock_V4_0};
 
 /// Private struct containing logic to read the `Squashfs` section from a file
 #[derive(Debug)]

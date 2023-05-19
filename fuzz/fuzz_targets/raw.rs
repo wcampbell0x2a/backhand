@@ -5,7 +5,7 @@ use backhand::compression::Compressor::Xz;
 use backhand::internal::Id;
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| {
+fuzz_target!(|data: Vec<u8>| {
     let header = NodeHeader {
         permissions: 0o755,
         uid: 0,

@@ -120,7 +120,6 @@ pub trait SuperBlockTrait:
     ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
 )]
 pub struct SuperBlock_V4_0 {
-    /// Must be set to 0x73717368 ("hsqs" on disk).
     #[deku(assert_eq = "ctx_magic")]
     pub magic: [u8; 4],
     /// The number of inodes stored in the archive.
@@ -337,4 +336,130 @@ pub struct SuperBlock_V3_0 {
     pub directory_table_start: u64,
     pub fragment_table_start: u64,
     pub unused: u64,
+}
+
+impl SuperBlockTrait for SuperBlock_V3_0 {
+    fn bytes_used(&self) -> u64 {
+        self.bytes_used
+    }
+
+    fn mut_bytes_used(&mut self) -> &mut u64 {
+        &mut self.bytes_used
+    }
+
+    fn root_inode(&self) -> u64 {
+        self.root_inode
+    }
+
+    fn mut_root_inode(&mut self) -> &mut u64 {
+        &mut self.root_inode
+    }
+
+    fn inode_count(&self) -> u32 {
+        self.inode_count
+    }
+
+    fn mut_inode_count(&mut self) -> &mut u32 {
+        &mut self.inode_count
+    }
+
+    fn id_table(&self) -> u64 {
+        self.id_table
+    }
+
+    fn mut_id_table(&mut self) -> &mut u64 {
+        &mut self.id_table
+    }
+
+    fn flags(&self) -> u16 {
+        self.flags
+    }
+
+    fn mut_flags(&mut self) -> &mut u16 {
+        &mut self.flags
+    }
+
+    fn inode_table(&self) -> u64 {
+        self.inode_table
+    }
+
+    fn mut_inode_table(&mut self) -> &mut u64 {
+        &mut self.inode_table
+    }
+
+    fn dir_table(&self) -> u64 {
+        self.dir_table
+    }
+
+    fn mut_dir_table(&mut self) -> &mut u64 {
+        &mut self.dir_table
+    }
+
+    fn xattr_table(&self) -> u64 {
+        self.xattr_table
+    }
+
+    fn mut_xattr_table(&mut self) -> &mut u64 {
+        &mut self.xattr_table
+    }
+
+    fn frag_table(&self) -> u64 {
+        self.frag_table
+    }
+
+    fn mut_frag_table(&mut self) -> &mut u64 {
+        &mut self.frag_table
+    }
+
+    fn frag_count(&self) -> u32 {
+        self.frag_count
+    }
+
+    fn mut_frag_count(&mut self) -> &mut u32 {
+        &mut self.frag_count
+    }
+
+    fn export_table(&self) -> u64 {
+        self.export_table
+    }
+
+    fn mut_export_table(&mut self) -> &mut u64 {
+        &mut self.export_table
+    }
+
+    fn block_size(&self) -> u32 {
+        self.block_size
+    }
+
+    fn mut_block_size(&mut self) -> &mut u32 {
+        &mut self.block_size
+    }
+
+    fn block_log(&self) -> u16 {
+        self.block_log
+    }
+
+    fn mut_block_log(&mut self) -> &mut u16 {
+        &mut self.block_log
+    }
+
+    fn mod_time(&self) -> u32 {
+        self.mod_time
+    }
+
+    fn mut_mod_time(&mut self) -> &mut u32 {
+        &mut self.mod_time
+    }
+
+    fn id_count(&self) -> u16 {
+        self.id_count
+    }
+
+    fn mut_id_count(&mut self) -> &mut u16 {
+        &mut self.id_count
+    }
+
+    fn compressor(&self) -> Compressor {
+        self.compressor
+    }
 }

@@ -20,7 +20,7 @@ use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
-use crate::superblock::NOT_SET;
+use crate::superblock::{NOT_SET, SuperBlock_V3_0};
 use crate::{
     metadata, FilesystemReader, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsSymlink, SuperBlockTrait, SuperBlock_V4_0,
@@ -115,57 +115,69 @@ impl Squashfs {
         let bs = superblock.view_bits::<deku::bitvec::Msb0>();
 
         // For every version, parse a SuperBlock using the DekuRead::read(..) function
-        let (_, superblock) = match (kind.inner.version_major, kind.inner.version_minor) {
-            (4, 0) => SuperBlock_V4_0::read(
-                bs,
-                (
-                    kind.inner.magic,
-                    kind.inner.version_major,
-                    kind.inner.version_minor,
-                    kind.inner.type_endian,
-                ),
-            )?,
+        match (kind.inner.version_major, kind.inner.version_minor) {
+            (4, 0) => {
+                let superblock = SuperBlock_V4_0::read(
+                    bs,
+                    (
+                        kind.inner.magic,
+                        kind.inner.version_major,
+                        kind.inner.version_minor,
+                        kind.inner.type_endian,
+                    ))?.1;
+                let block_size = superblock.block_size();
+                let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
+                if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) || !power_of_two {
+                    error!("block_size({:#02x}) invalid", superblock.block_size);
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
+
+                if (block_size as f32).log2() != superblock.block_log as f32 {
+                    error!("block size.log2() != block_log");
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
+
+                // Parse Compression Options, if any
+                info!("Reading Compression options");
+                let compression_options = if superblock.compressor != Compressor::None
+                    && superblock.compressor_options_are_present()
+                {
+                    let bytes = metadata::read_block(reader, superblock.compressor(), kind)?;
+                    // data -> compression options
+                    let bv = BitVec::from_slice(&bytes);
+                    match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
+                        Ok(co) => {
+                            if !co.0.is_empty() {
+                                error!("invalid compression options, bytes left over, using");
+                            }
+                            Some(co.1)
+                        },
+                        Err(e) => {
+                            error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                            None
+                        },
+                    }
+                } else {
+                    None
+                };
+                info!("compression_options: {compression_options:02x?}");
+                return Ok((Box::new(superblock), None));
+            },
+            (3, 0) => {
+                let superblock = SuperBlock_V3_0::read(
+                    bs,
+                    (
+                        kind.inner.magic,
+                        kind.inner.version_major,
+                        kind.inner.version_minor,
+                        kind.inner.type_endian,
+                    ),
+                )?.1;
+                // TODO: parse compression options
+                return Ok((Box::new(superblock), None));
+            }
             _ => unimplemented!(),
         };
-
-        let block_size = superblock.block_size();
-        let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
-        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) || !power_of_two {
-            error!("block_size({:#02x}) invalid", superblock.block_size);
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        if (block_size as f32).log2() != superblock.block_log as f32 {
-            error!("block size.log2() != block_log");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        // Parse Compression Options, if any
-        info!("Reading Compression options");
-        let compression_options = if superblock.compressor != Compressor::None
-            && superblock.compressor_options_are_present()
-        {
-            let bytes = metadata::read_block(reader, superblock.compressor(), kind)?;
-            // data -> compression options
-            let bv = BitVec::from_slice(&bytes);
-            match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
-                Ok(co) => {
-                    if !co.0.is_empty() {
-                        error!("invalid compression options, bytes left over, using");
-                    }
-                    Some(co.1)
-                },
-                Err(e) => {
-                    error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
-                    None
-                },
-            }
-        } else {
-            None
-        };
-        info!("compression_options: {compression_options:02x?}");
-
-        Ok((Box::new(superblock), compression_options))
     }
 
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed

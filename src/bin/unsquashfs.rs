@@ -108,6 +108,7 @@ struct Args {
               "be_v4_0",
               "le_v4_0",
               "avm_be_v4_0",
+              "le_v3_0",
           ]
     ))]
     kind: String,

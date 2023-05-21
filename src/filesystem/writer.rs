@@ -17,11 +17,12 @@ use crate::data::DataWriter;
 use crate::entry::Entry;
 use crate::error::BackhandError;
 use crate::filesystem::node::SquashfsSymlink;
+use crate::id::Id;
 use crate::kind::Kind;
 use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
-use crate::squashfs::{Flags, Id, SuperBlock};
+use crate::squashfs::{Flags, SuperBlock};
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,

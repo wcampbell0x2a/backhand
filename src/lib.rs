@@ -57,8 +57,10 @@ mod data;
 mod dir;
 mod entry;
 mod error;
+mod export;
 mod filesystem;
 mod fragment;
+mod id;
 mod inode;
 mod kinds;
 mod metadata;
@@ -67,6 +69,7 @@ mod squashfs;
 
 pub use crate::data::DataSize;
 pub use crate::error::BackhandError;
+pub use crate::export::Export;
 pub use crate::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
@@ -76,11 +79,11 @@ pub use crate::filesystem::writer::{
     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
 };
 pub use crate::fragment::Fragment;
+pub use crate::id::Id;
 pub use crate::inode::{BasicFile, Inode};
 pub use crate::reader::BufReadSeek;
 pub use crate::squashfs::{
-    Export, Id, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Support the wonderful world of vendor formats

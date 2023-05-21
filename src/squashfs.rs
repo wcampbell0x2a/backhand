@@ -21,8 +21,8 @@ use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::{
-    metadata, FilesystemReader, Node, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsSymlink,
+    metadata, Export, FilesystemReader, Id, Node, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
 /// 128KiB
@@ -39,32 +39,6 @@ pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
 
 /// 4KiB
 pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
-
-/// NFS export support
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]
-pub struct Export {
-    pub num: u64,
-}
-
-/// 32 bit user and group IDs
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
-#[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]
-pub struct Id {
-    pub num: u32,
-}
-
-impl Id {
-    pub const SIZE: usize = (u32::BITS / 8) as usize;
-
-    pub fn new(num: u32) -> Id {
-        Id { num }
-    }
-
-    pub fn root() -> Vec<Id> {
-        vec![Id { num: 0 }]
-    }
-}
 
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]

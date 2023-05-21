@@ -6,10 +6,11 @@ use crate::compressor::{CompressionOptions, Compressor};
 use crate::data::DataSize;
 use crate::error::BackhandError;
 use crate::fragment::Fragment;
+use crate::id::Id;
 use crate::inode::BasicFile;
 use crate::kinds::Kind;
 use crate::reader::BufReadSeek;
-use crate::squashfs::{Cache, Id};
+use crate::squashfs::Cache;
 use crate::{Node, Squashfs, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image

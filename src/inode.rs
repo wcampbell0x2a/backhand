@@ -11,7 +11,7 @@ use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
+use crate::squashfs::{SuperBlock, SuperBlock_V4_0, SuperBlockTrait};
 use crate::NodeHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
@@ -34,7 +34,7 @@ impl Inode {
         &self,
         name: &'a [u8],
         m_writer: &mut MetadataWriter,
-        superblock: &SuperBlock,
+        superblock: &SuperBlock_V4_0,
         kind: &Kind,
     ) -> Entry<'a> {
         let mut v = BitVec::<u8, Msb0>::new();
@@ -42,8 +42,8 @@ impl Inode {
             &mut v,
             (
                 0xffff_ffff_ffff_ffff, // bytes_used is unused for ctx. set to max
-                superblock.block_size,
-                superblock.block_log,
+                u32::try_from(superblock.block_size()).unwrap(),
+                superblock.block_log(),
                 kind.inner.type_endian,
             ),
         )

@@ -65,6 +65,7 @@ mod inode;
 mod kinds;
 mod metadata;
 mod reader;
+mod reader_v4;
 mod squashfs;
 
 pub use crate::data::DataSize;
@@ -83,7 +84,7 @@ pub use crate::id::Id;
 pub use crate::inode::{BasicFile, Inode};
 pub use crate::reader::BufReadSeek;
 pub use crate::squashfs::{
-    Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    Squashfs, SuperBlock, SuperBlock_V4_0, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Support the wonderful world of vendor formats

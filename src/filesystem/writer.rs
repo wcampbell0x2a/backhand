@@ -22,7 +22,7 @@ use crate::kind::Kind;
 use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
-use crate::squashfs::{Flags, SuperBlock};
+use crate::squashfs::{Flags, SuperBlock, SuperBlock_V4_0};
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
@@ -416,7 +416,7 @@ impl<'a> FilesystemWriter<'a> {
         &mut self,
         w: &mut W,
         offset: u64,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
+    ) -> Result<(SuperBlock_V4_0, u64), BackhandError> {
         let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
     }
@@ -476,7 +476,7 @@ impl<'a> FilesystemWriter<'a> {
         dir_writer: &'_ mut MetadataWriter,
         parent_node_id: u32,
         node_id: NonZeroUsize,
-        superblock: &SuperBlock,
+        superblock: &SuperBlock_V4_0,
         kind: &Kind,
     ) -> Result<Entry<'b>, BackhandError> {
         let node = &self.root.node(node_id).unwrap();
@@ -596,8 +596,9 @@ impl<'a> FilesystemWriter<'a> {
     pub fn write<W: Write + Seek>(
         &mut self,
         w: &mut W,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut superblock = SuperBlock::new(
+    ) -> Result<(SuperBlock_V4_0, u64), BackhandError> {
+        // TODO: support v3
+        let mut superblock = SuperBlock_V4_0::new(
             self.fs_compressor.id,
             Kind {
                 inner: self.kind.inner.clone(),
@@ -709,7 +710,7 @@ impl<'a> FilesystemWriter<'a> {
     fn finalize<W: Write + Seek>(
         &self,
         w: &mut W,
-        superblock: &mut SuperBlock,
+        superblock: &mut SuperBlock_V4_0,
     ) -> Result<u64, BackhandError> {
         superblock.bytes_used = w.stream_position()?;
 

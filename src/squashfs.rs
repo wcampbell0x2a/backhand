@@ -19,11 +19,14 @@ use crate::filesystem::node::{InnerNode, Nodes};
 use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
-use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::reader::{BufReadSeek, SquashfsReaderWithOffset};
+use crate::reader_v4::SquashFsReaderV4;
 use crate::{
     metadata, Export, FilesystemReader, Id, Node, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
+
+pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
 /// 128KiB
 pub const DEFAULT_BLOCK_SIZE: u32 = 0x20000;
@@ -40,13 +43,117 @@ pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes!(1) as u32;
 /// 4KiB
 pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
 
+/// Common variables between versions
+pub trait SuperBlockTrait {
+    fn block_size(&self) -> u64;
+    fn block_log(&self) -> u16;
+    fn compressor(&self) -> Compressor;
+    fn mod_time(&self) -> u64;
+}
+
+impl SuperBlockTrait for SuperBlock_V3_0 {
+    fn block_size(&self) -> u64 {
+        self.block_size
+    }
+    fn block_log(&self) -> u16 {
+        self.block_log
+    }
+    fn compressor(&self) -> Compressor {
+        Compressor::Gzip
+    }
+    fn mod_time(&self) -> u64 {
+        self.mkfs_time
+    }
+}
+impl SuperBlockTrait for SuperBlock_V4_0 {
+    fn block_size(&self) -> u64 {
+        u64::from(self.block_size)
+    }
+    fn block_log(&self) -> u16 {
+        self.block_log
+    }
+    fn compressor(&self) -> Compressor {
+        self.compressor
+    }
+    fn mod_time(&self) -> u64 {
+        u64::from(self.mod_time)
+    }
+}
+
+pub enum SuperBlock {
+    V3_0(SuperBlock_V3_0),
+    V4_0(SuperBlock_V4_0),
+}
+
+impl SuperBlock {
+    pub fn block_size(&self) -> u64 {
+        match self {
+            Self::V3_0(a) => a.block_size(),
+            Self::V4_0(a) => a.block_size(),
+        }
+    }
+    pub fn block_log(&self) -> u16 {
+        match self {
+            Self::V3_0(a) => a.block_log(),
+            Self::V4_0(a) => a.block_log(),
+        }
+    }
+    pub fn compressor(&self) -> Compressor {
+        match self {
+            Self::V3_0(a) => a.compressor(),
+            Self::V4_0(a) => a.compressor(),
+        }
+    }
+    pub fn mod_time(&self) -> u64 {
+        match self {
+            Self::V3_0(a) => a.mod_time(),
+            Self::V4_0(a) => a.mod_time(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
+#[deku(
+    endian = "ctx_type_endian",
+    ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
+)]
+pub struct SuperBlock_V3_0 {
+    #[deku(assert_eq = "ctx_magic")]
+    pub magic: [u8; 4],
+    pub inode_count: u32,
+    pub bytes_used_2: u32,
+    pub uid_start_2: u32,
+    pub guid_start_2: u32,
+    pub inode_table_start_2: u32,
+    pub directory_table_start_2: u32,
+    pub s_major: u16,
+    pub s_minor: u16,
+    pub block_size_1: u16,
+    pub block_log: u16,
+    pub flags: u8,
+    pub no_uids: u8,
+    pub no_guids: u8,
+    pub mkfs_time: u64,
+    pub root_inode: u64,
+    pub block_size: u64,
+    pub fragments: u64,
+    pub fragment_table_start_2: u64,
+    pub bytes_used: u64,
+    pub uid_start: u64,
+    pub guid_start: u64,
+    pub inode_table_start: u64,
+    pub directory_table_start: u64,
+    pub fragment_table_start: u64,
+    pub unused: u64,
+}
+
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(
     endian = "ctx_type_endian",
     ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
 )]
-pub struct SuperBlock {
+pub struct SuperBlock_V4_0 {
     /// Must be set to 0x73717368 ("hsqs" on disk).
     #[deku(assert_eq = "ctx_magic")]
     pub magic: [u8; 4],
@@ -88,9 +195,74 @@ pub struct SuperBlock {
     pub export_table: u64,
 }
 
-pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
+impl SuperBlock_V4_0 {
+    /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
+    /// and dirs
+    pub fn superblock_and_compression_options(
+        reader: &mut Box<dyn BufReadSeek>,
+        kind: &Kind,
+    ) -> Result<(SuperBlock_V4_0, Option<CompressionOptions>), BackhandError> {
+        // Size of metadata + optional compression options metadata block
+        let mut superblock = [0u8; 96];
+        reader.read_exact(&mut superblock)?;
 
-impl SuperBlock {
+        // Parse SuperBlock
+        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
+        let (_, superblock) = SuperBlock_V4_0::read(
+            bs,
+            (
+                kind.inner.magic,
+                kind.inner.version_major,
+                kind.inner.version_minor,
+                kind.inner.type_endian,
+            ),
+        )?;
+
+        let power_of_two = superblock.block_size != 0
+            && (superblock.block_size & (superblock.block_size - 1)) == 0;
+        if (superblock.block_size > MAX_BLOCK_SIZE)
+            || (superblock.block_size < MIN_BLOCK_SIZE)
+            || !power_of_two
+        {
+            error!("block_size({:#02x}) invalid", superblock.block_size);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
+            error!("block size.log2() != block_log");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // Parse Compression Options, if any
+        info!("Reading Compression options");
+        let compression_options = if superblock.compressor != Compressor::None
+            && superblock.compressor_options_are_present()
+        {
+            let bytes = metadata::read_block(reader, superblock.compressor, kind)?;
+            // data -> compression options
+            let bv = BitVec::from_slice(&bytes);
+            match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
+                Ok(co) => {
+                    if !co.0.is_empty() {
+                        error!("invalid compression options, bytes left over, using");
+                    }
+                    Some(co.1)
+                },
+                Err(e) => {
+                    error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                    None
+                },
+            }
+        } else {
+            None
+        };
+        info!("compression_options: {compression_options:02x?}");
+
+        Ok((superblock, compression_options))
+    }
+}
+
+impl SuperBlock_V4_0 {
     /// flag value
     pub fn inodes_uncompressed(&self) -> bool {
         self.flags & Flags::InodesStoredUncompressed as u16 != 0
@@ -142,7 +314,7 @@ impl SuperBlock {
     }
 }
 
-impl SuperBlock {
+impl SuperBlock_V4_0 {
     pub fn new(compressor: Compressor, kind: Kind) -> Self {
         Self {
             magic: kind.inner.magic,
@@ -212,77 +384,11 @@ pub struct Squashfs {
     pub export: Option<Vec<Export>>,
     /// Id Lookup Table
     pub id: Vec<Id>,
-    //file reader
-    file: Box<dyn BufReadSeek>,
+    /// image reader
+    reader: Box<dyn BufReadSeek>,
 }
 
 impl Squashfs {
-    /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
-    /// and dirs
-    ///
-    /// Used for unsquashfs --stat
-    pub fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek>,
-        kind: &Kind,
-    ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
-        // Size of metadata + optional compression options metadata block
-        let mut superblock = [0u8; 96];
-        reader.read_exact(&mut superblock)?;
-
-        // Parse SuperBlock
-        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
-        let (_, superblock) = SuperBlock::read(
-            bs,
-            (
-                kind.inner.magic,
-                kind.inner.version_major,
-                kind.inner.version_minor,
-                kind.inner.type_endian,
-            ),
-        )?;
-
-        let power_of_two = superblock.block_size != 0
-            && (superblock.block_size & (superblock.block_size - 1)) == 0;
-        if (superblock.block_size > MAX_BLOCK_SIZE)
-            || (superblock.block_size < MIN_BLOCK_SIZE)
-            || !power_of_two
-        {
-            error!("block_size({:#02x}) invalid", superblock.block_size);
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
-            error!("block size.log2() != block_log");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        // Parse Compression Options, if any
-        info!("Reading Compression options");
-        let compression_options = if superblock.compressor != Compressor::None
-            && superblock.compressor_options_are_present()
-        {
-            let bytes = metadata::read_block(reader, &superblock, kind)?;
-            // data -> compression options
-            let bv = BitVec::from_slice(&bytes);
-            match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
-                Ok(co) => {
-                    if !co.0.is_empty() {
-                        error!("invalid compression options, bytes left over, using");
-                    }
-                    Some(co.1)
-                },
-                Err(e) => {
-                    error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
-                    None
-                },
-            }
-        } else {
-            None
-        };
-        info!("compression_options: {compression_options:02x?}");
-
-        Ok((superblock, compression_options))
-    }
 
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
@@ -323,136 +429,17 @@ impl Squashfs {
     }
 
     fn inner_from_reader_with_offset_and_kind(
-        mut reader: Box<dyn BufReadSeek>,
+        reader: Box<dyn BufReadSeek>,
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
-        let (superblock, compression_options) =
-            Self::superblock_and_compression_options(&mut reader, &kind)?;
-
-        // Check if legal image
-        let total_length = reader.seek(SeekFrom::End(0))?;
-        reader.rewind()?;
-        if superblock.bytes_used > total_length {
-            error!("corrupted or invalid bytes_used");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        match (kind.inner.version_major, kind.inner.version_minor) {
+            (4, 0) => Self::v4_0_inner_from_reader_with_offset_and_kind(reader, kind),
+            (3, 0) => Self::v3_0_inner_from_reader_with_offset_and_kind(reader, kind),
+            _ => {
+                error!("Version not supported");
+                Err(BackhandError::CorruptedOrInvalidSquashfs)
+            },
         }
-
-        // check required fields
-        if superblock.id_table > total_length {
-            error!("corrupted or invalid xattr_table");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-        if superblock.inode_table > total_length {
-            error!("corrupted or invalid inode_table");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-        if superblock.dir_table > total_length {
-            error!("corrupted or invalid dir_table");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        // check optional fields
-        if superblock.xattr_table != NOT_SET && superblock.xattr_table > total_length {
-            error!("corrupted or invalid frag_table");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-        if superblock.frag_table != NOT_SET && superblock.frag_table > total_length {
-            error!("corrupted or invalid frag_table");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-        if superblock.export_table != NOT_SET && superblock.export_table > total_length {
-            error!("corrupted or invalid export_table");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-
-        // Read all fields from filesystem to make a Squashfs
-        info!("Reading Inodes");
-        let inodes = reader.inodes(&superblock, &kind)?;
-
-        info!("Reading Root Inode");
-        let root_inode = reader.root_inode(&superblock, &kind)?;
-
-        info!("Reading Fragments");
-        let fragments = reader.fragments(&superblock, &kind)?;
-        let fragment_ptr = fragments.as_ref().map(|frag| frag.0);
-        let fragment_table = fragments.map(|a| a.1);
-
-        info!("Reading Exports");
-        let export = reader.export(&superblock, &kind)?;
-        let export_ptr = export.as_ref().map(|export| export.0);
-        let export_table = export.map(|a| a.1);
-
-        info!("Reading Ids");
-        let id = reader.id(&superblock, &kind)?;
-        let id_ptr = id.0;
-        let id_table = id.1;
-
-        let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
-            trace!("using fragment for end of dir");
-            fragment_ptr
-        } else if let Some(export_ptr) = export_ptr {
-            trace!("using export for end of dir");
-            export_ptr
-        } else {
-            trace!("using id for end of dir");
-            id_ptr
-        };
-
-        info!("Reading Dirs");
-        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, &kind)?;
-
-        let squashfs = Squashfs {
-            kind,
-            superblock,
-            compression_options,
-            inodes,
-            root_inode,
-            dir_blocks,
-            fragments: fragment_table,
-            export: export_table,
-            id: id_table,
-            file: reader,
-        };
-
-        // show info about flags
-        if superblock.inodes_uncompressed() {
-            info!("flag: inodes uncompressed");
-        }
-
-        if superblock.data_block_stored_uncompressed() {
-            info!("flag: data blocks stored uncompressed");
-        }
-
-        if superblock.fragments_stored_uncompressed() {
-            info!("flag: fragments stored uncompressed");
-        }
-
-        if superblock.fragments_are_not_used() {
-            info!("flag: fragments are not used");
-        }
-
-        if superblock.fragments_are_always_generated() {
-            info!("flag: fragments are always generated");
-        }
-
-        if superblock.data_has_been_duplicated() {
-            info!("flag: data has been duplicated");
-        }
-
-        if superblock.nfs_export_table_exists() {
-            info!("flag: nfs export table exists");
-        }
-
-        if superblock.xattrs_are_stored_uncompressed() {
-            info!("flag: xattrs are stored uncompressed");
-        }
-
-        if superblock.compressor_options_are_present() {
-            info!("flag: compressor options are present");
-        }
-
-        info!("Successful Read");
-        Ok(squashfs)
     }
 
     /// # Returns
@@ -636,17 +623,293 @@ impl Squashfs {
 
         let filesystem = FilesystemReader {
             kind: self.kind,
-            block_size: self.superblock.block_size,
-            block_log: self.superblock.block_log,
-            compressor: self.superblock.compressor,
+            block_size: u32::try_from(self.superblock.block_size()).unwrap(),
+            block_log: self.superblock.block_log(),
+            compressor: self.superblock.compressor(),
             compression_options: self.compression_options,
-            mod_time: self.superblock.mod_time,
+            mod_time: u32::try_from(self.superblock.mod_time()).unwrap(),
             id_table: self.id,
             fragments: self.fragments,
             root,
-            reader: RefCell::new(Box::new(self.file)),
+            reader: RefCell::new(Box::new(self.reader)),
             cache: RefCell::new(Cache::default()),
         };
         Ok(filesystem)
+    }
+}
+
+/// Version 4, 0
+impl Squashfs {
+    pub fn v4_0_inner_from_reader_with_offset_and_kind(
+        mut reader: Box<dyn BufReadSeek>,
+        kind: Kind,
+    ) -> Result<Squashfs, BackhandError> {
+        let (superblock, compression_options) =
+            SuperBlock_V4_0::superblock_and_compression_options(&mut reader, &kind)?;
+
+        // Check if legal image
+        let total_length = reader.seek(SeekFrom::End(0))?;
+        reader.rewind()?;
+        if superblock.bytes_used > total_length {
+            error!("corrupted or invalid bytes_used");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // check required fields
+        if superblock.id_table > total_length {
+            error!("corrupted or invalid xattr_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.inode_table > total_length {
+            error!("corrupted or invalid inode_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.dir_table > total_length {
+            error!("corrupted or invalid dir_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // check optional fields
+        if superblock.xattr_table != NOT_SET && superblock.xattr_table > total_length {
+            error!("corrupted or invalid frag_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.frag_table != NOT_SET && superblock.frag_table > total_length {
+            error!("corrupted or invalid frag_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.export_table != NOT_SET && superblock.export_table > total_length {
+            error!("corrupted or invalid export_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // Read all fields from filesystem to make a Squashfs
+        info!("Reading Inodes");
+        let inodes = SquashFsReaderV4::inodes(&mut reader, &superblock, &kind)?;
+
+        info!("Reading Root Inode");
+        let root_inode = SquashFsReaderV4::root_inode(&mut reader, &superblock, &kind)?;
+
+        info!("Reading Fragments");
+        let fragments = SquashFsReaderV4::fragments(&mut reader, &superblock, &kind)?;
+        let fragment_ptr = fragments.as_ref().map(|frag| frag.0);
+        let fragment_table = fragments.map(|a| a.1);
+
+        info!("Reading Exports");
+        let export = SquashFsReaderV4::export(&mut reader, &superblock, &kind)?;
+        let export_ptr = export.as_ref().map(|export| export.0);
+        let export_table = export.map(|a| a.1);
+
+        info!("Reading Ids");
+        let id = SquashFsReaderV4::id(&mut reader, &superblock, &kind)?;
+        let id_ptr = id.0;
+        let id_table = id.1;
+
+        let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
+            trace!("using fragment for end of dir");
+            fragment_ptr
+        } else if let Some(export_ptr) = export_ptr {
+            trace!("using export for end of dir");
+            export_ptr
+        } else {
+            trace!("using id for end of dir");
+            id_ptr
+        };
+
+        info!("Reading Dirs");
+        let dir_blocks =
+            SquashFsReaderV4::dir_blocks(&mut reader, &superblock, last_dir_position, &kind)?;
+
+        let squashfs = Squashfs {
+            kind,
+            superblock: SuperBlock::V4_0(superblock),
+            compression_options,
+            inodes,
+            root_inode,
+            dir_blocks,
+            fragments: fragment_table,
+            export: export_table,
+            id: id_table,
+            reader,
+        };
+
+        // show info about flags
+        if superblock.inodes_uncompressed() {
+            info!("flag: inodes uncompressed");
+        }
+
+        if superblock.data_block_stored_uncompressed() {
+            info!("flag: data blocks stored uncompressed");
+        }
+
+        if superblock.fragments_stored_uncompressed() {
+            info!("flag: fragments stored uncompressed");
+        }
+
+        if superblock.fragments_are_not_used() {
+            info!("flag: fragments are not used");
+        }
+
+        if superblock.fragments_are_always_generated() {
+            info!("flag: fragments are always generated");
+        }
+
+        if superblock.data_has_been_duplicated() {
+            info!("flag: data has been duplicated");
+        }
+
+        if superblock.nfs_export_table_exists() {
+            info!("flag: nfs export table exists");
+        }
+
+        if superblock.xattrs_are_stored_uncompressed() {
+            info!("flag: xattrs are stored uncompressed");
+        }
+
+        if superblock.compressor_options_are_present() {
+            info!("flag: compressor options are present");
+        }
+
+        info!("Successful Read");
+        Ok(squashfs)
+    }
+}
+
+/// Version 3, 0
+impl Squashfs {
+    pub fn v3_0_inner_from_reader_with_offset_and_kind(
+        mut reader: Box<dyn BufReadSeek>,
+        kind: Kind,
+    ) -> Result<Squashfs, BackhandError> {
+        todo!()
+        //let (superblock, compression_options) =
+        //    SuperBlock::superblock_and_compression_options(&mut reader, &kind)?;
+
+        //// Check if legal image
+        //let total_length = reader.seek(SeekFrom::End(0))?;
+        //reader.rewind()?;
+        //if superblock.bytes_used > total_length {
+        //    error!("corrupted or invalid bytes_used");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+
+        //// check required fields
+        //if superblock.id_table > total_length {
+        //    error!("corrupted or invalid xattr_table");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+        //if superblock.inode_table > total_length {
+        //    error!("corrupted or invalid inode_table");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+        //if superblock.dir_table > total_length {
+        //    error!("corrupted or invalid dir_table");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+
+        //// check optional fields
+        //if superblock.xattr_table != NOT_SET && superblock.xattr_table > total_length {
+        //    error!("corrupted or invalid frag_table");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+        //if superblock.frag_table != NOT_SET && superblock.frag_table > total_length {
+        //    error!("corrupted or invalid frag_table");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+        //if superblock.export_table != NOT_SET && superblock.export_table > total_length {
+        //    error!("corrupted or invalid export_table");
+        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        //}
+
+        //// Read all fields from filesystem to make a Squashfs
+        //info!("Reading Inodes");
+        //let inodes = SquashFsReaderV4::inodes(&mut reader, &superblock, &kind)?;
+
+        //info!("Reading Root Inode");
+        //let root_inode = SquashFsReaderV4::root_inode(&mut reader, &superblock, &kind)?;
+
+        //info!("Reading Fragments");
+        //let fragments = SquashFsReaderV4::fragments(&mut reader, &superblock, &kind)?;
+        //let fragment_ptr = fragments.as_ref().map(|frag| frag.0);
+        //let fragment_table = fragments.map(|a| a.1);
+
+        //info!("Reading Exports");
+        //let export = SquashFsReaderV4::export(&mut reader, &superblock, &kind)?;
+        //let export_ptr = export.as_ref().map(|export| export.0);
+        //let export_table = export.map(|a| a.1);
+
+        //info!("Reading Ids");
+        //let id = SquashFsReaderV4::id(&mut reader, &superblock, &kind)?;
+        //let id_ptr = id.0;
+        //let id_table = id.1;
+
+        //let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
+        //    trace!("using fragment for end of dir");
+        //    fragment_ptr
+        //} else if let Some(export_ptr) = export_ptr {
+        //    trace!("using export for end of dir");
+        //    export_ptr
+        //} else {
+        //    trace!("using id for end of dir");
+        //    id_ptr
+        //};
+
+        //info!("Reading Dirs");
+        //let dir_blocks =
+        //    SquashFsReaderV4::dir_blocks(&mut reader, &superblock, last_dir_position, &kind)?;
+
+        //let squashfs = Squashfs {
+        //    kind,
+        //    superblock,
+        //    compression_options,
+        //    inodes,
+        //    root_inode,
+        //    dir_blocks,
+        //    fragments: fragment_table,
+        //    export: export_table,
+        //    id: id_table,
+        //    reader,
+        //};
+
+        //// show info about flags
+        //if superblock.inodes_uncompressed() {
+        //    info!("flag: inodes uncompressed");
+        //}
+
+        //if superblock.data_block_stored_uncompressed() {
+        //    info!("flag: data blocks stored uncompressed");
+        //}
+
+        //if superblock.fragments_stored_uncompressed() {
+        //    info!("flag: fragments stored uncompressed");
+        //}
+
+        //if superblock.fragments_are_not_used() {
+        //    info!("flag: fragments are not used");
+        //}
+
+        //if superblock.fragments_are_always_generated() {
+        //    info!("flag: fragments are always generated");
+        //}
+
+        //if superblock.data_has_been_duplicated() {
+        //    info!("flag: data has been duplicated");
+        //}
+
+        //if superblock.nfs_export_table_exists() {
+        //    info!("flag: nfs export table exists");
+        //}
+
+        //if superblock.xattrs_are_stored_uncompressed() {
+        //    info!("flag: xattrs are stored uncompressed");
+        //}
+
+        //if superblock.compressor_options_are_present() {
+        //    info!("flag: compressor options are present");
+        //}
+
+        //info!("Successful Read");
+        //todo!();
+        //Ok(squashfs)
     }
 }

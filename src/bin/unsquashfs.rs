@@ -9,7 +9,8 @@ use std::process::ExitCode;
 use backhand::kind::Kind;
 use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink, SuperBlock_V4_0,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink, SuperBlock,
+    SuperBlock_V4_0,
 };
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
@@ -202,8 +203,7 @@ fn list<'a>(nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>
 fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
     file.seek(SeekFrom::Start(args.offset)).unwrap();
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
-    let (superblock, compression_options) =
-        SuperBlock_V4_0::superblock_and_compression_options(&mut reader, &kind).unwrap();
+    let (superblock, compression_options) = SuperBlock::from_reader(&mut reader, &kind).unwrap();
 
     // show info about flags
     println!("{superblock:#08x?}");

@@ -51,6 +51,9 @@ pub enum BackhandError {
 
     #[error("file duplicated in squashfs image")]
     DuplicatedFileName,
+
+    #[error("image version not currently supported")]
+    UnsupportedVersion,
 }
 
 impl From<BackhandError> for io::Error {
@@ -70,7 +73,8 @@ impl From<BackhandError> for io::Error {
             | InvalidCompressionOption
             | InvalidFilePath
             | UndefineFileName
-            | DuplicatedFileName) => Self::new(io::ErrorKind::InvalidData, e),
+            | DuplicatedFileName
+            | UnsupportedVersion) => Self::new(io::ErrorKind::InvalidData, e),
         }
     }
 }

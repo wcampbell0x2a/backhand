@@ -55,12 +55,15 @@ impl SuperBlockTrait for SuperBlock_V3_0 {
     fn block_size(&self) -> u64 {
         self.block_size
     }
+
     fn block_log(&self) -> u16 {
         self.block_log
     }
+
     fn compressor(&self) -> Compressor {
         Compressor::Gzip
     }
+
     fn mod_time(&self) -> u64 {
         self.mkfs_time
     }
@@ -69,12 +72,15 @@ impl SuperBlockTrait for SuperBlock_V4_0 {
     fn block_size(&self) -> u64 {
         u64::from(self.block_size)
     }
+
     fn block_log(&self) -> u16 {
         self.block_log
     }
+
     fn compressor(&self) -> Compressor {
         self.compressor
     }
+
     fn mod_time(&self) -> u64 {
         u64::from(self.mod_time)
     }
@@ -86,24 +92,40 @@ pub enum SuperBlock {
 }
 
 impl SuperBlock {
+    pub fn from_reader(
+        reader: &mut Box<dyn BufReadSeek>,
+        kind: &Kind,
+    ) -> Result<(SuperBlock_V4_0, Option<CompressionOptions>), BackhandError> {
+        match (kind.inner.version_major, kind.inner.version_minor) {
+            (4, 0) => SuperBlock_V4_0::from_reader(reader, kind),
+            (3, 0) => SuperBlock_V3_0::from_reader(reader, kind),
+            _ => Err(BackhandError::UnsupportedVersion),
+        }
+    }
+}
+
+impl SuperBlock {
     pub fn block_size(&self) -> u64 {
         match self {
             Self::V3_0(a) => a.block_size(),
             Self::V4_0(a) => a.block_size(),
         }
     }
+
     pub fn block_log(&self) -> u16 {
         match self {
             Self::V3_0(a) => a.block_log(),
             Self::V4_0(a) => a.block_log(),
         }
     }
+
     pub fn compressor(&self) -> Compressor {
         match self {
             Self::V3_0(a) => a.compressor(),
             Self::V4_0(a) => a.compressor(),
         }
     }
+
     pub fn mod_time(&self) -> u64 {
         match self {
             Self::V3_0(a) => a.mod_time(),
@@ -145,6 +167,16 @@ pub struct SuperBlock_V3_0 {
     pub directory_table_start: u64,
     pub fragment_table_start: u64,
     pub unused: u64,
+}
+impl SuperBlock_V3_0 {
+    /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
+    /// and dirs
+    pub fn from_reader(
+        reader: &mut Box<dyn BufReadSeek>,
+        kind: &Kind,
+    ) -> Result<(SuperBlock_V4_0, Option<CompressionOptions>), BackhandError> {
+        todo!();
+    }
 }
 
 /// Contains important information about the archive, including the locations of other sections
@@ -198,7 +230,7 @@ pub struct SuperBlock_V4_0 {
 impl SuperBlock_V4_0 {
     /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
     /// and dirs
-    pub fn superblock_and_compression_options(
+    pub fn from_reader(
         reader: &mut Box<dyn BufReadSeek>,
         kind: &Kind,
     ) -> Result<(SuperBlock_V4_0, Option<CompressionOptions>), BackhandError> {
@@ -389,7 +421,6 @@ pub struct Squashfs {
 }
 
 impl Squashfs {
-
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
@@ -644,8 +675,7 @@ impl Squashfs {
         mut reader: Box<dyn BufReadSeek>,
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
-        let (superblock, compression_options) =
-            SuperBlock_V4_0::superblock_and_compression_options(&mut reader, &kind)?;
+        let (superblock, compression_options) = SuperBlock::from_reader(&mut reader, &kind)?;
 
         // Check if legal image
         let total_length = reader.seek(SeekFrom::End(0))?;
@@ -783,7 +813,7 @@ impl Squashfs {
     ) -> Result<Squashfs, BackhandError> {
         todo!()
         //let (superblock, compression_options) =
-        //    SuperBlock::superblock_and_compression_options(&mut reader, &kind)?;
+        //    SuperBlock::from_reader(reader, kind)?;
 
         //// Check if legal image
         //let total_length = reader.seek(SeekFrom::End(0))?;

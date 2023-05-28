@@ -11,7 +11,7 @@ use crate::dir::DirectoryIndex;
 use crate::entry::Entry;
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
-use crate::squashfs::{SuperBlock, SuperBlock_V4_0, SuperBlockTrait};
+use crate::squashfs::{SuperBlock, SuperBlockTrait, SuperBlock_V4_0};
 use crate::NodeHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

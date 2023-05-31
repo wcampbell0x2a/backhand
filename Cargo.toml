@@ -51,3 +51,6 @@ zune-inflate = "0.2.53"
 [[bench]]
 name = "benchmark"
 harness = false
+
+[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
+version = "0.5.0"

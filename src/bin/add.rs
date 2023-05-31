@@ -10,6 +10,11 @@ use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 use clap::Parser;
 use common::after_help;
 
+// -musl malloc is slow, use jemalloc
+#[cfg(all(target_env = "musl", target_pointer_width = "64"))]
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 /// tool to add a file or directory to squashfs filesystems
 #[derive(Parser, Debug)]
 #[command(author,

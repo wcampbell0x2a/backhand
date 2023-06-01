@@ -201,52 +201,52 @@ fn list<'a>(nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>
 }
 
 fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
-    file.seek(SeekFrom::Start(args.offset)).unwrap();
-    let mut reader: Box<dyn BufReadSeek> = Box::new(file);
-    let (superblock, compression_options) = SuperBlock::from_reader(&mut reader, &kind).unwrap();
+    //file.seek(SeekFrom::Start(args.offset)).unwrap();
+    //let mut reader: Box<dyn BufReadSeek> = Box::new(file);
+    //let (superblock, compression_options) = SuperBlock::from_reader(&mut reader, &kind).unwrap();
 
-    // show info about flags
-    println!("{superblock:#08x?}");
+    //// show info about flags
+    //println!("{superblock:#08x?}");
 
-    // show info about compression options
-    println!("Compression Options: {compression_options:#x?}");
+    //// show info about compression options
+    //println!("Compression Options: {compression_options:#x?}");
 
-    // show info about flags
-    if superblock.inodes_uncompressed() {
-        println!("flag: inodes uncompressed");
-    }
+    //// show info about flags
+    //if superblock.inodes_uncompressed() {
+    //    println!("flag: inodes uncompressed");
+    //}
 
-    if superblock.data_block_stored_uncompressed() {
-        println!("flag: data blocks stored uncompressed");
-    }
+    //if superblock.data_block_stored_uncompressed() {
+    //    println!("flag: data blocks stored uncompressed");
+    //}
 
-    if superblock.fragments_stored_uncompressed() {
-        println!("flag: fragments stored uncompressed");
-    }
+    //if superblock.fragments_stored_uncompressed() {
+    //    println!("flag: fragments stored uncompressed");
+    //}
 
-    if superblock.fragments_are_not_used() {
-        println!("flag: fragments are not used");
-    }
+    //if superblock.fragments_are_not_used() {
+    //    println!("flag: fragments are not used");
+    //}
 
-    if superblock.fragments_are_always_generated() {
-        println!("flag: fragments are always generated");
-    }
+    //if superblock.fragments_are_always_generated() {
+    //    println!("flag: fragments are always generated");
+    //}
 
-    if superblock.data_has_been_duplicated() {
-        println!("flag: data has been duplicated");
-    }
+    //if superblock.data_has_been_duplicated() {
+    //    println!("flag: data has been duplicated");
+    //}
 
-    if superblock.nfs_export_table_exists() {
-        println!("flag: nfs export table exists");
-    }
+    //if superblock.nfs_export_table_exists() {
+    //    println!("flag: nfs export table exists");
+    //}
 
-    if superblock.xattrs_are_stored_uncompressed() {
-        println!("flag: xattrs are stored uncompressed");
-    }
+    //if superblock.xattrs_are_stored_uncompressed() {
+    //    println!("flag: xattrs are stored uncompressed");
+    //}
 
-    if superblock.compressor_options_are_present() {
-        println!("flag: compressor options are present");
-    }
+    //if superblock.compressor_options_are_present() {
+    //    println!("flag: compressor options are present");
+    //}
 }
 
 fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file: bool) {

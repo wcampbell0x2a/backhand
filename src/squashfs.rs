@@ -45,14 +45,14 @@ pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
 
 /// Common variables between versions
 pub trait SuperBlockTrait {
-    fn block_size(&self) -> u64;
+    fn block_size(&self) -> u32;
     fn block_log(&self) -> u16;
     fn compressor(&self) -> Compressor;
-    fn mod_time(&self) -> u64;
+    fn mod_time(&self) -> u32;
 }
 
 impl SuperBlockTrait for SuperBlock_V3_0 {
-    fn block_size(&self) -> u64 {
+    fn block_size(&self) -> u32 {
         self.block_size
     }
 
@@ -64,13 +64,13 @@ impl SuperBlockTrait for SuperBlock_V3_0 {
         Compressor::Gzip
     }
 
-    fn mod_time(&self) -> u64 {
+    fn mod_time(&self) -> u32 {
         self.mkfs_time
     }
 }
 impl SuperBlockTrait for SuperBlock_V4_0 {
-    fn block_size(&self) -> u64 {
-        u64::from(self.block_size)
+    fn block_size(&self) -> u32 {
+        self.block_size
     }
 
     fn block_log(&self) -> u16 {
@@ -81,8 +81,8 @@ impl SuperBlockTrait for SuperBlock_V4_0 {
         self.compressor
     }
 
-    fn mod_time(&self) -> u64 {
-        u64::from(self.mod_time)
+    fn mod_time(&self) -> u32 {
+        self.mod_time
     }
 }
 
@@ -92,20 +92,7 @@ pub enum SuperBlock {
 }
 
 impl SuperBlock {
-    pub fn from_reader(
-        reader: &mut Box<dyn BufReadSeek>,
-        kind: &Kind,
-    ) -> Result<(SuperBlock_V4_0, Option<CompressionOptions>), BackhandError> {
-        match (kind.inner.version_major, kind.inner.version_minor) {
-            (4, 0) => SuperBlock_V4_0::from_reader(reader, kind),
-            (3, 0) => SuperBlock_V3_0::from_reader(reader, kind),
-            _ => Err(BackhandError::UnsupportedVersion),
-        }
-    }
-}
-
-impl SuperBlock {
-    pub fn block_size(&self) -> u64 {
+    pub fn block_size(&self) -> u32 {
         match self {
             Self::V3_0(a) => a.block_size(),
             Self::V4_0(a) => a.block_size(),
@@ -126,7 +113,7 @@ impl SuperBlock {
         }
     }
 
-    pub fn mod_time(&self) -> u64 {
+    pub fn mod_time(&self) -> u32 {
         match self {
             Self::V3_0(a) => a.mod_time(),
             Self::V4_0(a) => a.mod_time(),
@@ -155,11 +142,11 @@ pub struct SuperBlock_V3_0 {
     pub flags: u8,
     pub no_uids: u8,
     pub no_guids: u8,
-    pub mkfs_time: u64,
+    pub mkfs_time: u32,
     pub root_inode: u64,
-    pub block_size: u64,
-    pub fragments: u64,
-    pub fragment_table_start_2: u64,
+    pub block_size: u32,
+    pub fragments: u32,
+    pub fragment_table_start_2: u32,
     pub bytes_used: u64,
     pub uid_start: u64,
     pub guid_start: u64,
@@ -174,8 +161,43 @@ impl SuperBlock_V3_0 {
     pub fn from_reader(
         reader: &mut Box<dyn BufReadSeek>,
         kind: &Kind,
-    ) -> Result<(SuperBlock_V4_0, Option<CompressionOptions>), BackhandError> {
-        todo!();
+    ) -> Result<(SuperBlock_V3_0, Option<CompressionOptions>), BackhandError> {
+        // Size of metadata + optional compression options metadata block
+        let mut superblock = [0u8; std::mem::size_of::<SuperBlock_V3_0>()];
+        reader.read_exact(&mut superblock)?;
+
+        // Parse SuperBlock
+        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
+        let (_, superblock) = SuperBlock_V3_0::read(
+            bs,
+            (
+                kind.inner.magic,
+                kind.inner.version_major,
+                kind.inner.version_minor,
+                kind.inner.type_endian,
+            ),
+        )?;
+
+        println!("{:#02x?}", superblock);
+
+        let power_of_two = superblock.block_size != 0
+            && (superblock.block_size & (superblock.block_size - 1)) == 0;
+        if ((superblock.block_size as u32) > MAX_BLOCK_SIZE)
+            || ((superblock.block_size as u32) < MIN_BLOCK_SIZE)
+            || !power_of_two
+        {
+            error!("block_size({:#02x}) invalid", superblock.block_size);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
+            error!("block size.log2() != block_log");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // TODO: Parse Compression Options, if any
+
+        Ok((superblock, None))
     }
 }
 
@@ -675,7 +697,7 @@ impl Squashfs {
         mut reader: Box<dyn BufReadSeek>,
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
-        let (superblock, compression_options) = SuperBlock::from_reader(&mut reader, &kind)?;
+        let (superblock, compression_options) = SuperBlock_V4_0::from_reader(&mut reader, &kind)?;
 
         // Check if legal image
         let total_length = reader.seek(SeekFrom::End(0))?;
@@ -811,9 +833,8 @@ impl Squashfs {
         mut reader: Box<dyn BufReadSeek>,
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
+        let (superblock, compression_options) = SuperBlock_V3_0::from_reader(&mut reader, &kind)?;
         todo!()
-        //let (superblock, compression_options) =
-        //    SuperBlock::from_reader(reader, kind)?;
 
         //// Check if legal image
         //let total_length = reader.seek(SeekFrom::End(0))?;

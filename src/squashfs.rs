@@ -20,7 +20,7 @@ use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashfsReaderWithOffset};
-use crate::reader_v4::SquashFsReaderV4;
+use crate::reader_v4::{SquashFsReaderV4, SquashFsReaderV3};
 use crate::{
     metadata, Export, FilesystemReader, Id, Node, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileReader, SquashfsSymlink,
@@ -834,47 +834,40 @@ impl Squashfs {
         kind: Kind,
     ) -> Result<Squashfs, BackhandError> {
         let (superblock, compression_options) = SuperBlock_V3_0::from_reader(&mut reader, &kind)?;
+
+        // Check if legal image
+        let total_length = reader.seek(SeekFrom::End(0))?;
+        reader.rewind()?;
+        if superblock.bytes_used > total_length {
+            error!("corrupted or invalid bytes_used");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // check required fields
+        if superblock.uid_start > total_length {
+            error!("corrupted or invalid uid_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.guid_start > total_length {
+            error!("corrupted or invalid guid_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+        if superblock.directory_table_start > total_length {
+            error!("corrupted or invalid dir_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // check optional fields
+        if superblock.fragment_table_start != NOT_SET && superblock.fragment_table_start > total_length {
+            error!("corrupted or invalid frag_table");
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
+
+        // Read all fields from filesystem to make a Squashfs
+        info!("Reading Inodes");
+        let inodes = SquashFsReaderV3::inodes(&mut reader, &superblock, &kind)?;
+        println!("{:#02x?}", inodes);
         todo!()
-
-        //// Check if legal image
-        //let total_length = reader.seek(SeekFrom::End(0))?;
-        //reader.rewind()?;
-        //if superblock.bytes_used > total_length {
-        //    error!("corrupted or invalid bytes_used");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-
-        //// check required fields
-        //if superblock.id_table > total_length {
-        //    error!("corrupted or invalid xattr_table");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-        //if superblock.inode_table > total_length {
-        //    error!("corrupted or invalid inode_table");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-        //if superblock.dir_table > total_length {
-        //    error!("corrupted or invalid dir_table");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-
-        //// check optional fields
-        //if superblock.xattr_table != NOT_SET && superblock.xattr_table > total_length {
-        //    error!("corrupted or invalid frag_table");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-        //if superblock.frag_table != NOT_SET && superblock.frag_table > total_length {
-        //    error!("corrupted or invalid frag_table");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-        //if superblock.export_table != NOT_SET && superblock.export_table > total_length {
-        //    error!("corrupted or invalid export_table");
-        //    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        //}
-
-        //// Read all fields from filesystem to make a Squashfs
-        //info!("Reading Inodes");
-        //let inodes = SquashFsReaderV4::inodes(&mut reader, &superblock, &kind)?;
 
         //info!("Reading Root Inode");
         //let root_inode = SquashFsReaderV4::root_inode(&mut reader, &superblock, &kind)?;

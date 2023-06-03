@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::io::{self, Read, Seek, Write};
 
 use deku::bitvec::{BitVec, BitView};
@@ -19,9 +20,9 @@ pub(crate) struct MetadataWriter {
     /// Offset from the beginning of the metadata block last written
     pub(crate) metadata_start: u32,
     // All current bytes that are uncompressed
-    pub(crate) uncompressed_bytes: Vec<u8>,
-    // All current bytes that are compressed
-    pub(crate) compressed_bytes: Vec<Vec<u8>>,
+    pub(crate) uncompressed_bytes: VecDeque<u8>,
+    // All current bytes that are compressed or uncompressed
+    pub(crate) final_bytes: Vec<(bool, Vec<u8>)>,
     pub kind: Kind,
 }
 
@@ -32,34 +33,71 @@ impl MetadataWriter {
             compressor,
             block_size,
             metadata_start: 0,
-            uncompressed_bytes: vec![],
-            compressed_bytes: vec![],
+            uncompressed_bytes: VecDeque::new(),
+            final_bytes: vec![],
             kind,
         }
     }
 
     #[instrument(skip_all)]
+    fn add_block(&mut self) -> io::Result<()> {
+        // uncompress data that will create the metablock
+        let uncompressed_len = self.uncompressed_bytes.len().min(METADATA_MAXSIZE);
+        if uncompressed_len == 0 {
+            // nothing to add
+            return Ok(());
+        }
+
+        if self.uncompressed_bytes.as_slices().0.len() < uncompressed_len {
+            self.uncompressed_bytes.make_contiguous();
+        }
+        let uncompressed = &self.uncompressed_bytes.as_slices().0[0..uncompressed_len];
+
+        trace!("time to compress");
+        // "Write" the to the saved metablock
+        let compressed =
+            self.kind
+                .inner
+                .compressor
+                .compress(uncompressed, self.compressor, self.block_size)?;
+
+        // Remove the data consumed, if the uncompressed data is smalled, use it.
+        let (compressed, metadata) = if compressed.len() > uncompressed_len {
+            let uncompressed = self.uncompressed_bytes.drain(0..uncompressed_len).collect();
+            (false, uncompressed)
+        } else {
+            self.uncompressed_bytes.drain(0..uncompressed_len);
+            (true, compressed)
+        };
+
+        // Metadata len + bytes + last metadata_start
+        self.metadata_start += 2 + metadata.len() as u32;
+        trace!("new metadata start: {:#02x?}", self.metadata_start);
+        self.final_bytes.push((compressed, metadata));
+
+        trace!("LEN: {:02x?}", self.uncompressed_bytes.len());
+        Ok(())
+    }
+
+    #[instrument(skip_all)]
     pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), BackhandError> {
-        for cb in &self.compressed_bytes {
+        //add any remaining data
+        while !self.uncompressed_bytes.is_empty() {
+            self.add_block()?;
+        }
+
+        // write all the metadata blocks
+        for (compressed, cb) in &self.final_bytes {
             trace!("len: {:02x?}", cb.len());
             //trace!("total: {:02x?}", out.len());
             let mut bv = BitVec::new();
-            (cb.len() as u16).write(&mut bv, self.kind.inner.data_endian)?;
+            // if uncompressed, set the highest bit of len
+            let len = cb.len() as u16 | if *compressed { 0 } else { 1 << (u16::BITS - 1) };
+            len.write(&mut bv, self.kind.inner.data_endian)?;
             out.write_all(bv.as_raw_slice())?;
             out.write_all(cb)?;
         }
 
-        let b = self.kind.inner.compressor.compress(
-            &self.uncompressed_bytes,
-            self.compressor,
-            self.block_size,
-        )?;
-
-        trace!("len: {:02x?}", b.len());
-        let mut bv = BitVec::new();
-        (b.len() as u16).write(&mut bv, self.kind.inner.data_endian)?;
-        out.write_all(bv.as_raw_slice())?;
-        out.write_all(&b)?;
         Ok(())
     }
 }
@@ -70,22 +108,10 @@ impl Write for MetadataWriter {
         // add all of buf into uncompressed
         self.uncompressed_bytes.write_all(buf)?;
 
+        // if there is too much uncompressed data, create a new metadata block
         while self.uncompressed_bytes.len() >= METADATA_MAXSIZE {
-            trace!("time to compress");
-            // "Write" the to the saved metablock
-            let b = self.kind.inner.compressor.compress(
-                &self.uncompressed_bytes[..METADATA_MAXSIZE],
-                self.compressor,
-                self.block_size,
-            )?;
-
-            // Metadata len + bytes + last metadata_start
-            self.metadata_start += 2 + b.len() as u32;
-            trace!("new metadata start: {:#02x?}", self.metadata_start);
-            self.uncompressed_bytes = self.uncompressed_bytes[METADATA_MAXSIZE..].to_vec();
-            self.compressed_bytes.push(b);
+            self.add_block()?;
         }
-        trace!("LEN: {:02x?}", self.uncompressed_bytes.len());
 
         Ok(buf.len())
     }

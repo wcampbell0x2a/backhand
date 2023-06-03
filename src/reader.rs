@@ -143,7 +143,7 @@ pub trait SquashFsReader: BufReadSeek {
 
             // save leftover bits to new bits to leave for the next metadata block
             // this is safe, input_bits is always byte aligned
-            ret_bytes = ret_bytes[(ret_bytes.len() - (input_bits.len() / 8))..].to_vec();
+            ret_bytes.drain(..(ret_bytes.len() - (input_bits.len() / 8)));
         }
 
         Ok(ret_vec)

@@ -20,6 +20,11 @@ use nix::libc::geteuid;
 use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
 
+// -musl malloc is slow, use jemalloc
+#[cfg(all(target_env = "musl", target_pointer_width = "64"))]
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 pub fn required_root(a: &str) -> Result<PathBuf, String> {
     let p = PathBuf::try_from(a).or(Err("could not".to_string()))?;
 

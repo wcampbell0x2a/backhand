@@ -65,7 +65,7 @@ impl Inode {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
-#[deku(type = "u16")]
+#[deku(type = "u16", bits = "4")]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[rustfmt::skip]
 pub enum InodeId {
@@ -126,8 +126,11 @@ pub enum InodeInner {
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct InodeHeader {
+    #[deku(bits = "12")]
     pub permissions: u16,
+    #[deku(bits = "8")]
     pub uid: u16,
+    #[deku(bits = "8")]
     pub gid: u16,
     pub mtime: u32,
     pub inode_number: u32,
@@ -148,9 +151,11 @@ impl From<NodeHeader> for InodeHeader {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDirectory {
-    pub block_index: u32,
+    //pub block_index: u32,
     pub link_count: u32,
-    pub file_size: u16,
+    #[deku(bits = "19")]
+    pub file_size: u32,
+    #[deku(bits = "13")]
     pub block_offset: u16,
     pub parent_inode: u32,
 }
@@ -159,13 +164,14 @@ pub struct BasicDirectory {
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct ExtendedDirectory {
     pub link_count: u32,
+    #[deku(bits = "27")]
     pub file_size: u32,
-    pub block_index: u32,
-    pub parent_inode: u32,
+    #[deku(bits = "13")]
+    pub offset: u32,
+    pub start_block: u32,
     #[deku(assert = "*index_count < 256")]
-    pub index_count: u16,
-    pub block_offset: u16,
-    pub xattr_index: u32,
+    pub i_count: u16,
+    pub parent_inode: u32,
     #[deku(count = "*index_count")]
     pub dir_index: Vec<DirectoryIndex>,
 }

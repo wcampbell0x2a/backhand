@@ -354,10 +354,8 @@ fn test_archlinux_iso_rootfs() {
     const FILE_NAME: &str = "airootfs.sfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "faa5cecaa23943a3412a4d6938994708fb9ffa33a622704e29c13a34fc1f0e28".to_string(),
-        url: format!(
-            "http://mirrors.edge.kernel.org/archlinux/iso/2023.03.01/arch/x86_64/{FILE_NAME}"
-        ),
+        hash: "72e4a42904d5a9947ef9fc2de90a2f088a6a215e97cb290ad93c20a4828c84aa".to_string(),
+        url: format!("https://archive.archlinux.org/iso/2023.06.01/arch/x86_64/{FILE_NAME}"),
     }];
 
     const TEST_PATH: &str = "test-assets/test_archlinux_iso_rootfs";

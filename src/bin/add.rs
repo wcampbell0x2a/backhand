@@ -27,7 +27,7 @@ struct Args {
     /// Squashfs input image
     image: PathBuf,
 
-    /// Create directory
+    /// Create empty directory
     #[clap(short, long)]
     dir: bool,
 

@@ -270,7 +270,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: AsRef<Path>>(
         &mut self,
         reader: impl Read + 'a,
@@ -312,7 +312,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert symlink `path` -> `link`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_symlink<P: AsRef<Path>, S: Into<PathBuf>>(
         &mut self,
         link: S,
@@ -326,7 +326,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert empty `dir` at `path`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_dir<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -340,7 +340,7 @@ impl<'a> FilesystemWriter<'a> {
     /// Recursively create an empty directory and all of its parent components
     /// if they are missing.
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_dir_all<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -383,7 +383,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert character device with `device_number` at `path`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_char_device<P: AsRef<Path>>(
         &mut self,
         device_number: u32,
@@ -397,7 +397,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert block device with `device_number` at `path`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_block_device<P: AsRef<Path>>(
         &mut self,
         device_number: u32,

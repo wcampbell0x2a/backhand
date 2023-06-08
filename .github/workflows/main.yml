@@ -18,7 +18,7 @@ jobs:
         toolchain:
           - stable
             # msrv
-          - 1.64.0
+          - 1.65.0
         features:
           - --no-default-features --features xz
           - --no-default-features --features gzip

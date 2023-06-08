@@ -7,19 +7,21 @@ use std::path::{Path, PathBuf};
 use super::normalize_squashfs_path;
 use crate::data::Added;
 use crate::inode::{BasicFile, InodeHeader};
-use crate::{BackhandError, FilesystemReaderFile};
+use crate::{BackhandError, FilesystemReaderFile, Id};
 
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct NodeHeader {
     pub permissions: u16,
-    pub uid: u16,
-    pub gid: u16,
+    /// actual value
+    pub uid: u32,
+    /// actual value
+    pub gid: u32,
     pub mtime: u32,
 }
 
 impl NodeHeader {
-    pub fn new(permissions: u16, uid: u16, gid: u16, mtime: u32) -> Self {
+    pub fn new(permissions: u16, uid: u32, gid: u32, mtime: u32) -> Self {
         Self {
             permissions,
             uid,
@@ -29,12 +31,12 @@ impl NodeHeader {
     }
 }
 
-impl From<InodeHeader> for NodeHeader {
-    fn from(inode_header: InodeHeader) -> Self {
+impl NodeHeader {
+    pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Self {
         Self {
             permissions: inode_header.permissions,
-            uid: inode_header.uid,
-            gid: inode_header.gid,
+            uid: id_table[inode_header.uid as usize].num,
+            gid: id_table[inode_header.gid as usize].num,
             mtime: inode_header.mtime,
         }
     }

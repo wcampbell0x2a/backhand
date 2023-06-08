@@ -21,8 +21,8 @@ use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::{
-    metadata, Export, FilesystemReader, Id, Node, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+    metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
 /// 128KiB
@@ -501,6 +501,7 @@ impl Squashfs {
         fullpath: &mut PathBuf,
         root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
+        id_table: &[Id],
     ) -> Result<(), BackhandError> {
         let dirs = match &dir_inode.inner {
             InodeInner::BasicDirectory(basic_dir) => {
@@ -537,7 +538,7 @@ impl Squashfs {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             // its a dir, extract all children inodes
-                            self.extract_dir(fullpath, root, found_inode)?;
+                            self.extract_dir(fullpath, root, found_inode, &self.id)?;
                             InnerNode::Dir(SquashfsDir::default())
                         },
                         // BasicFile
@@ -573,7 +574,11 @@ impl Squashfs {
                             return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
                         },
                     };
-                    let node = Node::new(fullpath.clone(), header.into(), inner);
+                    let node = Node::new(
+                        fullpath.clone(),
+                        NodeHeader::from_inode(header, id_table),
+                        inner,
+                    );
                     root.nodes.push(node);
                     fullpath.pop();
                 }
@@ -630,8 +635,13 @@ impl Squashfs {
     /// like structure in-memory
     #[instrument(skip_all)]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader, BackhandError> {
-        let mut root = Nodes::new_root(self.root_inode.header.into());
-        self.extract_dir(&mut PathBuf::from("/"), &mut root, &self.root_inode)?;
+        let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id));
+        self.extract_dir(
+            &mut PathBuf::from("/"),
+            &mut root,
+            &self.root_inode,
+            &self.id,
+        )?;
         root.nodes.sort();
 
         let filesystem = FilesystemReader {

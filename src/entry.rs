@@ -13,7 +13,7 @@ use crate::inode::{
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
-use crate::{NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
+use crate::{Id, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {
@@ -44,15 +44,22 @@ impl<'a> Entry<'a> {
         block_index: u32,
         superblock: &SuperBlock,
         kind: &Kind,
+        id_table: &[Id],
     ) -> Self {
+        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        let header = InodeHeader {
+            inode_number: inode,
+            uid,
+            gid,
+            permissions: header.permissions,
+            mtime: header.mtime,
+        };
         // if entry won't fit in file_size of regular dir entry, create extended directory
         let dir_inode = if file_size > u16::MAX as usize {
             Inode::new(
                 InodeId::ExtendedDirectory,
-                InodeHeader {
-                    inode_number: inode,
-                    ..header.into()
-                },
+                header,
                 InodeInner::ExtendedDirectory(ExtendedDirectory {
                     link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u32
@@ -70,10 +77,7 @@ impl<'a> Entry<'a> {
         } else {
             Inode::new(
                 InodeId::BasicDirectory,
-                InodeHeader {
-                    inode_number: inode,
-                    ..header.into()
-                },
+                header,
                 InodeInner::BasicDirectory(BasicDirectory {
                     block_index,
                     link_count: 2 + u32::try_from(children_num).unwrap(),
@@ -98,7 +102,17 @@ impl<'a> Entry<'a> {
         added: &Added,
         superblock: &SuperBlock,
         kind: &Kind,
+        id_table: &[Id],
     ) -> Self {
+        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        let header = InodeHeader {
+            inode_number: inode,
+            uid,
+            gid,
+            permissions: header.permissions,
+            mtime: header.mtime,
+        };
         let basic_file = match added {
             Added::Data {
                 blocks_start,
@@ -126,10 +140,7 @@ impl<'a> Entry<'a> {
 
         let file_inode = Inode::new(
             InodeId::BasicFile,
-            InodeHeader {
-                inode_number: inode,
-                ..header.into()
-            },
+            header,
             InodeInner::BasicFile(basic_file),
         );
 
@@ -137,6 +148,7 @@ impl<'a> Entry<'a> {
     }
 
     /// Write data and metadata for symlink node
+    #[allow(clippy::too_many_arguments)]
     pub fn symlink(
         node_path: &'a OsStr,
         header: NodeHeader,
@@ -145,14 +157,21 @@ impl<'a> Entry<'a> {
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
         kind: &Kind,
+        id_table: &[Id],
     ) -> Self {
+        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        let header = InodeHeader {
+            inode_number: inode,
+            uid,
+            gid,
+            permissions: header.permissions,
+            mtime: header.mtime,
+        };
         let link = symlink.link.as_os_str().as_bytes();
         let sym_inode = Inode::new(
             InodeId::BasicSymlink,
-            InodeHeader {
-                inode_number: inode,
-                ..header.into()
-            },
+            header,
             InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
                 target_size: link.len().try_into().unwrap(),
@@ -164,6 +183,7 @@ impl<'a> Entry<'a> {
     }
 
     /// Write data and metadata for char device node
+    #[allow(clippy::too_many_arguments)]
     pub fn char(
         node_path: &'a OsStr,
         header: NodeHeader,
@@ -172,13 +192,20 @@ impl<'a> Entry<'a> {
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
         kind: &Kind,
+        id_table: &[Id],
     ) -> Self {
+        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        let header = InodeHeader {
+            inode_number: inode,
+            uid,
+            gid,
+            permissions: header.permissions,
+            mtime: header.mtime,
+        };
         let char_inode = Inode::new(
             InodeId::BasicCharacterDevice,
-            InodeHeader {
-                inode_number: inode,
-                ..header.into()
-            },
+            header,
             InodeInner::BasicCharacterDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,
                 device_number: char_device.device_number,
@@ -189,6 +216,7 @@ impl<'a> Entry<'a> {
     }
 
     /// Write data and metadata for block device node
+    #[allow(clippy::too_many_arguments)]
     pub fn block_device(
         node_path: &'a OsStr,
         header: NodeHeader,
@@ -197,13 +225,20 @@ impl<'a> Entry<'a> {
         inode_writer: &mut MetadataWriter,
         superblock: &SuperBlock,
         kind: &Kind,
+        id_table: &[Id],
     ) -> Self {
+        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        let header = InodeHeader {
+            inode_number: inode,
+            uid,
+            gid,
+            permissions: header.permissions,
+            mtime: header.mtime,
+        };
         let block_inode = Inode::new(
             InodeId::BasicBlockDevice,
-            InodeHeader {
-                inode_number: inode,
-                ..header.into()
-            },
+            header,
             InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,
                 device_number: block_device.device_number,

@@ -161,12 +161,12 @@ impl<'a> FilesystemWriter<'a> {
     }
 
     /// Set root uid as `uid`
-    pub fn set_root_uid(&mut self, uid: u16) {
+    pub fn set_root_uid(&mut self, uid: u32) {
         self.root.root_mut().header.uid = uid;
     }
 
     /// Set root gid as `gid`
-    pub fn set_root_gid(&mut self, gid: u16) {
+    pub fn set_root_gid(&mut self, gid: u32) {
         self.root.root_mut().header.gid = gid;
     }
 
@@ -255,13 +255,13 @@ impl<'a> FilesystemWriter<'a> {
     fn insert_node<P: AsRef<Path>>(
         &mut self,
         path: P,
-        mut header: NodeHeader,
+        header: NodeHeader,
         node: InnerNode<SquashfsFileWriter<'a>>,
     ) -> Result<(), BackhandError> {
-        // create uid and replace gid with index
-        header.gid = self.lookup_add_id(header.gid as u32);
-        // create uid and replace uid with index
-        header.uid = self.lookup_add_id(header.uid as u32);
+        // create gid id
+        self.lookup_add_id(header.gid);
+        // create uid id
+        self.lookup_add_id(header.uid);
 
         let path = normalize_squashfs_path(path.as_ref())?;
         let node = Node::new(path, header, node);
@@ -270,7 +270,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: AsRef<Path>>(
         &mut self,
         reader: impl Read + 'a,
@@ -312,7 +312,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert symlink `path` -> `link`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_symlink<P: AsRef<Path>, S: Into<PathBuf>>(
         &mut self,
         link: S,
@@ -326,7 +326,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert empty `dir` at `path`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_dir<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -340,7 +340,7 @@ impl<'a> FilesystemWriter<'a> {
     /// Recursively create an empty directory and all of its parent components
     /// if they are missing.
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_dir_all<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -383,7 +383,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert character device with `device_number` at `path`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_char_device<P: AsRef<Path>>(
         &mut self,
         device_number: u32,
@@ -397,7 +397,7 @@ impl<'a> FilesystemWriter<'a> {
 
     /// Insert block device with `device_number` at `path`
     ///
-    /// The `uid` and `guid` in `header` are added to FilesystemWriters id's
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_block_device<P: AsRef<Path>>(
         &mut self,
         device_number: u32,
@@ -470,6 +470,7 @@ impl<'a> FilesystemWriter<'a> {
     /// This works by recursively creating Inodes and Dirs for each node in the tree. This also
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
+    #[allow(clippy::too_many_arguments)]
     fn write_inode_dir<'b>(
         &'b self,
         inode_writer: &'_ mut MetadataWriter,
@@ -478,6 +479,7 @@ impl<'a> FilesystemWriter<'a> {
         node_id: NonZeroUsize,
         superblock: &SuperBlock,
         kind: &Kind,
+        id_table: &Vec<Id>,
     ) -> Result<Entry<'b>, BackhandError> {
         let node = &self.root.node(node_id).unwrap();
         let filename = node.fullpath.file_name().unwrap_or(OsStr::new("/"));
@@ -493,6 +495,7 @@ impl<'a> FilesystemWriter<'a> {
                     added,
                     superblock,
                     kind,
+                    id_table,
                 ))
             },
             InnerNode::File(_) => unreachable!(),
@@ -505,6 +508,7 @@ impl<'a> FilesystemWriter<'a> {
                     inode_writer,
                     superblock,
                     kind,
+                    id_table,
                 ))
             },
             InnerNode::CharacterDevice(char) => {
@@ -516,6 +520,7 @@ impl<'a> FilesystemWriter<'a> {
                     inode_writer,
                     superblock,
                     kind,
+                    id_table,
                 ))
             },
             InnerNode::BlockDevice(block) => {
@@ -527,6 +532,7 @@ impl<'a> FilesystemWriter<'a> {
                     inode_writer,
                     superblock,
                     kind,
+                    id_table,
                 ))
             },
             // if dir, fall through
@@ -553,6 +559,7 @@ impl<'a> FilesystemWriter<'a> {
                     child_id,
                     superblock,
                     kind,
+                    id_table,
                 )
             })
             .collect::<Result<_, _>>()?;
@@ -583,6 +590,7 @@ impl<'a> FilesystemWriter<'a> {
             block_index,
             superblock,
             kind,
+            id_table,
         );
         trace!("[{:?}] entries: {:#02x?}", filename, &entry);
         Ok(entry)
@@ -672,6 +680,7 @@ impl<'a> FilesystemWriter<'a> {
             1.try_into().unwrap(),
             &superblock,
             &self.kind,
+            &self.id_table,
         )?;
 
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
@@ -834,14 +843,14 @@ impl<'a> FilesystemWriter<'a> {
     }
 
     /// Return index of id, adding if required
-    fn lookup_add_id(&mut self, id: u32) -> u16 {
+    fn lookup_add_id(&mut self, id: u32) -> u32 {
         let found = self.id_table.iter().position(|a| a.num == id);
 
         match found {
-            Some(found) => found as u16,
+            Some(found) => found as u32,
             None => {
                 self.id_table.push(Id::new(id));
-                self.id_table.len() as u16 - 1
+                self.id_table.len() as u32 - 1
             },
         }
     }

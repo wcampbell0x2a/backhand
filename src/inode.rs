@@ -12,7 +12,6 @@ use crate::entry::Entry;
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
-use crate::NodeHeader;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]
@@ -126,22 +125,12 @@ pub enum InodeInner {
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct InodeHeader {
     pub permissions: u16,
+    /// index into id table
     pub uid: u16,
+    /// index into id table
     pub gid: u16,
     pub mtime: u32,
     pub inode_number: u32,
-}
-
-impl From<NodeHeader> for InodeHeader {
-    fn from(fs_header: NodeHeader) -> Self {
-        Self {
-            permissions: fs_header.permissions,
-            uid: fs_header.uid,
-            gid: fs_header.gid,
-            mtime: fs_header.mtime,
-            inode_number: 0,
-        }
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

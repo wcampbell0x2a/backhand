@@ -27,7 +27,7 @@ struct Args {
     /// Squashfs input image
     image: PathBuf,
 
-    /// Create directory
+    /// Create empty directory
     #[clap(short, long)]
     dir: bool,
 
@@ -45,19 +45,19 @@ struct Args {
     out: PathBuf,
 
     /// Overide mode read from <FILE>
-    #[clap(long)]
+    #[clap(long, required_if_eq("dir", "true"))]
     mode: Option<u16>,
 
     /// Overide uid read from <FILE>
-    #[clap(long)]
-    uid: Option<u16>,
+    #[clap(long, required_if_eq("dir", "true"))]
+    uid: Option<u32>,
 
     /// Overide gid read from <FILE>
-    #[clap(long)]
-    gid: Option<u16>,
+    #[clap(long, required_if_eq("dir", "true"))]
+    gid: Option<u32>,
 
     /// Overide mtime read from <FILE>
-    #[clap(long)]
+    #[clap(long, required_if_eq("dir", "true"))]
     mtime: Option<u32>,
 }
 
@@ -68,26 +68,36 @@ fn main() -> ExitCode {
 
     // read of squashfs
     let file = File::open(args.image).unwrap();
-    let meta = file.metadata().unwrap();
     let file = BufReader::new(file);
-
-    let mode = args.mode.unwrap_or(meta.mode() as u16) & 0xfff;
-    let uid = args.uid.unwrap_or(meta.uid() as u16);
-    let gid = args.gid.unwrap_or(meta.gid() as u16);
-    let mtime = args.mtime.unwrap_or(meta.mtime() as u32);
-    let node = NodeHeader::new(mode, uid, gid, mtime);
 
     let filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 
     // create new file
     if let Some(file) = args.file {
-        let new_file = File::open(file).unwrap();
+        let new_file = File::open(&file).unwrap();
+
+        // if metadata isn't already defined, use from file
+        let meta = file.metadata().unwrap();
+
+        let mode = args.mode.unwrap_or(meta.mode() as u16) & 0xfff;
+        let uid = args.uid.unwrap_or(meta.uid());
+        let gid = args.gid.unwrap_or(meta.gid());
+        let mtime = args.mtime.unwrap_or(meta.mtime() as u32);
+        let node = NodeHeader::new(mode, uid, gid, mtime);
+
         if let Err(e) = filesystem.push_file(new_file, args.path, node) {
             println!("[!] {e}");
             return ExitCode::FAILURE;
         }
     } else if args.dir {
+        // use file meta from args
+        let node = NodeHeader::new(
+            args.mode.unwrap(),
+            args.uid.unwrap(),
+            args.gid.unwrap(),
+            args.mtime.unwrap(),
+        );
         if let Err(e) = filesystem.push_dir(args.path, node) {
             println!("[!] {e}");
             return ExitCode::FAILURE;
@@ -99,7 +109,7 @@ fn main() -> ExitCode {
     if let Err(e) = filesystem.write(&mut output) {
         println!("[!] {e}");
     }
-    println!("added file and wrote to {}", args.out.display());
+    println!("[-] added file and wrote to {}", args.out.display());
 
     ExitCode::SUCCESS
 }

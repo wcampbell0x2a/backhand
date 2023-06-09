@@ -269,7 +269,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
             .as_ptr()
             .cast::<i8>();
         unsafe {
-            lchown(path_bytes, u32::from(header.uid), u32::from(header.gid));
+            lchown(path_bytes, header.uid, header.gid);
         }
     } else if is_file {
         // bitwise-not if not rooted (disable write permissions for user/group). Following
@@ -375,11 +375,7 @@ fn extract_all<'a>(
                         .as_ptr()
                         .cast::<i8>();
                     unsafe {
-                        lchown(
-                            path_bytes,
-                            u32::from(node.header.uid),
-                            u32::from(node.header.gid),
-                        );
+                        lchown(path_bytes, node.header.uid, node.header.gid);
                     }
                 }
 

@@ -17,7 +17,10 @@ only needs to include code to extract one type of image.
 the "wonderful world of vendor formats" with a `Kind` struct.
 This allows changing the magic bytes, custom compression algorithms, and the Endian-ness of either the Data or Metadata fields.
 
+
 ## Library
+Minimum supported rust version: `1.65.0`
+
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]

@@ -103,7 +103,7 @@ impl FilesystemReader {
     /// Allocate two properly sized buffers for [`FilesystemReaderFile::reader`]
     pub fn alloc_read_buffers(&self) -> (Vec<u8>, Vec<u8>) {
         let buf_read = Vec::with_capacity(self.block_size as usize);
-        let buf_decompress = Vec::with_capacity(self.block_size as usize);
+        let buf_decompress = vec![];
 
         (buf_read, buf_decompress)
     }

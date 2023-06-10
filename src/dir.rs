@@ -17,6 +17,9 @@ use crate::inode::InodeId;
 #[deku(endian = "type_endian")]
 pub struct Dir {
     /// Number of entries following the header.
+    ///
+    /// A header must be followed by AT MOST 256 entries. If there are more entries, a new header MUST be emitted.
+    #[deku(assert = "*count <= 256")]
     pub(crate) count: u32,
     /// The location of the metadata block in the inode table where the inodes are stored.
     /// This is relative to the inode table start from the super block.

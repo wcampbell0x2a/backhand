@@ -29,12 +29,9 @@ fn full_test(
     {
         let file = BufReader::new(File::open(og_path).unwrap());
         info!("calling from_reader");
-        let og_filesystem = FilesystemReader::from_reader_with_offset_and_kind(
-            file,
-            offset,
-            Kind::from_kind(&kind),
-        )
-        .unwrap();
+        let og_filesystem =
+            FilesystemReader::from_reader_with_offset_and_kind(file, offset, Kind::from_kind(kind))
+                .unwrap();
         let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
         // Test Debug is impl'ed properly on FilesystemWriter
@@ -55,7 +52,7 @@ fn full_test(
         let _new_filesystem = FilesystemReader::from_reader_with_offset_and_kind(
             created_file,
             offset,
-            Kind::from_kind(&kind),
+            Kind::from_kind(kind),
         )
         .unwrap();
     }
@@ -128,7 +125,7 @@ fn test_custom_compressor() {
             out: &mut Vec<u8>,
             compressor: Compressor,
         ) -> Result<(), BackhandError> {
-            if let Compressor::Gzip = compressor {
+            if compressor == Compressor::Gzip {
                 let mut decoder = zune_inflate::DeflateDecoder::new(bytes);
                 let decompressed_data = decoder.decode_zlib().unwrap();
                 out.write_all(&decompressed_data)?;

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufReader, Cursor};
 
 use backhand::{FilesystemReader, FilesystemWriter};
-use criterion::*;
+use criterion::{black_box, criterion_group, criterion_main, Criterion, SamplingMode};
 use test_assets::TestAssetDef;
 
 fn read_write(file: File, offset: u64) {
@@ -40,7 +40,7 @@ pub fn bench_read_write(c: &mut Criterion) {
     group.bench_function("netgear_ax6100v2", |b| {
         b.iter(|| {
             let file = File::open(&og_path).unwrap();
-            read_write(file, 0x2c0080)
+            read_write(file, 0x002c_0080)
         })
     });
 
@@ -83,7 +83,7 @@ pub fn bench_read(c: &mut Criterion) {
     group.bench_function("netgear_ax6100v2", |b| {
         b.iter(|| {
             let file = File::open(&og_path).unwrap();
-            read(file, 0x2c0080)
+            read(file, 0x002c_0080)
         })
     });
 

@@ -166,7 +166,7 @@ fn main() -> ExitCode {
     let mut files: Vec<&Node<SquashfsFileReader>> = vec![];
     if args.path_filter.parent().is_some() {
         let mut current = PathBuf::new();
-        current.push("/");
+        current.push("");
         for part in args.path_filter.iter() {
             current.push(part);
             if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {

@@ -129,10 +129,10 @@ pub trait SquashFsReader: BufReadSeek {
                         kind.inner.type_endian,
                     ),
                 ) {
-                    Ok((rest, inode)) => {
+                    Ok((amt_read, inode)) => {
                         // Push the new Inode to the return, with the position this was read from
                         ret_vec.insert(inode.header.inode_number, inode);
-                        input_bits = rest;
+                        input_bits = &input_bits[amt_read..];
                     },
                     Err(_) => {
                         // try next block, inodes can span multiple blocks!
@@ -326,11 +326,11 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         let mut ret_vec = vec![];
-        let mut all_bytes = all_bytes.view_bits::<Msb0>();
+        let mut input_bits = all_bytes.view_bits::<Msb0>();
         // Read until we fail to turn bytes into `T`
-        while let Ok((rest, t)) = T::read(all_bytes, kind.inner.type_endian) {
+        while let Ok((amt_read, t)) = T::read(input_bits, kind.inner.type_endian) {
             ret_vec.push(t);
-            all_bytes = rest;
+            input_bits = &input_bits[amt_read..];
         }
 
         Ok(ret_vec)

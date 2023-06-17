@@ -93,11 +93,11 @@ fn test_raw_00() {
             root_inode: 0xe0,
             bytes_used: 0x1ec,
             id_table: 0x1e4,
-            xattr_table: 0xffffffffffffffff,
+            xattr_table: 0xffff_ffff_ffff_ffff,
             inode_table: 0xac,
             dir_table: 0x136,
             frag_table: 0x1d6,
-            export_table: 0xffffffffffffffff,
+            export_table: 0xffff_ffff_ffff_ffff,
         }
     );
 

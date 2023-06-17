@@ -7,7 +7,7 @@ use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use deku::bitvec::{BitVec, BitView, Msb0};
+use deku::bitvec::{BitSlice, BitView, Msb0};
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
@@ -260,13 +260,16 @@ impl Squashfs {
         {
             let bytes = metadata::read_block(reader, &superblock, kind)?;
             // data -> compression options
-            let bv = BitVec::from_slice(&bytes);
-            match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
-                Ok(co) => {
-                    if !co.0.is_empty() {
+            let input_bits = BitSlice::from_slice(&bytes);
+            match CompressionOptions::read(
+                &input_bits,
+                (kind.inner.type_endian, superblock.compressor),
+            ) {
+                Ok((amt_read, co)) => {
+                    if input_bits.len() != amt_read {
                         error!("invalid compression options, bytes left over, using");
                     }
-                    Some(co.1)
+                    Some(co)
                 },
                 Err(e) => {
                     error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
@@ -481,11 +484,11 @@ impl Squashfs {
 
         let bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];
-        let mut all_bytes = bytes.view_bits::<Msb0>();
+        let mut input_bits = bytes.view_bits::<Msb0>();
         // Read until we fail to turn bytes into `T`
-        while let Ok((rest, t)) = Dir::read(all_bytes, self.kind.inner.type_endian) {
+        while let Ok((amt_read, t)) = Dir::read(input_bits, self.kind.inner.type_endian) {
             dirs.push(t);
-            all_bytes = rest;
+            input_bits = &input_bits[amt_read..];
         }
 
         trace!("finish");

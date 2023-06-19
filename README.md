@@ -102,7 +102,7 @@ Arguments:
   <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
 
 Options:
-  -d, --dir            Create directory
+  -d, --dir            Create empty directory
   -f, --file <FILE>    Path of file to read, to write into squashfs
   -o, --out <OUT>      Squashfs output image [default: added.squashfs]
       --mode <MODE>    Overide mode read from <FILE>
@@ -132,11 +132,11 @@ Options:
 
 ## Performance
 See `./benches` using `cargo bench` to benchmark the library, or run `./bench.bash` to benchmark against system `squashfs-tools/unsquashfs`.
-While there is still work to do, in most cases our speed is comparable or better than single-threaded `squashfs-tools/unsquashfs`.
-Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB`.
+While there is still work to do, in most cases our speed is comparable to single-threaded `squashfs-tools/unsquashfs`.
+Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB` in the case of `test_re815_xev160/870D97.squashfs`.
 
 ## Testing
 This library is extensively tested with all library features and images from openwrt and extracted from manufacturers devices.
 
-To run basic tests, use `cargo test --release`.
+To run tests, use `cargo test --release`.
 To start fuzzing, run `cargo fuzz list` then pick one! Then start with `cargo fuzz run [NAME]`.

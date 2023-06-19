@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# Unreleased
+
+# [v0.13.0] - 2023-06-18
+## backhand
+### Changes
+- Decrease in memory usage for file reader and write ([#255](https://github.com/wcampbell0x2a/backhand/pull/255))
+- Remove unnecessary deconstruction/reconstruction of Vec when reading inodes ([@rbran](https://github.com/rbran)) ([#251](https://github.com/wcampbell0x2a/backhand/pull/251))
+- Only store file data compressed if it results in smaller size ([@rbran](https://github.com/rbran)) ([#250](https://github.com/wcampbell0x2a/backhand/pull/250))
+- Remove `lzo` being a default feature because of GPL license ([#240](https://github.com/wcampbell0x2a/backhand/pull/240))
+- Add support for OpenWRT compression options ([#239](https://github.com/wcampbell0x2a/backhand/pull/239))
+- Bump MSRV to `1.65.0` for latest `clap` requirements ([#253](https://github.com/wcampbell0x2a/backhand/pull/253))
+### Bug Fix
+- Fix bug in generating Uid and Gid's with `FilesystemWriter`. All internal representation of Gid and Uid are changed to u32 ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
+- Remove case where invalid filesystem root_inode_offset would cause invalid bounds read panic. Found by fuzzer ([#245](https://github.com/wcampbell0x2a/backhand/pull/245))
+
+### Complete API Updates
+```
+$ cargo public-api -ss diff v0.12.0..HEAD
+```
+
+<details>
+<summary>Click to expand</summary>
+
+```diff
+Removed items from the public API
+=================================
+(none)
+
+Changed items in the public API
+===============================
+-pub fn backhand::FilesystemWriter<'a>::set_root_gid(&mut self, gid: u16)
++pub fn backhand::FilesystemWriter<'a>::set_root_gid(&mut self, gid: u32)
+-pub fn backhand::FilesystemWriter<'a>::set_root_uid(&mut self, uid: u16)
++pub fn backhand::FilesystemWriter<'a>::set_root_uid(&mut self, uid: u32)
+-pub backhand::NodeHeader::gid: u16
++pub backhand::NodeHeader::gid: u32
+-pub backhand::NodeHeader::uid: u16
++pub backhand::NodeHeader::uid: u32
+-pub fn backhand::NodeHeader::new(permissions: u16, uid: u16, gid: u16, mtime: u32) -> Self
++pub fn backhand::NodeHeader::new(permissions: u16, uid: u32, gid: u32, mtime: u32) -> Self
+
+Added items to the public API
+=============================
++pub backhand::compression::Xz::bit_opts: core::option::Option<u16>
++pub backhand::compression::Xz::fb: core::option::Option<u16>
++pub fn backhand::kind::Kind::magic(&self) -> [u8; 4]
++impl backhand::NodeHeader
++pub fn backhand::NodeHeader::from_inode(inode_header: InodeHeader, id_table: &[backhand::Id]) -> Self
+```
+
+</details>
+
+## All binaries
+## Changes
+- jemalloc is now used for `-musl` release targets for performance reasons ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
+- `HAVE_DECODER_ARM`, `HAVE_DECODER_ARM64`, and `HAVE_DECODER_ARMTHUMB` filter flags are now defined for xz2. This only effects static build created in our CI. ([#254](https://github.com/wcampbell0x2a/backhand/pull/248))
+- Add `RUST_LOG` and available Decompressors to `--help` of all binaries ([#242](https://github.com/wcampbell0x2a/backhand/pull/242))
+
+## add
+### Changes
+- Add `--dir` to create a empty directory ([#242](https://github.com/wcampbell0x2a/backhand/pull/242))
+### Bug Fix
+- Add correctly reading new file metadata from `--file`, force other arguments for `--dir` ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
+
+## unsquashfs
+### Changes
+- Add `--auto-offset` for automatic finding of initial SquashFS offset in image ([#241](https://github.com/wcampbell0x2a/backhand/pull/241))
+- Add possible `kind` values to `--help` output ([#236](https://github.com/wcampbell0x2a/backhand/pull/236))
+- Add `--path-filter` to limit file extraction to a path ([#237](https://github.com/wcampbell0x2a/backhand/pull/237))
+
 # [v0.12.0] - 2023-05-07
 Thanks [@rbran](https://github.com/rbran/) for the contributions!
 

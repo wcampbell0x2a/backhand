@@ -9,7 +9,7 @@ backhand
 Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
-- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs images, 
+- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs 4.0 images, 
 including the extraction and modification of images.
 - **Feature Flags** — Supported compression and decompression are feature flagged, so your final binary (or `unsquashfs`)
 only needs to include code to extract one type of image.
@@ -24,7 +24,7 @@ Minimum supported rust version: `1.65.0`
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-backhand = "0.12.0"
+backhand = "0.13.0"
 ```
 ### Reading/Writing/Modifying Firmware
 ```rust,no_run
@@ -102,7 +102,7 @@ Arguments:
   <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
 
 Options:
-  -d, --dir            Create directory
+  -d, --dir            Create empty directory
   -f, --file <FILE>    Path of file to read, to write into squashfs
   -o, --out <OUT>      Squashfs output image [default: added.squashfs]
       --mode <MODE>    Overide mode read from <FILE>
@@ -132,11 +132,11 @@ Options:
 
 ## Performance
 See `./benches` using `cargo bench` to benchmark the library, or run `./bench.bash` to benchmark against system `squashfs-tools/unsquashfs`.
-While there is still work to do, in most cases our speed is comparable or better than single-threaded `squashfs-tools/unsquashfs`.
-Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB`.
+While there is still work to do, in most cases our speed is comparable to single-threaded `squashfs-tools/unsquashfs`.
+Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB` in the case of `test_re815_xev160/870D97.squashfs`.
 
 ## Testing
 This library is extensively tested with all library features and images from openwrt and extracted from manufacturers devices.
 
-To run basic tests, use `cargo test --release`.
+To run tests, use `cargo test --release`.
 To start fuzzing, run `cargo fuzz list` then pick one! Then start with `cargo fuzz run [NAME]`.

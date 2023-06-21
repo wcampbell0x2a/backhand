@@ -1,7 +1,4 @@
-mod bin;
 mod common;
-
-use std::process::Command;
 
 use assert_cmd::prelude::*;
 use test_assets::TestAssetDef;
@@ -22,8 +19,7 @@ fn test_unsquashfs_cli_path_filter() {
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
 
     // single file
-    let cmd = Command::cargo_bin("unsquashfs")
-        .unwrap()
+    let cmd = common::get_base_command("unsquashfs")
         .env("RUST_LOG", "none")
         .args(["--path-filter", r#"/usr/bin/wget"#, "-l", &image_path])
         .unwrap();
@@ -36,8 +32,7 @@ fn test_unsquashfs_cli_path_filter() {
     );
 
     // multiple file
-    let cmd = Command::cargo_bin("unsquashfs")
-        .unwrap()
+    let cmd = common::get_base_command("unsquashfs")
         .env("RUST_LOG", "none")
         .args(["--path-filter", r#"/www/webpages/data"#, "-l", &image_path])
         .unwrap();
@@ -54,7 +49,6 @@ fn test_unsquashfs_cli_path_filter() {
 
 #[test]
 #[cfg(feature = "xz")]
-#[cfg(target_arch = "x86_64")]
 fn test_unsquashfs_cli_auto_offset() {
     use tempfile::tempdir;
 
@@ -73,8 +67,7 @@ fn test_unsquashfs_cli_auto_offset() {
 
     let tmp_dir = tempdir().unwrap();
     {
-        let cmd = Command::cargo_bin("unsquashfs")
-            .unwrap()
+        let cmd = common::get_base_command("unsquashfs")
             .env("RUST_LOG", "none")
             .args([
                 "--auto-offset",

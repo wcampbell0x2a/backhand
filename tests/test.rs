@@ -1,18 +1,62 @@
-mod bin;
 mod common;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
+use assert_cmd::Command;
 use backhand::{FilesystemReader, FilesystemWriter};
-use bin::test_bin_unsquashfs;
 use common::{test_unsquashfs, test_unsquashfs_list};
+use tempfile::tempdir;
 use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
+use assert_cmd::prelude::*;
 
 enum Verify {
     Extract,
     List,
+}
+
+/// test our own unsquashfs
+pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
+    let tmp_dir = tempdir().unwrap();
+    {
+        let cmd = common::get_base_command("unsquashfs")
+            .args([
+                "-d",
+                tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),
+                "-o",
+                &control_offset.unwrap_or(0).to_string(),
+                control,
+            ])
+            .unwrap();
+        tracing::info!("{:?}", cmd);
+        cmd.assert().code(&[0] as &[i32]);
+
+        // only squashfs-tools/unsquashfs when x86_64
+        #[cfg(target_arch = "x86_64")]
+        {
+            let cmd = Command::new("unsquashfs")
+                .args([
+                    "-d",
+                    tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
+                    "-o",
+                    &control_offset.unwrap_or(0).to_string(),
+                    // we don't run as root, avoid special file errors
+                    "-ignore-errors",
+                    "-no-exit-code",
+                    new,
+                ])
+                .unwrap();
+            tracing::info!("{:?}", cmd);
+            cmd.assert().code(&[0] as &[i32]);
+
+            let d = dir_diff::is_different(
+                tmp_dir.path().join("squashfs-root-rust"),
+                tmp_dir.path().join("squashfs-root-c"),
+            );
+            assert!(!d.expect("couldn't compare dirs"));
+        }
+    }
 }
 
 /// - Download file
@@ -57,7 +101,6 @@ fn full_test(
     let new_comp_opts = written_new_filesystem.compression_options;
     assert_eq!(og_comp_opts, new_comp_opts);
 
-    #[cfg(target_arch = "x86_64")]
     match verify {
         Verify::Extract => {
             info!("starting squashfs-tools/unsquashfs test");

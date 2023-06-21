@@ -71,3 +71,30 @@ pub fn test_unsquashfs_list(control: &str, new: &str, control_offset: Option<u64
 
     assert_eq!(output_control, output);
 }
+
+fn find_runner() -> Option<String> {
+    for (key, value) in std::env::vars() {
+        if key.starts_with("CARGO_TARGET_") && key.ends_with("_RUNNER") && !value.is_empty() {
+            return Some(value);
+        }
+    }
+    None
+}
+
+/// Under cargo cross (qemu), find runner
+pub fn get_base_command(base: &str) -> Command {
+    let path = assert_cmd::cargo::cargo_bin(base);
+
+    let mut cmd;
+    if let Some(runner) = find_runner() {
+        let mut runner = runner.split_whitespace();
+        cmd = Command::new(runner.next().unwrap());
+        for arg in runner {
+            cmd.arg(arg);
+        }
+        cmd.arg(path);
+    } else {
+        cmd = Command::new(path);
+    }
+    cmd
+}

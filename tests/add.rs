@@ -1,4 +1,3 @@
-mod bin;
 mod common;
 
 use std::process::Command;
@@ -69,8 +68,7 @@ fn test_add() {
 
     // We can't really test gid and uid, just trust me it works reading from the --file
 
-    let cmd = Command::cargo_bin("add")
-        .unwrap()
+    let cmd = common::get_base_command("add")
         .env("RUST_LOG", "none")
         .args([
             tmp_dir.path().join("out").to_str().unwrap(),

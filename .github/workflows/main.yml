@@ -10,17 +10,50 @@ on:
 name: ci
 
 jobs:
-  # build all supported targets for library
+  # build all supported targets for library and bins
   build-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-musl
           - arm-unknown-linux-musleabi
           - mips-unknown-linux-musl
           - mipsel-unknown-linux-musl
+        toolchain:
+          - stable
+            # msrv
+          - 1.65.0
+        features:
+          - --no-default-features --features xz
+          - --no-default-features --features gzip
+          - --no-default-features --features gzip,xz
+          - --no-default-features --features xz-static
+          # default features
+          -
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      # install cross
+      - run: cargo install cargo-quickinstall
+      - run: cargo quickinstall cross@0.2.5 --force
+      # build with cross
+      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
+      # test with cross
+      - run: RUST_LOG=info cross test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked
+
+  # build all supported on native arch for library and bins
+  build-test-native:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
         toolchain:
           - stable
             # msrv
@@ -42,12 +75,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       # install cross
-      - run: cargo install cargo-quickinstall
-      - run: cargo quickinstall cross@0.2.5 --force
-      # build with cross
-      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
       # test with cross
-      - run: RUST_LOG=info cross test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked
+      - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked
 
 
   # benchmark

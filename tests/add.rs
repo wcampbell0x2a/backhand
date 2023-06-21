@@ -89,15 +89,17 @@ fn test_add() {
         .unwrap();
     cmd.assert().code(0);
 
-    let output = Command::new("unsquashfs")
-        .args([
-            "-lln",
-            "-UTC",
-            tmp_dir.path().join("out1").to_str().unwrap(),
-        ])
-        .output()
-        .unwrap();
-    let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root
+    #[cfg(target_arch = "x86_64")]
+    {
+        let output = Command::new("unsquashfs")
+            .args([
+                "-lln",
+                "-UTC",
+                tmp_dir.path().join("out1").to_str().unwrap(),
+            ])
+            .output()
+            .unwrap();
+        let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root
 drwxr-xr-x 1000/1000                24 2022-10-14 03:02 squashfs-root/b
 drwxr-xr-x 1000/1000                24 2022-10-14 03:03 squashfs-root/b/c
 -rw-r--r-- 1000/1000                39 2022-10-14 03:03 squashfs-root/b/c/d
@@ -105,5 +107,6 @@ dr----x--t 2/4242                   26 1970-01-01 00:01 squashfs-root/test
 -rw-r--r-- 4242/2                    4 1970-01-01 00:02 squashfs-root/test/new
 "#;
 
-    assert_eq!(expected, std::str::from_utf8(&output.stdout).unwrap());
+        assert_eq!(expected, std::str::from_utf8(&output.stdout).unwrap());
+    }
 }

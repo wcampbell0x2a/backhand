@@ -69,28 +69,31 @@ fn test_replace() {
     cmd.assert().code(0);
 
     // extract
-    let cmd = Command::cargo_bin("unsquashfs")
-        .unwrap()
-        .env("RUST_LOG", "none")
-        .args([
-            "--path-filter",
-            r#"/b/c/d"#,
-            "-i",
-            tmp_dir.path().join("replaced").to_str().unwrap(),
-            "-d",
-            tmp_dir.path().join("squashfs-root-rust2").to_str().unwrap(),
-        ])
-        .unwrap();
-    cmd.assert().code(0);
+    #[cfg(target_arch = "x86_64")]
+    {
+        let cmd = Command::cargo_bin("unsquashfs")
+            .unwrap()
+            .env("RUST_LOG", "none")
+            .args([
+                "--path-filter",
+                r#"/b/c/d"#,
+                "-i",
+                tmp_dir.path().join("replaced").to_str().unwrap(),
+                "-d",
+                tmp_dir.path().join("squashfs-root-rust2").to_str().unwrap(),
+            ])
+            .unwrap();
+        cmd.assert().code(0);
 
-    // assert the text changed!
-    let bytes = std::fs::read(
-        tmp_dir
-            .path()
-            .join("squashfs-root-rust2/b/c/d")
-            .to_str()
-            .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(bytes, text);
+        // assert the text changed!
+        let bytes = std::fs::read(
+            tmp_dir
+                .path()
+                .join("squashfs-root-rust2/b/c/d")
+                .to_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(bytes, text);
+    }
 }

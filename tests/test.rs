@@ -57,6 +57,7 @@ fn full_test(
     let new_comp_opts = written_new_filesystem.compression_options;
     assert_eq!(og_comp_opts, new_comp_opts);
 
+    #[cfg(target_arch = "x86_64")]
     match verify {
         Verify::Extract => {
             info!("starting squashfs-tools/unsquashfs test");

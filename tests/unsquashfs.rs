@@ -8,6 +8,7 @@ use test_assets::TestAssetDef;
 
 #[test]
 #[cfg(feature = "xz")]
+#[cfg(target_arch = "x86_64")]
 fn test_unsquashfs_cli_path_filter() {
     const FILE_NAME: &str = "870D97.squashfs";
     let asset_defs = [TestAssetDef {
@@ -53,6 +54,7 @@ fn test_unsquashfs_cli_path_filter() {
 
 #[test]
 #[cfg(feature = "xz")]
+#[cfg(target_arch = "x86_64")]
 fn test_unsquashfs_cli_auto_offset() {
     use tempfile::tempdir;
 

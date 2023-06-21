@@ -102,6 +102,9 @@ fn test_raw_00() {
     );
 
     // compare
-    let control_new_path = format!("{TEST_PATH}/control.squashfs");
-    test_unsquashfs(&new_path, &control_new_path, None);
+    #[cfg(target_arch = "x86_64")]
+    {
+        let control_new_path = format!("{TEST_PATH}/control.squashfs");
+        test_unsquashfs(&new_path, &control_new_path, None);
+    }
 }

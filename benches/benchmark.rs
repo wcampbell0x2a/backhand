@@ -48,7 +48,7 @@ pub fn bench_read_write(c: &mut Criterion) {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME_01.to_string(),
         hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
     }];
     const TEST_PATH_01: &str = "test-assets/test_tplink_ax1800";
     test_assets::download_test_files(&asset_defs, TEST_PATH_01, true).unwrap();
@@ -91,7 +91,7 @@ pub fn bench_read(c: &mut Criterion) {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME_01.to_string(),
         hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
     }];
     const TEST_PATH_01: &str = "test-assets/test_tplink_ax1800";
     test_assets::download_test_files(&asset_defs, TEST_PATH_01, true).unwrap();

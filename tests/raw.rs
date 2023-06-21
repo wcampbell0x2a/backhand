@@ -16,7 +16,7 @@ fn test_raw_00() {
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
         hash: "e3d8f94f8402412ecf742d44680f1dd5d8fd28cc3d1a502e5fcfcc9e2f5f949a".to_string(),
-        url: "wcampbell.dev/squashfs/testing/test_raw_00/control.squashfs".to_string(),
+        url: "https://wcampbell.dev/squashfs/testing/test_raw_00/control.squashfs".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_raw_00";
     let new_path = format!("{TEST_PATH}/bytes.squashfs");

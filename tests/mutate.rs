@@ -36,17 +36,17 @@ fn test_add_00() {
         TestAssetDef {
             filename: "out.squashfs".to_string(),
             hash: "8610cd350bbd51ca6c8b84c210ef24c57898845f75f5b4ae0c6d7e785efaab4f".to_string(),
-            url: "wcampbell.dev/squashfs/testing/test_add_00/out.squashfs".to_string(),
+            url: "https://wcampbell.dev/squashfs/testing/test_add_00/out.squashfs".to_string(),
         },
         TestAssetDef {
             filename: "new.squashfs".to_string(),
             hash: "dc02848152d42b331fa0540000f68bf0942c5b00a3a44a3a6f208af34b4b6ec3".to_string(),
-            url: "wcampbell.dev/squashfs/testing/test_add_00/new.squashfs".to_string(),
+            url: "https://wcampbell.dev/squashfs/testing/test_add_00/new.squashfs".to_string(),
         },
         TestAssetDef {
             filename: "control.squashfs".to_string(),
             hash: "b690b167ef3d6126ca4180e73cf0cb827f48405630278a64017208b6774b663b".to_string(),
-            url: "wcampbell.dev/squashfs/testing/test_add_00/control.squashfs".to_string(),
+            url: "https://wcampbell.dev/squashfs/testing/test_add_00/control.squashfs".to_string(),
         },
     ];
     const TEST_PATH: &str = "test-assets/test_add_00";

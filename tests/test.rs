@@ -79,7 +79,7 @@ fn test_00() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "976c1638d8c1ba8014de6c64b196cbd70a5acf031be10a8e7f649536193c8e78".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_00/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_00/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_00";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -93,7 +93,7 @@ fn test_01() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "9d9f5ba77b562fd4141fc725038028822673b24595e2774a8718260f4fc39710".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_01/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_01/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_01";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -107,7 +107,7 @@ fn test_02() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "c18d1b57e73740ab4804672c61f5c77f170cc16179d9a7e12dd722ba311f5623".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_02/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_02/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_02";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -121,7 +121,7 @@ fn test_03() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "4171d9dd5a53f2ad841715af1c01351028a9d9df13e4ae8172f37660306c0473".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_03/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_03/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_03";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -134,7 +134,7 @@ fn test_04() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "bfb3424bf3b744b8c7a156c9c538310c49fbe8a57f336864f00210e6f356f2c3".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_04/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_04/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_04";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -147,7 +147,7 @@ fn test_05() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_05";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -161,7 +161,7 @@ fn test_06() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "3c5db6e8c59a4e1291a016f736fbf76ddc1e07fa4bc8940eac1754975b4c617b".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_06/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_06/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_06";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -175,7 +175,7 @@ fn test_07() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "6bc1571d82473e74a55cfd2d07ce21d9150ea4ad5941d2345ea429507d812671".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_07/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_07/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_07";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -189,7 +189,7 @@ fn test_08() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "ce0bfab79550885cb7ced388caaaa9bd454852bf1f9c34789abc498eb6c74df6".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_08";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -202,7 +202,7 @@ fn test_19() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "4dc83c3eea0d7ae2a23c891798d485ba0eded862db5e1528a984e08b35255b0f".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_19/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_19/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_19";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -215,7 +215,7 @@ fn test_20() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "4f00c0debb2d40ecb45f8d5d176a97699a8e07727713883899e6720331d67078".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_20/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_20/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_20";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -300,7 +300,7 @@ fn test_tplink_ax1800() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
@@ -314,7 +314,7 @@ fn test_21() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "8fe23229be6c3e24b9565007f9f9a25e8e796270cf7ce8518da131e95bb90bad".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_21/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_21/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_21";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
@@ -328,7 +328,7 @@ fn test_er605() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "8f69958e5e25a7b9162342739305361dcd6b5a56970e342d85060f9f3be6313c".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_er605_v2_2.0.1/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_er605_v2_2.0.1/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_er605_v2_2";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
@@ -342,7 +342,7 @@ fn test_re815xe() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "a73325883568ba47eaa5379c7768ded5661d61841a81d6c987371842960ac6a2".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_re815xev1.60/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_re815xev1.60/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_re815_xev160";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
@@ -369,7 +369,7 @@ fn test_many_files() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "43723443fa8acedbd67384ba9b02806f8a1e53014282eb9c871aa78ec08a0e44".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_many_files/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_many_files/{FILE_NAME}"),
     }];
 
     const TEST_PATH: &str = "test-assets/test_many_files";
@@ -383,7 +383,7 @@ fn test_many_dirs() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "2606237d69ebeee9a5da22a63c564921f3ec267c5377ddfbb3aa99409558daf0".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_many_dirs/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_many_dirs/{FILE_NAME}"),
     }];
 
     const TEST_PATH: &str = "test-assets/test_many_dirs";
@@ -397,7 +397,7 @@ fn test_few_dirs_many_files() {
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "66543a46cf96d5e59b47203c421f7967ad552057f09c625fc08131325bc995bd".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_few_dirs_many_files/{FILE_NAME}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_few_dirs_many_files/{FILE_NAME}"),
     }];
 
     const TEST_PATH: &str = "test-assets/test_few_dirs_many_files";

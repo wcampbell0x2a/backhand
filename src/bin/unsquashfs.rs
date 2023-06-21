@@ -255,7 +255,7 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
 
 fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file: bool) {
     // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
-    let timeval = TimeVal::new(i64::from(header.mtime), 0);
+    let timeval = TimeVal::new(header.mtime as _, 0);
     utimes(path, &timeval, &timeval).unwrap();
 
     let mut mode = u32::from(header.permissions);
@@ -269,7 +269,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
             .as_ptr()
             .cast::<i8>();
         unsafe {
-            lchown(path_bytes, header.uid, header.gid);
+            lchown(path_bytes as *const _, header.uid, header.gid);
         }
     } else if is_file {
         // bitwise-not if not rooted (disable write permissions for user/group). Following
@@ -375,13 +375,13 @@ fn extract_all<'a>(
                         .as_ptr()
                         .cast::<i8>();
                     unsafe {
-                        lchown(path_bytes, node.header.uid, node.header.gid);
+                        lchown(path_bytes as *const _, node.header.uid, node.header.gid);
                     }
                 }
 
                 // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
                 // Make sure this doesn't follow symlinks when changed to std library!
-                let timespec = TimeSpec::new(i64::from(node.header.mtime), 0);
+                let timespec = TimeSpec::new(node.header.mtime as _, 0);
                 utimensat(
                     None,
                     &filepath,

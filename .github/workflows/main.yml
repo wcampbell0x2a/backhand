@@ -10,11 +10,17 @@ on:
 name: ci
 
 jobs:
-  # build, test all supported targets
+  # build all supported targets for library
   build-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - arm-unknown-linux-musleabi
+          - mips-unknown-linux-musl
+          - mipsel-unknown-linux-musl
         toolchain:
           - stable
             # msrv
@@ -35,8 +41,14 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build ${{ matrix.features }}
-      - run: RUST_LOG=info cargo test --release ${{ matrix.features }}
+      # install cross
+      - run: cargo install cargo-quickinstall
+      - run: cargo quickinstall cross@0.2.5 --force
+      # build with cross
+      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
+      # test with cross
+      - run: RUST_LOG=info cross test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked
+
 
   # benchmark
   benchmark:

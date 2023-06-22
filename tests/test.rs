@@ -103,8 +103,11 @@ fn full_test(
 
     match verify {
         Verify::Extract => {
-            info!("starting squashfs-tools/unsquashfs test");
-            test_unsquashfs(&og_path, &new_path, Some(offset));
+            #[cfg(target_arch = "x86_64")]
+            {
+                info!("starting squashfs-tools/unsquashfs test");
+                test_unsquashfs(&og_path, &new_path, Some(offset));
+            }
             info!("starting backhand/unsquashfs test");
             test_bin_unsquashfs(&og_path, &new_path, Some(offset));
         },

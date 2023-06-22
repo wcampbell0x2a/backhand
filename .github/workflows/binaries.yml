@@ -35,7 +35,7 @@ jobs:
       - name: archive
         run: |
           tar -czvf backhand-${{ matrix.targets }}.tar.gz \
-              -C target/${{ matrix.targets }}/release/ {$BINS}
+              -C target/${{ matrix.targets }}/release/ $BINS
 
       - uses: actions/upload-artifact@v2
         with:

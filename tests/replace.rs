@@ -23,8 +23,7 @@ fn test_replace() {
 
     // extract single file
     let tmp_dir = tempdir().unwrap();
-    let cmd = Command::cargo_bin("unsquashfs")
-        .unwrap()
+    let cmd = common::get_base_command("unsquashfs")
         .env("RUST_LOG", "none")
         .args([
             "--path-filter",

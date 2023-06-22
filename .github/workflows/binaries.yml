@@ -28,7 +28,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           target: ${{ matrix.targets }}
-      - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-quickinstall
       - run: cargo quickinstall cross@0.2.5 --force
       - run: cross build --bins --locked --release --target ${{ matrix.targets }}

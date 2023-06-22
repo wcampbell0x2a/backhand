@@ -31,8 +31,7 @@ fn test_add() {
     // Add /test dir
     // ./target/release/add test-assets/test_05/out.squashfs /test --dir --gid 4242 --mtime 1 --uid 2 --mode 511 -o $tmp/out
     let tmp_dir = tempdir().unwrap();
-    let cmd = Command::cargo_bin("add")
-        .unwrap()
+    let cmd = common::get_base_command("add")
         .env("RUST_LOG", "none")
         .args([
             &image_path,

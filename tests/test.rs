@@ -2,6 +2,7 @@ mod common;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
+use assert_cmd::prelude::*;
 use assert_cmd::Command;
 use backhand::{FilesystemReader, FilesystemWriter};
 use common::{test_unsquashfs, test_unsquashfs_list};
@@ -9,7 +10,6 @@ use tempfile::tempdir;
 use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
-use assert_cmd::prelude::*;
 
 enum Verify {
     Extract,

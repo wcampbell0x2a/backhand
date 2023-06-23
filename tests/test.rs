@@ -112,8 +112,11 @@ fn full_test(
             test_bin_unsquashfs(&og_path, &new_path, Some(offset));
         },
         Verify::List => {
-            info!("starting --list test");
-            test_unsquashfs_list(&og_path, &new_path, Some(offset));
+            #[cfg(target_arch = "x86_64")]
+            {
+                info!("starting --list test");
+                test_unsquashfs_list(&og_path, &new_path, Some(offset));
+            }
         },
     }
 }

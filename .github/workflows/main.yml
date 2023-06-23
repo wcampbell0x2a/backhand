@@ -46,7 +46,7 @@ jobs:
       # build with cross
       - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
       # test with cross
-      - run: RUST_LOG=info cross test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --release ${{ matrix.features }} --features __fast-test --target ${{ matrix.target }} --locked
 
   # build all supported on native arch for library and bins
   build-test-native:

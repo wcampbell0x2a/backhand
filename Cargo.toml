@@ -37,6 +37,7 @@ gzip = ["dep:flate2"]
 # this library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
 zstd = ["dep:zstd"]
+__fast-test = []
 
 [dev-dependencies]
 env_logger = "0.9.1"

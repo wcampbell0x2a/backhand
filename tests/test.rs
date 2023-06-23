@@ -400,6 +400,7 @@ fn test_re815xe() {
 
 #[test]
 #[cfg(feature = "xz")]
+#[cfg(not(feature = "__fast-test"))]
 fn test_archlinux_iso_rootfs() {
     const FILE_NAME: &str = "airootfs.sfs";
     let asset_defs = [TestAssetDef {

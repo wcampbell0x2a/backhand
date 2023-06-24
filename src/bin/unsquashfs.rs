@@ -17,7 +17,7 @@ use clap_complete::{generate, Shell};
 use common::after_help;
 use libc::lchown;
 use nix::libc::geteuid;
-use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
+use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
 
 // -musl malloc is slow, use jemalloc
@@ -408,8 +408,8 @@ fn extract_all<'a>(
                     match mknod(
                         &path,
                         SFlag::S_IFCHR,
-                        Mode::from_bits(u32::from(node.header.permissions)).unwrap(),
-                        u64::from(*device_number),
+                        Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                        dev_t::from(*device_number),
                     ) {
                         Ok(_) => {
                             if args.info {
@@ -439,8 +439,8 @@ fn extract_all<'a>(
                 match mknod(
                     &path,
                     SFlag::S_IFBLK,
-                    Mode::from_bits(u32::from(node.header.permissions)).unwrap(),
-                    u64::from(*device_number),
+                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                    dev_t::from(*device_number),
                 ) {
                     Ok(_) => {
                         if args.info {

@@ -48,8 +48,6 @@ jobs:
   # build all supported on native(musl) arch for library and bins
   build-test-native:
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
       matrix:
         toolchain:

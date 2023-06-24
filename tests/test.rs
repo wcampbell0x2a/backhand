@@ -238,7 +238,7 @@ fn test_08() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "ce0bfab79550885cb7ced388caaaa9bd454852bf1f9c34789abc498eb6c74df6".to_string(),
+        hash: "debe0986658b276be78c3836779d20464a03d9ba0a40903e6e8e947e434f4d67".to_string(),
         url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_08";
@@ -405,7 +405,7 @@ fn test_archlinux_iso_rootfs() {
     const FILE_NAME: &str = "airootfs.sfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "72e4a42904d5a9947ef9fc2de90a2f088a6a215e97cb290ad93c20a4828c84aa".to_string(),
+        hash: "c5a2e50d08c06719e003e59f19c3c618bfd85c495112d10cf3871e17d9a17ad6".to_string(),
         url: format!("https://archive.archlinux.org/iso/2023.06.01/arch/x86_64/{FILE_NAME}"),
     }];
 

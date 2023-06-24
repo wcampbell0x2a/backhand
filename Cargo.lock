@@ -1297,7 +1297,7 @@ checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 [[package]]
 name = "test-assets"
 version = "0.2.0"
-source = "git+https://github.com/wcampbell0x2a/test-assets?branch=replace-curl-ureq#60bb7df5fdfebba0015c912fcc67da5820c021a1"
+source = "git+https://github.com/wcampbell0x2a/test-assets?branch=replace-curl-ureq#ebe2e7d3049a12d2e9e66814f6148df8a8150329"
 dependencies = [
  "sha2",
  "ureq",

@@ -27,10 +27,6 @@ jobs:
             # msrv
           - 1.65.0
         features:
-          - --no-default-features --features xz
-          - --no-default-features --features gzip
-          - --no-default-features --features gzip,xz
-          - --no-default-features --features xz-static
           # default features
           -
 

@@ -13,6 +13,8 @@ jobs:
   # build all supported targets for library and bins
   build-test:
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
       matrix:
         target:
@@ -47,9 +49,11 @@ jobs:
       # test with cross
       - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --release ${{ matrix.features }} --features __fast-test --target ${{ matrix.target }} --locked
 
-  # build all supported on native arch for library and bins
+  # build all supported on native(musl) arch for library and bins
   build-test-native:
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
       matrix:
         toolchain:
@@ -72,8 +76,6 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      # install cross
-      # test with cross
       - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked
 
 

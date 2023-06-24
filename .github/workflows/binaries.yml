@@ -14,6 +14,8 @@ jobs:
   # release binaries
   release-bins:
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
       matrix:
         targets:

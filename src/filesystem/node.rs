@@ -191,7 +191,7 @@ impl<T> Nodes<T> {
             Err(index) => {
                 self.nodes.insert(index, node);
                 Ok(())
-            },
+            }
         }
     }
 

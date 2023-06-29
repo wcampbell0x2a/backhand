@@ -35,7 +35,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       # install cross
       - run: cargo install cargo-quickinstall
@@ -68,7 +67,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked
 
@@ -89,15 +87,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench
 
-  # fmt and clippy on nightly builds
-  fmt-clippy-nightly:
+  # fmt and clippy on stable
+  fmt-clippy-stable:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
+          toolchain: stable
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
 

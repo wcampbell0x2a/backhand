@@ -290,7 +290,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
                     println!("[!] could not set permissions");
                 }
             }
-        },
+        }
     }
 }
 
@@ -332,13 +332,13 @@ fn extract_all<'a>(
                         }
 
                         set_attributes(&filepath, &node.header, root_process, true);
-                    },
+                    }
                     Err(e) => {
                         println!("[!] failed write: {} : {e}", filepath.display());
                         continue;
-                    },
+                    }
                 }
-            },
+            }
             InnerNode::Symlink(SquashfsSymlink { link }) => {
                 // create symlink
                 let link_display = link.display();
@@ -355,14 +355,14 @@ fn extract_all<'a>(
                         if args.info {
                             println!("[-] success, wrote {}->{link_display}", filepath.display());
                         }
-                    },
+                    }
                     Err(e) => {
                         println!(
                             "[!] failed write: {}->{link_display} : {e}",
                             filepath.display()
                         );
                         continue;
-                    },
+                    }
                 }
 
                 // set attributes, but special to not follow the symlink
@@ -390,7 +390,7 @@ fn extract_all<'a>(
                     UtimensatFlags::NoFollowSymlink,
                 )
                 .unwrap();
-            },
+            }
             InnerNode::Dir(SquashfsDir { .. }) => {
                 // create dir
                 let path = Path::new(&args.dest).join(path);
@@ -401,7 +401,7 @@ fn extract_all<'a>(
                 if args.info {
                     println!("[-] success, wrote {}", &path.display());
                 }
-            },
+            }
             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
                 let path = Path::new(&args.dest).join(path);
                 if root_process {
@@ -417,14 +417,14 @@ fn extract_all<'a>(
                             }
 
                             set_attributes(&path, &node.header, root_process, true);
-                        },
+                        }
                         Err(_) => {
                             println!(
                                 "[!] could not create char device {}, are you superuser?",
                                 path.display()
                             );
                             continue;
-                        },
+                        }
                     }
                 } else {
                     println!(
@@ -433,7 +433,7 @@ fn extract_all<'a>(
                     );
                     continue;
                 }
-            },
+            }
             InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
                 let path = Path::new(&args.dest).join(path);
                 match mknod(
@@ -448,16 +448,16 @@ fn extract_all<'a>(
                         }
 
                         set_attributes(&path, &node.header, root_process, true);
-                    },
+                    }
                     Err(_) => {
                         println!(
                             "[!] could not create block device {}, are you superuser?",
                             path.display()
                         );
                         continue;
-                    },
+                    }
                 }
-            },
+            }
         }
     }
 

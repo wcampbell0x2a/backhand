@@ -86,8 +86,8 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
                     read_len += n;
                     let tmp = buf;
                     buf = &mut tmp[n..];
-                },
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {},
+                }
+                Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
         }
@@ -147,7 +147,7 @@ impl<'a> DataWriter<'a> {
                         block_sizes,
                     },
                 ))
-            },
+            }
         };
         if first_block.fragment {
             reader.decompress(first_block, &mut read_buf, &mut decompress_buf)?;

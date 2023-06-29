@@ -110,14 +110,14 @@ fn full_test(
             }
             info!("starting backhand/unsquashfs test");
             test_bin_unsquashfs(&og_path, &new_path, Some(offset));
-        },
+        }
         Verify::List => {
             #[cfg(target_arch = "x86_64")]
             {
                 info!("starting --list test");
                 test_unsquashfs_list(&og_path, &new_path, Some(offset));
             }
-        },
+        }
     }
 }
 

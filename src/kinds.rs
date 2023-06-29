@@ -197,10 +197,10 @@ impl Kind {
         match endian {
             Endian::Little => {
                 Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
-            },
+            }
             Endian::Big => {
                 Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
-            },
+            }
         }
         self
     }
@@ -211,10 +211,10 @@ impl Kind {
         match endian {
             Endian::Little => {
                 Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
-            },
+            }
             Endian::Big => {
                 Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
-            },
+            }
         }
         self
     }
@@ -226,11 +226,11 @@ impl Kind {
             Endian::Little => {
                 Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
                 Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
-            },
+            }
             Endian::Big => {
                 Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
                 Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
-            },
+            }
         }
         self
     }

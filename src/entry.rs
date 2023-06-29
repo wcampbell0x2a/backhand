@@ -125,7 +125,7 @@ impl<'a> Entry<'a> {
                     file_size: file_size.try_into().unwrap(),
                     block_sizes: block_sizes.to_vec(),
                 }
-            },
+            }
             Added::Fragment {
                 frag_index,
                 block_offset,

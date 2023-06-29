@@ -10,7 +10,7 @@ on:
 name: ci
 
 jobs:
-  # build all supported targets for library and bins
+  # build/test all supported targets for library and bins (skipping slow tests)
   build-test:
     runs-on: ubuntu-latest
     env:
@@ -43,9 +43,9 @@ jobs:
       # build with cross
       - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
       # test with cross
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --release ${{ matrix.features }} --features __fast-test --target ${{ matrix.target }} --locked
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --release ${{ matrix.features }} --features --target ${{ matrix.target }} --locked -- --skip slow
 
-  # build all supported on native(musl) arch for library and bins
+  # build/test all supported on native(musl) arch for library and bins (all tests)
   build-test-native:
     runs-on: ubuntu-latest
     strategy:

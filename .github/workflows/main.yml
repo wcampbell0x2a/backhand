@@ -18,6 +18,7 @@ jobs:
     strategy:
       matrix:
         target:
+          - x86_64-unknown-freebsd
           - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-musl
           - arm-unknown-linux-musleabi

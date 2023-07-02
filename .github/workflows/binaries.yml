@@ -39,7 +39,7 @@ jobs:
           tar -czvf backhand-${{ matrix.targets }}.tar.gz \
               -C target/${{ matrix.targets }}/release/ $BINS
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: backhand-${{ matrix.targets }}.tar.gz
           path: backhand-${{ matrix.targets }}.tar.gz

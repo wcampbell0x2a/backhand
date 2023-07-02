@@ -1,12 +1,11 @@
+mod bin;
 mod common;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
-use assert_cmd::prelude::*;
-use assert_cmd::Command;
 use backhand::{FilesystemReader, FilesystemWriter};
+use bin::test_bin_unsquashfs;
 use common::{test_unsquashfs, test_unsquashfs_list};
-use tempfile::tempdir;
 use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
@@ -14,49 +13,6 @@ use tracing::info;
 enum Verify {
     Extract,
     List,
-}
-
-/// test our own unsquashfs
-pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
-    let tmp_dir = tempdir().unwrap();
-    {
-        let cmd = common::get_base_command("unsquashfs")
-            .args([
-                "-d",
-                tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),
-                "-o",
-                &control_offset.unwrap_or(0).to_string(),
-                control,
-            ])
-            .unwrap();
-        tracing::info!("{:?}", cmd);
-        cmd.assert().code(&[0] as &[i32]);
-
-        // only squashfs-tools/unsquashfs when x86_64
-        #[cfg(feature = "__test_unsquashfs")]
-        {
-            let cmd = Command::new("unsquashfs")
-                .args([
-                    "-d",
-                    tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
-                    "-o",
-                    &control_offset.unwrap_or(0).to_string(),
-                    // we don't run as root, avoid special file errors
-                    "-ignore-errors",
-                    "-no-exit-code",
-                    new,
-                ])
-                .unwrap();
-            tracing::info!("{:?}", cmd);
-            cmd.assert().code(&[0] as &[i32]);
-
-            let d = dir_diff::is_different(
-                tmp_dir.path().join("squashfs-root-rust"),
-                tmp_dir.path().join("squashfs-root-c"),
-            );
-            assert!(!d.expect("couldn't compare dirs"));
-        }
-    }
 }
 
 /// - Download file
@@ -103,21 +59,15 @@ fn full_test(
 
     match verify {
         Verify::Extract => {
-            #[cfg(feature = "__test_unsquashfs")]
-            {
-                info!("starting squashfs-tools/unsquashfs test");
-                test_unsquashfs(&og_path, &new_path, Some(offset));
-            }
+            info!("starting squashfs-tools/unsquashfs test");
+            test_unsquashfs(&og_path, &new_path, Some(offset));
             info!("starting backhand/unsquashfs test");
             test_bin_unsquashfs(&og_path, &new_path, Some(offset));
-        }
+        },
         Verify::List => {
-            #[cfg(feature = "__test_unsquashfs")]
-            {
-                info!("starting --list test");
-                test_unsquashfs_list(&og_path, &new_path, Some(offset));
-            }
-        }
+            info!("starting --list test");
+            test_unsquashfs_list(&og_path, &new_path, Some(offset));
+        },
     }
 }
 
@@ -238,7 +188,7 @@ fn test_08() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "debe0986658b276be78c3836779d20464a03d9ba0a40903e6e8e947e434f4d67".to_string(),
+        hash: "ce0bfab79550885cb7ced388caaaa9bd454852bf1f9c34789abc498eb6c74df6".to_string(),
         url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_08";
@@ -317,7 +267,7 @@ fn test_openwrt_netgear_ex6100v2() {
 
 #[test]
 #[cfg(feature = "gzip")]
-fn test_slow_appimage_plexamp() {
+fn test_appimage_plexamp() {
     const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -330,7 +280,7 @@ fn test_slow_appimage_plexamp() {
 
 #[test]
 #[cfg(feature = "gzip")]
-fn test_slow_appimage_firefox() {
+fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -400,11 +350,11 @@ fn test_re815xe() {
 
 #[test]
 #[cfg(feature = "xz")]
-fn test_slow_archlinux_iso_rootfs() {
+fn test_archlinux_iso_rootfs() {
     const FILE_NAME: &str = "airootfs.sfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "c5a2e50d08c06719e003e59f19c3c618bfd85c495112d10cf3871e17d9a17ad6".to_string(),
+        hash: "72e4a42904d5a9947ef9fc2de90a2f088a6a215e97cb290ad93c20a4828c84aa".to_string(),
         url: format!("https://archive.archlinux.org/iso/2023.06.01/arch/x86_64/{FILE_NAME}"),
     }];
 

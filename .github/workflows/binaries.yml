@@ -5,44 +5,40 @@ on:
   pull_request:
     branches: [ master ]
 
-env:
-  BINS: "add unsquashfs replace"
-
 name: binaries
 
 jobs:
   # release binaries
   release-bins:
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
       matrix:
         targets:
           - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
-          - arm-unknown-linux-musleabi
-          - mips-unknown-linux-musl
-          - mipsel-unknown-linux-musl
+        bins:
+          - unsquashfs
+          - add
+          - replace
 
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
           target: ${{ matrix.targets }}
+      - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-quickinstall
       - run: cargo quickinstall cross@0.2.5 --force
-      - run: cross build --bins --locked --release --target ${{ matrix.targets }}
+      - run: cross build --bin ${{ matrix.bins }} --locked --release --target ${{ matrix.targets }}
 
       - name: archive
         run: |
-          tar -czvf backhand-${{ matrix.targets }}.tar.gz \
-              -C target/${{ matrix.targets }}/release/ $BINS
+          tar -czvf ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz \
+              -C target/${{ matrix.targets }}/release/ ${{ matrix.bins }}
 
       - uses: actions/upload-artifact@v2
         with:
-          name: backhand-${{ matrix.targets }}.tar.gz
-          path: backhand-${{ matrix.targets }}.tar.gz
+          name: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          path: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
 
         # check semvar before release!
       - name: Check semver
@@ -54,7 +50,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: backhand-${{ matrix.targets }}.tar.gz
-          asset_name: backhand-${{ matrix.targets }}.tar.gz
+          file: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          asset_name: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
           tag: ${{ github.ref }}
           overwrite: true

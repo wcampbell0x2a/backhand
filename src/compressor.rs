@@ -198,12 +198,12 @@ impl CompressionAction for DefaultCompressor {
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
                 decoder.read_to_end(out)?;
-            }
+            },
             #[cfg(feature = "xz")]
             Compressor::Xz => {
                 let mut decoder = XzDecoder::new(bytes);
                 decoder.read_to_end(out)?;
-            }
+            },
             #[cfg(feature = "lzo")]
             Compressor::Lzo => {
                 out.resize(out.capacity(), 0);
@@ -213,12 +213,12 @@ impl CompressionAction for DefaultCompressor {
                 if error != rust_lzo::LZOError::OK {
                     return Err(BackhandError::CorruptedOrInvalidSquashfs);
                 }
-            }
+            },
             #[cfg(feature = "zstd")]
             Compressor::Zstd => {
                 let mut decoder = zstd::bulk::Decompressor::new().unwrap();
                 decoder.decompress_to_buffer(bytes, out)?;
-            }
+            },
             _ => return Err(BackhandError::UnsupportedCompression(compressor)),
         }
         Ok(())
@@ -248,7 +248,7 @@ impl CompressionAction for DefaultCompressor {
                         } else {
                             default_level
                         }
-                    }
+                    },
                 };
                 let check = Check::Crc32;
                 let mut opts = LzmaOptions::new_preset(level).unwrap();
@@ -288,14 +288,14 @@ impl CompressionAction for DefaultCompressor {
                 let mut buf = vec![];
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)
-            }
+            },
             #[cfg(feature = "gzip")]
             (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
                 let compression_level = match option {
                     None => Compression::best(), // 9
                     Some(CompressionOptions::Gzip(option)) => {
                         Compression::new(option.compression_level)
-                    }
+                    },
                     Some(_) => unreachable!(),
                 };
 
@@ -305,7 +305,7 @@ impl CompressionAction for DefaultCompressor {
                 let mut buf = vec![];
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)
-            }
+            },
             #[cfg(feature = "lzo")]
             (Compressor::Lzo, _, _) => {
                 let mut lzo = rust_lzo::LZOContext::new();
@@ -315,7 +315,7 @@ impl CompressionAction for DefaultCompressor {
                     return Err(BackhandError::CorruptedOrInvalidSquashfs);
                 }
                 Ok(buf)
-            }
+            },
             #[cfg(feature = "zstd")]
             (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None), _) => {
                 let compression_level = match option {
@@ -327,7 +327,7 @@ impl CompressionAction for DefaultCompressor {
                 let mut buf = vec![];
                 encoder.compress_to_buffer(bytes, &mut buf)?;
                 Ok(buf)
-            }
+            },
             _ => Err(BackhandError::UnsupportedCompression(fc.id)),
         }
     }

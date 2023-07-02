@@ -17,7 +17,7 @@ use clap_complete::{generate, Shell};
 use common::after_help;
 use libc::lchown;
 use nix::libc::geteuid;
-use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
+use nix::sys::stat::{mknod, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
 
 // -musl malloc is slow, use jemalloc
@@ -255,7 +255,7 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
 
 fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file: bool) {
     // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
-    let timeval = TimeVal::new(header.mtime as _, 0);
+    let timeval = TimeVal::new(i64::from(header.mtime), 0);
     utimes(path, &timeval, &timeval).unwrap();
 
     let mut mode = u32::from(header.permissions);
@@ -269,7 +269,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
             .as_ptr()
             .cast::<i8>();
         unsafe {
-            lchown(path_bytes as *const _, header.uid, header.gid);
+            lchown(path_bytes, header.uid, header.gid);
         }
     } else if is_file {
         // bitwise-not if not rooted (disable write permissions for user/group). Following
@@ -290,7 +290,7 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
                     println!("[!] could not set permissions");
                 }
             }
-        }
+        },
     }
 }
 
@@ -332,13 +332,13 @@ fn extract_all<'a>(
                         }
 
                         set_attributes(&filepath, &node.header, root_process, true);
-                    }
+                    },
                     Err(e) => {
                         println!("[!] failed write: {} : {e}", filepath.display());
                         continue;
-                    }
+                    },
                 }
-            }
+            },
             InnerNode::Symlink(SquashfsSymlink { link }) => {
                 // create symlink
                 let link_display = link.display();
@@ -355,14 +355,14 @@ fn extract_all<'a>(
                         if args.info {
                             println!("[-] success, wrote {}->{link_display}", filepath.display());
                         }
-                    }
+                    },
                     Err(e) => {
                         println!(
                             "[!] failed write: {}->{link_display} : {e}",
                             filepath.display()
                         );
                         continue;
-                    }
+                    },
                 }
 
                 // set attributes, but special to not follow the symlink
@@ -375,13 +375,13 @@ fn extract_all<'a>(
                         .as_ptr()
                         .cast::<i8>();
                     unsafe {
-                        lchown(path_bytes as *const _, node.header.uid, node.header.gid);
+                        lchown(path_bytes, node.header.uid, node.header.gid);
                     }
                 }
 
                 // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
                 // Make sure this doesn't follow symlinks when changed to std library!
-                let timespec = TimeSpec::new(node.header.mtime as _, 0);
+                let timespec = TimeSpec::new(i64::from(node.header.mtime), 0);
                 utimensat(
                     None,
                     &filepath,
@@ -390,7 +390,7 @@ fn extract_all<'a>(
                     UtimensatFlags::NoFollowSymlink,
                 )
                 .unwrap();
-            }
+            },
             InnerNode::Dir(SquashfsDir { .. }) => {
                 // create dir
                 let path = Path::new(&args.dest).join(path);
@@ -401,15 +401,15 @@ fn extract_all<'a>(
                 if args.info {
                     println!("[-] success, wrote {}", &path.display());
                 }
-            }
+            },
             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
                 let path = Path::new(&args.dest).join(path);
                 if root_process {
                     match mknod(
                         &path,
                         SFlag::S_IFCHR,
-                        Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                        dev_t::from(*device_number),
+                        Mode::from_bits(u32::from(node.header.permissions)).unwrap(),
+                        u64::from(*device_number),
                     ) {
                         Ok(_) => {
                             if args.info {
@@ -417,14 +417,14 @@ fn extract_all<'a>(
                             }
 
                             set_attributes(&path, &node.header, root_process, true);
-                        }
+                        },
                         Err(_) => {
                             println!(
                                 "[!] could not create char device {}, are you superuser?",
                                 path.display()
                             );
                             continue;
-                        }
+                        },
                     }
                 } else {
                     println!(
@@ -433,14 +433,14 @@ fn extract_all<'a>(
                     );
                     continue;
                 }
-            }
+            },
             InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
                 let path = Path::new(&args.dest).join(path);
                 match mknod(
                     &path,
                     SFlag::S_IFBLK,
-                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                    dev_t::from(*device_number),
+                    Mode::from_bits(u32::from(node.header.permissions)).unwrap(),
+                    u64::from(*device_number),
                 ) {
                     Ok(_) => {
                         if args.info {
@@ -448,16 +448,16 @@ fn extract_all<'a>(
                         }
 
                         set_attributes(&path, &node.header, root_process, true);
-                    }
+                    },
                     Err(_) => {
                         println!(
                             "[!] could not create block device {}, are you superuser?",
                             path.display()
                         );
                         continue;
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 

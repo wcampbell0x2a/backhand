@@ -308,7 +308,7 @@ impl<'a> SquashfsRawData<'a> {
                     fragment: false,
                     uncompressed: block.uncompressed(),
                 })
-            }
+            },
             BlockFragment::Fragment(fragment) => {
                 let cache = self.file.system.cache.borrow();
                 if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
@@ -333,7 +333,7 @@ impl<'a> SquashfsRawData<'a> {
                         uncompressed: fragment.size.uncompressed(),
                     })
                 }
-            }
+            },
         }
     }
 

@@ -267,11 +267,11 @@ impl Squashfs {
                         error!("invalid compression options, bytes left over, using");
                     }
                     Some(co.1)
-                }
+                },
                 Err(e) => {
                     error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
                     None
-                }
+                },
             }
         } else {
             None
@@ -508,7 +508,7 @@ impl Squashfs {
                     basic_dir.file_size.try_into().unwrap(),
                     basic_dir.block_offset as usize,
                 )?
-            }
+            },
             InodeInner::ExtendedDirectory(ext_dir) => {
                 trace!("EXT_DIR: {:#02x?}", ext_dir);
                 self.dir_from_index(
@@ -516,7 +516,7 @@ impl Squashfs {
                     ext_dir.file_size,
                     ext_dir.block_offset as usize,
                 )?
-            }
+            },
             _ => return Err(BackhandError::UnexpectedInode(dir_inode.inner.clone())),
         };
         if let Some(dirs) = dirs {
@@ -537,7 +537,7 @@ impl Squashfs {
                             // its a dir, extract all children inodes
                             self.extract_dir(fullpath, root, found_inode, &self.id)?;
                             InnerNode::Dir(SquashfsDir::default())
-                        }
+                        },
                         // BasicFile
                         InodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
@@ -548,28 +548,28 @@ impl Squashfs {
                                     return Err(BackhandError::UnexpectedInode(
                                         found_inode.inner.clone(),
                                     ))
-                                }
+                                },
                             };
                             InnerNode::File(SquashfsFileReader { basic })
-                        }
+                        },
                         // Basic Symlink
                         InodeId::BasicSymlink => {
                             let link = self.symlink(found_inode)?;
                             InnerNode::Symlink(SquashfsSymlink { link })
-                        }
+                        },
                         // Basic CharacterDevice
                         InodeId::BasicCharacterDevice => {
                             let device_number = self.char_device(found_inode)?;
                             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number })
-                        }
+                        },
                         // Basic CharacterDevice
                         InodeId::BasicBlockDevice => {
                             let device_number = self.block_device(found_inode)?;
                             InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
-                        }
+                        },
                         InodeId::ExtendedFile => {
                             return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
-                        }
+                        },
                     };
                     let node = Node::new(
                         fullpath.clone(),

@@ -102,10 +102,7 @@ fn test_add_00() {
     }
     // force output to drop, so buffer is written
 
-    // compare when on x86 host
-    #[cfg(feature = "__test_unsquashfs")]
-    {
-        let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_unsquashfs(&new_path, &control_new_path, None);
-    }
+    // compare
+    let control_new_path = format!("{TEST_PATH}/control.squashfs");
+    test_unsquashfs(&new_path, &control_new_path, None);
 }

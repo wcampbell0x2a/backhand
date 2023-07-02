@@ -1,3 +1,4 @@
+mod bin;
 mod common;
 
 use std::process::Command;
@@ -31,7 +32,8 @@ fn test_add() {
     // Add /test dir
     // ./target/release/add test-assets/test_05/out.squashfs /test --dir --gid 4242 --mtime 1 --uid 2 --mode 511 -o $tmp/out
     let tmp_dir = tempdir().unwrap();
-    let cmd = common::get_base_command("add")
+    let cmd = Command::cargo_bin("add")
+        .unwrap()
         .env("RUST_LOG", "none")
         .args([
             &image_path,
@@ -67,7 +69,8 @@ fn test_add() {
 
     // We can't really test gid and uid, just trust me it works reading from the --file
 
-    let cmd = common::get_base_command("add")
+    let cmd = Command::cargo_bin("add")
+        .unwrap()
         .env("RUST_LOG", "none")
         .args([
             tmp_dir.path().join("out").to_str().unwrap(),
@@ -86,17 +89,15 @@ fn test_add() {
         .unwrap();
     cmd.assert().code(0);
 
-    #[cfg(feature = "__test_unsquashfs")]
-    {
-        let output = Command::new("unsquashfs")
-            .args([
-                "-lln",
-                "-UTC",
-                tmp_dir.path().join("out1").to_str().unwrap(),
-            ])
-            .output()
-            .unwrap();
-        let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root
+    let output = Command::new("unsquashfs")
+        .args([
+            "-lln",
+            "-UTC",
+            tmp_dir.path().join("out1").to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root
 drwxr-xr-x 1000/1000                24 2022-10-14 03:02 squashfs-root/b
 drwxr-xr-x 1000/1000                24 2022-10-14 03:03 squashfs-root/b/c
 -rw-r--r-- 1000/1000                39 2022-10-14 03:03 squashfs-root/b/c/d
@@ -104,6 +105,5 @@ dr----x--t 2/4242                   26 1970-01-01 00:01 squashfs-root/test
 -rw-r--r-- 4242/2                    4 1970-01-01 00:02 squashfs-root/test/new
 "#;
 
-        assert_eq!(expected, std::str::from_utf8(&output.stdout).unwrap());
-    }
+    assert_eq!(expected, std::str::from_utf8(&output.stdout).unwrap());
 }

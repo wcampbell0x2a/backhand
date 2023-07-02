@@ -10,7 +10,7 @@ on:
 name: ci
 
 jobs:
-  # build/test all supported targets for library and bins (skipping slow tests)
+  # build/test all supported targets for library and bins (skipping slow and squashfs-tools tests)
   build-test:
     runs-on: ubuntu-latest
     env:
@@ -68,7 +68,7 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
-      - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked
+      - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked --features __test_unsquashfs
 
 
   # benchmark

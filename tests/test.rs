@@ -33,7 +33,7 @@ pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>
         cmd.assert().code(&[0] as &[i32]);
 
         // only squashfs-tools/unsquashfs when x86_64
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(feature = "__test_unsquashfs")]
         {
             let cmd = Command::new("unsquashfs")
                 .args([
@@ -103,7 +103,7 @@ fn full_test(
 
     match verify {
         Verify::Extract => {
-            #[cfg(target_arch = "x86_64")]
+            #[cfg(feature = "__test_unsquashfs")]
             {
                 info!("starting squashfs-tools/unsquashfs test");
                 test_unsquashfs(&og_path, &new_path, Some(offset));
@@ -112,7 +112,7 @@ fn full_test(
             test_bin_unsquashfs(&og_path, &new_path, Some(offset));
         }
         Verify::List => {
-            #[cfg(target_arch = "x86_64")]
+            #[cfg(feature = "__test_unsquashfs")]
             {
                 info!("starting --list test");
                 test_unsquashfs_list(&og_path, &new_path, Some(offset));

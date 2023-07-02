@@ -5,7 +5,7 @@ use test_assets::TestAssetDef;
 
 #[test]
 #[cfg(feature = "xz")]
-#[cfg(target_arch = "x86_64")]
+#[cfg(feature = "__test_unsquashfs")]
 fn test_unsquashfs_cli_path_filter() {
     const FILE_NAME: &str = "870D97.squashfs";
     let asset_defs = [TestAssetDef {

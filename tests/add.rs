@@ -86,7 +86,7 @@ fn test_add() {
         .unwrap();
     cmd.assert().code(0);
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(feature = "__test_unsquashfs")]
     {
         let output = Command::new("unsquashfs")
             .args([

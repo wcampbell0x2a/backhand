@@ -133,11 +133,11 @@ pub trait SquashFsReader: BufReadSeek {
                         // Push the new Inode to the return, with the position this was read from
                         ret_vec.insert(inode.header.inode_number, inode);
                         input_bits = rest;
-                    },
+                    }
                     Err(_) => {
                         // try next block, inodes can span multiple blocks!
                         break;
-                    },
+                    }
                 }
             }
 

@@ -1,4 +1,3 @@
-mod bin;
 mod common;
 
 use std::process::Command;
@@ -24,8 +23,7 @@ fn test_replace() {
 
     // extract single file
     let tmp_dir = tempdir().unwrap();
-    let cmd = Command::cargo_bin("unsquashfs")
-        .unwrap()
+    let cmd = common::get_base_command("unsquashfs")
         .env("RUST_LOG", "none")
         .args([
             "--path-filter",
@@ -51,8 +49,7 @@ fn test_replace() {
     .unwrap();
 
     // replace that file
-    let cmd = Command::cargo_bin("replace")
-        .unwrap()
+    let cmd = common::get_base_command("replace")
         .env("RUST_LOG", "none")
         .args([
             &image_path,
@@ -69,28 +66,29 @@ fn test_replace() {
     cmd.assert().code(0);
 
     // extract
-    let cmd = Command::cargo_bin("unsquashfs")
-        .unwrap()
-        .env("RUST_LOG", "none")
-        .args([
-            "--path-filter",
-            r#"/b/c/d"#,
-            "-i",
-            tmp_dir.path().join("replaced").to_str().unwrap(),
-            "-d",
-            tmp_dir.path().join("squashfs-root-rust2").to_str().unwrap(),
-        ])
-        .unwrap();
-    cmd.assert().code(0);
+    {
+        let cmd = common::get_base_command("unsquashfs")
+            .env("RUST_LOG", "none")
+            .args([
+                "--path-filter",
+                r#"/b/c/d"#,
+                "-i",
+                tmp_dir.path().join("replaced").to_str().unwrap(),
+                "-d",
+                tmp_dir.path().join("squashfs-root-rust2").to_str().unwrap(),
+            ])
+            .unwrap();
+        cmd.assert().code(0);
 
-    // assert the text changed!
-    let bytes = std::fs::read(
-        tmp_dir
-            .path()
-            .join("squashfs-root-rust2/b/c/d")
-            .to_str()
-            .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(bytes, text);
+        // assert the text changed!
+        let bytes = std::fs::read(
+            tmp_dir
+                .path()
+                .join("squashfs-root-rust2/b/c/d")
+                .to_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(bytes, text);
+    }
 }

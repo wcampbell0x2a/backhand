@@ -210,7 +210,7 @@ impl<'a> FilesystemWriter<'a> {
                     InnerNode::File(file) => {
                         let reader = reader.file(&file.basic);
                         InnerNode::File(SquashfsFileWriter::SquashfsFile(reader))
-                    },
+                    }
                     InnerNode::Symlink(x) => InnerNode::Symlink(x.clone()),
                     InnerNode::Dir(x) => InnerNode::Dir(*x),
                     InnerNode::CharacterDevice(x) => InnerNode::CharacterDevice(*x),
@@ -364,7 +364,7 @@ impl<'a> FilesystemWriter<'a> {
                     if !matches!(&node.inner, InnerNode::Dir(_)) {
                         return Err(BackhandError::InvalidFilePath);
                     }
-                },
+                }
                 //if the dir don't exists, create it
                 Err(index) => {
                     self.root.nodes.insert(
@@ -375,7 +375,7 @@ impl<'a> FilesystemWriter<'a> {
                             InnerNode::Dir(SquashfsDir::default()),
                         ),
                     );
-                },
+                }
             }
         }
         Ok(())
@@ -440,7 +440,7 @@ impl<'a> FilesystemWriter<'a> {
             let (filesize, added) = match &file {
                 SquashfsFileWriter::UserDefined(file) => {
                     data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
-                },
+                }
                 SquashfsFileWriter::SquashfsFile(file) => {
                     // if the source file and the destination files are both
                     // squashfs files and use the same compressor and block_size
@@ -456,7 +456,7 @@ impl<'a> FilesystemWriter<'a> {
                         data_writer
                             .add_bytes(file.reader(&mut buf_read, &mut buf_decompress), writer)?
                     }
-                },
+                }
                 SquashfsFileWriter::Consumed(_, _) => unreachable!(),
             };
             *file = SquashfsFileWriter::Consumed(filesize, added);
@@ -496,7 +496,7 @@ impl<'a> FilesystemWriter<'a> {
                     kind,
                     id_table,
                 ))
-            },
+            }
             InnerNode::File(_) => unreachable!(),
             InnerNode::Symlink(symlink) => {
                 return Ok(Entry::symlink(
@@ -509,7 +509,7 @@ impl<'a> FilesystemWriter<'a> {
                     kind,
                     id_table,
                 ))
-            },
+            }
             InnerNode::CharacterDevice(char) => {
                 return Ok(Entry::char(
                     filename,
@@ -521,7 +521,7 @@ impl<'a> FilesystemWriter<'a> {
                     kind,
                     id_table,
                 ))
-            },
+            }
             InnerNode::BlockDevice(block) => {
                 return Ok(Entry::block_device(
                     filename,
@@ -533,7 +533,7 @@ impl<'a> FilesystemWriter<'a> {
                     kind,
                     id_table,
                 ))
-            },
+            }
             // if dir, fall through
             InnerNode::Dir(_) => (),
         };
@@ -623,14 +623,14 @@ impl<'a> FilesystemWriter<'a> {
             match options {
                 CompressionOptions::Gzip(gzip) => {
                     gzip.write(&mut buf, self.kind.inner.type_endian)?
-                },
+                }
                 CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.inner.type_endian)?,
                 CompressionOptions::Zstd(zstd) => {
                     zstd.write(&mut buf, self.kind.inner.type_endian)?
-                },
+                }
                 CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.inner.type_endian)?,
                 CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.inner.type_endian)?,
-                CompressionOptions::Lzma => {},
+                CompressionOptions::Lzma => {}
             }
             let mut metadata = MetadataWriter::new(
                 self.fs_compressor,
@@ -850,7 +850,7 @@ impl<'a> FilesystemWriter<'a> {
             None => {
                 self.id_table.push(Id::new(id));
                 self.id_table.len() as u32 - 1
-            },
+            }
         }
     }
 }
@@ -900,21 +900,21 @@ impl FilesystemCompressor {
             (Compressor::Lz4, None) => {
                 error!("Lz4 compression options missing");
                 return Err(BackhandError::InvalidCompressionOption);
-            },
+            }
             //others having no options is always valid
-            (_, None) => {},
+            (_, None) => {}
             //only the corresponding option are valid
             (Compressor::Gzip, Some(CompressionOptions::Gzip(_)))
             | (Compressor::Lzma, Some(CompressionOptions::Lzma))
             | (Compressor::Lzo, Some(CompressionOptions::Lzo(_)))
             | (Compressor::Xz, Some(CompressionOptions::Xz(_)))
             | (Compressor::Lz4, Some(CompressionOptions::Lz4(_)))
-            | (Compressor::Zstd, Some(CompressionOptions::Zstd(_))) => {},
+            | (Compressor::Zstd, Some(CompressionOptions::Zstd(_))) => {}
             //other combinations are invalid
             _ => {
                 error!("invalid compression settings");
                 return Err(BackhandError::InvalidCompressionOption);
-            },
+            }
         }
         Ok(Self {
             id,

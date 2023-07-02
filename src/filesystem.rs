@@ -16,14 +16,14 @@ pub fn normalize_squashfs_path(src: &Path) -> Result<PathBuf, BackhandError> {
         match component {
             Component::Prefix(..) => return Err(BackhandError::InvalidFilePath),
             //ignore, root, always added on creation
-            Component::RootDir => {},
-            Component::CurDir => {},
+            Component::RootDir => {}
+            Component::CurDir => {}
             Component::ParentDir => {
                 ret.pop();
-            },
+            }
             Component::Normal(c) => {
                 ret.push(c);
-            },
+            }
         }
     }
     Ok(ret)

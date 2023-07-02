@@ -10,8 +10,42 @@ on:
 name: ci
 
 jobs:
-  # build, test all supported targets
+  # build/test all supported targets for library and bins (skipping slow and squashfs-tools tests)
   build-test:
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - arm-unknown-linux-musleabi
+          - armv7-unknown-linux-musleabi
+        toolchain:
+          - stable
+            # msrv
+          - 1.65.0
+        features:
+          # default features
+          -
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@v2
+      # install cross
+      - run: cargo install cargo-quickinstall
+      - run: cargo quickinstall cross@0.2.5 --force
+      # build with cross
+      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
+      # test with cross
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow
+
+  # build/test all supported on native(musl) arch for library and bins (all tests)
+  build-test-native:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -33,10 +67,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build ${{ matrix.features }}
-      - run: RUST_LOG=info cargo test --release ${{ matrix.features }}
+      - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked --features __test_unsquashfs
+
 
   # benchmark
   benchmark:
@@ -54,15 +87,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench
 
-  # fmt and clippy on nightly builds
-  fmt-clippy-nightly:
+  # fmt and clippy on stable
+  fmt-clippy-stable:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
+          toolchain: stable
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
 

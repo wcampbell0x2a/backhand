@@ -44,15 +44,15 @@ pub fn bench_read_write(c: &mut Criterion) {
         })
     });
 
-    const FILE_NAME_01: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
+    const FILE_NAME: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
     let asset_defs = [TestAssetDef {
-        filename: FILE_NAME_01.to_string(),
+        filename: FILE_NAME.to_string(),
         hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
     }];
-    const TEST_PATH_01: &str = "test-assets/test_tplink_ax1800";
-    test_assets::download_test_files(&asset_defs, TEST_PATH_01, true).unwrap();
-    let og_path = format!("{TEST_PATH_01}/{FILE_NAME_01}");
+    const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
+    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    let og_path = format!("{TEST_PATH}/{FILE_NAME}");
     group.bench_function("tplink_ax1800", |b| {
         b.iter(|| {
             let file = File::open(&og_path).unwrap();

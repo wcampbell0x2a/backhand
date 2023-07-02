@@ -19,7 +19,7 @@ This allows changing the magic bytes, custom compression algorithms, and the End
 
 
 ## Library
-*Compiler support: requires rustc 1.56+*
+*Compiler support: requires rustc 1.65+*
 
 Add the following to your `Cargo.toml` file:
 ```toml

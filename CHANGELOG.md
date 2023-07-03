@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # Unreleased
+## ci
+- Fix libc calls, add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
+   - `aarch64-unknown-linux-musl`
+   - `arm-unknown-linux-musleabi`
+   - `mips-unknown-linux-musl`
+   - `mipsel-unknown-linux-musl`
+   - `x86_64-unknown-linux-musl` (previously already release supported)
+- Testing and release binaries were not added for macOS, support was tested on that platform.
+## testing
+- Replace curl in test dependency `test-assets` with ureq ([#264](https://github.com/wcampbell0x2a/backhand/pull/264))
 
 # [v0.13.0] - 2023-06-18
 ## backhand

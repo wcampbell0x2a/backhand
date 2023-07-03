@@ -56,3 +56,10 @@ harness = false
 
 [target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
 version = "0.5.0"
+
+# Release(dist) binaries are setup for maximum runtime speed, at the cost of CI time
+[profile.dist]
+inherits = "release"
+codegen-units = 1
+lto = true
+strip = true

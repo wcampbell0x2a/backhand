@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # Unreleased
+## All binaries
+### Changes
+- `strip` and `LTO` are enabled for release binaries
+
 ## ci
 - Fix libc calls, add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
    - `aarch64-unknown-linux-musl`
@@ -68,7 +72,7 @@ Added items to the public API
 </details>
 
 ## All binaries
-## Changes
+### Changes
 - jemalloc is now used for `-musl` release targets for performance reasons ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
 - `HAVE_DECODER_ARM`, `HAVE_DECODER_ARM64`, and `HAVE_DECODER_ARMTHUMB` filter flags are now defined for xz2. This only effects static build created in our CI. ([#254](https://github.com/wcampbell0x2a/backhand/pull/248))
 - Add `RUST_LOG` and available Decompressors to `--help` of all binaries ([#242](https://github.com/wcampbell0x2a/backhand/pull/242))

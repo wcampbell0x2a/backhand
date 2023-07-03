@@ -409,7 +409,7 @@ fn extract_all<'a>(
                         &path,
                         SFlag::S_IFCHR,
                         Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                        dev_t::from(*device_number),
+                        dev_t::try_from(*device_number).unwrap(),
                     ) {
                         Ok(_) => {
                             if args.info {
@@ -440,7 +440,7 @@ fn extract_all<'a>(
                     &path,
                     SFlag::S_IFBLK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                    dev_t::from(*device_number),
+                    dev_t::try_from(*device_number).unwrap(),
                 ) {
                     Ok(_) => {
                         if args.info {

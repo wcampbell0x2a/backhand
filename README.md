@@ -77,16 +77,17 @@ Arguments:
 Options:
   -o, --offset <BYTES>             Skip BYTES at the start of FILESYSTEM [default: 0]
   -a, --auto-offset                Find first instance of squashfs --kind magic
-  -l, --list                       List filesystem, do not write to DEST
+  -l, --list                       List filesystem, do not write to DEST (ignores --quiet)
   -d, --dest <PATHNAME>            Extract to [PATHNAME] [default: squashfs-root]
   -i, --info                       Print files as they are extracted
       --path-filter <PATH_FILTER>  Limit filesystem extraction [default: /]
   -f, --force                      If file already exists then overwrite
-  -s, --stat                       Display filesystem superblock information
+  -s, --stat                       Display filesystem superblock information (ignores --quiet)
   -k, --kind <KIND>                Kind(type of image) to parse [default: le_v4_0] [possible
                                    values: be_v4_0, le_v4_0, avm_be_v4_0]
       --completions <COMPLETIONS>  Emit shell completion scripts [possible values: bash, elvish,
                                    fish, powershell, zsh]
+      --quiet                      Silence all progress bar and RUST_LOG output
   -h, --help                       Print help (see more with '--help')
   -V, --version                    Print version
 ```

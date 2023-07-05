@@ -28,6 +28,8 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 byte-unit = "4.0.18"
 libc = "0.2.140"
 clap_complete = "4.2.1"
+indicatif = "0.17.5"
+console = "0.15.7"
 
 [features]
 default = ["xz", "gzip", "zstd"]

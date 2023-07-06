@@ -49,7 +49,7 @@ fn main() -> ExitCode {
     let mut filesystem = FilesystemWriter::from_fs_reader(&filesystem).unwrap();
 
     // Modify file
-    let new_file = File::open(&args.file).unwrap();
+    let new_file = BufReader::new(File::open(&args.file).unwrap());
     if let Err(e) = filesystem.replace_file(args.file_path, new_file) {
         println!("[!] {e}");
         return ExitCode::FAILURE;

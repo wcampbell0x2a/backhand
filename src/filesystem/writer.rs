@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::ffi::OsStr;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Seek, SeekFrom, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -24,9 +24,9 @@ use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
 use crate::squashfs::{Flags, SuperBlock};
 use crate::{
-    fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    fragment, BufReadSeek, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
+    MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -273,7 +273,7 @@ impl<'a> FilesystemWriter<'a> {
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: AsRef<Path>>(
         &mut self,
-        reader: impl Read + 'a,
+        reader: impl BufReadSeek + 'a,
         path: P,
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
@@ -301,7 +301,7 @@ impl<'a> FilesystemWriter<'a> {
     pub fn replace_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-        reader: impl Read + 'a,
+        reader: impl BufReadSeek + 'a,
     ) -> Result<(), BackhandError> {
         let file = self
             .mut_file(find_path)
@@ -419,6 +419,35 @@ impl<'a> FilesystemWriter<'a> {
     ) -> Result<(SuperBlock, u64), BackhandError> {
         let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
+    }
+
+    /// Total size of image files once all are uncompressed
+    pub fn uncompressed_size(&mut self) -> Result<u64, BackhandError> {
+        let mut len = 0;
+        for file in self
+            .root
+            .nodes
+            .iter_mut()
+            .filter_map(|node| match &mut node.inner {
+                InnerNode::File(file) => Some(file),
+                _ => None,
+            })
+        {
+            match &file {
+                SquashfsFileWriter::UserDefined(file) => {
+                    let mut file = file.borrow_mut();
+                    let file_len = file.seek(SeekFrom::End(0))?;
+                    len += file_len;
+                    file.rewind()?;
+                }
+                SquashfsFileWriter::SquashfsFile(file) => {
+                    len += file.basic.file_size as u64;
+                }
+                SquashfsFileWriter::Consumed(_, _) => unreachable!(),
+            }
+        }
+
+        Ok(len)
     }
 
     fn write_data<W: WriteSeek>(

@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fix
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
 
+### Changes
+- Add `FilesystemWriter::uncompressed_size()`, which gives the total size of all files once
+  uncompressed. This reads the size of both files from the image, and
+  the size of the files not written to an image at the time of writer. ([#274](https://github.com/wcampbell0x2a/backhand/pull/274))
+- Change `SquashfsFileWriter::UserDefined` to take a `BufReadSeek`, so that the file size can be
+  found when needed. ([#274](https://github.com/wcampbell0x2a/backhand/pull/274))
+
 ## All binaries
 ### Changes
 - `strip` and `LTO` are enabled for release binaries

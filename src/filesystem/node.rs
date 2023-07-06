@@ -1,13 +1,12 @@
 use core::fmt;
 use std::cell::RefCell;
-use std::io::Read;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use super::normalize_squashfs_path;
 use crate::data::Added;
 use crate::inode::{BasicFile, InodeHeader};
-use crate::{BackhandError, FilesystemReaderFile, Id};
+use crate::{BackhandError, BufReadSeek, FilesystemReaderFile, Id};
 
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
@@ -106,7 +105,7 @@ pub struct SquashfsFileReader {
 
 /// Read file from other SquashfsFile or an user file
 pub enum SquashfsFileWriter<'a> {
-    UserDefined(RefCell<Box<dyn Read + 'a>>),
+    UserDefined(RefCell<Box<dyn BufReadSeek + 'a>>),
     SquashfsFile(FilesystemReaderFile<'a>),
     Consumed(usize, Added),
 }

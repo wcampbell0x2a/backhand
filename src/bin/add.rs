@@ -75,7 +75,7 @@ fn main() -> ExitCode {
 
     // create new file
     if let Some(file) = args.file {
-        let new_file = File::open(&file).unwrap();
+        let new_file = BufReader::new(File::open(&file).unwrap());
 
         // if metadata isn't already defined, use from file
         let meta = file.metadata().unwrap();

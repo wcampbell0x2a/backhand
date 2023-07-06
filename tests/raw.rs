@@ -72,6 +72,7 @@ fn test_raw_00() {
 
     // create the modified squashfs
     let mut output = std::io::BufWriter::new(std::fs::File::create(&new_path).unwrap());
+    assert_eq!(2 + 0xff, fs.uncompressed_size().unwrap());
     let (superblock, bytes_written) = fs.write(&mut output).unwrap();
 
     // 8KiB

@@ -91,7 +91,7 @@ impl<'a> Default for FilesystemWriter<'a> {
         Self {
             block_size,
             mod_time: 0,
-            id_table: vec![],
+            id_table: Id::root(),
             fs_compressor: FilesystemCompressor::default(),
             kind: Kind {
                 inner: Rc::new(LE_V4_0),

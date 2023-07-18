@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## backhand
 ### Bug Fix
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
+- Remove manual `Clone` impl for `FilesystemReaderFile` ([#277](https://github.com/wcampbell0x2a/backhand/pull/277))
 
 ## All binaries
 ### Changes

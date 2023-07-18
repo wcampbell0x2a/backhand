@@ -56,13 +56,13 @@ impl<'a> Entry<'a> {
                 InodeInner::ExtendedDirectory(ExtendedDirectory {
                     link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u32
-                    block_index,
+                    start_block: block_index,
                     parent_inode,
                     // TODO: Support Directory Index
-                    index_count: 0,
-                    block_offset,
+                    i_count: 0,
+                    block_offset: u32::from(block_offset),
                     // TODO(#32): Support xattr
-                    xattr_index: 0xffff_ffff,
+                    //xattr_index: 0xffff_ffff,
                     // TODO: Support Directory Index
                     dir_index: vec![],
                 }),
@@ -75,7 +75,7 @@ impl<'a> Entry<'a> {
                     ..header.into()
                 },
                 InodeInner::BasicDirectory(BasicDirectory {
-                    block_index,
+                    start_block: block_index as u16,
                     link_count: 2 + u32::try_from(children_num).unwrap(),
                     file_size: file_size.try_into().unwrap(), // u16
                     block_offset,
@@ -118,7 +118,7 @@ impl<'a> Entry<'a> {
             } => BasicFile {
                 blocks_start: 0,
                 frag_index: *frag_index,
-                block_offset: *block_offset,
+                block_offset: *block_offset as u64,
                 file_size: file_size.try_into().unwrap(),
                 block_sizes: vec![],
             },
@@ -206,7 +206,7 @@ impl<'a> Entry<'a> {
             },
             InodeInner::BasicBlockDevice(BasicDeviceSpecialFile {
                 link_count: 0x1,
-                device_number: block_device.device_number,
+                device_number: block_device.device_number as u32,
             }),
         );
 

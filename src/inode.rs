@@ -151,12 +151,15 @@ impl From<NodeHeader> for InodeHeader {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct BasicDirectory {
-    //pub block_index: u32,
+    /// defined in squashfs-tools as `nlink`
     pub link_count: u32,
     #[deku(bits = "19")]
     pub file_size: u32,
+    /// defined in squashfs-tools as `offset`
     #[deku(bits = "13")]
     pub block_offset: u16,
+    /// defined in squashfs-tools as `start_block`
+    pub start_block: u16,
     pub parent_inode: u32,
 }
 
@@ -167,12 +170,12 @@ pub struct ExtendedDirectory {
     #[deku(bits = "27")]
     pub file_size: u32,
     #[deku(bits = "13")]
-    pub offset: u32,
+    pub block_offset: u32,
     pub start_block: u32,
-    #[deku(assert = "*index_count < 256")]
+    #[deku(assert = "*i_count < 256")]
     pub i_count: u16,
     pub parent_inode: u32,
-    #[deku(count = "*index_count")]
+    #[deku(count = "*i_count")]
     pub dir_index: Vec<DirectoryIndex>,
 }
 
@@ -184,10 +187,12 @@ pub struct ExtendedDirectory {
 pub struct BasicFile {
     pub blocks_start: u32,
     pub frag_index: u32,
-    pub block_offset: u32,
-    #[deku(assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))")]
-    pub file_size: u32,
-    #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
+    pub block_offset: u64,
+    #[deku(bytes = "4", assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))")]
+    pub file_size: u64,
+    #[deku(
+        count = "block_count(block_size, block_log, *frag_index, *file_size as u64)",
+    )]
     pub block_sizes: Vec<DataSize>,
 }
 
@@ -196,8 +201,8 @@ impl From<&ExtendedFile> for BasicFile {
         Self {
             blocks_start: ex_file.blocks_start as u32,
             frag_index: ex_file.frag_index,
-            block_offset: ex_file.block_offset,
-            file_size: ex_file.file_size as u32,
+            block_offset: ex_file.block_offset as u64,
+            file_size: ex_file.file_size,
             block_sizes: ex_file.block_sizes.clone(),
         }
     }
@@ -229,7 +234,9 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
     if fragment == NO_FRAGMENT {
         (file_size + u64::from(block_size) - 1) >> block_log
     } else {
-        file_size >> block_log
+        let b = file_size >> block_log;
+        println!("{b}");
+        b
     }
 }
 

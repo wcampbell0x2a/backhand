@@ -168,6 +168,7 @@ impl SuperBlock_V3_0 {
 
         // Parse SuperBlock
         let bs = superblock.view_bits::<deku::bitvec::Msb0>();
+        println!("{:02x?}", kind.inner.magic);
         let (_, superblock) = SuperBlock_V3_0::read(
             bs,
             (
@@ -437,7 +438,16 @@ pub struct Squashfs {
     /// Export Lookup Table
     pub export: Option<Vec<Export>>,
     /// Id Lookup Table
+    ///
+    /// # Note
+    /// For SquashFS 4.0 this is used for both UID and GUID.
+    /// For SquashFS 3.0 this is used only for UID.
     pub id: Vec<Id>,
+    /// For Squashfs 3.0 compatability, GID lookup table
+    ///
+    /// # Note
+    /// This will be empty when using SquashFS 4.0
+    pub guid: Vec<Id>,
     /// image reader
     reader: Box<dyn BufReadSeek>,
 }
@@ -546,7 +556,7 @@ impl Squashfs {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
                 self.dir_from_index(
-                    basic_dir.block_index.try_into().unwrap(),
+                    basic_dir.start_block.try_into().unwrap(),
                     basic_dir.file_size.try_into().unwrap(),
                     basic_dir.block_offset as usize,
                 )?
@@ -554,7 +564,7 @@ impl Squashfs {
             InodeInner::ExtendedDirectory(ext_dir) => {
                 trace!("EXT_DIR: {:#02x?}", ext_dir);
                 self.dir_from_index(
-                    ext_dir.block_index.try_into().unwrap(),
+                    ext_dir.start_block.try_into().unwrap(),
                     ext_dir.file_size,
                     ext_dir.block_offset as usize,
                 )?
@@ -782,6 +792,8 @@ impl Squashfs {
             fragments: fragment_table,
             export: export_table,
             id: id_table,
+            // Empty for squashfs 4.0
+            guid: vec![],
             reader,
         };
 
@@ -867,25 +879,31 @@ impl Squashfs {
         info!("Reading Inodes");
         let inodes = SquashFsReaderV3::inodes(&mut reader, &superblock, &kind)?;
         println!("{:#02x?}", inodes);
-        todo!()
 
-        //info!("Reading Root Inode");
-        //let root_inode = SquashFsReaderV4::root_inode(&mut reader, &superblock, &kind)?;
+        info!("Reading Root Inode");
+        let root_inode = SquashFsReaderV3::root_inode(&mut reader, &superblock, &kind)?;
 
-        //info!("Reading Fragments");
-        //let fragments = SquashFsReaderV4::fragments(&mut reader, &superblock, &kind)?;
-        //let fragment_ptr = fragments.as_ref().map(|frag| frag.0);
-        //let fragment_table = fragments.map(|a| a.1);
+        info!("Reading Fragments");
+        let fragments = SquashFsReaderV3::fragments(&mut reader, &superblock, &kind)?;
+        let fragment_ptr = fragments.as_ref().map(|frag| frag.0);
+        let fragment_table = fragments.map(|a| a.1);
 
-        //info!("Reading Exports");
-        //let export = SquashFsReaderV4::export(&mut reader, &superblock, &kind)?;
+        info!("Reading Exports");
+        //let export = None;
+        //let export = SquashFsReaderV3::export(&mut reader, &superblock, &kind)?;
         //let export_ptr = export.as_ref().map(|export| export.0);
         //let export_table = export.map(|a| a.1);
 
-        //info!("Reading Ids");
-        //let id = SquashFsReaderV4::id(&mut reader, &superblock, &kind)?;
-        //let id_ptr = id.0;
-        //let id_table = id.1;
+        info!("Reading uids");
+        let uid = SquashFsReaderV3::uid(&mut reader, &superblock, &kind)?;
+        let uid_ptr = uid.0;
+        let uid_table = uid.1;
+
+        info!("Reading guids");
+        let guid = SquashFsReaderV3::guid(&mut reader, &superblock, &kind)?;
+        let guid_ptr = guid.0;
+        let id_table = guid.1;
+        todo!();
 
         //let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
         //    trace!("using fragment for end of dir");

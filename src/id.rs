@@ -4,13 +4,13 @@ use deku::prelude::*;
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
 #[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]
 pub struct Id {
-    pub num: u32,
+    pub num: u16,
 }
 
 impl Id {
     pub const SIZE: usize = (u32::BITS / 8) as usize;
 
-    pub fn new(num: u32) -> Id {
+    pub fn new(num: u16) -> Id {
         Id { num }
     }
 

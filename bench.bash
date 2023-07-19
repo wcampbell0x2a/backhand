@@ -3,22 +3,25 @@
 BACKHAND="./target/release/unsquashfs"
 BACKHAND_MSRV="./target-msrv/release/unsquashfs"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/release/unsquashfs"
+BACKHAND_MUSL_NATIVE="./target-native/x86_64-unknown-linux-musl/release/unsquashfs"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
 bench () {
     file $1
     hyperfine --runs 20 --warmup 5 -i "$BACKHAND -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         "$BACKHAND_MUSL -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND_MUSL_NATIVE -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         "$BACKHAND_MSRV -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        "$UNSQUASHFS -d $(mktemp -d /tmp/BHXXX) -p 1 -f -o $(rz-ax $2) -ignore-errors $1" \
-        "$UNSQUASHFS -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1"
+        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX) -p 1 -f -o $(rz-ax $2) -ignore-errors $1" \
+        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1"
 }
 
 # install msrv (make sure no perf regressions)
-rustup toolchain install 1.64.0
-cargo +1.64.0 build --release --target-dir target-msrv
+rustup toolchain install 1.65.0
+cargo +1.65.0 build --release --target-dir target-msrv
 cargo build --release
 cargo build --release --target x86_64-unknown-linux-musl
+RUSTFLAGS="-C target-cpu=native" cargo build --release --target x86_64-unknown-linux-musl --target-dir target-native
 
 # xz
 bench "test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin" 0x225fd0

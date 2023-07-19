@@ -1,9 +1,9 @@
-use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::bitvec::BitVec;
@@ -94,7 +94,7 @@ impl<'a> Default for FilesystemWriter<'a> {
             id_table: Id::root(),
             fs_compressor: FilesystemCompressor::default(),
             kind: Kind {
-                inner: Rc::new(LE_V4_0),
+                inner: Arc::new(LE_V4_0),
             },
             root: Nodes::new_root(NodeHeader::default()),
             block_log: (block_size as f32).log2() as u16,
@@ -277,7 +277,7 @@ impl<'a> FilesystemWriter<'a> {
         path: P,
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
-        let reader = RefCell::new(Box::new(reader));
+        let reader = Arc::new(Mutex::new(reader));
         let new_file = InnerNode::File(SquashfsFileWriter::UserDefined(reader));
         self.insert_node(path, header, new_file)?;
         Ok(())
@@ -306,7 +306,8 @@ impl<'a> FilesystemWriter<'a> {
         let file = self
             .mut_file(find_path)
             .ok_or(BackhandError::FileNotFound)?;
-        *file = SquashfsFileWriter::UserDefined(RefCell::new(Box::new(reader)));
+        let reader = Arc::new(Mutex::new(reader));
+        *file = SquashfsFileWriter::UserDefined(reader);
         Ok(())
     }
 
@@ -437,9 +438,11 @@ impl<'a> FilesystemWriter<'a> {
                 _ => None,
             });
         for file in files {
-            let (filesize, added) = match &file {
+            let (filesize, added) = match file {
                 SquashfsFileWriter::UserDefined(file) => {
-                    data_writer.add_bytes(file.borrow_mut().as_mut(), writer)?
+                    let file_ptr = Arc::clone(file);
+                    let mut file_lock = file_ptr.lock().unwrap();
+                    data_writer.add_bytes(&mut *file_lock, writer)?
                 }
                 SquashfsFileWriter::SquashfsFile(file) => {
                     // if the source file and the destination files are both

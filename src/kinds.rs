@@ -1,7 +1,7 @@
 //! Types of image formats
 
 use core::fmt;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::compressor::{CompressionAction, DefaultCompressor};
 
@@ -31,7 +31,7 @@ pub enum Endian {
     Big,
 }
 
-pub struct InnerKind<C: CompressionAction + ?Sized + 'static> {
+pub struct InnerKind<C: CompressionAction + ?Sized + 'static + Send + Sync> {
     /// Magic at the beginning of the image
     pub(crate) magic: [u8; 4],
     /// Endian used for all data types
@@ -51,7 +51,7 @@ pub struct InnerKind<C: CompressionAction + ?Sized + 'static> {
 /// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
 pub struct Kind {
     /// "Easier for the eyes" type for the real Kind
-    pub(crate) inner: Rc<InnerKind<dyn CompressionAction>>,
+    pub(crate) inner: Arc<InnerKind<dyn CompressionAction + Send + Sync>>,
 }
 
 impl fmt::Debug for Kind {
@@ -115,21 +115,21 @@ impl Kind {
     ///
     /// let kind = Kind::new(&CustomCompressor);
     /// ```
-    pub fn new<C: CompressionAction>(compressor: &'static C) -> Self {
+    pub fn new<C: CompressionAction + Send + Sync>(compressor: &'static C) -> Self {
         Self {
-            inner: Rc::new(InnerKind {
+            inner: Arc::new(InnerKind {
                 compressor,
                 ..LE_V4_0
             }),
         }
     }
 
-    pub fn new_with_const<C: CompressionAction>(
+    pub fn new_with_const<C: CompressionAction + Send + Sync>(
         compressor: &'static C,
-        c: InnerKind<dyn CompressionAction>,
+        c: InnerKind<dyn CompressionAction + Send + Sync>,
     ) -> Self {
         Self {
-            inner: Rc::new(InnerKind { compressor, ..c }),
+            inner: Arc::new(InnerKind { compressor, ..c }),
         }
     }
 
@@ -154,7 +154,7 @@ impl Kind {
         };
 
         Ok(Kind {
-            inner: Rc::new(kind),
+            inner: Arc::new(kind),
         })
     }
 
@@ -167,9 +167,11 @@ impl Kind {
     /// # use backhand::{kind, kind::Kind};
     /// let kind = Kind::from_const(kind::LE_V4_0).unwrap();
     /// ```
-    pub fn from_const(inner: InnerKind<dyn CompressionAction>) -> Result<Kind, String> {
+    pub fn from_const(
+        inner: InnerKind<dyn CompressionAction + Send + Sync>,
+    ) -> Result<Kind, String> {
         Ok(Kind {
-            inner: Rc::new(inner),
+            inner: Arc::new(inner),
         })
     }
 
@@ -183,7 +185,7 @@ impl Kind {
     /// Set magic type at the beginning of the image
     // TODO: example
     pub fn with_magic(mut self, magic: Magic) -> Self {
-        Rc::get_mut(&mut self.inner).unwrap().magic = magic.magic();
+        Arc::get_mut(&mut self.inner).unwrap().magic = magic.magic();
         self
     }
 
@@ -196,10 +198,10 @@ impl Kind {
     pub fn with_type_endian(mut self, endian: Endian) -> Self {
         match endian {
             Endian::Little => {
-                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
+                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
             }
             Endian::Big => {
-                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
+                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
             }
         }
         self
@@ -210,10 +212,10 @@ impl Kind {
     pub fn with_data_endian(mut self, endian: Endian) -> Self {
         match endian {
             Endian::Little => {
-                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
+                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
             }
             Endian::Big => {
-                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
+                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
             }
         }
         self
@@ -224,12 +226,12 @@ impl Kind {
     pub fn with_all_endian(mut self, endian: Endian) -> Self {
         match endian {
             Endian::Little => {
-                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
-                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
+                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
+                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
             }
             Endian::Big => {
-                Rc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
-                Rc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
+                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
+                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
             }
         }
         self
@@ -238,14 +240,14 @@ impl Kind {
     /// Set major and minor version
     // TODO: example
     pub fn with_version(mut self, major: u16, minor: u16) -> Self {
-        Rc::get_mut(&mut self.inner).unwrap().version_major = major;
-        Rc::get_mut(&mut self.inner).unwrap().version_minor = minor;
+        Arc::get_mut(&mut self.inner).unwrap().version_major = major;
+        Arc::get_mut(&mut self.inner).unwrap().version_minor = minor;
         self
     }
 }
 
 /// Default `Kind` for linux kernel and squashfs-tools/mksquashfs. Little-Endian v4.0
-pub const LE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
+pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
@@ -255,7 +257,7 @@ pub const LE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
 };
 
 /// Big-Endian Superblock v4.0
-pub const BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
+pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,
@@ -265,7 +267,7 @@ pub const BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
-pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
+pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Little,

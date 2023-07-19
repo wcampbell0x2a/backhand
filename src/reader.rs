@@ -80,8 +80,8 @@ pub trait BufReadRewind: BufRead + SeekRewind {}
 impl<T: BufRead + SeekRewind> BufReadRewind for T {}
 
 /// Pseudo-Trait for BufRead + Seek
-pub trait BufReadSeek: BufRead + Seek {}
-impl<T: BufRead + Seek> BufReadSeek for T {}
+pub trait BufReadSeek: BufRead + Seek + Send {}
+impl<T: BufRead + Seek + Send> BufReadSeek for T {}
 
 /// Pseudo-Trait for Write + Seek
 pub trait WriteSeek: Write + Seek {}

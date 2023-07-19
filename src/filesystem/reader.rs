@@ -169,19 +169,10 @@ impl FilesystemReader {
 }
 
 /// Filesystem handle for file
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct FilesystemReaderFile<'a> {
     pub(crate) system: &'a FilesystemReader,
     pub(crate) basic: &'a BasicFile,
-}
-
-impl<'a> Clone for FilesystemReaderFile<'a> {
-    fn clone(&self) -> Self {
-        Self {
-            system: self.system,
-            basic: self.basic,
-        }
-    }
 }
 
 impl<'a> FilesystemReaderFile<'a> {

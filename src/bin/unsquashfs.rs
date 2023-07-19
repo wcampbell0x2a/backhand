@@ -2,6 +2,7 @@
 mod common;
 use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::iter::Iterator;
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
@@ -21,6 +22,7 @@ use libc::lchown;
 use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
+use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
 // -musl malloc is slow, use jemalloc
@@ -274,13 +276,22 @@ fn main() -> ExitCode {
         } else {
             None
         };
-        extract_all(&args, &filesystem, root_process, nodes, n_nodes);
+
+        extract_all(
+            &args,
+            &filesystem,
+            root_process,
+            nodes
+                .collect::<Vec<&Node<SquashfsFileReader>>>()
+                .into_par_iter(),
+            n_nodes,
+        );
     }
 
     ExitCode::SUCCESS
 }
 
-fn list<'a>(nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>) {
+fn list<'a>(nodes: impl Iterator<Item = &'a Node<SquashfsFileReader>>) {
     for node in nodes {
         let path = &node.fullpath;
         println!("{}", path.display());
@@ -385,17 +396,14 @@ fn set_attributes(
     }
 }
 
-fn extract_all<'a>(
+fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
     args: &Args,
     filesystem: &'a FilesystemReader,
     root_process: bool,
-    nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>,
+    nodes: S,
     n_nodes: Option<usize>,
 ) {
     let start = Instant::now();
-
-    // alloc required space for file data readers
-    let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
 
     let pb = ProgressBar::new(n_nodes.unwrap_or(0) as u64);
     pb.set_style(ProgressStyle::default_spinner());
@@ -414,23 +422,27 @@ fn extract_all<'a>(
     );
     pb.set_prefix("Extracting");
     pb.inc(1);
-    for node in nodes {
+
+    nodes.for_each(|node| {
         let path = &node.fullpath;
         pb.set_message(path.as_path().to_str().unwrap().to_string());
         pb.inc(1);
 
-        let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
+        let filepath = Path::new(&args.dest).join(fullpath);
+        // create required dirs, we will fix permissions later
+        let _ = fs::create_dir_all(filepath.parent().unwrap());
+
         match &node.inner {
             InnerNode::File(file) => {
-                // read file
-                let filepath = Path::new(&args.dest).join(path);
+                // alloc required space for file data readers
+                let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
 
                 // check if file exists
                 if !args.force && filepath.exists() {
                     if !args.quiet {
                         exists(&pb, filepath.to_str().unwrap());
                     }
-                    continue;
+                    return;
                 }
 
                 // write to file
@@ -450,19 +462,17 @@ fn extract_all<'a>(
                             let line = format!("{} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
                         }
-                        continue;
+                        return;
                     }
                 }
             }
             InnerNode::Symlink(SquashfsSymlink { link }) => {
                 // create symlink
                 let link_display = link.display();
-                let filepath = Path::new(&args.dest).join(path);
-
                 // check if file exists
                 if !args.force && filepath.exists() {
                     exists(&pb, filepath.to_str().unwrap());
-                    continue;
+                    return;
                 }
 
                 match std::os::unix::fs::symlink(link, &filepath) {
@@ -478,7 +488,7 @@ fn extract_all<'a>(
                                 format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
                         }
-                        continue;
+                        return;
                     }
                 }
 
@@ -509,27 +519,21 @@ fn extract_all<'a>(
                 .unwrap();
             }
             InnerNode::Dir(SquashfsDir { .. }) => {
-                // create dir
-                let path = Path::new(&args.dest).join(path);
-
                 // These permissions are corrected later (user default permissions for now)
-                if let Err(e) = std::fs::create_dir(&path) {
-                    if !args.quiet {
-                        let line = format!("{} : {e}", path.to_str().unwrap());
-                        failed(&pb, &line);
-                    }
-                } else if args.info && !args.quiet {
-                    created(&pb, path.to_str().unwrap())
+                //
+                // don't display error if this was already created, we might have already
+                // created it in another thread to put down a file
+                if std::fs::create_dir(&filepath).is_ok() && args.info && !args.quiet {
+                    created(&pb, filepath.to_str().unwrap())
                 }
             }
             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
-                let path = Path::new(&args.dest).join(path);
                 if root_process {
                     match mknod(
-                        &path,
+                        path,
                         SFlag::S_IFCHR,
                         Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                        dev_t::from(*device_number),
+                        dev_t::try_from(*device_number).unwrap(),
                     ) {
                         Ok(_) => {
                             if args.info && !args.quiet {
@@ -546,7 +550,7 @@ fn extract_all<'a>(
                                 );
                                 failed(&pb, &line);
                             }
-                            continue;
+                            return;
                         }
                     }
                 } else {
@@ -555,16 +559,15 @@ fn extract_all<'a>(
                             format!("char device {}, are you superuser?", path.to_str().unwrap());
                         failed(&pb, &line);
                     }
-                    continue;
+                    return;
                 }
             }
             InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
-                let path = Path::new(&args.dest).join(path);
                 match mknod(
-                    &path,
+                    path,
                     SFlag::S_IFBLK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                    dev_t::from(*device_number),
+                    dev_t::try_from(*device_number).unwrap(),
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {
@@ -577,12 +580,12 @@ fn extract_all<'a>(
                         if args.info && !args.quiet {
                             created(&pb, path.to_str().unwrap());
                         }
-                        continue;
+                        return;
                     }
                 }
             }
         }
-    }
+    });
 
     // fixup dir permissions
     for node in filesystem

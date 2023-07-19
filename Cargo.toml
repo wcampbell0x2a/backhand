@@ -30,6 +30,7 @@ libc = "0.2.140"
 clap_complete = "4.2.1"
 indicatif = "0.17.5"
 console = "0.15.7"
+rayon = "1.7.0"
 
 [features]
 default = ["xz", "gzip", "zstd"]

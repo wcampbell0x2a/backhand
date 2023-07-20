@@ -1,11 +1,13 @@
 #[path = "../../common/common.rs"]
 mod common;
+use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::iter::Iterator;
 use std::os::unix::prelude::{OsStrExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Mutex;
 
 use backhand::kind::Kind;
 use backhand::{
@@ -406,27 +408,42 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
     let start = Instant::now();
 
     let pb = ProgressBar::new(n_nodes.unwrap_or(0) as u64);
-    pb.set_style(ProgressStyle::default_spinner());
-    pb.set_style(
-        ProgressStyle::with_template(
-            // note that bar size is fixed unlike cargo which is dynamic
-            // and also the truncation in cargo uses trailers (`...`)
-            if Term::stdout().size().1 > 80 {
-                "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len} {wide_msg}"
-            } else {
-                "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len}"
-            },
-        )
-        .unwrap()
-        .progress_chars("=> "),
-    );
-    pb.set_prefix("Extracting");
-    pb.inc(1);
+    if !args.quiet {
+        pb.set_style(ProgressStyle::default_spinner());
+        pb.set_style(
+            ProgressStyle::with_template(
+                // note that bar size is fixed unlike cargo which is dynamic
+                // and also the truncation in cargo uses trailers (`...`)
+                if Term::stdout().size().1 > 80 {
+                    "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len} {wide_msg}"
+                } else {
+                    "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len}"
+                },
+            )
+            .unwrap()
+            .progress_chars("=> "),
+        );
+        pb.set_prefix("Extracting");
+        pb.inc(1);
+    }
+
+    let processing = Mutex::new(HashSet::new());
 
     nodes.for_each(|node| {
         let path = &node.fullpath;
-        pb.set_message(path.as_path().to_str().unwrap().to_string());
-        pb.inc(1);
+        let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
+        let mut p = processing.lock().unwrap();
+        p.insert(fullpath.clone());
+        if !args.quiet {
+            pb.set_message(
+                p.iter()
+                    .map(|a| a.to_path_buf().into_os_string().into_string().unwrap())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            );
+            pb.inc(1);
+        }
+        drop(p);
 
         let filepath = Path::new(&args.dest).join(fullpath);
         // create required dirs, we will fix permissions later
@@ -442,6 +459,9 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     if !args.quiet {
                         exists(&pb, filepath.to_str().unwrap());
                     }
+                    let mut p = processing.lock().unwrap();
+                    p.remove(fullpath);
+                    drop(p);
                     return;
                 }
 
@@ -462,6 +482,9 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             let line = format!("{} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
                         }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
                         return;
                     }
                 }
@@ -472,6 +495,9 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 // check if file exists
                 if !args.force && filepath.exists() {
                     exists(&pb, filepath.to_str().unwrap());
+                    let mut p = processing.lock().unwrap();
+                    p.remove(fullpath);
+                    drop(p);
                     return;
                 }
 
@@ -488,6 +514,9 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                 format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
                         }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
                         return;
                     }
                 }
@@ -530,61 +559,75 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
                 if root_process {
                     match mknod(
-                        path,
+                        &filepath,
                         SFlag::S_IFCHR,
                         Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
                         dev_t::try_from(*device_number).unwrap(),
                     ) {
                         Ok(_) => {
                             if args.info && !args.quiet {
-                                created(&pb, path.to_str().unwrap());
+                                created(&pb, filepath.to_str().unwrap());
                             }
 
-                            set_attributes(&pb, args, &path, &node.header, root_process, true);
+                            set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                         }
                         Err(_) => {
                             if !args.quiet {
                                 let line = format!(
                                     "char device {}, are you superuser?",
-                                    path.to_str().unwrap()
+                                    filepath.to_str().unwrap()
                                 );
                                 failed(&pb, &line);
                             }
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
                             return;
                         }
                     }
                 } else {
                     if !args.quiet {
-                        let line =
-                            format!("char device {}, are you superuser?", path.to_str().unwrap());
+                        let line = format!(
+                            "char device {}, are you superuser?",
+                            filepath.to_str().unwrap()
+                        );
                         failed(&pb, &line);
                     }
+                    let mut p = processing.lock().unwrap();
+                    p.remove(fullpath);
+                    drop(p);
                     return;
                 }
             }
             InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
                 match mknod(
-                    path,
+                    &filepath,
                     SFlag::S_IFBLK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
                     dev_t::try_from(*device_number).unwrap(),
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, path.to_str().unwrap());
+                            created(&pb, filepath.to_str().unwrap());
                         }
 
-                        set_attributes(&pb, args, &path, &node.header, root_process, true);
+                        set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                     }
                     Err(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, path.to_str().unwrap());
+                            created(&pb, filepath.to_str().unwrap());
                         }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
                         return;
                     }
                 }
             }
         }
+        let mut p = processing.lock().unwrap();
+        p.remove(fullpath);
+        drop(p);
     });
 
     // fixup dir permissions

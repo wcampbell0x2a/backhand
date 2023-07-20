@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changes
 - `strip` and `LTO` are enabled for release binaries
 
+## unsquashfs 
+- Add progress bar for a cleaner output when extracting files
+- Add `--quiet` for not displaying progress bar and RUST_LOG output
+
 ## ci
 - Fix libc calls, add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
    - `aarch64-unknown-linux-musl`

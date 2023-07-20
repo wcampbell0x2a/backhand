@@ -15,10 +15,13 @@ use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 use common::after_help;
+use console::Term;
+use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use libc::lchown;
 use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
+use std::time::{Duration, Instant};
 
 // -musl malloc is slow, use jemalloc
 #[cfg(all(target_env = "musl", target_pointer_width = "64"))]
@@ -48,6 +51,30 @@ fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {
     None
 }
 
+pub fn extracted(pb: &ProgressBar, s: &str) {
+    let blue_bold: console::Style = console::Style::new().blue().bold();
+    let line = format!("{:>16} {}", blue_bold.apply_to("Extracted"), s,);
+    pb.println(line);
+}
+
+pub fn created(pb: &ProgressBar, s: &str) {
+    let blue_bold: console::Style = console::Style::new().blue().bold();
+    let line = format!("{:>16} {}", blue_bold.apply_to("Created"), s,);
+    pb.println(line);
+}
+
+pub fn exists(pb: &ProgressBar, s: &str) {
+    let red_bold: console::Style = console::Style::new().red().bold();
+    let line = format!("{:>16} {}", red_bold.apply_to("Exists"), s,);
+    pb.println(line);
+}
+
+pub fn failed(pb: &ProgressBar, s: &str) {
+    let red_bold: console::Style = console::Style::new().red().bold();
+    let line = format!("{:>16} {}", red_bold.apply_to("Failed"), s,);
+    pb.println(line);
+}
+
 /// tool to uncompress, extract and list squashfs filesystems
 #[derive(Parser)]
 #[command(author,
@@ -73,7 +100,7 @@ struct Args {
     #[arg(short, long)]
     auto_offset: bool,
 
-    /// List filesystem, do not write to DEST
+    /// List filesystem, do not write to DEST (ignores --quiet)
     #[arg(short, long)]
     list: bool,
 
@@ -100,7 +127,7 @@ struct Args {
     #[arg(short, long)]
     force: bool,
 
-    /// Display filesystem superblock information
+    /// Display filesystem superblock information (ignores --quiet)
     #[arg(short, long)]
     stat: bool,
 
@@ -120,12 +147,17 @@ struct Args {
     /// Emit shell completion scripts
     #[arg(long)]
     completions: Option<Shell>,
+
+    /// Silence all progress bar and RUST_LOG output
+    #[arg(long)]
+    quiet: bool,
 }
 
 fn main() -> ExitCode {
-    tracing_subscriber::fmt::init();
-
     let mut args = Args::parse();
+    if !args.quiet {
+        tracing_subscriber::fmt::init();
+    }
 
     if let Some(completions) = args.completions {
         let mut cmd = Args::command();
@@ -138,12 +170,32 @@ fn main() -> ExitCode {
 
     let mut file = BufReader::new(File::open(args.filesystem.as_ref().unwrap()).unwrap());
 
+    let blue_bold: console::Style = console::Style::new().blue().bold();
+    let red_bold: console::Style = console::Style::new().blue().bold();
+    let pb = ProgressBar::new_spinner();
+
+    if !args.quiet {
+        pb.enable_steady_tick(Duration::from_millis(120));
+        let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
+        pb.set_message(line);
+    }
+
     if args.auto_offset {
         if let Some(found_offset) = find_offset(&mut file, &kind) {
-            println!("found: {found_offset:02x?}");
+            if !args.quiet {
+                let line = format!(
+                    "{:>14} 0x{:08x}",
+                    blue_bold.apply_to("Found magic"),
+                    found_offset,
+                );
+                pb.finish_with_message(line);
+            }
             args.offset = found_offset;
         } else {
-            println!("[!] magic not found");
+            if !args.quiet {
+                let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
+                pb.finish_with_message(line);
+            }
             return ExitCode::FAILURE;
         }
     }
@@ -159,7 +211,19 @@ fn main() -> ExitCode {
         umask(Mode::from_bits(0).unwrap());
     }
 
+    // Start new spinner as we extract all the inode and other information from the image
+    // This can be very time consuming
+    let pb = ProgressBar::new_spinner();
+    if !args.quiet {
+        pb.enable_steady_tick(Duration::from_millis(120));
+        let line = format!("{:>14}", blue_bold.apply_to("Reading image"));
+        pb.set_message(line);
+    }
     let filesystem = squashfs.into_filesystem_reader().unwrap();
+    if !args.quiet {
+        let line = format!("{:>14}", blue_bold.apply_to("Read image"));
+        pb.finish_with_message(line);
+    }
 
     // if we can find a parent, then a filter must be applied and the exact parent dirs must be
     // found above it
@@ -172,7 +236,14 @@ fn main() -> ExitCode {
             if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {
                 files.push(exact);
             } else {
-                panic!("Invalid --path-filter, path doesn't exist");
+                if !args.quiet {
+                    let line = format!(
+                        "{:>14}",
+                        red_bold.apply_to("Invalid --path-filter, path doesn't exist")
+                    );
+                    pb.finish_with_message(line);
+                }
+                return ExitCode::FAILURE;
             }
         }
         // remove the final node, this is a file and will be caught in the following statement
@@ -180,6 +251,7 @@ fn main() -> ExitCode {
     }
 
     // gather all files and dirs
+    let files_len = files.len();
     let nodes = files.into_iter().chain(
         filesystem
             .files()
@@ -190,7 +262,19 @@ fn main() -> ExitCode {
     if args.list {
         list(nodes);
     } else {
-        extract_all(&args, &filesystem, root_process, nodes);
+        // This could be expensive, only pass this in when not quiet
+        let n_nodes = if !args.quiet {
+            Some(
+                files_len
+                    + filesystem
+                        .files()
+                        .filter(|a| a.fullpath.starts_with(&args.path_filter))
+                        .count(),
+            )
+        } else {
+            None
+        };
+        extract_all(&args, &filesystem, root_process, nodes, n_nodes);
     }
 
     ExitCode::SUCCESS
@@ -253,7 +337,14 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
     }
 }
 
-fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file: bool) {
+fn set_attributes(
+    pb: &ProgressBar,
+    args: &Args,
+    path: &Path,
+    header: &NodeHeader,
+    root_process: bool,
+    is_file: bool,
+) {
     // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
     let timeval = TimeVal::new(header.mtime as _, 0);
     utimes(path, &timeval, &timeval).unwrap();
@@ -281,14 +372,14 @@ fn set_attributes(path: &Path, header: &NodeHeader, root_process: bool, is_file:
     //
     // NOTE: In squashfs-tools/unsquashfs they remove the write bits for user and group?
     // I don't know if there is a reason for that but I keep the permissions the same if possible
-    match fs::set_permissions(path, Permissions::from_mode(mode)) {
-        Ok(_) => (),
-        Err(e) => {
-            if e.kind() == std::io::ErrorKind::PermissionDenied {
-                // try without sticky bit
-                if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err() {
-                    println!("[!] could not set permissions");
-                }
+    if let Err(e) = fs::set_permissions(path, Permissions::from_mode(mode)) {
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            // try without sticky bit
+            if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err()
+                && !args.quiet
+            {
+                let line = format!("{} : could not set permissions", path.to_str().unwrap());
+                failed(pb, &line);
             }
         }
     }
@@ -299,15 +390,35 @@ fn extract_all<'a>(
     filesystem: &'a FilesystemReader,
     root_process: bool,
     nodes: impl std::iter::Iterator<Item = &'a Node<SquashfsFileReader>>,
+    n_nodes: Option<usize>,
 ) {
-    // TODO: fixup perms for this?
-    let _ = fs::create_dir_all(&args.dest);
+    let start = Instant::now();
 
     // alloc required space for file data readers
     let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
 
+    let pb = ProgressBar::new(n_nodes.unwrap_or(0) as u64);
+    pb.set_style(ProgressStyle::default_spinner());
+    pb.set_style(
+        ProgressStyle::with_template(
+            // note that bar size is fixed unlike cargo which is dynamic
+            // and also the truncation in cargo uses trailers (`...`)
+            if Term::stdout().size().1 > 80 {
+                "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len} {wide_msg}"
+            } else {
+                "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len}"
+            },
+        )
+        .unwrap()
+        .progress_chars("=> "),
+    );
+    pb.set_prefix("Extracting");
+    pb.inc(1);
     for node in nodes {
         let path = &node.fullpath;
+        pb.set_message(path.as_path().to_str().unwrap().to_string());
+        pb.inc(1);
+
         let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
         match &node.inner {
             InnerNode::File(file) => {
@@ -316,7 +427,9 @@ fn extract_all<'a>(
 
                 // check if file exists
                 if !args.force && filepath.exists() {
-                    println!("[-] failed, file already exists {}", filepath.display());
+                    if !args.quiet {
+                        exists(&pb, filepath.to_str().unwrap());
+                    }
                     continue;
                 }
 
@@ -327,14 +440,16 @@ fn extract_all<'a>(
 
                 match io::copy(&mut reader, &mut fd) {
                     Ok(_) => {
-                        if args.info {
-                            println!("[-] success, wrote {}", filepath.display());
+                        if args.info && !args.quiet {
+                            extracted(&pb, filepath.to_str().unwrap());
                         }
-
-                        set_attributes(&filepath, &node.header, root_process, true);
+                        set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                     }
                     Err(e) => {
-                        println!("[!] failed write: {} : {e}", filepath.display());
+                        if !args.quiet {
+                            let line = format!("{} : {e}", filepath.to_str().unwrap());
+                            failed(&pb, &line);
+                        }
                         continue;
                     }
                 }
@@ -346,21 +461,23 @@ fn extract_all<'a>(
 
                 // check if file exists
                 if !args.force && filepath.exists() {
-                    println!("[-] failed, file already exists {}", filepath.display());
+                    exists(&pb, filepath.to_str().unwrap());
                     continue;
                 }
 
                 match std::os::unix::fs::symlink(link, &filepath) {
                     Ok(_) => {
-                        if args.info {
-                            println!("[-] success, wrote {}->{link_display}", filepath.display());
+                        if args.info && !args.quiet {
+                            let line = format!("{}->{link_display}", filepath.to_str().unwrap());
+                            created(&pb, &line);
                         }
                     }
                     Err(e) => {
-                        println!(
-                            "[!] failed write: {}->{link_display} : {e}",
-                            filepath.display()
-                        );
+                        if !args.quiet {
+                            let line =
+                                format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
+                            failed(&pb, &line);
+                        }
                         continue;
                     }
                 }
@@ -394,12 +511,15 @@ fn extract_all<'a>(
             InnerNode::Dir(SquashfsDir { .. }) => {
                 // create dir
                 let path = Path::new(&args.dest).join(path);
-                let _ = std::fs::create_dir(&path);
 
                 // These permissions are corrected later (user default permissions for now)
-
-                if args.info {
-                    println!("[-] success, wrote {}", &path.display());
+                if let Err(e) = std::fs::create_dir(&path) {
+                    if !args.quiet {
+                        let line = format!("{} : {e}", path.to_str().unwrap());
+                        failed(&pb, &line);
+                    }
+                } else if args.info && !args.quiet {
+                    created(&pb, path.to_str().unwrap())
                 }
             }
             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
@@ -412,25 +532,29 @@ fn extract_all<'a>(
                         dev_t::from(*device_number),
                     ) {
                         Ok(_) => {
-                            if args.info {
-                                println!("[-] char device created: {}", path.display());
+                            if args.info && !args.quiet {
+                                created(&pb, path.to_str().unwrap());
                             }
 
-                            set_attributes(&path, &node.header, root_process, true);
+                            set_attributes(&pb, args, &path, &node.header, root_process, true);
                         }
                         Err(_) => {
-                            println!(
-                                "[!] could not create char device {}, are you superuser?",
-                                path.display()
-                            );
+                            if !args.quiet {
+                                let line = format!(
+                                    "char device {}, are you superuser?",
+                                    path.to_str().unwrap()
+                                );
+                                failed(&pb, &line);
+                            }
                             continue;
                         }
                     }
                 } else {
-                    println!(
-                        "[!] could not create char device {}, you are not superuser!",
-                        path.display()
-                    );
+                    if !args.quiet {
+                        let line =
+                            format!("char device {}, are you superuser?", path.to_str().unwrap());
+                        failed(&pb, &line);
+                    }
                     continue;
                 }
             }
@@ -443,17 +567,16 @@ fn extract_all<'a>(
                     dev_t::from(*device_number),
                 ) {
                     Ok(_) => {
-                        if args.info {
-                            println!("[-] block device created: {}", path.display());
+                        if args.info && !args.quiet {
+                            created(&pb, path.to_str().unwrap());
                         }
 
-                        set_attributes(&path, &node.header, root_process, true);
+                        set_attributes(&pb, args, &path, &node.header, root_process, true);
                     }
                     Err(_) => {
-                        println!(
-                            "[!] could not create block device {}, are you superuser?",
-                            path.display()
-                        );
+                        if args.info && !args.quiet {
+                            created(&pb, path.to_str().unwrap());
+                        }
                         continue;
                     }
                 }
@@ -470,7 +593,20 @@ fn extract_all<'a>(
             let path = &node.fullpath;
             let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
             let path = Path::new(&args.dest).join(path);
-            set_attributes(&path, &node.header, root_process, false);
+            set_attributes(&pb, args, &path, &node.header, root_process, false);
         }
+    }
+
+    pb.finish_and_clear();
+
+    // extraction is finished
+    let green_bold: console::Style = console::Style::new().green().bold();
+    if !args.quiet {
+        println!(
+            "{:>16} extraction of {} nodes in {}",
+            green_bold.apply_to("Finished"),
+            n_nodes.unwrap(),
+            HumanDuration(start.elapsed())
+        );
     }
 }

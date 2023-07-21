@@ -20,7 +20,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[command(author,
           version,
           name = "add-backhand",
-          after_help = after_help(),
+          after_help = after_help(false),
           max_term_width = 98,
 )]
 struct Args {

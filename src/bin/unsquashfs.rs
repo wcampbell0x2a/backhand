@@ -84,7 +84,7 @@ pub fn failed(pb: &ProgressBar, s: &str) {
 #[command(author,
           version,
           name = "unsquashfs-backhand",
-          after_help = after_help(),
+          after_help = after_help(true),
           max_term_width = 98,
 )]
 struct Args {

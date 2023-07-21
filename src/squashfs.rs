@@ -1,11 +1,11 @@
 //! Read from on-disk image
 
-use std::cell::RefCell;
 use std::ffi::OsString;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use deku::bitvec::{BitVec, BitView, Msb0};
 use deku::prelude::*;
@@ -299,7 +299,7 @@ impl Squashfs {
             reader,
             offset,
             Kind {
-                inner: Rc::new(LE_V4_0),
+                inner: Arc::new(LE_V4_0),
             },
         )
     }
@@ -651,8 +651,8 @@ impl Squashfs {
             id_table: self.id,
             fragments: self.fragments,
             root,
-            reader: RefCell::new(Box::new(self.file)),
-            cache: RefCell::new(Cache::default()),
+            reader: Mutex::new(Box::new(self.file)),
+            cache: Mutex::new(Cache::default()),
         };
         Ok(filesystem)
     }

@@ -1,8 +1,8 @@
 use core::fmt;
-use std::cell::RefCell;
 use std::io::Read;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use super::normalize_squashfs_path;
 use crate::data::Added;
@@ -106,7 +106,7 @@ pub struct SquashfsFileReader {
 
 /// Read file from other SquashfsFile or an user file
 pub enum SquashfsFileWriter<'a> {
-    UserDefined(RefCell<Box<dyn Read + 'a>>),
+    UserDefined(Arc<Mutex<dyn Read + 'a>>),
     SquashfsFile(FilesystemReaderFile<'a>),
     Consumed(usize, Added),
 }

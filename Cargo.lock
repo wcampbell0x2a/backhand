@@ -117,6 +117,7 @@ dependencies = [
  "jemallocator",
  "libc",
  "nix",
+ "rayon",
  "rust-lzo",
  "rustc-hash",
  "tempfile",

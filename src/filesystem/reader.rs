@@ -1,5 +1,5 @@
-use std::cell::RefCell;
 use std::io::{Read, SeekFrom};
+use std::sync::Mutex;
 
 use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
@@ -86,9 +86,9 @@ pub struct FilesystemReader {
     /// All files and directories in filesystem
     pub root: Nodes<SquashfsFileReader>,
     // File reader
-    pub(crate) reader: RefCell<Box<dyn BufReadSeek>>,
+    pub(crate) reader: Mutex<Box<dyn BufReadSeek>>,
     // Cache used in the decompression
-    pub(crate) cache: RefCell<Cache>,
+    pub(crate) cache: Mutex<Cache>,
 }
 
 impl FilesystemReader {
@@ -291,7 +291,7 @@ impl<'a> SquashfsRawData<'a> {
                 data.resize(block_size, 0);
                 //NOTE: storing/restoring the file-pos is not required at the
                 //moment of writing, but in the future, it may.
-                let mut reader = self.file.system.reader.borrow_mut();
+                let mut reader = self.file.system.reader.lock().unwrap();
                 reader.seek(SeekFrom::Start(self.pos))?;
                 reader.read_exact(data)?;
                 self.pos = reader.stream_position()?;
@@ -301,7 +301,7 @@ impl<'a> SquashfsRawData<'a> {
                 })
             }
             BlockFragment::Fragment(fragment) => {
-                let cache = self.file.system.cache.borrow();
+                let cache = self.file.system.cache.lock().unwrap();
                 if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                     //if in cache, just return the cache, don't read it
                     let cache_size = cache_bytes.len();
@@ -316,7 +316,7 @@ impl<'a> SquashfsRawData<'a> {
                     //otherwise read and return it
                     let frag_size = fragment.size.size() as usize;
                     data.resize(frag_size, 0);
-                    let mut reader = self.file.system.reader.borrow_mut();
+                    let mut reader = self.file.system.reader.lock().unwrap();
                     reader.seek(SeekFrom::Start(fragment.start))?;
                     reader.read_exact(data)?;
                     Ok(RawDataBlock {
@@ -368,7 +368,8 @@ impl<'a> SquashfsRawData<'a> {
                 self.file
                     .system
                     .cache
-                    .borrow_mut()
+                    .lock()
+                    .unwrap()
                     .fragment_cache
                     .insert(self.file.fragment().unwrap().start, output_buf.clone());
             }

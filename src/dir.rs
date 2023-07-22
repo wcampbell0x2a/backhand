@@ -4,13 +4,14 @@
 //! with references back to the inodes that describe those entries.
 
 use core::fmt;
-use std::ffi::OsString;
-use std::os::unix::prelude::OsStringExt;
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::os::unix::prelude::OsStrExt;
+use std::path::{Component, Path};
 
 use deku::prelude::*;
 
 use crate::inode::InodeId;
+use crate::BackhandError;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "type_endian: deku::ctx::Endian")]
@@ -78,9 +79,18 @@ impl fmt::Debug for DirEntry {
 }
 
 impl DirEntry {
-    pub fn name(&self) -> PathBuf {
-        let name = OsString::from_vec(self.name.clone());
-        PathBuf::from(name)
+    pub fn name(&self) -> Result<&Path, BackhandError> {
+        // allow root and nothing else
+        if self.name == Component::RootDir.as_os_str().as_bytes() {
+            return Ok(Path::new(Component::RootDir.as_os_str()));
+        }
+        let path = Path::new(OsStr::from_bytes(&self.name));
+        // if not a simple filename, return an error
+        let filename = path.file_name().map(OsStrExt::as_bytes);
+        if filename != Some(&self.name) {
+            return Err(BackhandError::InvalidFilePath);
+        }
+        Ok(path)
     }
 }
 

@@ -528,8 +528,7 @@ impl Squashfs {
                         .unwrap();
                     let found_inode = &self.inodes[&inode_key];
                     let header = found_inode.header;
-                    let new_path = entry.name();
-                    fullpath.push(&new_path);
+                    fullpath.push(entry.name()?);
 
                     let inner: InnerNode<SquashfsFileReader> = match entry.t {
                         // BasicDirectory, ExtendedDirectory

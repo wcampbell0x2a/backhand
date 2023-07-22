@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## All binaries
 ### Changes
 - `strip` and `LTO` are enabled for release binaries
+- Fix macOS builds ([#260](https://github.com/wcampbell0x2a/backhand/pull/260))
 
 ## unsquashfs 
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))

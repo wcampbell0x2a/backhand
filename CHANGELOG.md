@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # Unreleased
 ## backhand
 ### Changes
-- Following changes were done to allow multi-threaded applications
+- Following changes were done to allow multi-threaded applications ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
   - Change `RefCell<Box<T>>` into `Arc<Mutex<T>>`
   - Change `RefCell<T>` into `Mutex<T>`
   - Change `Rc<T>` into `Arc<T>`
@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
 - Remove manual `Clone` impl for `FilesystemReaderFile` ([#277](https://github.com/wcampbell0x2a/backhand/pull/277))
 
+## Security
+- Only allow root and simple filenames into `DirEntry`([@rbran](https://github.com/rbran)) ([#271](https://github.com/wcampbell0x2a/backhand/pull/271))
+
 ## All binaries
 ### Changes
 - `strip` and `LTO` are enabled for release binaries
@@ -26,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## unsquashfs 
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add `--quiet` for not displaying progress bar and RUST_LOG output ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
-- Add multiple threads for extracing files, giving us the same performance in most cases as `squashfs-tools/unsquashfs`!
+- Add multiple threads for extracing files, giving us the same performance in most cases as `squashfs-tools/unsquashfs`! ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
 
 ## ci
 - Fix libc calls, add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))

@@ -134,9 +134,14 @@ pub trait SquashFsReader: BufReadSeek {
                         ret_vec.insert(inode.header.inode_number, inode);
                         input_bits = rest;
                     }
-                    Err(_) => {
-                        // try next block, inodes can span multiple blocks!
-                        break;
+                    Err(e) => {
+                        if let DekuError::Incomplete(_) = e {
+                            // try next block, inodes can span multiple blocks!
+                            break;
+                        } else {
+                            error!("{e}");
+                            return Err(BackhandError::Deku(e));
+                        }
                     }
                 }
             }

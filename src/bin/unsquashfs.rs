@@ -178,13 +178,12 @@ fn main() -> ExitCode {
     let red_bold: console::Style = console::Style::new().blue().bold();
     let pb = ProgressBar::new_spinner();
 
-    if !args.quiet {
-        pb.enable_steady_tick(Duration::from_millis(120));
-        let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
-        pb.set_message(line);
-    }
-
     if args.auto_offset {
+        if !args.quiet {
+            pb.enable_steady_tick(Duration::from_millis(120));
+            let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
+            pb.set_message(line);
+        }
         if let Some(found_offset) = find_offset(&mut file, &kind) {
             if !args.quiet {
                 let line = format!(

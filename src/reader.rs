@@ -300,7 +300,6 @@ pub trait SquashFsReader: BufReadSeek {
 
         let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
 
-        let ptr = ptr;
         trace!("ptr: {:02x?}", ptr);
         let table = self.metadata_with_count::<T>(superblock, ptr, block_count, kind)?;
 

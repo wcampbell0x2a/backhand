@@ -194,7 +194,7 @@ pub(crate) struct Cache {
 /// Squashfs Image initial read information
 ///
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
-pub struct Squashfs {
+pub struct Squashfs<'b> {
     pub kind: Kind,
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
@@ -212,16 +212,16 @@ pub struct Squashfs {
     /// Id Lookup Table
     pub id: Vec<Id>,
     //file reader
-    file: Box<dyn BufReadSeek>,
+    file: Box<dyn BufReadSeek + 'b>,
 }
 
-impl Squashfs {
+impl<'b> Squashfs<'b> {
     /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
     /// and dirs
     ///
     /// Used for unsquashfs (extraction and --stat)
     pub fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek>,
+        reader: &mut Box<dyn BufReadSeek + 'b>,
         kind: &Kind,
     ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
         // Parse SuperBlock
@@ -281,7 +281,7 @@ impl Squashfs {
     /// Create `Squashfs` from `Read`er, with the resulting squashfs having read all fields needed
     /// to regenerate the original squashfs and interact with the fs in memory without needing to
     /// read again from `Read`er. `reader` needs to start with the beginning of the Image.
-    pub fn from_reader(reader: impl BufReadSeek + 'static) -> Result<Squashfs, BackhandError> {
+    pub fn from_reader(reader: impl BufReadSeek + 'b) -> Result<Self, BackhandError> {
         Self::from_reader_with_offset(reader, 0)
     }
 
@@ -289,9 +289,9 @@ impl Squashfs {
     ///
     /// Uses default [`Kind`]: [`LE_V4_0`]
     pub fn from_reader_with_offset(
-        reader: impl BufReadSeek + 'static,
+        reader: impl BufReadSeek + 'b,
         offset: u64,
-    ) -> Result<Squashfs, BackhandError> {
+    ) -> Result<Self, BackhandError> {
         Self::from_reader_with_offset_and_kind(
             reader,
             offset,
@@ -303,11 +303,11 @@ impl Squashfs {
 
     /// Same as [`Self::from_reader_with_offset`], but including custom `kind`
     pub fn from_reader_with_offset_and_kind(
-        reader: impl BufReadSeek + 'static,
+        reader: impl BufReadSeek + 'b,
         offset: u64,
         kind: Kind,
-    ) -> Result<Squashfs, BackhandError> {
-        let reader: Box<dyn BufReadSeek> = if offset == 0 {
+    ) -> Result<Self, BackhandError> {
+        let reader: Box<dyn BufReadSeek + 'b> = if offset == 0 {
             Box::new(reader)
         } else {
             let reader = SquashfsReaderWithOffset::new(reader, offset)?;
@@ -317,9 +317,9 @@ impl Squashfs {
     }
 
     fn inner_from_reader_with_offset_and_kind(
-        mut reader: Box<dyn BufReadSeek>,
+        mut reader: Box<dyn BufReadSeek + 'b>,
         kind: Kind,
-    ) -> Result<Squashfs, BackhandError> {
+    ) -> Result<Self, BackhandError> {
         let (superblock, compression_options) =
             Self::superblock_and_compression_options(&mut reader, &kind)?;
 
@@ -621,8 +621,7 @@ impl Squashfs {
     /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
     /// like structure in-memory
     #[instrument(skip_all)]
-    pub fn into_filesystem_reader(self) -> Result<FilesystemReader, BackhandError> {
-        info!("creating fs tree");
+    pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id));
         self.extract_dir(
             &mut PathBuf::from("/"),

@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
-use std::io::{self, Read, Seek, Write};
+use std::io::{self, Cursor, Read, Seek, Write};
 
-use deku::bitvec::{BitVec, BitView};
+use deku::bitvec::BitVec;
 use deku::prelude::*;
 use tracing::trace;
 
@@ -119,12 +119,13 @@ pub fn read_block<R: Read + ?Sized>(
     superblock: &SuperBlock,
     kind: &Kind,
 ) -> Result<Vec<u8>, BackhandError> {
-    let mut buf = [0u8; 2];
-    reader.read_exact(&mut buf)?;
+    let buf: &mut [u8] = &mut [0u8; 2];
+    reader.read_exact(buf)?;
 
-    let bv = buf.view_bits::<deku::bitvec::Msb0>();
     trace!("{:02x?}", buf);
-    let (_, metadata_len) = u16::read(bv, kind.inner.data_endian)?;
+    let mut cursor = Cursor::new(buf);
+    let mut deku_reader = Reader::new(&mut cursor);
+    let metadata_len = u16::from_reader_with_ctx(&mut deku_reader, kind.inner.data_endian)?;
 
     let byte_len = len(metadata_len);
     tracing::trace!("len: 0x{:02x?}", byte_len);

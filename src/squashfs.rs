@@ -631,6 +631,7 @@ impl<'b> Squashfs<'b> {
     /// like structure in-memory
     #[instrument(skip_all)]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
+        info!("creating fs tree");
         let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id));
         self.extract_dir(
             &mut PathBuf::from("/"),
@@ -640,6 +641,7 @@ impl<'b> Squashfs<'b> {
         )?;
         root.nodes.sort();
 
+        info!("created fs tree");
         let filesystem = FilesystemReader {
             kind: self.kind,
             block_size: self.superblock.block_size,

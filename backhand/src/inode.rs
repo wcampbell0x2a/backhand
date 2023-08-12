@@ -3,7 +3,6 @@
 use core::fmt;
 use std::io::Write;
 
-use deku::bitvec::{BitVec, Msb0};
 use deku::prelude::*;
 
 use crate::data::DataSize;
@@ -36,9 +35,10 @@ impl Inode {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Entry<'a> {
-        let mut bytes = BitVec::<u8, Msb0>::new();
-        self.write(
-            &mut bytes,
+        let mut inode_bytes = vec![];
+        let mut writer = Writer::new(&mut inode_bytes);
+        self.to_writer(
+            &mut writer,
             (
                 0xffff_ffff_ffff_ffff, // bytes_used is unused for ctx. set to max
                 superblock.block_size,
@@ -49,7 +49,7 @@ impl Inode {
         .unwrap();
         let start = m_writer.metadata_start;
         let offset = m_writer.uncompressed_bytes.len() as u16;
-        m_writer.write_all(bytes.as_raw_slice()).unwrap();
+        m_writer.write_all(&inode_bytes).unwrap();
 
         Entry {
             start,

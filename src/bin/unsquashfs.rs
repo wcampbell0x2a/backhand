@@ -178,13 +178,12 @@ fn main() -> ExitCode {
     let red_bold: console::Style = console::Style::new().blue().bold();
     let pb = ProgressBar::new_spinner();
 
-    if !args.quiet {
-        pb.enable_steady_tick(Duration::from_millis(120));
-        let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
-        pb.set_message(line);
-    }
-
     if args.auto_offset {
+        if !args.quiet {
+            pb.enable_steady_tick(Duration::from_millis(120));
+            let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
+            pb.set_message(line);
+        }
         if let Some(found_offset) = find_offset(&mut file, &kind) {
             if !args.quiet {
                 let line = format!(
@@ -217,6 +216,7 @@ fn main() -> ExitCode {
 
     // Start new spinner as we extract all the inode and other information from the image
     // This can be very time consuming
+    let start = Instant::now();
     let pb = ProgressBar::new_spinner();
     if !args.quiet {
         pb.enable_steady_tick(Duration::from_millis(120));
@@ -287,6 +287,7 @@ fn main() -> ExitCode {
                 .collect::<Vec<&Node<SquashfsFileReader>>>()
                 .into_par_iter(),
             n_nodes,
+            start,
         );
     }
 
@@ -404,9 +405,8 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
     root_process: bool,
     nodes: S,
     n_nodes: Option<usize>,
+    start: Instant,
 ) {
-    let start = Instant::now();
-
     let pb = ProgressBar::new(n_nodes.unwrap_or(0) as u64);
     if !args.quiet {
         pb.set_style(ProgressStyle::default_spinner());

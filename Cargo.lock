@@ -3,6 +3,16 @@
 version = 3
 
 [[package]]
+name = "acid_io"
+version = "0.1.0"
+source = "git+https://github.com/dataphract/acid_io.git#2d549317fe9253df8b510ba6bbdcfe623a837286"
+dependencies = [
+ "byteorder",
+ "libc",
+ "memchr",
+]
+
+[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -116,6 +126,7 @@ dependencies = [
  "indicatif",
  "jemallocator",
  "libc",
+ "log",
  "nix",
  "rayon",
  "rust-lzo",
@@ -197,6 +208,12 @@ dependencies = [
  "serde",
  "utf8-width",
 ]
+
+[[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cast"
@@ -466,9 +483,9 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "819b87cc7a05b3abe3fc38e59b3980a5fd3162f25a247116441a9171d3e84481"
+source = "git+https://github.com/sharksforarms/deku?branch=impl-reader#19ee68779f7ba0ef5670a649190ab823456a0e42"
 dependencies = [
+ "acid_io",
  "bitvec",
  "deku_derive",
 ]
@@ -476,8 +493,7 @@ dependencies = [
 [[package]]
 name = "deku_derive"
 version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e2ca12572239215a352a74ad7c776d7e8a914f8a23511c6cbedddd887e5009e"
+source = "git+https://github.com/sharksforarms/deku?branch=impl-reader#19ee68779f7ba0ef5670a649190ab823456a0e42"
 dependencies = [
  "darling",
  "proc-macro-crate",

@@ -1,9 +1,8 @@
 //! Reader traits
 
 use std::collections::HashMap;
-use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, Cursor, Read, Seek, SeekFrom, Write};
 
-use deku::bitvec::{BitView, Msb0};
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, trace};
@@ -103,25 +102,28 @@ pub trait SquashFsReader: BufReadSeek {
         // Using this size, a SquashFS reader can determine if another header with further entries
         // should be following once it reaches the end of a run.
 
-        let mut ret_bytes = Vec::with_capacity(METADATA_MAXSIZE);
+        let mut next = vec![];
 
         let mut metadata_offsets = vec![];
         let mut ret_vec = HashMap::default();
         let start = self.stream_position()?;
 
         while self.stream_position()? < superblock.dir_table {
-            trace!("offset: {:02x?}", self.stream_position());
             metadata_offsets.push(self.stream_position()? - start);
             // parse into metadata
             let mut bytes = metadata::read_block(self, superblock, kind)?;
 
             // parse as many inodes as you can
-            ret_bytes.append(&mut bytes);
+            let mut inode_bytes = next;
+            inode_bytes.append(&mut bytes);
+            let mut c_inode_bytes = Cursor::new(inode_bytes.clone());
+            let mut container = Reader::new(&mut c_inode_bytes);
 
-            let mut input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
-            while !input_bits.is_empty() {
-                match Inode::read(
-                    input_bits,
+            // store last successful read position
+            let mut container_bits_read = container.bits_read;
+            loop {
+                match Inode::from_reader_with_ctx(
+                    &mut container,
                     (
                         superblock.bytes_used,
                         superblock.block_size,
@@ -129,14 +131,15 @@ pub trait SquashFsReader: BufReadSeek {
                         kind.inner.type_endian,
                     ),
                 ) {
-                    Ok((rest, inode)) => {
+                    Ok(inode) => {
                         // Push the new Inode to the return, with the position this was read from
                         ret_vec.insert(inode.header.inode_number, inode);
-                        input_bits = rest;
+                        container_bits_read = container.bits_read;
                     }
                     Err(e) => {
                         if let DekuError::Incomplete(_) = e {
                             // try next block, inodes can span multiple blocks!
+                            next = inode_bytes.clone()[(container_bits_read / 8)..].to_vec();
                             break;
                         } else {
                             error!("{e}");
@@ -145,10 +148,6 @@ pub trait SquashFsReader: BufReadSeek {
                     }
                 }
             }
-
-            // save leftover bits to new bits to leave for the next metadata block
-            // this is safe, input_bits is always byte aligned
-            ret_bytes.drain(..(ret_bytes.len() - (input_bits.len() / 8)));
         }
 
         Ok(ret_vec)
@@ -175,10 +174,10 @@ pub trait SquashFsReader: BufReadSeek {
             error!("root_inode_offset > bytes.len()");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        let new_bytes = &bytes_01[root_inode_offset..];
-        let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
-        if let Ok((_, inode)) = Inode::read(
-            input_bits,
+        let mut cursor = Cursor::new(&bytes_01[root_inode_offset..]);
+        let mut new_bytes = Reader::new(&mut cursor);
+        if let Ok(inode) = Inode::from_reader_with_ctx(
+            &mut new_bytes,
             (
                 superblock.bytes_used,
                 superblock.block_size,
@@ -196,11 +195,11 @@ pub trait SquashFsReader: BufReadSeek {
             error!("root_inode_offset > bytes.len()");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        let new_bytes = &bytes_01[root_inode_offset..];
 
-        let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
-        match Inode::read(
-            input_bits,
+        let mut cursor = Cursor::new(&bytes_01[root_inode_offset..]);
+        let mut new_bytes = Reader::new(&mut cursor);
+        match Inode::from_reader_with_ctx(
+            &mut new_bytes,
             (
                 superblock.bytes_used,
                 superblock.block_size,
@@ -208,7 +207,7 @@ pub trait SquashFsReader: BufReadSeek {
                 kind.inner.type_endian,
             ),
         ) {
-            Ok((_, inode)) => Ok(inode),
+            Ok(inode) => Ok(inode),
             Err(e) => Err(e.into()),
         }
     }
@@ -280,22 +279,26 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse Lookup Table
-    fn lookup_table<T: for<'a> DekuRead<'a, deku::ctx::Endian>>(
+    fn lookup_table<T>(
         &mut self,
         superblock: &SuperBlock,
         seek: u64,
         size: u64,
         kind: &Kind,
-    ) -> Result<(u64, Vec<T>), BackhandError> {
+    ) -> Result<(u64, Vec<T>), BackhandError>
+    where
+        T: for<'a> DekuReader<'a, deku::ctx::Endian>,
+    {
         // find the pointer at the initial offset
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
-        let mut buf = [0u8; 8];
-        self.read_exact(&mut buf)?;
+        let buf: &mut [u8] = &mut [0u8; 8];
+        self.read_exact(buf)?;
         trace!("{:02x?}", buf);
 
-        let bv = buf.view_bits::<deku::bitvec::Msb0>();
-        let (_, ptr) = u64::read(bv, kind.inner.type_endian)?;
+        let mut cursor = Cursor::new(buf);
+        let mut deku_reader = Reader::new(&mut cursor);
+        let ptr = u64::from_reader_with_ctx(&mut deku_reader, kind.inner.type_endian)?;
 
         let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
 
@@ -306,13 +309,16 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse count of `Metadata` block at offset into `T`
-    fn metadata_with_count<T: for<'a> DekuRead<'a, deku::ctx::Endian>>(
+    fn metadata_with_count<T>(
         &mut self,
         superblock: &SuperBlock,
         seek: u64,
         count: u64,
         kind: &Kind,
-    ) -> Result<Vec<T>, BackhandError> {
+    ) -> Result<Vec<T>, BackhandError>
+    where
+        T: for<'a> DekuReader<'a, deku::ctx::Endian>,
+    {
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
 
@@ -323,11 +329,11 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         let mut ret_vec = vec![];
-        let mut all_bytes = all_bytes.view_bits::<Msb0>();
         // Read until we fail to turn bytes into `T`
-        while let Ok((rest, t)) = T::read(all_bytes, kind.inner.type_endian) {
+        let mut cursor = Cursor::new(all_bytes);
+        let mut container = Reader::new(&mut cursor);
+        while let Ok(t) = T::from_reader_with_ctx(&mut container, kind.inner.type_endian) {
             ret_vec.push(t);
-            all_bytes = rest;
         }
 
         Ok(ret_vec)

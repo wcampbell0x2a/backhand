@@ -48,6 +48,9 @@
 //! let mut output = File::create("modified.squashfs").unwrap();
 //! write_filesystem.write(&mut output).unwrap();
 //! ```
+//!
+//! ## Feature flags
+#![doc = document_features::document_features!()]
 
 #[doc = include_str!("../README.md")]
 type _ReadmeTest = ();

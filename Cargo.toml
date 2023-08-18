@@ -32,16 +32,21 @@ indicatif = "0.17.5"
 console = "0.15.7"
 rayon = "1.7.0"
 log = "0.4.19"
+document-features = "0.2.7"
 
 [features]
 default = ["xz", "gzip", "zstd"]
+## Enables xz compression inside library and binaries
 xz = ["dep:xz2"]
+## Enables xz compression and forces static build inside library and binaries
 xz-static = ["dep:xz2", "xz2?/static"]
+## Enables gzip compression inside library and binaries
 gzip = ["dep:flate2"]
-# this library is licensed GPL and thus disabled by default
+## This library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
+## Enables zstd compression inside library and binaries
 zstd = ["dep:zstd"]
-# testing only feature for testing vs squashfs-tools/unsquashfs
+### testing only feature for testing vs squashfs-tools/unsquashfs
 __test_unsquashfs = []
 
 [dev-dependencies]

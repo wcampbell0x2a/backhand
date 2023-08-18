@@ -25,7 +25,7 @@ jobs:
         toolchain:
           - stable
             # msrv
-          - 1.65.0
+          - 1.66.0
         features:
           # default features
           -
@@ -51,7 +51,7 @@ jobs:
         toolchain:
           - stable
             # msrv
-          - 1.65.0
+          - 1.66.0
         features:
           - --no-default-features --features xz
           - --no-default-features --features gzip

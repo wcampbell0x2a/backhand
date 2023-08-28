@@ -68,7 +68,6 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked --features __test_unsquashfs
 
-
   # benchmark
   benchmark:
     runs-on: ubuntu-latest

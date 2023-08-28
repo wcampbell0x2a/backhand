@@ -68,22 +68,6 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked --features __test_unsquashfs
 
-
-  # benchmark
-  benchmark:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        toolchain:
-          - stable
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.toolchain }}
-      - run: cargo bench
-
   # fmt and clippy on stable
   fmt-clippy-stable:
     runs-on: ubuntu-latest

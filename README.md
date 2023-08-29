@@ -5,6 +5,7 @@ backhand
 [<img alt="crates.io" src="https://img.shields.io/crates/v/backhand.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/backhand)
 [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-backhand-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs" height="20">](https://docs.rs/backhand)
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/wcampbell0x2a/backhand/main.yml?branch=master&style=for-the-badge" height="20">](https://github.com/wcampbell0x2a/backhand/actions?query=branch%3Amaster)
+[<img alt="Codecov" src="https://img.shields.io/codecov/c/github/wcampbell0x2a/backhand&style=for-the-badge">](https://app.codecov.io/gh/wcampbell0x2a/backhand)
 
 Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.

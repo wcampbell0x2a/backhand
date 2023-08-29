@@ -63,7 +63,7 @@ use crate::{
 /// fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/file", header);
 /// ```
 #[derive(Debug)]
-pub struct FilesystemWriter<'a> {
+pub struct FilesystemWriter<'a, 'b> {
     pub(crate) kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub(crate) block_size: u32,
@@ -75,13 +75,13 @@ pub struct FilesystemWriter<'a> {
     /// Compressor used when writing
     pub(crate) fs_compressor: FilesystemCompressor,
     /// All files and directories in filesystem, including root
-    pub(crate) root: Nodes<SquashfsFileWriter<'a>>,
+    pub(crate) root: Nodes<SquashfsFileWriter<'a, 'b>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
     pub(crate) pad_len: u32,
 }
 
-impl<'a> Default for FilesystemWriter<'a> {
+impl<'a, 'b> Default for FilesystemWriter<'a, 'b> {
     /// Create default FilesystemWriter
     ///
     /// block_size: [`DEFAULT_BLOCK_SIZE`], compressor: default XZ compression, no nodes,
@@ -103,7 +103,7 @@ impl<'a> Default for FilesystemWriter<'a> {
     }
 }
 
-impl<'a> FilesystemWriter<'a> {
+impl<'a, 'b> FilesystemWriter<'a, 'b> {
     /// Set block size
     ///
     /// # Panics
@@ -200,7 +200,7 @@ impl<'a> FilesystemWriter<'a> {
     }
 
     /// Inherit filesystem structure and properties from `reader`
-    pub fn from_fs_reader(reader: &'a FilesystemReader) -> Result<Self, BackhandError> {
+    pub fn from_fs_reader(reader: &'a FilesystemReader<'b>) -> Result<Self, BackhandError> {
         let mut root: Vec<Node<_>> = reader
             .root
             .nodes
@@ -245,7 +245,7 @@ impl<'a> FilesystemWriter<'a> {
     fn mut_node<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut Node<SquashfsFileWriter<'a>>> {
+    ) -> Option<&mut Node<SquashfsFileWriter<'a, 'b>>> {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
         let find_path = normalize_squashfs_path(find_path.as_ref()).ok()?;
@@ -256,7 +256,7 @@ impl<'a> FilesystemWriter<'a> {
         &mut self,
         path: P,
         header: NodeHeader,
-        node: InnerNode<SquashfsFileWriter<'a>>,
+        node: InnerNode<SquashfsFileWriter<'a, 'b>>,
     ) -> Result<(), BackhandError> {
         // create gid id
         self.lookup_add_id(header.gid);
@@ -273,7 +273,7 @@ impl<'a> FilesystemWriter<'a> {
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: AsRef<Path>>(
         &mut self,
-        reader: impl Read + 'a,
+        reader: impl Read + 'b,
         path: P,
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
@@ -287,7 +287,7 @@ impl<'a> FilesystemWriter<'a> {
     pub fn mut_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut SquashfsFileWriter<'a>> {
+    ) -> Option<&mut SquashfsFileWriter<'a, 'b>> {
         self.mut_node(find_path).and_then(|node| {
             if let InnerNode::File(file) = &mut node.inner {
                 Some(file)
@@ -301,7 +301,7 @@ impl<'a> FilesystemWriter<'a> {
     pub fn replace_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-        reader: impl Read + 'a,
+        reader: impl Read + 'b,
     ) -> Result<(), BackhandError> {
         let file = self
             .mut_file(find_path)
@@ -427,7 +427,7 @@ impl<'a> FilesystemWriter<'a> {
         compressor: FilesystemCompressor,
         block_size: u32,
         writer: &mut W,
-        data_writer: &mut DataWriter,
+        data_writer: &mut DataWriter<'b>,
     ) -> Result<(), BackhandError> {
         let files = self
             .root
@@ -473,8 +473,8 @@ impl<'a> FilesystemWriter<'a> {
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
     #[allow(clippy::too_many_arguments)]
-    fn write_inode_dir<'b>(
-        &'b self,
+    fn write_inode_dir<'c>(
+        &'c self,
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
         parent_node_id: u32,
@@ -482,7 +482,7 @@ impl<'a> FilesystemWriter<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &Vec<Id>,
-    ) -> Result<Entry<'b>, BackhandError> {
+    ) -> Result<Entry<'c>, BackhandError> {
         let node = &self.root.node(node_id).unwrap();
         let filename = node.fullpath.file_name().unwrap_or(OsStr::new("/"));
         //if not a dir, return the entry

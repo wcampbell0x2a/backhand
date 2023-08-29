@@ -433,7 +433,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         let path = &node.fullpath;
         let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
         let mut p = processing.lock().unwrap();
-        p.insert(fullpath.clone());
+        p.insert(fullpath);
         if !args.quiet {
             pb.set_message(
                 p.iter()

@@ -105,13 +105,13 @@ pub struct SquashfsFileReader {
 }
 
 /// Read file from other SquashfsFile or an user file
-pub enum SquashfsFileWriter<'a> {
-    UserDefined(Arc<Mutex<dyn Read + 'a>>),
-    SquashfsFile(FilesystemReaderFile<'a>),
+pub enum SquashfsFileWriter<'a, 'b> {
+    UserDefined(Arc<Mutex<dyn Read + 'b>>),
+    SquashfsFile(FilesystemReaderFile<'a, 'b>),
     Consumed(usize, Added),
 }
 
-impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
+impl<'a, 'b> fmt::Debug for SquashfsFileWriter<'a, 'b> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FileWriter").finish()
     }

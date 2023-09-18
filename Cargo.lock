@@ -484,7 +484,7 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.16.0"
-source = "git+https://github.com/sharksforarms/deku?branch=impl-reader#19ee68779f7ba0ef5670a649190ab823456a0e42"
+source = "git+https://github.com/sharksforarms/deku/?branch=impl-reader-bit-order#658803c623770a0d774fbeeb1f2262d6f9d449fd"
 dependencies = [
  "acid_io",
  "bitvec",
@@ -494,7 +494,7 @@ dependencies = [
 [[package]]
 name = "deku_derive"
 version = "0.16.0"
-source = "git+https://github.com/sharksforarms/deku?branch=impl-reader#19ee68779f7ba0ef5670a649190ab823456a0e42"
+source = "git+https://github.com/sharksforarms/deku/?branch=impl-reader-bit-order#658803c623770a0d774fbeeb1f2262d6f9d449fd"
 dependencies = [
  "darling",
  "proc-macro-crate",

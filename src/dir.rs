@@ -14,7 +14,8 @@ use crate::inode::InodeId;
 use crate::BackhandError;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "type_endian: deku::ctx::Endian")]
+#[deku(ctx = "type_endian: deku::ctx::Endian, order: deku::ctx::Order")]
+#[deku(bit_order = "order")]
 #[deku(endian = "type_endian")]
 pub struct Dir {
     /// Number of entries following the header.
@@ -50,7 +51,11 @@ impl Dir {
 
 // TODO: derive our own Debug, with name()
 #[derive(DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    endian = "endian",
+    bit_order = "order",
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order"
+)]
 pub struct DirEntry {
     /// An offset into the uncompressed inode metadata block.
     pub(crate) offset: u16,
@@ -95,7 +100,11 @@ impl DirEntry {
 }
 
 #[derive(DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "endian",
+    bit_order = "order"
+)]
 pub struct DirectoryIndex {
     /// This stores a byte offset from the first directory header to the current header,
     /// as if the uncompressed directory metadata blocks were laid out in memory consecutively.

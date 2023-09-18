@@ -16,7 +16,11 @@ use crate::reader::WriteSeek;
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    endian = "endian",
+    bit_order = "order",
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order"
+)]
 pub struct DataSize(u32);
 impl DataSize {
     pub fn new(size: u32, uncompressed: bool) -> Self {

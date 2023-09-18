@@ -8,7 +8,11 @@ pub(crate) const SIZE: usize =
     std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
-#[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "type_endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "type_endian",
+    bit_order = "order"
+)]
 pub struct Fragment {
     pub start: u64,
     pub size: DataSize,

@@ -292,7 +292,7 @@ pub trait SquashFsReader: BufReadSeek {
         kind: &Kind,
     ) -> Result<(u64, Vec<T>), BackhandError>
     where
-        T: for<'a> DekuReader<'a, deku::ctx::Endian>,
+        T: for<'a> DekuReader<'a, (deku::ctx::Endian, deku::ctx::Order)>,
     {
         // find the pointer at the initial offset
         trace!("seek: {:02x?}", seek);
@@ -323,7 +323,7 @@ pub trait SquashFsReader: BufReadSeek {
         kind: &Kind,
     ) -> Result<Vec<T>, BackhandError>
     where
-        T: for<'a> DekuReader<'a, deku::ctx::Endian>,
+        T: for<'a> DekuReader<'a, (deku::ctx::Endian, deku::ctx::Order)>,
     {
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;

@@ -16,6 +16,7 @@ use crate::squashfs::SuperBlock;
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]
 #[deku(endian = "type_endian")]
+#[deku(bit_order = "lsb")]
 pub struct Inode {
     pub id: InodeId,
     pub header: InodeHeader,
@@ -63,8 +64,8 @@ impl Inode {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
-#[deku(type = "u16")]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(type = "u16", bits = "4")]
+#[deku(endian = "endian", bit_order = "order", ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order")]
 #[rustfmt::skip]
 pub enum InodeId {
     BasicDirectory       = 1,
@@ -94,10 +95,11 @@ impl InodeId {
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
-    ctx = "endian: deku::ctx::Endian, id: InodeId, bytes_used: u64, block_size: u32, block_log: u16"
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order, id: InodeId, bytes_used: u64, block_size: u32, block_log: u16",
+    endian = "endian",
+    bit_order = "order",
+    id = "id"
 )]
-#[deku(endian = "endian")]
-#[deku(id = "id")]
 pub enum InodeInner {
     #[deku(id = "InodeId::BasicDirectory")]
     BasicDirectory(BasicDirectory),
@@ -122,53 +124,75 @@ pub enum InodeInner {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq, Default)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "endian",
+    bit_order = "order"
+)]
 pub struct InodeHeader {
+    #[deku(bits = "12")]
     pub permissions: u16,
     /// index into id table
+    #[deku(bits = "8")]
     pub uid: u16,
     /// index into id table
+    #[deku(bits = "8")]
     pub gid: u16,
     pub mtime: u32,
     pub inode_number: u32,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "endian",
+    bit_order = "order"
+)]
 pub struct BasicDirectory {
     pub block_index: u32,
     pub link_count: u32,
+    #[deku(bits = "19")]
     pub file_size: u16,
+    #[deku(bits = "13")]
     pub block_offset: u16,
     pub parent_inode: u32,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "endian",
+    bit_order = "order"
+)]
 pub struct ExtendedDirectory {
     pub link_count: u32,
+    #[deku(bits = "27")]
     pub file_size: u32,
-    pub block_index: u32,
+    #[deku(bits = "13")]
+    pub block_offset: u32,
+    pub start_block: u32,
+    #[deku(assert = "*i_count < 256")]
+    pub i_count: u16,
     pub parent_inode: u32,
-    #[deku(assert = "*index_count < 256")]
-    pub index_count: u16,
-    pub block_offset: u16,
-    pub xattr_index: u32,
-    #[deku(count = "*index_count")]
+    #[deku(count = "*i_count")]
     pub dir_index: Vec<DirectoryIndex>,
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order, block_size: u32, block_log: u16",
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
+    bit_order = "order"
 )]
 pub struct BasicFile {
     pub blocks_start: u32,
     pub frag_index: u32,
-    pub block_offset: u32,
-    #[deku(assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))")]
-    pub file_size: u32,
+    pub block_offset: u64,
+    #[deku(
+        bytes = "4",
+        assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))"
+    )]
+    pub file_size: u64,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
 }
@@ -187,8 +211,9 @@ impl From<&ExtendedFile> for BasicFile {
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order, bytes_used: u32, block_size: u32, block_log: u16",
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, bytes_used: u64, block_size: u32, block_log: u16"
+    bit_order = "order"
 )]
 pub struct ExtendedFile {
     pub blocks_start: u64,
@@ -216,7 +241,11 @@ fn block_count(block_size: u32, block_log: u16, fragment: u32, file_size: u64) -
 }
 
 #[derive(DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "endian",
+    bit_order = "order"
+)]
 pub struct BasicSymlink {
     pub link_count: u32,
     #[deku(assert = "*target_size < 256")]
@@ -241,8 +270,12 @@ impl BasicSymlink {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "endian",
+    bit_order = "order"
+)]
 pub struct BasicDeviceSpecialFile {
     pub link_count: u32,
-    pub device_number: u32,
+    pub device_number: u16,
 }

@@ -574,7 +574,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         let mut total_size: usize = 3;
         for dir in Entry::into_dir(entries) {
             let mut bv = BitVec::new();
-            dir.write(&mut bv, kind.inner.type_endian)?;
+            dir.write(&mut bv, (kind.inner.type_endian, deku::ctx::Order::Lsb0))?;
             let bytes = bv.as_raw_slice();
             dir_writer.write_all(bv.as_raw_slice())?;
 
@@ -800,7 +800,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     ///  │└────────────────────────────┘│
     ///  └──────────────────────────────┘
     ///  ```
-    fn write_lookup_table<D: DekuWrite<deku::ctx::Endian>, W: Write + Seek>(
+    fn write_lookup_table<D: DekuWrite<(deku::ctx::Endian, deku::ctx::Order)>, W: Write + Seek>(
         &self,
         w: &mut W,
         table: &Vec<D>,

@@ -607,114 +607,115 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         &mut self,
         w: &mut W,
     ) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut superblock = SuperBlock::new(
-            self.fs_compressor.id,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
-        );
+        todo!();
+        // let mut superblock = SuperBlock::new(
+        //     self.fs_compressor.id,
+        //     Kind {
+        //         inner: self.kind.inner.clone(),
+        //     },
+        // );
 
-        trace!("{:#02x?}", self.root);
+        // trace!("{:#02x?}", self.root);
 
-        // Empty Squashfs Superblock
-        w.write_all(&[0x00; 96])?;
+        // // Empty Squashfs Superblock
+        // w.write_all(&[0x00; 96])?;
 
-        // Write compression options, if any
-        if let Some(options) = &self.fs_compressor.options {
-            superblock.flags |= Flags::CompressorOptionsArePresent as u16;
-            let mut buf = BitVec::new();
-            match options {
-                CompressionOptions::Gzip(gzip) => {
-                    gzip.write(&mut buf, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.inner.type_endian)?,
-                CompressionOptions::Zstd(zstd) => {
-                    zstd.write(&mut buf, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.inner.type_endian)?,
-                CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.inner.type_endian)?,
-                CompressionOptions::Lzma => {}
-            }
-            let mut metadata = MetadataWriter::new(
-                self.fs_compressor,
-                self.block_size,
-                Kind {
-                    inner: self.kind.inner.clone(),
-                },
-            );
-            metadata.write_all(buf.as_raw_slice())?;
-            metadata.finalize(w)?;
-        }
+        // // Write compression options, if any
+        // if let Some(options) = &self.fs_compressor.options {
+        //     superblock.flags |= Flags::CompressorOptionsArePresent as u16;
+        //     let mut buf = BitVec::new();
+        //     match options {
+        //         CompressionOptions::Gzip(gzip) => {
+        //             gzip.write(&mut buf, self.kind.inner.type_endian)?
+        //         }
+        //         CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.inner.type_endian)?,
+        //         CompressionOptions::Zstd(zstd) => {
+        //             zstd.write(&mut buf, self.kind.inner.type_endian)?
+        //         }
+        //         CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.inner.type_endian)?,
+        //         CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.inner.type_endian)?,
+        //         CompressionOptions::Lzma => {}
+        //     }
+        //     let mut metadata = MetadataWriter::new(
+        //         self.fs_compressor,
+        //         self.block_size,
+        //         Kind {
+        //             inner: self.kind.inner.clone(),
+        //         },
+        //     );
+        //     metadata.write_all(buf.as_raw_slice())?;
+        //     metadata.finalize(w)?;
+        // }
 
-        let mut data_writer = DataWriter::new(
-            self.kind.inner.compressor,
-            self.fs_compressor,
-            self.block_size,
-        );
-        let mut inode_writer = MetadataWriter::new(
-            self.fs_compressor,
-            self.block_size,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
-        );
-        let mut dir_writer = MetadataWriter::new(
-            self.fs_compressor,
-            self.block_size,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
-        );
+        // let mut data_writer = DataWriter::new(
+        //     self.kind.inner.compressor,
+        //     self.fs_compressor,
+        //     self.block_size,
+        // );
+        // let mut inode_writer = MetadataWriter::new(
+        //     self.fs_compressor,
+        //     self.block_size,
+        //     Kind {
+        //         inner: self.kind.inner.clone(),
+        //     },
+        // );
+        // let mut dir_writer = MetadataWriter::new(
+        //     self.fs_compressor,
+        //     self.block_size,
+        //     Kind {
+        //         inner: self.kind.inner.clone(),
+        //     },
+        // );
 
-        info!("Creating Inodes and Dirs");
-        //trace!("TREE: {:#02x?}", &self.root);
-        info!("Writing Data");
-        self.write_data(self.fs_compressor, self.block_size, w, &mut data_writer)?;
-        info!("Writing Data Fragments");
-        // Compress fragments and write
-        data_writer.finalize(w)?;
+        // info!("Creating Inodes and Dirs");
+        // //trace!("TREE: {:#02x?}", &self.root);
+        // info!("Writing Data");
+        // self.write_data(self.fs_compressor, self.block_size, w, &mut data_writer)?;
+        // info!("Writing Data Fragments");
+        // // Compress fragments and write
+        // data_writer.finalize(w)?;
 
-        info!("Writing Other stuff");
-        let root = self.write_inode_dir(
-            &mut inode_writer,
-            &mut dir_writer,
-            0,
-            1.try_into().unwrap(),
-            &superblock,
-            &self.kind,
-            &self.id_table,
-        )?;
+        // info!("Writing Other stuff");
+        // let root = self.write_inode_dir(
+        //     &mut inode_writer,
+        //     &mut dir_writer,
+        //     0,
+        //     1.try_into().unwrap(),
+        //     &superblock,
+        //     &self.kind,
+        //     &self.id_table,
+        // )?;
 
-        superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
-        superblock.inode_count = self.root.nodes.len().try_into().unwrap();
-        superblock.block_size = self.block_size;
-        superblock.block_log = self.block_log;
-        superblock.mod_time = self.mod_time;
+        // superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
+        // superblock.inode_count = self.root.nodes.len().try_into().unwrap();
+        // superblock.block_size = self.block_size;
+        // superblock.block_log = self.block_log;
+        // superblock.mod_time = self.mod_time;
 
-        info!("Writing Inodes");
-        superblock.inode_table = w.stream_position()?;
-        inode_writer.finalize(w)?;
+        // info!("Writing Inodes");
+        // superblock.inode_table = w.stream_position()?;
+        // inode_writer.finalize(w)?;
 
-        info!("Writing Dirs");
-        superblock.dir_table = w.stream_position()?;
-        dir_writer.finalize(w)?;
+        // info!("Writing Dirs");
+        // superblock.dir_table = w.stream_position()?;
+        // dir_writer.finalize(w)?;
 
-        info!("Writing Frag Lookup Table");
-        let (table_position, count) =
-            self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
-        superblock.frag_table = table_position;
-        superblock.frag_count = count;
+        // info!("Writing Frag Lookup Table");
+        // let (table_position, count) =
+        //     self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
+        // superblock.frag_table = table_position;
+        // superblock.frag_count = count;
 
-        info!("Writing Id Lookup Table");
-        let (table_position, count) = self.write_lookup_table(w, &self.id_table, Id::SIZE)?;
-        superblock.id_table = table_position;
-        superblock.id_count = count.try_into().unwrap();
+        // info!("Writing Id Lookup Table");
+        // let (table_position, count) = self.write_lookup_table(w, &self.id_table, Id::SIZE)?;
+        // superblock.id_table = table_position;
+        // superblock.id_count = count.try_into().unwrap();
 
-        info!("Finalize Superblock and End Bytes");
-        let bytes_written = self.finalize(w, &mut superblock)?;
+        // info!("Finalize Superblock and End Bytes");
+        // let bytes_written = self.finalize(w, &mut superblock)?;
 
-        info!("Success");
-        Ok((superblock, bytes_written))
+        // info!("Success");
+        // Ok((superblock, bytes_written))
     }
 
     fn finalize<W: Write + Seek>(
@@ -812,7 +813,10 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         while let Some(t) = iter.next() {
             // convert fragment ptr to bytes
             let mut bv = BitVec::new();
-            t.write(&mut bv, self.kind.inner.type_endian)?;
+            t.write(
+                &mut bv,
+                (self.kind.inner.type_endian, deku::ctx::Order::Lsb0),
+            )?;
             table_bytes.write_all(bv.as_raw_slice())?;
 
             // once table_bytes + next is over the maximum size of a metadata block, write
@@ -822,7 +826,10 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
                 let mut bv = BitVec::new();
                 // write metadata len
                 let len = metadata::set_if_uncompressed(table_bytes.len() as u16);
-                len.write(&mut bv, self.kind.inner.data_endian)?;
+                len.write(
+                    &mut bv,
+                    (self.kind.inner.data_endian, deku::ctx::Order::Lsb0),
+                )?;
                 w.write_all(bv.as_raw_slice())?;
                 // write metadata bytes
                 w.write_all(&table_bytes)?;

@@ -145,7 +145,7 @@ pub fn read_block<R: Read + ?Sized>(
         let mut out = Vec::with_capacity(8 * 1024);
         kind.inner
             .compressor
-            .decompress(&buf, &mut out, superblock.compressor)?;
+            .decompress(&buf, &mut out, crate::compression::Compressor::Gzip)?;
         out
     } else {
         tracing::trace!("uncompressed");

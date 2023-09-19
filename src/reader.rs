@@ -96,7 +96,7 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<FxHashMap<u32, Inode>, BackhandError> {
-        self.seek(SeekFrom::Start(superblock.inode_table))?;
+        self.seek(SeekFrom::Start(u64::from(superblock.inode_table_start_2)))?;
 
         // The directory inodes store the total, uncompressed size of the entire listing, including headers.
         // Using this size, a SquashFS reader can determine if another header with further entries
@@ -108,7 +108,7 @@ pub trait SquashFsReader: BufReadSeek {
         let mut ret_vec = HashMap::default();
         let start = self.stream_position()?;
 
-        while self.stream_position()? < superblock.dir_table {
+        while self.stream_position()? < u64::from(superblock.directory_table_start_2) {
             metadata_offsets.push(self.stream_position()? - start);
             // parse into metadata
             let mut bytes = metadata::read_block(self, superblock, kind)?;
@@ -126,7 +126,7 @@ pub trait SquashFsReader: BufReadSeek {
                     &mut container,
                     (
                         superblock.bytes_used,
-                        superblock.block_size,
+                        u32::from(superblock.block_size_1),
                         superblock.block_log,
                         kind.inner.type_endian,
                     ),
@@ -165,8 +165,8 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         // Assumptions are made here that the root inode fits within two metadatas
-        let seek = superblock.inode_table + root_inode_start as u64;
-        self.seek(SeekFrom::Start(seek))?;
+        let seek = u64::from(superblock.inode_table_start_2) + root_inode_start as u64;
+        self.seek(SeekFrom::Start(u64::from(seek)))?;
         let mut bytes_01 = metadata::read_block(self, superblock, kind)?;
 
         // try reading just one metdata block
@@ -220,13 +220,13 @@ pub trait SquashFsReader: BufReadSeek {
         end_ptr: u64,
         kind: &Kind,
     ) -> Result<Vec<(u64, Vec<u8>)>, BackhandError> {
-        let seek = superblock.dir_table;
-        self.seek(SeekFrom::Start(seek))?;
+        let seek = superblock.directory_table_start_2;
+        self.seek(SeekFrom::Start(u64::from(seek)))?;
         let mut all_bytes = vec![];
         while self.stream_position()? != end_ptr {
             let metadata_start = self.stream_position()?;
             let bytes = metadata::read_block(self, superblock, kind)?;
-            all_bytes.push((metadata_start - seek, bytes));
+            all_bytes.push((metadata_start - u64::from(seek), bytes));
         }
 
         Ok(all_bytes)
@@ -239,13 +239,13 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<Option<(u64, Vec<Fragment>)>, BackhandError> {
-        if superblock.frag_count == 0 || superblock.frag_table == NOT_SET {
-            return Ok(None);
-        }
+        // if superblock.fragments == 0 || superblock.fragment_table_start_2 == NOT_SET {
+        //     return Ok(None);
+        // }
         let (ptr, table) = self.lookup_table::<Fragment>(
             superblock,
-            superblock.frag_table,
-            u64::from(superblock.frag_count) * fragment::SIZE as u64,
+            u64::from(superblock.fragment_table_start_2),
+            u64::from(superblock.fragments) * fragment::SIZE as u64,
             kind,
         )?;
 
@@ -259,14 +259,15 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<Option<(u64, Vec<Export>)>, BackhandError> {
-        if superblock.nfs_export_table_exists() && superblock.export_table != NOT_SET {
-            let ptr = superblock.export_table;
-            let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
-            let (ptr, table) = self.lookup_table::<Export>(superblock, ptr, count, kind)?;
-            Ok(Some((ptr, table)))
-        } else {
-            Ok(None)
-        }
+        todo!();
+        // if superblock.nfs_export_table_exists() && superblock.export_table != NOT_SET {
+        //     let ptr = superblock.export_table;
+        //     let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
+        //     let (ptr, table) = self.lookup_table::<Export>(superblock, ptr, count, kind)?;
+        //     Ok(Some((ptr, table)))
+        // } else {
+        //     Ok(None)
+        // }
     }
 
     /// Parse ID Table
@@ -276,10 +277,11 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<(u64, Vec<Id>), BackhandError> {
-        let ptr = superblock.id_table;
-        let count = superblock.id_count as u64;
-        let (ptr, table) = self.lookup_table::<Id>(superblock, ptr, count, kind)?;
-        Ok((ptr, table))
+        todo!();
+        // let ptr = superblock.id_table;
+        // let count = superblock.id_count as u64;
+        // let (ptr, table) = self.lookup_table::<Id>(superblock, ptr, count, kind)?;
+        // Ok((ptr, table))
     }
 
     /// Parse Lookup Table
@@ -303,7 +305,10 @@ pub trait SquashFsReader: BufReadSeek {
 
         let mut cursor = Cursor::new(buf);
         let mut deku_reader = Reader::new(&mut cursor);
-        let ptr = u64::from_reader_with_ctx(&mut deku_reader, kind.inner.type_endian)?;
+        let ptr = u64::from_reader_with_ctx(
+            &mut deku_reader,
+            (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+        )?;
 
         let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
 
@@ -338,7 +343,10 @@ pub trait SquashFsReader: BufReadSeek {
         // Read until we fail to turn bytes into `T`
         let mut cursor = Cursor::new(all_bytes);
         let mut container = Reader::new(&mut cursor);
-        while let Ok(t) = T::from_reader_with_ctx(&mut container, kind.inner.type_endian) {
+        while let Ok(t) = T::from_reader_with_ctx(
+            &mut container,
+            (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+        ) {
             ret_vec.push(t);
         }
 

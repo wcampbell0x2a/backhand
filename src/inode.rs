@@ -120,7 +120,7 @@ pub enum InodeInner {
     ExtendedDirectory(ExtendedDirectory),
 
     #[deku(id = "InodeId::ExtendedFile")]
-    ExtendedFile(#[deku(ctx = "bytes_used, block_size, block_log")] ExtendedFile),
+    ExtendedFile(#[deku(ctx = "bytes_used as u32, block_size, block_log")] ExtendedFile),
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq, Default)]
@@ -169,7 +169,7 @@ pub struct ExtendedDirectory {
     #[deku(bits = "27")]
     pub file_size: u32,
     #[deku(bits = "13")]
-    pub block_offset: u32,
+    pub block_offset: u64,
     pub start_block: u32,
     #[deku(assert = "*i_count < 256")]
     pub i_count: u16,
@@ -177,6 +177,21 @@ pub struct ExtendedDirectory {
     #[deku(count = "*i_count")]
     pub dir_index: Vec<DirectoryIndex>,
 }
+
+// #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
+// #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+// pub struct ExtendedDirectory {
+//     pub link_count: u32,
+//     pub file_size: u32,
+//     pub block_index: u32,
+//     pub parent_inode: u32,
+//     #[deku(assert = "*index_count < 256")]
+//     pub index_count: u16,
+//     pub block_offset: u16,
+//     pub xattr_index: u32,
+//     #[deku(count = "*index_count")]
+//     pub dir_index: Vec<DirectoryIndex>,
+// }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
@@ -197,17 +212,17 @@ pub struct BasicFile {
     pub block_sizes: Vec<DataSize>,
 }
 
-impl From<&ExtendedFile> for BasicFile {
-    fn from(ex_file: &ExtendedFile) -> Self {
-        Self {
-            blocks_start: ex_file.blocks_start as u32,
-            frag_index: ex_file.frag_index,
-            block_offset: ex_file.block_offset,
-            file_size: ex_file.file_size as u32,
-            block_sizes: ex_file.block_sizes.clone(),
-        }
-    }
-}
+// impl From<&ExtendedFile> for BasicFile {
+//     fn from(ex_file: &ExtendedFile) -> Self {
+//         Self {
+//             blocks_start: ex_file.blocks_start as u32,
+//             frag_index: ex_file.frag_index,
+//             block_offset: ex_file.block_offset,
+//             file_size: ex_file.file_size as u32,
+//             block_sizes: ex_file.block_sizes.clone(),
+//         }
+//     }
+// }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
@@ -218,7 +233,7 @@ impl From<&ExtendedFile> for BasicFile {
 pub struct ExtendedFile {
     pub blocks_start: u64,
     #[deku(
-        assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1)) && (*file_size < bytes_used)"
+        assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1)) && (*file_size < bytes_used as u64)"
     )]
     pub file_size: u64,
     pub sparse: u64,
@@ -277,5 +292,6 @@ impl BasicSymlink {
 )]
 pub struct BasicDeviceSpecialFile {
     pub link_count: u32,
-    pub device_number: u16,
+    #[deku(bytes = "2")] // v3
+    pub device_number: u32,
 }

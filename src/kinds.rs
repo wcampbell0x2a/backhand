@@ -150,6 +150,7 @@ impl Kind {
             "avm_be_v4_0" => AVM_BE_V4_0,
             "be_v4_0" => BE_V4_0,
             "le_v4_0" => LE_V4_0,
+            "le_v3_0" => LE_V3_0,
             _ => return Err("not a valid kind".to_string()),
         };
 
@@ -274,4 +275,14 @@ pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKin
     version_major: 4,
     version_minor: 0,
     compressor: &DefaultCompressor,
+};
+
+/// Little-Endian v3.0
+pub const LE_V3_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 3,
+    version_minor: 0,
+    compressor: &DefaultCompressor, // Only Gzip
 };

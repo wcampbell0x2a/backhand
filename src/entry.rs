@@ -57,23 +57,24 @@ impl<'a> Entry<'a> {
         };
         // if entry won't fit in file_size of regular dir entry, create extended directory
         let dir_inode = if file_size > u16::MAX as usize {
-            Inode::new(
-                InodeId::ExtendedDirectory,
-                header,
-                InodeInner::ExtendedDirectory(ExtendedDirectory {
-                    link_count: 2 + u32::try_from(children_num).unwrap(),
-                    file_size: file_size.try_into().unwrap(), // u32
-                    block_index,
-                    parent_inode,
-                    // TODO: Support Directory Index
-                    index_count: 0,
-                    block_offset,
-                    // TODO(#32): Support xattr
-                    xattr_index: 0xffff_ffff,
-                    // TODO: Support Directory Index
-                    dir_index: vec![],
-                }),
-            )
+            todo!();
+            // Inode::new(
+            //     InodeId::ExtendedDirectory,
+            //     header,
+            //     InodeInner::ExtendedDirectory(ExtendedDirectory {
+            //         link_count: 2 + u32::try_from(children_num).unwrap(),
+            //         file_size: file_size.try_into().unwrap(), // u32
+            //         block_index,
+            //         parent_inode,
+            //         // TODO: Support Directory Index
+            //         index_count: 0,
+            //         block_offset,
+            //         // TODO(#32): Support xattr
+            //         xattr_index: 0xffff_ffff,
+            //         // TODO: Support Directory Index
+            //         dir_index: vec![],
+            //     }),
+            // )
         } else {
             Inode::new(
                 InodeId::BasicDirectory,
@@ -132,7 +133,7 @@ impl<'a> Entry<'a> {
             } => BasicFile {
                 blocks_start: 0,
                 frag_index: *frag_index,
-                block_offset: *block_offset,
+                block_offset: *block_offset as u64,
                 file_size: file_size.try_into().unwrap(),
                 block_sizes: vec![],
             },

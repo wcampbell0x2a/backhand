@@ -96,7 +96,7 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<FxHashMap<u32, Inode>, BackhandError> {
-        self.seek(SeekFrom::Start(u64::from(superblock.inode_table_start_2)))?;
+        self.seek(SeekFrom::Start(u64::from(superblock.inode_table_start)))?;
 
         // The directory inodes store the total, uncompressed size of the entire listing, including headers.
         // Using this size, a SquashFS reader can determine if another header with further entries
@@ -108,7 +108,7 @@ pub trait SquashFsReader: BufReadSeek {
         let mut ret_vec = HashMap::default();
         let start = self.stream_position()?;
 
-        while self.stream_position()? < u64::from(superblock.directory_table_start_2) {
+        while self.stream_position()? < u64::from(superblock.directory_table_start) {
             metadata_offsets.push(self.stream_position()? - start);
             // parse into metadata
             let mut bytes = metadata::read_block(self, superblock, kind)?;
@@ -117,6 +117,7 @@ pub trait SquashFsReader: BufReadSeek {
             let mut inode_bytes = next;
             inode_bytes.append(&mut bytes);
             let mut c_inode_bytes = Cursor::new(inode_bytes.clone());
+            trace!("{:02x?}", &c_inode_bytes);
             let mut container = Reader::new(&mut c_inode_bytes);
 
             // store last successful read position
@@ -165,7 +166,7 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         // Assumptions are made here that the root inode fits within two metadatas
-        let seek = u64::from(superblock.inode_table_start_2) + root_inode_start as u64;
+        let seek = u64::from(superblock.inode_table_start) + root_inode_start as u64;
         self.seek(SeekFrom::Start(u64::from(seek)))?;
         let mut bytes_01 = metadata::read_block(self, superblock, kind)?;
 
@@ -220,7 +221,7 @@ pub trait SquashFsReader: BufReadSeek {
         end_ptr: u64,
         kind: &Kind,
     ) -> Result<Vec<(u64, Vec<u8>)>, BackhandError> {
-        let seek = superblock.directory_table_start_2;
+        let seek = superblock.directory_table_start;
         self.seek(SeekFrom::Start(u64::from(seek)))?;
         let mut all_bytes = vec![];
         while self.stream_position()? != end_ptr {
@@ -239,12 +240,12 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<Option<(u64, Vec<Fragment>)>, BackhandError> {
-        // if superblock.fragments == 0 || superblock.fragment_table_start_2 == NOT_SET {
+        // if superblock.fragments == 0 || superblock.fragment_table_start == NOT_SET {
         //     return Ok(None);
         // }
         let (ptr, table) = self.lookup_table::<Fragment>(
             superblock,
-            u64::from(superblock.fragment_table_start_2),
+            u64::from(superblock.fragment_table_start),
             u64::from(superblock.fragments) * fragment::SIZE as u64,
             kind,
         )?;
@@ -259,7 +260,7 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<Option<(u64, Vec<Export>)>, BackhandError> {
-        todo!();
+        Ok(None)
         // if superblock.nfs_export_table_exists() && superblock.export_table != NOT_SET {
         //     let ptr = superblock.export_table;
         //     let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
@@ -270,18 +271,51 @@ pub trait SquashFsReader: BufReadSeek {
         // }
     }
 
-    /// Parse ID Table
+    /// Parse UID Table
     #[instrument(skip_all)]
-    fn id(
-        &mut self,
-        superblock: &SuperBlock,
-        kind: &Kind,
-    ) -> Result<(u64, Vec<Id>), BackhandError> {
-        todo!();
-        // let ptr = superblock.id_table;
-        // let count = superblock.id_count as u64;
-        // let (ptr, table) = self.lookup_table::<Id>(superblock, ptr, count, kind)?;
-        // Ok((ptr, table))
+    fn uid(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Vec<u16>, BackhandError> {
+        let ptr = superblock.uid_start;
+        let count = superblock.no_uids as u64;
+        self.seek(SeekFrom::Start(ptr))?;
+
+        // I wish self was Read here, but this works
+        let mut buf = vec![0u8; count as usize * core::mem::size_of::<u16>()];
+        self.read_exact(&mut buf)?;
+
+        let mut cursor = Cursor::new(buf);
+        let mut deku_reader = Reader::new(&mut cursor);
+        let table = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let v = u16::from_reader_with_ctx(
+                &mut deku_reader,
+                (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+            );
+        }
+
+        Ok(table)
+    }
+
+    /// Parse GUID Table
+    fn guid(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Vec<u16>, BackhandError> {
+        let ptr = superblock.guid_start;
+        let count = superblock.no_guids as u64;
+        self.seek(SeekFrom::Start(ptr))?;
+
+        // I wish self was Read here, but this works
+        let mut buf = vec![0u8; count as usize * core::mem::size_of::<u16>()];
+        self.read_exact(&mut buf)?;
+
+        let mut cursor = Cursor::new(buf);
+        let mut deku_reader = Reader::new(&mut cursor);
+        let table = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let v = u16::from_reader_with_ctx(
+                &mut deku_reader,
+                (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+            );
+        }
+
+        Ok(table)
     }
 
     /// Parse Lookup Table
@@ -345,7 +379,7 @@ pub trait SquashFsReader: BufReadSeek {
         let mut container = Reader::new(&mut cursor);
         while let Ok(t) = T::from_reader_with_ctx(
             &mut container,
-            (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+            (kind.inner.type_endian, deku::ctx::Order::Msb0),
         ) {
             ret_vec.push(t);
         }

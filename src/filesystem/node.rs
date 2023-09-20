@@ -29,14 +29,21 @@ impl NodeHeader {
             mtime,
         }
     }
-}
 
-impl NodeHeader {
     pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Self {
         Self {
             permissions: inode_header.permissions,
             uid: id_table[inode_header.uid as usize].num,
             gid: id_table[inode_header.gid as usize].num,
+            mtime: inode_header.mtime,
+        }
+    }
+
+    pub fn from_inodev3(inode_header: InodeHeader, uid_table: &[u32], gid_table: &[u32]) -> Self {
+        Self {
+            permissions: inode_header.permissions,
+            uid: uid_table[inode_header.uid as usize],
+            gid: gid_table[inode_header.gid as usize],
             mtime: inode_header.mtime,
         }
     }

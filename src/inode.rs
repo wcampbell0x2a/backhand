@@ -64,7 +64,7 @@ impl Inode {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
-#[deku(type = "u16", bits = "4")]
+#[deku(type = "u8", bits = "4")]
 #[deku(endian = "endian", bit_order = "order", ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order")]
 #[rustfmt::skip]
 pub enum InodeId {
@@ -152,7 +152,7 @@ pub struct BasicDirectory {
     pub block_index: u32,
     pub link_count: u32,
     #[deku(bits = "19")]
-    pub file_size: u16,
+    pub file_size: u32,
     #[deku(bits = "13")]
     pub block_offset: u16,
     pub parent_inode: u32,

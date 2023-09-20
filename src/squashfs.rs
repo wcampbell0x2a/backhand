@@ -197,8 +197,12 @@ pub struct Squashfs<'b> {
     pub fragments: Option<Vec<Fragment>>,
     /// Export Lookup Table
     pub export: Option<Vec<Export>>,
-    /// Id Lookup Table
-    pub id: Vec<Id>,
+    /// Id Lookup Table V4
+    pub id: Option<Vec<Id>>,
+    /// Uid Lookup Table V3
+    pub uid: Option<Vec<u32>>,
+    /// Gid Lookup Table V3
+    pub gid: Option<Vec<u32>>,
     //file reader
     file: Box<dyn BufReadSeek + 'b>,
 }
@@ -223,6 +227,7 @@ impl<'b> Squashfs<'b> {
                 kind.inner.type_endian,
             ),
         )?;
+        trace!("{:02x?}", superblock);
 
         let block_size = superblock.block_size;
         let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
@@ -315,21 +320,21 @@ impl<'b> Squashfs<'b> {
         // Check if legal image
         let total_length = reader.seek(SeekFrom::End(0))?;
         reader.rewind()?;
-        if u64::from(superblock.bytes_used_2) > total_length {
+        if u64::from(superblock.bytes_used) > total_length {
             error!("corrupted or invalid bytes_used");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         // check required fields
-        if u64::from(superblock.uid_start_2) > total_length {
+        if u64::from(superblock.uid_start) > total_length {
             error!("corrupted or invalid xattr_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if u64::from(superblock.inode_table_start_2) > total_length {
+        if u64::from(superblock.inode_table_start) > total_length {
             error!("corrupted or invalid inode_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-        if u64::from(superblock.directory_table_start_2) > total_length {
+        if u64::from(superblock.directory_table_start) > total_length {
             error!("corrupted or invalid dir_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
@@ -339,8 +344,8 @@ impl<'b> Squashfs<'b> {
         //     error!("corrupted or invalid frag_table");
         //     return Err(BackhandError::CorruptedOrInvalidSquashfs);
         // }
-        if u64::from(superblock.fragment_table_start_2) != NOT_SET
-            && u64::from(superblock.fragment_table_start_2) > total_length
+        if u64::from(superblock.fragment_table_start) != NOT_SET
+            && u64::from(superblock.fragment_table_start) > total_length
         {
             error!("corrupted or invalid frag_table");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
@@ -351,7 +356,7 @@ impl<'b> Squashfs<'b> {
         // }
 
         // Read all fields from filesystem to make a Squashfs
-        info!("Reading Inodes @ {:02x?}", superblock.inode_table_start_2);
+        info!("Reading Inodes @ {:02x?}", superblock.inode_table_start);
         let inodes = reader.inodes(&superblock, &kind)?;
 
         info!("Reading Root Inode");
@@ -367,37 +372,40 @@ impl<'b> Squashfs<'b> {
         let export_ptr = export.as_ref().map(|export| export.0);
         let export_table = export.map(|a| a.1);
 
-        info!("Reading Ids");
-        let id = reader.id(&superblock, &kind)?;
-        let id_ptr = id.0;
-        let id_table = id.1;
+        info!("Reading Uids");
+        let uid_table = reader.uid(&superblock, &kind)?;
 
-        let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
-            trace!("using fragment for end of dir");
-            fragment_ptr
-        } else if let Some(export_ptr) = export_ptr {
-            trace!("using export for end of dir");
-            export_ptr
-        } else {
-            trace!("using id for end of dir");
-            id_ptr
-        };
+        info!("Reading Guids");
+        let guid_table = reader.guid(&superblock, &kind)?;
+
+        // let last_dir_position = if let Some(fragment_ptr) = fragment_ptr {
+        //     trace!("using fragment for end of dir");
+        //     fragment_ptr
+        // } else if let Some(export_ptr) = export_ptr {
+        //     trace!("using export for end of dir");
+        //     export_ptr
+        // } else {
+        //     trace!("using id for end of dir");
+        //     id_ptr
+        // };
 
         info!("Reading Dirs");
-        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, &kind)?;
+        let dir_blocks = reader.dir_blocks(&superblock, superblock.fragment_table_start, &kind)?;
+        println!("{:02x?}", dir_blocks);
 
-        let squashfs = Squashfs {
-            kind,
-            superblock,
-            compression_options,
-            inodes,
-            root_inode,
-            dir_blocks,
-            fragments: fragment_table,
-            export: export_table,
-            id: id_table,
-            file: reader,
-        };
+        todo!();
+        // let squashfs = Squashfs {
+        //     kind,
+        //     superblock,
+        //     compression_options,
+        //     inodes,
+        //     root_inode,
+        //     dir_blocks,
+        //     fragments: fragment_table,
+        //     export: export_table,
+        //     id: id_table,
+        //     file: reader,
+        // };
 
         // show info about flags
         // if superblock.inodes_uncompressed() {
@@ -436,8 +444,8 @@ impl<'b> Squashfs<'b> {
         //     info!("flag: compressor options are present");
         // }
 
-        info!("Successful Read");
-        Ok(squashfs)
+        //info!("Successful Read");
+        //Ok(squashfs)
     }
 
     /// # Returns
@@ -489,7 +497,8 @@ impl<'b> Squashfs<'b> {
         fullpath: &mut PathBuf,
         root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
-        id_table: &[Id],
+        uid_table: &[u32],
+        gid_table: &[u32],
     ) -> Result<(), BackhandError> {
         let dirs = match &dir_inode.inner {
             InodeInner::BasicDirectory(basic_dir) => {
@@ -526,7 +535,13 @@ impl<'b> Squashfs<'b> {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             // its a dir, extract all children inodes
-                            self.extract_dir(fullpath, root, found_inode, &self.id)?;
+                            self.extract_dir(
+                                fullpath,
+                                root,
+                                found_inode,
+                                self.uid.as_ref().unwrap(),
+                                self.gid.as_ref().unwrap(),
+                            )?;
                             InnerNode::Dir(SquashfsDir::default())
                         }
                         // BasicFile
@@ -564,7 +579,7 @@ impl<'b> Squashfs<'b> {
                     };
                     let node = Node::new(
                         fullpath.clone(),
-                        NodeHeader::from_inode(header, id_table),
+                        NodeHeader::from_inodev3(header, gid_table, uid_table),
                         inner,
                     );
                     root.nodes.push(node);
@@ -624,29 +639,35 @@ impl<'b> Squashfs<'b> {
     #[instrument(skip_all)]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
-        let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id));
+        let mut root = Nodes::new_root(NodeHeader::from_inodev3(
+            self.root_inode.header,
+            &self.uid.as_ref().unwrap(),
+            &self.gid.as_ref().unwrap(),
+        ));
         self.extract_dir(
             &mut PathBuf::from("/"),
             &mut root,
             &self.root_inode,
-            &self.id,
+            &self.gid.as_ref().unwrap(),
+            &self.uid.as_ref().unwrap(),
         )?;
         root.nodes.sort();
 
         info!("created fs tree");
-        let filesystem = FilesystemReader {
-            kind: self.kind,
-            block_size: self.superblock.block_size_1 as u32,
-            block_log: self.superblock.block_log,
-            compressor: Compressor::Gzip,
-            compression_options: self.compression_options,
-            mod_time: self.superblock.mkfs_time,
-            id_table: self.id,
-            fragments: self.fragments,
-            root,
-            reader: Mutex::new(Box::new(self.file)),
-            cache: Mutex::new(Cache::default()),
-        };
-        Ok(filesystem)
+        todo!();
+        // let filesystem = FilesystemReader {
+        //     kind: self.kind,
+        //     block_size: self.superblock.block_size_1 as u32,
+        //     block_log: self.superblock.block_log,
+        //     compressor: Compressor::Gzip,
+        //     compression_options: self.compression_options,
+        //     mod_time: self.superblock.mkfs_time,
+        //     id_table: self.id,
+        //     fragments: self.fragments,
+        //     root,
+        //     reader: Mutex::new(Box::new(self.file)),
+        //     cache: Mutex::new(Cache::default()),
+        // };
+        // Ok(filesystem)
     }
 }

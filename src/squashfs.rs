@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
-use crate::dir::Dir;
+use crate::dir::{Dir, DirInodeId};
 use crate::error::BackhandError;
 use crate::filesystem::node::{InnerNode, Nodes};
 use crate::fragment::Fragment;
@@ -200,9 +200,9 @@ pub struct Squashfs<'b> {
     /// Id Lookup Table V4
     pub id: Option<Vec<Id>>,
     /// Uid Lookup Table V3
-    pub uid: Option<Vec<u32>>,
+    pub uid: Option<Vec<u16>>,
     /// Gid Lookup Table V3
-    pub gid: Option<Vec<u32>>,
+    pub guid: Option<Vec<u16>>,
     //file reader
     file: Box<dyn BufReadSeek + 'b>,
 }
@@ -393,19 +393,20 @@ impl<'b> Squashfs<'b> {
         let dir_blocks = reader.dir_blocks(&superblock, superblock.fragment_table_start, &kind)?;
         println!("{:02x?}", dir_blocks);
 
-        todo!();
-        // let squashfs = Squashfs {
-        //     kind,
-        //     superblock,
-        //     compression_options,
-        //     inodes,
-        //     root_inode,
-        //     dir_blocks,
-        //     fragments: fragment_table,
-        //     export: export_table,
-        //     id: id_table,
-        //     file: reader,
-        // };
+        let squashfs = Squashfs {
+            kind,
+            superblock,
+            compression_options,
+            inodes,
+            root_inode,
+            dir_blocks,
+            fragments: fragment_table,
+            export: export_table,
+            id: None,
+            uid: Some(uid_table),
+            guid: Some(guid_table),
+            file: reader,
+        };
 
         // show info about flags
         // if superblock.inodes_uncompressed() {
@@ -444,8 +445,8 @@ impl<'b> Squashfs<'b> {
         //     info!("flag: compressor options are present");
         // }
 
-        //info!("Successful Read");
-        //Ok(squashfs)
+        info!("Successful Read");
+        Ok(squashfs)
     }
 
     /// # Returns
@@ -456,14 +457,12 @@ impl<'b> Squashfs<'b> {
         &self,
         block_index: u64,
         file_size: u32,
-        block_offset: usize,
     ) -> Result<Option<Vec<Dir>>, BackhandError> {
         trace!("- block index : {:02x?}", block_index);
         trace!("- file_size   : {:02x?}", file_size);
-        trace!("- block offset: {:02x?}", block_offset);
-        if file_size < 4 {
-            return Ok(None);
-        }
+        // if file_size < 4 {
+        //     return Ok(None);
+        // }
 
         // ignore blocks before our block_index, grab all the rest of the bytes
         // TODO: perf
@@ -474,8 +473,10 @@ impl<'b> Squashfs<'b> {
             .flat_map(|(_, b)| b.iter())
             .copied()
             .collect();
+        trace!("bytes: {block:02x?}");
 
-        let bytes = &block[block_offset..][..file_size as usize - 3];
+        let bytes = block;
+        // let bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];
         // Read until we fail to turn bytes into `T`
         let mut cursor = Cursor::new(bytes);
@@ -487,7 +488,7 @@ impl<'b> Squashfs<'b> {
             dirs.push(t);
         }
 
-        trace!("finish");
+        trace!("finish: {dirs:?}");
         Ok(Some(dirs))
     }
 
@@ -497,16 +498,15 @@ impl<'b> Squashfs<'b> {
         fullpath: &mut PathBuf,
         root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
-        uid_table: &[u32],
-        gid_table: &[u32],
+        uid_table: &[u16],
+        guid_table: &[u16],
     ) -> Result<(), BackhandError> {
         let dirs = match &dir_inode.inner {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
                 self.dir_from_index(
-                    basic_dir.block_index.try_into().unwrap(),
+                    basic_dir.start_block.try_into().unwrap(),
                     basic_dir.file_size.try_into().unwrap(),
-                    basic_dir.block_offset as usize,
                 )?
             }
             InodeInner::ExtendedDirectory(ext_dir) => {
@@ -524,28 +524,26 @@ impl<'b> Squashfs<'b> {
             for d in &dirs {
                 trace!("extracing entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
-                    let inode_key = (d.inode_num as i32 + entry.inode_offset as i32)
-                        .try_into()
-                        .unwrap();
+                    let inode_key = (d.inode_num as i32).try_into().unwrap();
                     let found_inode = &self.inodes[&inode_key];
                     let header = found_inode.header;
                     fullpath.push(entry.name()?);
 
                     let inner: InnerNode<SquashfsFileReader> = match entry.t {
                         // BasicDirectory, ExtendedDirectory
-                        InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
+                        DirInodeId::BasicDirectory | DirInodeId::ExtendedDirectory => {
                             // its a dir, extract all children inodes
                             self.extract_dir(
                                 fullpath,
                                 root,
                                 found_inode,
                                 self.uid.as_ref().unwrap(),
-                                self.gid.as_ref().unwrap(),
+                                self.guid.as_ref().unwrap(),
                             )?;
                             InnerNode::Dir(SquashfsDir::default())
                         }
                         // BasicFile
-                        InodeId::BasicFile => {
+                        DirInodeId::BasicFile => {
                             trace!("before_file: {:#02x?}", entry);
                             let basic = match &found_inode.inner {
                                 InodeInner::BasicFile(file) => file.clone(),
@@ -559,27 +557,27 @@ impl<'b> Squashfs<'b> {
                             InnerNode::File(SquashfsFileReader { basic })
                         }
                         // Basic Symlink
-                        InodeId::BasicSymlink => {
+                        DirInodeId::BasicSymlink => {
                             let link = self.symlink(found_inode)?;
                             InnerNode::Symlink(SquashfsSymlink { link })
                         }
                         // Basic CharacterDevice
-                        InodeId::BasicCharacterDevice => {
+                        DirInodeId::BasicCharacterDevice => {
                             let device_number = self.char_device(found_inode)?;
                             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number })
                         }
                         // Basic CharacterDevice
-                        InodeId::BasicBlockDevice => {
+                        DirInodeId::BasicBlockDevice => {
                             let device_number = self.block_device(found_inode)?;
                             InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
                         }
-                        InodeId::ExtendedFile => {
+                        DirInodeId::ExtendedFile => {
                             return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
                         }
                     };
                     let node = Node::new(
                         fullpath.clone(),
-                        NodeHeader::from_inodev3(header, gid_table, uid_table),
+                        NodeHeader::from_inodev3(header, guid_table, uid_table),
                         inner,
                     );
                     root.nodes.push(node);
@@ -642,32 +640,33 @@ impl<'b> Squashfs<'b> {
         let mut root = Nodes::new_root(NodeHeader::from_inodev3(
             self.root_inode.header,
             &self.uid.as_ref().unwrap(),
-            &self.gid.as_ref().unwrap(),
+            &self.guid.as_ref().unwrap(),
         ));
         self.extract_dir(
             &mut PathBuf::from("/"),
             &mut root,
             &self.root_inode,
-            &self.gid.as_ref().unwrap(),
+            &self.guid.as_ref().unwrap(),
             &self.uid.as_ref().unwrap(),
         )?;
         root.nodes.sort();
 
         info!("created fs tree");
-        todo!();
-        // let filesystem = FilesystemReader {
-        //     kind: self.kind,
-        //     block_size: self.superblock.block_size_1 as u32,
-        //     block_log: self.superblock.block_log,
-        //     compressor: Compressor::Gzip,
-        //     compression_options: self.compression_options,
-        //     mod_time: self.superblock.mkfs_time,
-        //     id_table: self.id,
-        //     fragments: self.fragments,
-        //     root,
-        //     reader: Mutex::new(Box::new(self.file)),
-        //     cache: Mutex::new(Cache::default()),
-        // };
-        // Ok(filesystem)
+        let filesystem = FilesystemReader {
+            kind: self.kind,
+            block_size: self.superblock.block_size_1 as u32,
+            block_log: self.superblock.block_log,
+            compressor: Compressor::Gzip,
+            compression_options: self.compression_options,
+            mod_time: self.superblock.mkfs_time,
+            id_table: None,
+            uid_table: self.uid,
+            guid_table: self.guid,
+            fragments: self.fragments,
+            root,
+            reader: Mutex::new(Box::new(self.file)),
+            cache: Mutex::new(Cache::default()),
+        };
+        Ok(filesystem)
     }
 }

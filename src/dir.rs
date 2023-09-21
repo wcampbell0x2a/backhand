@@ -21,15 +21,18 @@ pub struct Dir {
     /// Number of entries following the header.
     ///
     /// A header must be followed by AT MOST 256 entries. If there are more entries, a new header MUST be emitted.
-    #[deku(assert = "*count <= 256")]
+    #[deku(assert = "*count <= 256", bytes = "1")]
     pub(crate) count: u32,
     /// The location of the metadata block in the inode table where the inodes are stored.
     /// This is relative to the inode table start from the super block.
+    #[deku(bytes = "2")]
     pub(crate) start: u32,
     /// An arbitrary inode number.
     /// The entries that follow store their inode number as a difference to this.
+    #[deku(bytes = "2")]
     pub(crate) inode_num: u32,
-    #[deku(count = "*count + 1")]
+    //#[deku(count = "*count + 1")]
+    #[deku(count = "0")]
     pub(crate) dir_entries: Vec<DirEntry>,
 }
 
@@ -49,6 +52,26 @@ impl Dir {
     }
 }
 
+#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
+#[deku(type = "u8", bits = "3")]
+#[deku(endian = "endian", bit_order = "order", ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order")]
+#[rustfmt::skip]
+pub enum DirInodeId {
+    BasicDirectory       = 1,
+    BasicFile            = 2,
+    BasicSymlink         = 3,
+    BasicBlockDevice     = 4,
+    BasicCharacterDevice = 5,
+    ExtendedDirectory    = 8,
+    ExtendedFile         = 9,
+    // TODO:
+    // Extended Symlink = 10
+    // Extended Block Device = 11
+    // Extended Character Device = 12
+    // Extended Named Pipe (FIFO) = 13
+    // Extended Socked = 14
+}
+
 // TODO: derive our own Debug, with name()
 #[derive(DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
@@ -58,13 +81,14 @@ impl Dir {
 )]
 pub struct DirEntry {
     /// An offset into the uncompressed inode metadata block.
+    #[deku(bits = "13")]
     pub(crate) offset: u16,
-    /// The difference of this inode’s number to the reference stored in the header.
-    pub(crate) inode_offset: i16,
     /// The inode type. For extended inodes, the basic type is stored here instead.
-    pub(crate) t: InodeId,
+    pub(crate) t: DirInodeId,
     /// One less than the size of the entry name.
     pub(crate) name_size: u16,
+    /// The difference of this inode’s number to the reference stored in the header.
+    pub(crate) inode_number: i16,
     // TODO: CString
     /// The file name of the entry without a trailing null byte. Has name size + 1 bytes.
     #[deku(count = "*name_size + 1")]
@@ -75,7 +99,7 @@ impl fmt::Debug for DirEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DirEntry")
             .field("offset", &self.offset)
-            .field("inode_offset", &self.inode_offset)
+            .field("inode_number", &self.inode_number)
             .field("t", &self.t)
             .field("name_size", &self.name_size)
             .field("name", &self.name())

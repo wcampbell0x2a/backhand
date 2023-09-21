@@ -224,21 +224,22 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
             })
             .collect();
         root.sort();
-        Ok(Self {
-            kind: Kind {
-                inner: reader.kind.inner.clone(),
-            },
-            block_size: reader.block_size,
-            block_log: reader.block_log,
-            fs_compressor: FilesystemCompressor::new(
-                reader.compressor,
-                reader.compression_options,
-            )?,
-            mod_time: reader.mod_time,
-            id_table: reader.id_table.clone(),
-            root: Nodes { nodes: root },
-            pad_len: DEFAULT_PAD_LEN,
-        })
+        todo!();
+        // Ok(Self {
+        //     kind: Kind {
+        //         inner: reader.kind.inner.clone(),
+        //     },
+        //     block_size: reader.block_size,
+        //     block_log: reader.block_log,
+        //     fs_compressor: FilesystemCompressor::new(
+        //         reader.compressor,
+        //         reader.compression_options,
+        //     )?,
+        //     mod_time: reader.mod_time,
+        //     id_table: reader.id_table.clone(),
+        //     root: Nodes { nodes: root },
+        //     pad_len: DEFAULT_PAD_LEN,
+        // })
     }
 
     //find the node relative to this path and return a mutable reference

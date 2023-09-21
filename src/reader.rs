@@ -134,6 +134,7 @@ pub trait SquashFsReader: BufReadSeek {
                 ) {
                     Ok(inode) => {
                         // Push the new Inode to the return, with the position this was read from
+                        trace!("{inode:02x?}");
                         ret_vec.insert(inode.header.inode_number, inode);
                         container_bits_read = container.bits_read;
                     }
@@ -284,12 +285,13 @@ pub trait SquashFsReader: BufReadSeek {
 
         let mut cursor = Cursor::new(buf);
         let mut deku_reader = Reader::new(&mut cursor);
-        let table = Vec::with_capacity(count as usize);
+        let mut table = Vec::with_capacity(count as usize);
         for _ in 0..count {
             let v = u16::from_reader_with_ctx(
                 &mut deku_reader,
                 (kind.inner.type_endian, deku::ctx::Order::Lsb0),
-            );
+            )?;
+            table.push(v);
         }
 
         Ok(table)
@@ -307,12 +309,13 @@ pub trait SquashFsReader: BufReadSeek {
 
         let mut cursor = Cursor::new(buf);
         let mut deku_reader = Reader::new(&mut cursor);
-        let table = Vec::with_capacity(count as usize);
+        let mut table = Vec::with_capacity(count as usize);
         for _ in 0..count {
             let v = u16::from_reader_with_ctx(
                 &mut deku_reader,
                 (kind.inner.type_endian, deku::ctx::Order::Lsb0),
-            );
+            )?;
+            table.push(v);
         }
 
         Ok(table)

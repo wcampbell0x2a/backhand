@@ -80,7 +80,9 @@ pub struct FilesystemReader<'b> {
     /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
     pub mod_time: u32,
     /// ID's stored for gui(s) and uid(s)
-    pub id_table: Vec<Id>,
+    pub id_table: Option<Vec<Id>>,
+    pub uid_table: Option<Vec<u16>>,
+    pub guid_table: Option<Vec<u16>>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
     /// All files and directories in filesystem

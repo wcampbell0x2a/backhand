@@ -46,50 +46,50 @@ impl<'a> Entry<'a> {
         kind: &Kind,
         id_table: &[Id],
     ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
-        let header = InodeHeader {
-            inode_number: inode,
-            uid,
-            gid,
-            permissions: header.permissions,
-            mtime: header.mtime,
-        };
-        // if entry won't fit in file_size of regular dir entry, create extended directory
-        let dir_inode = if file_size > u16::MAX as usize {
-            todo!();
-            // Inode::new(
-            //     InodeId::ExtendedDirectory,
-            //     header,
-            //     InodeInner::ExtendedDirectory(ExtendedDirectory {
-            //         link_count: 2 + u32::try_from(children_num).unwrap(),
-            //         file_size: file_size.try_into().unwrap(), // u32
-            //         block_index,
-            //         parent_inode,
-            //         // TODO: Support Directory Index
-            //         index_count: 0,
-            //         block_offset,
-            //         // TODO(#32): Support xattr
-            //         xattr_index: 0xffff_ffff,
-            //         // TODO: Support Directory Index
-            //         dir_index: vec![],
-            //     }),
-            // )
-        } else {
-            Inode::new(
-                InodeId::BasicDirectory,
-                header,
-                InodeInner::BasicDirectory(BasicDirectory {
-                    block_index,
-                    link_count: 2 + u32::try_from(children_num).unwrap(),
-                    file_size: file_size.try_into().unwrap(), // u16
-                    block_offset,
-                    parent_inode,
-                }),
-            )
-        };
+        todo!();
+        // let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        // let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        // let header = InodeHeader {
+        //     inode_number: inode,
+        //     uid,
+        //     gid,
+        //     permissions: header.permissions,
+        //     mtime: header.mtime,
+        // };
+        // // if entry won't fit in file_size of regular dir entry, create extended directory
+        // let dir_inode = if file_size > u16::MAX as usize {
+        //     todo!();
+        //     // Inode::new(
+        //     //     InodeId::ExtendedDirectory,
+        //     //     header,
+        //     //     InodeInner::ExtendedDirectory(ExtendedDirectory {
+        //     //         link_count: 2 + u32::try_from(children_num).unwrap(),
+        //     //         file_size: file_size.try_into().unwrap(), // u32
+        //     //         block_index,
+        //     //         parent_inode,
+        //     //         // TODO: Support Directory Index
+        //     //         index_count: 0,
+        //     //         block_offset,
+        //     //         // TODO(#32): Support xattr
+        //     //         xattr_index: 0xffff_ffff,
+        //     //         // TODO: Support Directory Index
+        //     //         dir_index: vec![],
+        //     //     }),
+        //     // )
+        // } else {
+        //     Inode::new(
+        //         InodeId::BasicDirectory,
+        //         header,
+        //         InodeInner::BasicDirectory(BasicDirectory {
+        //             nlink: 2 + u32::try_from(children_num).unwrap(),
+        //             file_size: file_size.try_into().unwrap(), // u16
+        //             start_block: block_offset,
+        //             parent_inode,
+        //         }),
+        //     )
+        // };
 
-        dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
+        // dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
     }
 
     /// Write data and metadata for file node
@@ -265,27 +265,28 @@ impl<'a> fmt::Debug for Entry<'a> {
 
 impl<'a> Entry<'a> {
     fn create_dir(creating_dir: &Vec<&Self>, start: u32, lowest_inode: u32) -> Dir {
-        let mut dir = Dir::new(lowest_inode);
+        todo!();
+        // let mut dir = Dir::new(lowest_inode);
 
-        dir.count = creating_dir.len().try_into().unwrap();
-        if dir.count >= 256 {
-            panic!("dir.count({}) >= 256:", dir.count);
-        }
+        // dir.count = creating_dir.len().try_into().unwrap();
+        // if dir.count >= 256 {
+        //     panic!("dir.count({}) >= 256:", dir.count);
+        // }
 
-        dir.start = start;
-        for e in creating_dir {
-            let inode = e.inode;
-            let new_entry = DirEntry {
-                offset: e.offset,
-                inode_offset: (inode - lowest_inode).try_into().unwrap(),
-                t: e.t.into_base_type(),
-                name_size: e.name_size,
-                name: e.name.to_vec(),
-            };
-            dir.push(new_entry);
-        }
+        // dir.start = start;
+        // for e in creating_dir {
+        //     let inode = e.inode;
+        //     let new_entry = DirEntry {
+        //         offset: e.offset,
+        //         inode_offset: (inode - lowest_inode).try_into().unwrap(),
+        //         t: e.t.into_base_type(),
+        //         name_size: e.name_size,
+        //         name: e.name.to_vec(),
+        //     };
+        //     dir.push(new_entry);
+        // }
 
-        dir
+        // dir
     }
 
     /// Create entries, input need to be alphabetically sorted

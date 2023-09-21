@@ -450,6 +450,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         // create required dirs, we will fix permissions later
         let _ = fs::create_dir_all(filepath.parent().unwrap());
 
+        dbg!(&node.inner);
         match &node.inner {
             InnerNode::File(file) => {
                 // alloc required space for file data readers

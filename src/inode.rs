@@ -149,12 +149,11 @@ pub struct InodeHeader {
     bit_order = "order"
 )]
 pub struct BasicDirectory {
-    pub block_index: u32,
-    pub link_count: u32,
+    pub nlink: u32,
     #[deku(bits = "19")]
     pub file_size: u32,
     #[deku(bits = "13")]
-    pub block_offset: u16,
+    pub start_block: u32,
     pub parent_inode: u32,
 }
 

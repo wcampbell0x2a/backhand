@@ -142,6 +142,7 @@ pub struct InodeHeader {
     pub inode_number: u32,
 }
 
+// `squashfs_dir_inode_header`
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
@@ -153,10 +154,12 @@ pub struct BasicDirectory {
     #[deku(bits = "19")]
     pub file_size: u32,
     #[deku(bits = "13")]
+    pub offset: u32,
     pub start_block: u32,
     pub parent_inode: u32,
 }
 
+// `squashfs_ldir_inode_header`
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
@@ -201,7 +204,8 @@ pub struct ExtendedDirectory {
 pub struct BasicFile {
     pub blocks_start: u32,
     pub frag_index: u32,
-    pub block_offset: u64,
+    pub empty: u32,
+    pub block_offset: u32,
     #[deku(
         bytes = "4",
         assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))"

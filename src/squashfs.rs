@@ -457,9 +457,11 @@ impl<'b> Squashfs<'b> {
         &self,
         block_index: u64,
         file_size: u32,
+        offset: u32,
     ) -> Result<Option<Vec<Dir>>, BackhandError> {
         trace!("- block index : {:02x?}", block_index);
         trace!("- file_size   : {:02x?}", file_size);
+        trace!("- offset      : {:02x?}", offset);
         // if file_size < 4 {
         //     return Ok(None);
         // }
@@ -473,19 +475,30 @@ impl<'b> Squashfs<'b> {
             .flat_map(|(_, b)| b.iter())
             .copied()
             .collect();
-        trace!("bytes: {block:02x?}");
 
-        let bytes = block;
-        // let bytes = &block[block_offset..][..file_size as usize - 3];
+        //let bytes = &block[offset as usize..];
+        let bytes = &block;
+        trace!("bytes: {block:02x?}");
         let mut dirs = vec![];
         // Read until we fail to turn bytes into `T`
         let mut cursor = Cursor::new(bytes);
         let mut container = Reader::new(&mut cursor);
-        while let Ok(t) = Dir::from_reader_with_ctx(
-            &mut container,
-            (self.kind.inner.type_endian, deku::ctx::Order::Lsb0),
-        ) {
-            dirs.push(t);
+        loop {
+            match Dir::from_reader_with_ctx(
+                &mut container,
+                (self.kind.inner.type_endian, deku::ctx::Order::Lsb0),
+            ) {
+                Ok(t) => {
+                    log::trace!("{:02x?}", t);
+                    dirs.push(t);
+                }
+                Err(e) => {
+                    // don't error, altough I think it should error if we have our offsets
+                    // all correct
+                    //panic!("{e}");
+                    break;
+                }
+            }
         }
 
         trace!("finish: {dirs:?}");
@@ -507,6 +520,7 @@ impl<'b> Squashfs<'b> {
                 self.dir_from_index(
                     basic_dir.start_block.try_into().unwrap(),
                     basic_dir.file_size.try_into().unwrap(),
+                    basic_dir.offset.try_into().unwrap(),
                 )?
             }
             InodeInner::ExtendedDirectory(ext_dir) => {
@@ -524,7 +538,9 @@ impl<'b> Squashfs<'b> {
             for d in &dirs {
                 trace!("extracing entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
-                    let inode_key = (d.inode_num as i32).try_into().unwrap();
+                    let inode_key = (d.inode_num as i32 + entry.inode_offset as i32)
+                        .try_into()
+                        .unwrap();
                     let found_inode = &self.inodes[&inode_key];
                     let header = found_inode.header;
                     fullpath.push(entry.name()?);

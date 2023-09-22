@@ -13,6 +13,7 @@ use deku::prelude::*;
 use crate::inode::InodeId;
 use crate::BackhandError;
 
+/// `squashfs_dir_header`
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "type_endian: deku::ctx::Endian, order: deku::ctx::Order")]
 #[deku(bit_order = "order")]
@@ -25,14 +26,12 @@ pub struct Dir {
     pub(crate) count: u32,
     /// The location of the metadata block in the inode table where the inodes are stored.
     /// This is relative to the inode table start from the super block.
-    #[deku(bytes = "2")]
     pub(crate) start: u32,
     /// An arbitrary inode number.
     /// The entries that follow store their inode number as a difference to this.
-    #[deku(bytes = "2")]
-    pub(crate) inode_num: u32,
+    pub(crate) inode_num: i32,
     //#[deku(count = "*count + 1")]
-    #[deku(count = "0")]
+    #[deku(count = "*count + 1")]
     pub(crate) dir_entries: Vec<DirEntry>,
 }
 
@@ -41,7 +40,7 @@ impl Dir {
         Self {
             count: u32::default(),
             start: u32::default(),
-            inode_num: lowest_inode,
+            inode_num: lowest_inode as i32,
             dir_entries: vec![],
         }
     }
@@ -86,9 +85,10 @@ pub struct DirEntry {
     /// The inode type. For extended inodes, the basic type is stored here instead.
     pub(crate) t: DirInodeId,
     /// One less than the size of the entry name.
+    #[deku(bytes = "1")]
     pub(crate) name_size: u16,
     /// The difference of this inode’s number to the reference stored in the header.
-    pub(crate) inode_number: i16,
+    pub(crate) inode_offset: i16,
     // TODO: CString
     /// The file name of the entry without a trailing null byte. Has name size + 1 bytes.
     #[deku(count = "*name_size + 1")]
@@ -99,9 +99,9 @@ impl fmt::Debug for DirEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DirEntry")
             .field("offset", &self.offset)
-            .field("inode_number", &self.inode_number)
             .field("t", &self.t)
             .field("name_size", &self.name_size)
+            .field("inode_offset", &self.inode_offset)
             .field("name", &self.name())
             .finish()
     }

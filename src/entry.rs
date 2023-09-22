@@ -122,7 +122,8 @@ impl<'a> Entry<'a> {
                 BasicFile {
                     blocks_start: *blocks_start,
                     frag_index: 0xffffffff, // <- no fragment
-                    block_offset: 0x0,      // <- no fragment
+                    empty: 0,
+                    block_offset: 0x0, // <- no fragment
                     file_size: file_size.try_into().unwrap(),
                     block_sizes: block_sizes.to_vec(),
                 }
@@ -133,7 +134,8 @@ impl<'a> Entry<'a> {
             } => BasicFile {
                 blocks_start: 0,
                 frag_index: *frag_index,
-                block_offset: *block_offset as u64,
+                empty: 0,
+                block_offset: *block_offset,
                 file_size: file_size.try_into().unwrap(),
                 block_sizes: vec![],
             },

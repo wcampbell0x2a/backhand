@@ -8,14 +8,14 @@ use rustc_hash::FxHashMap;
 use tracing::{error, instrument, trace};
 
 use crate::error::BackhandError;
-use crate::export::Export;
-use crate::fragment::Fragment;
-use crate::id::Id;
-use crate::inode::Inode;
 use crate::kinds::Kind;
-use crate::metadata::METADATA_MAXSIZE;
-use crate::squashfs::{SuperBlock, NOT_SET};
-use crate::{fragment, metadata};
+use crate::v3::export::Export;
+use crate::v3::fragment::Fragment;
+use crate::v3::id::Id;
+use crate::v3::inode::Inode;
+use crate::v3::metadata::METADATA_MAXSIZE;
+use crate::v3::squashfs::{SuperBlock, NOT_SET};
+use crate::v3::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file
 #[derive(Debug)]

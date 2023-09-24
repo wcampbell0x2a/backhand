@@ -12,16 +12,16 @@ use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
-use crate::dir::{Dir, DirInodeId};
 use crate::error::BackhandError;
-use crate::filesystem::node::{InnerNode, Nodes};
-use crate::fragment::Fragment;
-use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
-use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::v3::dir::{Dir, DirInodeId};
+use crate::v3::filesystem::node::{InnerNode, Nodes};
+use crate::v3::fragment::Fragment;
+use crate::v3::inode::{Inode, InodeId, InodeInner};
+use crate::v3::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::{
-    metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+    Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
 /// 128KiB
@@ -532,7 +532,7 @@ impl<'b> Squashfs<'b> {
                 //     ext_dir.block_offset as usize,
                 // )?
             }
-            _ => return Err(BackhandError::UnexpectedInode(dir_inode.inner.clone())),
+            _ => return Err(BackhandError::UnexpectedInode),
         };
         if let Some(dirs) = dirs {
             for d in &dirs {
@@ -564,11 +564,7 @@ impl<'b> Squashfs<'b> {
                             let basic = match &found_inode.inner {
                                 InodeInner::BasicFile(file) => file.clone(),
                                 InodeInner::ExtendedFile(file) => todo!(), //file.into(),
-                                _ => {
-                                    return Err(BackhandError::UnexpectedInode(
-                                        found_inode.inner.clone(),
-                                    ))
-                                }
+                                _ => return Err(BackhandError::UnexpectedInode),
                             };
                             InnerNode::File(SquashfsFileReader { basic })
                         }
@@ -587,9 +583,7 @@ impl<'b> Squashfs<'b> {
                             let device_number = self.block_device(found_inode)?;
                             InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
                         }
-                        DirInodeId::ExtendedFile => {
-                            return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
-                        }
+                        DirInodeId::ExtendedFile => return Err(BackhandError::UnsupportedInode),
                     };
                     let node = Node::new(
                         fullpath.clone(),

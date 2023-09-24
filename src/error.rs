@@ -4,9 +4,6 @@ use std::{io, string};
 
 use thiserror::Error;
 
-use crate::compressor::Compressor;
-use crate::inode::InodeInner;
-
 /// Errors generated from library
 #[derive(Error, Debug)]
 pub enum BackhandError {
@@ -22,8 +19,8 @@ pub enum BackhandError {
     #[error("string error: {0:?}")]
     StrUtf8(#[from] std::str::Utf8Error),
 
-    #[error("unsupported compression: {0:?}")]
-    UnsupportedCompression(Compressor),
+    #[error("unsupported compression")]
+    UnsupportedCompression,
 
     #[error("file not found")]
     FileNotFound,
@@ -31,11 +28,11 @@ pub enum BackhandError {
     #[error("branch was thought to be unreachable")]
     Unreachable,
 
-    #[error("inode {0:?} was unexpected in this position")]
-    UnexpectedInode(InodeInner),
+    #[error("inode was unexpected in this position")]
+    UnexpectedInode,
 
-    #[error("unsupported inode: {0:?}, please fill github issue to add support")]
-    UnsupportedInode(InodeInner),
+    #[error("unsupported inode: please fill github issue to add support")]
+    UnsupportedInode,
 
     #[error("corrupted or invalid squashfs image")]
     CorruptedOrInvalidSquashfs,
@@ -61,11 +58,11 @@ impl From<BackhandError> for io::Error {
             Deku(e) => e.into(),
             StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
             StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ UnsupportedCompression(_) => Self::new(io::ErrorKind::Unsupported, e),
+            e @ UnsupportedCompression => Self::new(io::ErrorKind::Unsupported, e),
             e @ FileNotFound => Self::new(io::ErrorKind::NotFound, e),
             e @ (Unreachable
-            | UnexpectedInode(_)
-            | UnsupportedInode(_)
+            | UnexpectedInode
+            | UnsupportedInode
             | CorruptedOrInvalidSquashfs
             | InvalidCompressionOption
             | InvalidFilePath

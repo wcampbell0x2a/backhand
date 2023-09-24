@@ -55,37 +55,27 @@
 #[doc = include_str!("../README.md")]
 type _ReadmeTest = ();
 
-mod compressor;
-mod data;
-mod dir;
-mod entry;
-mod error;
-mod export;
-mod filesystem;
-mod fragment;
-mod id;
-mod inode;
-mod kinds;
-mod metadata;
-mod reader;
-mod squashfs;
+pub mod compressor;
+pub mod error;
+pub mod kinds;
+pub mod v3;
 
-pub use crate::data::DataSize;
 pub use crate::error::BackhandError;
-pub use crate::export::Export;
-pub use crate::filesystem::node::{
+pub use crate::v3::data::DataSize;
+pub use crate::v3::export::Export;
+pub use crate::v3::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
-pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsReadFile};
-pub use crate::filesystem::writer::{
-    CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
-};
-pub use crate::fragment::Fragment;
-pub use crate::id::Id;
-pub use crate::inode::{BasicFile, Inode};
-pub use crate::reader::BufReadSeek;
-pub use crate::squashfs::{
+pub use crate::v3::filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsReadFile};
+// pub use crate::v3::filesystem::writer::{
+//     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
+// };
+pub use crate::v3::fragment::Fragment;
+pub use crate::v3::id::Id;
+pub use crate::v3::inode::{BasicFile, Inode};
+pub use crate::v3::reader::BufReadSeek;
+pub use crate::v3::squashfs::{
     Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 

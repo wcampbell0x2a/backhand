@@ -10,7 +10,7 @@ use std::path::{Component, Path};
 
 use deku::prelude::*;
 
-use crate::inode::InodeId;
+use crate::v3::inode::InodeId;
 use crate::BackhandError;
 
 /// `squashfs_dir_header`

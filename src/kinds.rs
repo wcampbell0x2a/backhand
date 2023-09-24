@@ -3,7 +3,10 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::compressor::{CompressionAction, DefaultCompressor};
+use crate::{
+    compressor::{CompressionAction, Compressor},
+    BackhandError,
+};
 
 /// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -101,17 +104,6 @@ impl Kind {
     ///
     ///         Ok(())
     ///     }
-    ///
-    ///     // Just pass to default compressor
-    ///     fn compress(
-    ///         &self,
-    ///         bytes: &[u8],
-    ///         fc: FilesystemCompressor,
-    ///         block_size: u32,
-    ///     ) -> Result<Vec<u8>, BackhandError> {
-    ///         DefaultCompressor.compress(bytes, fc, block_size)
-    ///     }
-    /// }
     ///
     /// let kind = Kind::new(&CustomCompressor);
     /// ```
@@ -254,7 +246,7 @@ pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     data_endian: deku::ctx::Endian::Little,
     version_major: 4,
     version_minor: 0,
-    compressor: &DefaultCompressor,
+    compressor: &crate::compressor::DefaultCompressor,
 };
 
 /// Big-Endian Superblock v4.0
@@ -264,7 +256,7 @@ pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     data_endian: deku::ctx::Endian::Big,
     version_major: 4,
     version_minor: 0,
-    compressor: &DefaultCompressor,
+    compressor: &crate::compressor::DefaultCompressor,
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
@@ -274,7 +266,7 @@ pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKin
     data_endian: deku::ctx::Endian::Little,
     version_major: 4,
     version_minor: 0,
-    compressor: &DefaultCompressor,
+    compressor: &crate::compressor::DefaultCompressor,
 };
 
 /// Little-Endian v3.0
@@ -284,5 +276,5 @@ pub const LE_V3_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     data_endian: deku::ctx::Endian::Little,
     version_major: 3,
     version_minor: 0,
-    compressor: &DefaultCompressor, // Only Gzip
+    compressor: &crate::compressor::DefaultCompressor, // Onyl Gzip
 };

@@ -7,14 +7,114 @@ use deku::prelude::*;
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "gzip")]
 use flate2::Compression;
-use tracing::instrument;
+use tracing::{error, instrument};
 #[cfg(feature = "xz")]
 use xz2::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]
 use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::BackhandError;
-use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
+/// All compression options for [`FilesystemWriter`]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct FilesystemCompressor {
+    pub(crate) id: Compressor,
+    pub(crate) options: Option<CompressionOptions>,
+    pub(crate) extra: Option<CompressionExtra>,
+}
+
+impl FilesystemCompressor {
+    pub fn new(id: Compressor, options: Option<CompressionOptions>) -> Result<Self, BackhandError> {
+        match (id, options) {
+            // lz4 always requires options
+            (Compressor::Lz4, None) => {
+                error!("Lz4 compression options missing");
+                return Err(BackhandError::InvalidCompressionOption);
+            }
+            //others having no options is always valid
+            (_, None) => {}
+            //only the corresponding option are valid
+            (Compressor::Gzip, Some(CompressionOptions::Gzip(_)))
+            | (Compressor::Lzma, Some(CompressionOptions::Lzma))
+            | (Compressor::Lzo, Some(CompressionOptions::Lzo(_)))
+            | (Compressor::Xz, Some(CompressionOptions::Xz(_)))
+            | (Compressor::Lz4, Some(CompressionOptions::Lz4(_)))
+            | (Compressor::Zstd, Some(CompressionOptions::Zstd(_))) => {}
+            //other combinations are invalid
+            _ => {
+                error!("invalid compression settings");
+                return Err(BackhandError::InvalidCompressionOption);
+            }
+        }
+        Ok(Self {
+            id,
+            options,
+            extra: None,
+        })
+    }
+
+    /// Set options that are originally derived from the image if from a [`FilesystemReader`].
+    /// These options will be written to the image when
+    /// <https://github.com/wcampbell0x2a/backhand/issues/53> is fixed.
+    pub fn options(&mut self, options: CompressionOptions) -> Result<(), BackhandError> {
+        self.options = Some(options);
+        Ok(())
+    }
+
+    /// Extra options that are *only* using during compression and are *not* stored in the
+    /// resulting image
+    pub fn extra(&mut self, extra: CompressionExtra) -> Result<(), BackhandError> {
+        if matches!(extra, CompressionExtra::Xz(_)) && matches!(self.id, Compressor::Xz) {
+            self.extra = Some(extra);
+            return Ok(());
+        }
+
+        error!("invalid extra compression settings");
+        Err(BackhandError::InvalidCompressionOption)
+    }
+}
+
+/// Custom Compression support
+///
+/// For most instances, one should just use the [`DefaultCompressor`]. This will correctly
+/// implement the Squashfs found within `squashfs-tools` and the Linux kernel.
+///
+/// However, the "wonderful world of vendor formats" has other ideas and has implemented their own
+/// ideas of compression with custom tables and such! Thus, if the need arises you can implemented
+/// your own [`CompressionAction`] to override the compression and de-compression used in this
+/// library by default.
+pub trait CompressionAction {
+    /// Decompress function used for all decompression actions
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - Input compressed bytes
+    /// * `out` - Output uncompressed bytes
+    /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
+    /// compressor doesn't follow the normal values of the Compressor Id.
+    ///
+    /// [SuperBlock]: [`crate::SuperBlock`]
+    fn decompress(
+        &self,
+        bytes: &[u8],
+        out: &mut Vec<u8>,
+        compressor: Compressor,
+    ) -> Result<(), BackhandError>;
+
+    /// Compression function used for all compression actions
+    ///
+    /// # Arguments
+    /// * `bytes` - Input uncompressed bytes
+    /// * `fc` - Information from both the derived image and options added during compression
+    /// * `block_size` - Block size from [SuperBlock]
+    ///
+    /// [SuperBlock]: [`crate::SuperBlock`]
+    fn compress(
+        &self,
+        bytes: &[u8],
+        fc: FilesystemCompressor,
+        block_size: u32,
+    ) -> Result<Vec<u8>, BackhandError>;
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
@@ -79,7 +179,6 @@ pub struct Lzo {
 pub struct Xz {
     pub dictionary_size: u32,
     pub filters: XzFilter,
-
     // the rest of these fields are from OpenWRT. These are optional, as the kernel will ignore
     // these fields when seen. We follow the same behaviour and don't attempt to parse if the bytes
     // for these aren't found
@@ -87,10 +186,11 @@ pub struct Xz {
     // TODO: in openwrt, git-hash:f97ad870e11ebe5f3dcf833dda6c83b9165b37cb shows that before
     // offical squashfs-tools had xz support they had the dictionary_size field as the last field
     // in this struct. If we get test images, I guess we can support this in the future.
-    #[deku(cond = "!deku::reader.end()")]
-    pub bit_opts: Option<u16>,
-    #[deku(cond = "!deku::reader.end()")]
-    pub fb: Option<u16>,
+    // TODO: fix
+    // #[deku(cond = "!deku::rest.is_empty()")]
+    // pub bit_opts: Option<u16>,
+    // #[deku(cond = "!deku::rest.is_empty()")]
+    // pub fb: Option<u16>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
@@ -137,47 +237,28 @@ pub struct Zstd {
     pub compression_level: u32,
 }
 
-/// Custom Compression support
-///
-/// For most instances, one should just use the [`DefaultCompressor`]. This will correctly
-/// implement the Squashfs found within `squashfs-tools` and the Linux kernel.
-///
-/// However, the "wonderful world of vendor formats" has other ideas and has implemented their own
-/// ideas of compression with custom tables and such! Thus, if the need arises you can implemented
-/// your own [`CompressionAction`] to override the compression and de-compression used in this
-/// library by default.
-pub trait CompressionAction {
-    /// Decompress function used for all decompression actions
-    ///
-    /// # Arguments
-    ///
-    /// * `bytes` - Input compressed bytes
-    /// * `out` - Output uncompressed bytes
-    /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
-    /// compressor doesn't follow the normal values of the Compressor Id.
-    ///
-    /// [SuperBlock]: [`crate::SuperBlock`]
-    fn decompress(
-        &self,
-        bytes: &[u8],
-        out: &mut Vec<u8>,
-        compressor: Compressor,
-    ) -> Result<(), BackhandError>;
+/// Compression options only for [`FilesystemWriter`]
+#[derive(Debug, Copy, Clone)]
+pub enum CompressionExtra {
+    Xz(ExtraXz),
+}
 
-    /// Compression function used for all compression actions
-    ///
-    /// # Arguments
-    /// * `bytes` - Input uncompressed bytes
-    /// * `fc` - Information from both the derived image and options added during compression
-    /// * `block_size` - Block size from [SuperBlock]
-    ///
-    /// [SuperBlock]: [`crate::SuperBlock`]
-    fn compress(
-        &self,
-        bytes: &[u8],
-        fc: FilesystemCompressor,
-        block_size: u32,
-    ) -> Result<Vec<u8>, BackhandError>;
+/// Xz compression option for [`FilesystemWriter`]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct ExtraXz {
+    pub(crate) level: Option<u32>,
+}
+
+impl ExtraXz {
+    /// Set compress preset level. Must be in range `0..=9`
+    pub fn level(&mut self, level: u32) -> Result<(), BackhandError> {
+        if level > 9 {
+            return Err(BackhandError::InvalidCompressionOption);
+        }
+        self.level = Some(level);
+
+        Ok(())
+    }
 }
 
 /// Default compressor that handles the compression features that are enabled
@@ -219,7 +300,7 @@ impl CompressionAction for DefaultCompressor {
                 let mut decoder = zstd::bulk::Decompressor::new().unwrap();
                 decoder.decompress_to_buffer(bytes, out)?;
             }
-            _ => return Err(BackhandError::UnsupportedCompression(compressor)),
+            _ => return Err(BackhandError::UnsupportedCompression),
         }
         Ok(())
     }
@@ -328,7 +409,7 @@ impl CompressionAction for DefaultCompressor {
                 encoder.compress_to_buffer(bytes, &mut buf)?;
                 Ok(buf)
             }
-            _ => Err(BackhandError::UnsupportedCompression(fc.id)),
+            _ => Err(BackhandError::UnsupportedCompression),
         }
     }
 }

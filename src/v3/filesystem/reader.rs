@@ -1,16 +1,16 @@
 use std::io::{Read, SeekFrom};
 use std::sync::Mutex;
 
-use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
-use crate::data::DataSize;
 use crate::error::BackhandError;
-use crate::fragment::Fragment;
-use crate::id::Id;
-use crate::inode::BasicFile;
 use crate::kinds::Kind;
-use crate::reader::BufReadSeek;
-use crate::squashfs::Cache;
+use crate::v3::data::DataSize;
+use crate::v3::filesystem::node::Nodes;
+use crate::v3::fragment::Fragment;
+use crate::v3::id::Id;
+use crate::v3::inode::BasicFile;
+use crate::v3::reader::BufReadSeek;
+use crate::v3::squashfs::Cache;
 use crate::{Node, Squashfs, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image

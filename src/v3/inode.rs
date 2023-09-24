@@ -3,15 +3,10 @@
 use core::fmt;
 use std::io::Write;
 
-use deku::bitvec::{BitVec, Msb0};
 use deku::prelude::*;
 
-use crate::data::DataSize;
-use crate::dir::DirectoryIndex;
-use crate::entry::Entry;
-use crate::kind::Kind;
-use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
+use crate::v3::data::DataSize;
+use crate::v3::dir::DirectoryIndex;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]
@@ -27,39 +22,6 @@ pub struct Inode {
 impl Inode {
     pub fn new(id: InodeId, header: InodeHeader, inner: InodeInner) -> Self {
         Inode { id, header, inner }
-    }
-
-    /// Write to `m_writer`, creating Entry
-    pub(crate) fn to_bytes<'a>(
-        &self,
-        name: &'a [u8],
-        m_writer: &mut MetadataWriter,
-        superblock: &SuperBlock,
-        kind: &Kind,
-    ) -> Entry<'a> {
-        let mut bytes = BitVec::<u8, Msb0>::new();
-        self.write(
-            &mut bytes,
-            (
-                0xffff_ffff_ffff_ffff, // bytes_used is unused for ctx. set to max
-                superblock.block_size,
-                superblock.block_log,
-                kind.inner.type_endian,
-            ),
-        )
-        .unwrap();
-        let start = m_writer.metadata_start;
-        let offset = m_writer.uncompressed_bytes.len() as u16;
-        m_writer.write_all(bytes.as_raw_slice()).unwrap();
-
-        Entry {
-            start,
-            offset,
-            inode: self.header.inode_number,
-            t: self.id,
-            name_size: name.len() as u16 - 1,
-            name,
-        }
     }
 }
 

@@ -59,25 +59,25 @@ pub mod compressor;
 pub mod error;
 pub mod kinds;
 pub mod v3;
+pub mod v4;
 
-pub use crate::error::BackhandError;
-pub use crate::v3::data::DataSize;
-pub use crate::v3::export::Export;
-pub use crate::v3::filesystem::node::{
+pub use crate::v4::data::DataSize;
+pub use crate::v4::export::Export;
+pub use crate::v4::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
-pub use crate::v3::filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsReadFile};
-// pub use crate::v3::filesystem::writer::{
-//     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
-// };
-pub use crate::v3::fragment::Fragment;
-pub use crate::v3::id::Id;
-pub use crate::v3::inode::{BasicFile, Inode};
-pub use crate::v3::reader::BufReadSeek;
-pub use crate::v3::squashfs::{
+pub use crate::v4::filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsReadFile};
+pub use crate::v4::filesystem::writer::FilesystemWriter;
+pub use crate::v4::fragment::Fragment;
+pub use crate::v4::id::Id;
+pub use crate::v4::inode::{BasicFile, Inode};
+pub use crate::v4::reader::BufReadSeek;
+pub use crate::v4::squashfs::{
     Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
+
+pub use crate::error::BackhandError;
 
 /// Support the wonderful world of vendor formats
 pub mod kind {

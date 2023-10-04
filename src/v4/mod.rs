@@ -1,5 +1,6 @@
 pub mod data;
 pub mod dir;
+pub mod entry;
 pub mod export;
 pub mod filesystem;
 pub mod fragment;
@@ -16,9 +17,7 @@ pub use filesystem::node::{
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
 pub use filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsReadFile};
-// pub use crate::v3::filesystem::writer::{
-//     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
-// };
+pub use filesystem::writer::FilesystemWriter;
 pub use fragment::Fragment;
 pub use id::Id;
 pub use inode::{BasicFile, Inode};

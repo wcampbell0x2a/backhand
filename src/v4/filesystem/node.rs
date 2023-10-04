@@ -5,12 +5,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::normalize_squashfs_path;
-use crate::v3::data::Added;
-use crate::v3::inode::{BasicFile, InodeHeader};
-use crate::v3::FilesystemReader;
-use crate::v3::FilesystemReaderFile;
-use crate::v3::Id;
-use crate::BackhandError;
+use crate::error::BackhandError;
+use crate::v4::data::Added;
+use crate::v4::inode::{BasicFile, InodeHeader};
+use crate::v4::{FilesystemReaderFile, Id};
 
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
@@ -32,30 +30,14 @@ impl NodeHeader {
             mtime,
         }
     }
+}
 
+impl NodeHeader {
     pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Self {
         Self {
             permissions: inode_header.permissions,
             uid: id_table[inode_header.uid as usize].num,
             gid: id_table[inode_header.gid as usize].num,
-            mtime: inode_header.mtime,
-        }
-    }
-
-    pub fn from_inodev3(inode_header: InodeHeader, uid_table: &[u16], guid_table: &[u16]) -> Self {
-        dbg!(uid_table);
-        dbg!(guid_table);
-        dbg!(inode_header);
-        let uid = uid_table[inode_header.uid as usize] as u32;
-        let gid = if inode_header.gid == 0xff {
-            uid
-        } else {
-            guid_table[inode_header.gid as usize] as u32
-        };
-        Self {
-            permissions: inode_header.permissions,
-            uid,
-            gid,
             mtime: inode_header.mtime,
         }
     }
@@ -124,13 +106,13 @@ pub struct SquashfsFileReader {
 }
 
 /// Read file from other SquashfsFile or an user file
-pub enum SquashfsFileWriter<'a, 'b> {
-    UserDefined(Arc<Mutex<dyn Read + 'b>>),
-    SquashfsFile(FilesystemReaderFile<'a, 'b>),
+pub enum SquashfsFileWriter<'a> {
+    UserDefined(Arc<Mutex<dyn Read + 'a>>),
+    SquashfsFile(FilesystemReaderFile<'a>),
     Consumed(usize, Added),
 }
 
-impl<'a, 'b> fmt::Debug for SquashfsFileWriter<'a, 'b> {
+impl<'a> fmt::Debug for SquashfsFileWriter<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FileWriter").finish()
     }

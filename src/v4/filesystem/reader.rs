@@ -1,17 +1,17 @@
 use std::io::{Read, SeekFrom};
 use std::sync::Mutex;
 
+use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::error::BackhandError;
 use crate::kinds::Kind;
-use crate::v3::data::DataSize;
-use crate::v3::filesystem::node::Nodes;
-use crate::v3::fragment::Fragment;
-use crate::v3::id::Id;
-use crate::v3::inode::BasicFile;
-use crate::v3::reader::BufReadSeek;
-use crate::v3::squashfs::Cache;
-use crate::v3::{Node, Squashfs, SquashfsFileReader};
+use crate::v4::data::DataSize;
+use crate::v4::fragment::Fragment;
+use crate::v4::id::Id;
+use crate::v4::inode::BasicFile;
+use crate::v4::reader::BufReadSeek;
+use crate::v4::squashfs::Cache;
+use crate::v4::{Node, Squashfs, SquashfsFileReader};
 
 /// Representation of SquashFS filesystem after read from image
 /// - Use [`Self::from_reader`] to read into `Self` from a `reader`
@@ -66,7 +66,7 @@ use crate::v3::{Node, Squashfs, SquashfsFileReader};
 /// let filesystem = squashfs.into_filesystem_reader().unwrap();
 /// ```
 /// [InnerNode]: [`crate::InnerNode`]
-pub struct FilesystemReader<'b> {
+pub struct FilesystemReader {
     pub kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub block_size: u32,
@@ -80,24 +80,22 @@ pub struct FilesystemReader<'b> {
     /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
     pub mod_time: u32,
     /// ID's stored for gui(s) and uid(s)
-    pub id_table: Option<Vec<Id>>,
-    pub uid_table: Option<Vec<u16>>,
-    pub guid_table: Option<Vec<u16>>,
+    pub id_table: Vec<Id>,
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
     /// All files and directories in filesystem
     pub root: Nodes<SquashfsFileReader>,
     // File reader
-    pub(crate) reader: Mutex<Box<dyn BufReadSeek + 'b>>,
+    pub(crate) reader: Mutex<Box<dyn BufReadSeek>>,
     // Cache used in the decompression
     pub(crate) cache: Mutex<Cache>,
 }
 
-impl<'b> FilesystemReader<'b> {
+impl FilesystemReader {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     ///
     /// With default kind: [`crate::kind::LE_V4_0`] and offset `0`.
-    pub fn from_reader<R: BufReadSeek + 'b>(reader: R) -> Result<Self, BackhandError> {
+    pub fn from_reader<R: BufReadSeek + 'static>(reader: R) -> Result<Self, BackhandError> {
         let squashfs = Squashfs::from_reader_with_offset(reader, 0)?;
         squashfs.into_filesystem_reader()
     }
@@ -111,7 +109,7 @@ impl<'b> FilesystemReader<'b> {
     }
 
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
-    pub fn from_reader_with_offset<R: BufReadSeek + 'b>(
+    pub fn from_reader_with_offset<R: BufReadSeek + 'static>(
         reader: R,
         offset: u64,
     ) -> Result<Self, BackhandError> {
@@ -120,7 +118,7 @@ impl<'b> FilesystemReader<'b> {
     }
 
     /// Same as [`Self::from_reader_with_offset`], but setting custom `kind`
-    pub fn from_reader_with_offset_and_kind<R: BufReadSeek + 'b>(
+    pub fn from_reader_with_offset_and_kind<R: BufReadSeek + 'static>(
         reader: R,
         offset: u64,
         kind: Kind,
@@ -130,7 +128,7 @@ impl<'b> FilesystemReader<'b> {
     }
 
     /// Return a file handler for this file
-    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile<'a, 'b> {
+    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile {
         FilesystemReaderFile::new(self, basic_file)
     }
 
@@ -172,13 +170,13 @@ impl<'b> FilesystemReader<'b> {
 
 /// Filesystem handle for file
 #[derive(Copy, Clone)]
-pub struct FilesystemReaderFile<'a, 'b> {
-    pub(crate) system: &'a FilesystemReader<'b>,
+pub struct FilesystemReaderFile<'a> {
+    pub(crate) system: &'a FilesystemReader,
     pub(crate) basic: &'a BasicFile,
 }
 
-impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
-    pub fn new(system: &'a FilesystemReader<'b>, basic: &'a BasicFile) -> Self {
+impl<'a> FilesystemReaderFile<'a> {
+    pub fn new(system: &'a FilesystemReader, basic: &'a BasicFile) -> Self {
         Self { system, basic }
     }
 
@@ -200,7 +198,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
         &self,
         buf_read: &'a mut Vec<u8>,
         buf_decompress: &'a mut Vec<u8>,
-    ) -> SquashfsReadFile<'a, 'b> {
+    ) -> SquashfsReadFile {
         self.raw_data_reader().into_reader(buf_read, buf_decompress)
     }
 
@@ -215,7 +213,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
         }
     }
 
-    pub(crate) fn raw_data_reader(&self) -> SquashfsRawData<'a, 'b> {
+    pub(crate) fn raw_data_reader(&self) -> SquashfsRawData {
         SquashfsRawData::new(Self {
             system: self.system,
             basic: self.basic,
@@ -223,7 +221,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 }
 
-impl<'a, 'b> IntoIterator for FilesystemReaderFile<'a, 'b> {
+impl<'a> IntoIterator for FilesystemReaderFile<'a> {
     type IntoIter = BlockIterator<'a>;
     type Item = <BlockIterator<'a> as Iterator>::Item;
 
@@ -265,14 +263,14 @@ pub(crate) struct RawDataBlock {
     pub(crate) uncompressed: bool,
 }
 
-pub(crate) struct SquashfsRawData<'a, 'b> {
-    pub(crate) file: FilesystemReaderFile<'a, 'b>,
+pub(crate) struct SquashfsRawData<'a> {
+    pub(crate) file: FilesystemReaderFile<'a>,
     current_block: BlockIterator<'a>,
     pub(crate) pos: u64,
 }
 
-impl<'a, 'b> SquashfsRawData<'a, 'b> {
-    pub fn new(file: FilesystemReaderFile<'a, 'b>) -> Self {
+impl<'a> SquashfsRawData<'a> {
+    pub fn new(file: FilesystemReaderFile<'a>) -> Self {
         let pos = file.basic.blocks_start.into();
         let current_block = file.into_iter();
         Self {
@@ -285,7 +283,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     fn read_raw_data(
         &mut self,
         data: &mut Vec<u8>,
-        block: &BlockFragment<'a>,
+        block: &BlockFragment,
     ) -> Result<RawDataBlock, BackhandError> {
         match block {
             BlockFragment::Block(block) => {
@@ -389,7 +387,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         self,
         buf_read: &'a mut Vec<u8>,
         buf_decompress: &'a mut Vec<u8>,
-    ) -> SquashfsReadFile<'a, 'b> {
+    ) -> SquashfsReadFile<'a> {
         let bytes_available = self.file.basic.file_size as usize;
         SquashfsReadFile {
             raw_data: self,
@@ -401,8 +399,8 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     }
 }
 
-pub struct SquashfsReadFile<'a, 'b> {
-    raw_data: SquashfsRawData<'a, 'b>,
+pub struct SquashfsReadFile<'a> {
+    raw_data: SquashfsRawData<'a>,
     buf_read: &'a mut Vec<u8>,
     buf_decompress: &'a mut Vec<u8>,
     //offset of buf_decompress to start reading
@@ -410,7 +408,7 @@ pub struct SquashfsReadFile<'a, 'b> {
     bytes_available: usize,
 }
 
-impl<'a, 'b> SquashfsReadFile<'a, 'b> {
+impl<'a> SquashfsReadFile<'a> {
     fn available(&self) -> &[u8] {
         &self.buf_decompress[self.last_read..]
     }
@@ -437,7 +435,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Read for SquashfsReadFile<'a, 'b> {
+impl<'a> Read for SquashfsReadFile<'a> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // file was fully consumed
         if self.bytes_available == 0 {

@@ -8,6 +8,12 @@ use crate::{
     BackhandError,
 };
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Version {
+    V3_0,
+    V4_0,
+}
+
 /// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -41,6 +47,7 @@ pub struct InnerKind<C: CompressionAction + ?Sized + 'static + Send + Sync> {
     pub(crate) type_endian: deku::ctx::Endian,
     /// Endian used for Metadata Lengths
     pub(crate) data_endian: deku::ctx::Endian,
+    pub(crate) version: Version,
     /// Major version
     pub(crate) version_major: u16,
     /// Minor version
@@ -63,6 +70,7 @@ impl fmt::Debug for Kind {
             .field("magic", &self.inner.magic)
             .field("type_endian", &self.inner.type_endian)
             .field("data_endian", &self.inner.data_endian)
+            .field("version", &self.inner.version)
             .field("version_major", &self.inner.version_major)
             .field("version_minor", &self.inner.version_minor)
             .finish()
@@ -244,6 +252,7 @@ pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
+    version: Version::V4_0,
     version_major: 4,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor,
@@ -254,6 +263,7 @@ pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,
+    version: Version::V4_0,
     version_major: 4,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor,
@@ -264,6 +274,7 @@ pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKin
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Little,
+    version: Version::V4_0,
     version_major: 4,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor,
@@ -274,7 +285,8 @@ pub const LE_V3_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
+    version: Version::V3_0,
     version_major: 3,
     version_minor: 0,
-    compressor: &crate::compressor::DefaultCompressor, // Onyl Gzip
+    compressor: &crate::compressor::DefaultCompressor, // Only Gzip
 };

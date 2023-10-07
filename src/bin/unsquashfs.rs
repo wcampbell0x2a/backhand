@@ -11,8 +11,9 @@ use std::sync::Mutex;
 
 use backhand::kind::Kind;
 use backhand::{
-    BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+    BufReadSeek, FilesystemReader, InnerNode, MultiFilesystemReader, MultiSquashfs, Node,
+    NodeHeader, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
+    SquashfsFileReader, SquashfsSymlink,
 };
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
@@ -209,7 +210,11 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let squashfs = Squashfs::from_reader_with_offset_and_kind(file, args.offset, kind).unwrap();
+    let multi_squashfs =
+        MultiSquashfs::from_reader_with_offset_and_kind(file, args.offset, kind).unwrap();
+    // let MultiSquashfs::V4(multi_squashfs) = multi_squashfs else {
+    //     panic!("ah!");
+    // };
     let root_process = unsafe { geteuid() == 0 };
     if root_process {
         umask(Mode::from_bits(0).unwrap());
@@ -224,11 +229,100 @@ fn main() -> ExitCode {
         let line = format!("{:>14}", blue_bold.apply_to("Reading image"));
         pb.set_message(line);
     }
-    let filesystem = squashfs.into_filesystem_reader().unwrap();
+    let filesystem = multi_squashfs.into_filesystem_reader().unwrap();
     if !args.quiet {
         let line = format!("{:>14}", blue_bold.apply_to("Read image"));
         pb.finish_with_message(line);
     }
+
+    match filesystem {
+        MultiFilesystemReader::V3(v3) => fs_v3(&pb, &args, v3, root_process, start),
+        MultiFilesystemReader::V4(v4) => fs_v4(&pb, &args, v4, root_process, start),
+    }
+}
+
+fn fs_v3(
+    pb: &ProgressBar,
+    args: &Args,
+    filesystem: backhand::v3::FilesystemReader,
+    root_process: bool,
+    start: Instant,
+) -> ExitCode {
+    let red_bold: console::Style = console::Style::new().blue().bold();
+
+    // if we can find a parent, then a filter must be applied and the exact parent dirs must be
+    // found above it
+    let mut files: Vec<&backhand::v3::Node<backhand::v3::SquashfsFileReader>> = vec![];
+    if args.path_filter.parent().is_some() {
+        let mut current = PathBuf::new();
+        current.push("/");
+        for part in args.path_filter.iter() {
+            current.push(part);
+            if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {
+                files.push(exact);
+            } else {
+                if !args.quiet {
+                    let line = format!(
+                        "{:>14}",
+                        red_bold.apply_to("Invalid --path-filter, path doesn't exist")
+                    );
+                    pb.finish_with_message(line);
+                }
+                return ExitCode::FAILURE;
+            }
+        }
+        // remove the final node, this is a file and will be caught in the following statement
+        files.pop();
+    }
+
+    // gather all files and dirs
+    let files_len = files.len();
+    let nodes = files.into_iter().chain(
+        filesystem
+            .files()
+            .filter(|a| a.fullpath.starts_with(&args.path_filter)),
+    );
+
+    // extract or list
+    if args.list {
+        //list(nodes);
+    } else {
+        // This could be expensive, only pass this in when not quiet
+        let n_nodes = if !args.quiet {
+            Some(
+                files_len
+                    + filesystem
+                        .files()
+                        .filter(|a| a.fullpath.starts_with(&args.path_filter))
+                        .count(),
+            )
+        } else {
+            None
+        };
+
+        extract_all_v3(
+            &args,
+            &filesystem,
+            root_process,
+            nodes
+                .collect::<Vec<&backhand::v3::Node<backhand::v3::SquashfsFileReader>>>()
+                .into_par_iter(),
+            n_nodes,
+            start,
+        );
+    }
+
+    ExitCode::SUCCESS
+}
+
+fn fs_v4(
+    pb: &ProgressBar,
+    args: &Args,
+    filesystem: backhand::v4::FilesystemReader,
+    root_process: bool,
+    start: Instant,
+) -> ExitCode {
+    let red_bold: console::Style = console::Style::new().blue().bold();
 
     // if we can find a parent, then a filter must be applied and the exact parent dirs must be
     // found above it
@@ -400,14 +494,64 @@ fn set_attributes(
     }
 }
 
-fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
+fn v3_set_attributes(
+    pb: &ProgressBar,
+    args: &Args,
+    path: &Path,
+    header: &backhand::v3::NodeHeader,
+    root_process: bool,
+    is_file: bool,
+) {
+    // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
+    let timeval = TimeVal::new(header.mtime as _, 0);
+    utimes(path, &timeval, &timeval).unwrap();
+
+    let mut mode = u32::from(header.permissions);
+
+    // Only chown when root
+    if root_process {
+        // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
+        let path_bytes = PathBuf::from(path)
+            .as_os_str()
+            .as_bytes()
+            .as_ptr()
+            .cast::<i8>();
+        unsafe {
+            lchown(path_bytes as *const _, header.uid, header.gid);
+        }
+    } else if is_file {
+        // bitwise-not if not rooted (disable write permissions for user/group). Following
+        // squashfs-tools/unsquashfs behavior
+        mode &= !0o022;
+    }
+
+    // set permissions
+    //
+    // NOTE: In squashfs-tools/unsquashfs they remove the write bits for user and group?
+    // I don't know if there is a reason for that but I keep the permissions the same if possible
+    if let Err(e) = fs::set_permissions(path, Permissions::from_mode(mode)) {
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            // try without sticky bit
+            if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err()
+                && !args.quiet
+            {
+                let line = format!("{} : could not set permissions", path.to_str().unwrap());
+                failed(pb, &line);
+            }
+        }
+    }
+}
+
+fn extract_all<'a, S>(
     args: &Args,
     filesystem: &'a FilesystemReader,
     root_process: bool,
     nodes: S,
     n_nodes: Option<usize>,
     start: Instant,
-) {
+) where
+    S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>,
+{
     let pb = ProgressBar::new(n_nodes.unwrap_or(0) as u64);
     if !args.quiet {
         pb.set_style(ProgressStyle::default_spinner());
@@ -450,7 +594,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         // create required dirs, we will fix permissions later
         let _ = fs::create_dir_all(filepath.parent().unwrap());
 
-        dbg!(&node.inner);
         match &node.inner {
             InnerNode::File(file) => {
                 // alloc required space for file data readers
@@ -642,6 +785,277 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
             let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
             let path = Path::new(&args.dest).join(path);
             set_attributes(&pb, args, &path, &node.header, root_process, false);
+        }
+    }
+
+    pb.finish_and_clear();
+
+    // extraction is finished
+    let green_bold: console::Style = console::Style::new().green().bold();
+    if !args.quiet {
+        println!(
+            "{:>16} extraction of {} nodes in {}",
+            green_bold.apply_to("Finished"),
+            n_nodes.unwrap(),
+            HumanDuration(start.elapsed())
+        );
+    }
+}
+
+fn extract_all_v3<'a, S>(
+    args: &Args,
+    filesystem: &'a backhand::v3::FilesystemReader,
+    root_process: bool,
+    nodes: S,
+    n_nodes: Option<usize>,
+    start: Instant,
+) where
+    S: ParallelIterator<Item = &'a backhand::v3::Node<backhand::v3::SquashfsFileReader>>,
+{
+    let pb = ProgressBar::new(n_nodes.unwrap_or(0) as u64);
+    if !args.quiet {
+        pb.set_style(ProgressStyle::default_spinner());
+        pb.set_style(
+            ProgressStyle::with_template(
+                // note that bar size is fixed unlike cargo which is dynamic
+                // and also the truncation in cargo uses trailers (`...`)
+                if Term::stdout().size().1 > 80 {
+                    "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len} {wide_msg}"
+                } else {
+                    "{prefix:>16.cyan.bold} [{bar:57}] {pos}/{len}"
+                },
+            )
+            .unwrap()
+            .progress_chars("=> "),
+        );
+        pb.set_prefix("Extracting");
+        pb.inc(1);
+    }
+
+    let processing = Mutex::new(HashSet::new());
+
+    nodes.for_each(|node| {
+        let path = &node.fullpath;
+        let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
+        let mut p = processing.lock().unwrap();
+        p.insert(fullpath.clone());
+        if !args.quiet {
+            pb.set_message(
+                p.iter()
+                    .map(|a| a.to_path_buf().into_os_string().into_string().unwrap())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            );
+            pb.inc(1);
+        }
+        drop(p);
+
+        let filepath = Path::new(&args.dest).join(fullpath);
+        // create required dirs, we will fix permissions later
+        let _ = fs::create_dir_all(filepath.parent().unwrap());
+
+        match &node.inner {
+            backhand::v3::InnerNode::File(file) => {
+                // alloc required space for file data readers
+                let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
+
+                // check if file exists
+                if !args.force && filepath.exists() {
+                    if !args.quiet {
+                        exists(&pb, filepath.to_str().unwrap());
+                    }
+                    let mut p = processing.lock().unwrap();
+                    p.remove(fullpath);
+                    drop(p);
+                    return;
+                }
+
+                // write to file
+                let mut fd = File::create(&filepath).unwrap();
+                let file = filesystem.file(&file.basic);
+                let mut reader = file.reader(&mut buf_read, &mut buf_decompress);
+
+                match io::copy(&mut reader, &mut fd) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            extracted(&pb, filepath.to_str().unwrap());
+                        }
+                        v3_set_attributes(&pb, args, &filepath, &node.header, root_process, true);
+                    }
+                    Err(e) => {
+                        if !args.quiet {
+                            let line = format!("{} : {e}", filepath.to_str().unwrap());
+                            failed(&pb, &line);
+                        }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
+                        return;
+                    }
+                }
+            }
+            backhand::v3::InnerNode::Symlink(backhand::v3::SquashfsSymlink { link }) => {
+                // create symlink
+                let link_display = link.display();
+                // check if file exists
+                if !args.force && filepath.exists() {
+                    exists(&pb, filepath.to_str().unwrap());
+                    let mut p = processing.lock().unwrap();
+                    p.remove(fullpath);
+                    drop(p);
+                    return;
+                }
+
+                match std::os::unix::fs::symlink(link, &filepath) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            let line = format!("{}->{link_display}", filepath.to_str().unwrap());
+                            created(&pb, &line);
+                        }
+                    }
+                    Err(e) => {
+                        if !args.quiet {
+                            let line =
+                                format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
+                            failed(&pb, &line);
+                        }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
+                        return;
+                    }
+                }
+
+                // set attributes, but special to not follow the symlink
+
+                if root_process {
+                    // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
+                    let path_bytes = PathBuf::from(&filepath)
+                        .as_os_str()
+                        .as_bytes()
+                        .as_ptr()
+                        .cast::<i8>();
+                    unsafe {
+                        lchown(path_bytes as *const _, node.header.uid, node.header.gid);
+                    }
+                }
+
+                // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
+                // Make sure this doesn't follow symlinks when changed to std library!
+                let timespec = TimeSpec::new(node.header.mtime as _, 0);
+                utimensat(
+                    None,
+                    &filepath,
+                    &timespec,
+                    &timespec,
+                    UtimensatFlags::NoFollowSymlink,
+                )
+                .unwrap();
+            }
+            backhand::v3::InnerNode::Dir(backhand::v3::SquashfsDir { .. }) => {
+                // These permissions are corrected later (user default permissions for now)
+                //
+                // don't display error if this was already created, we might have already
+                // created it in another thread to put down a file
+                if std::fs::create_dir(&filepath).is_ok() && args.info && !args.quiet {
+                    created(&pb, filepath.to_str().unwrap())
+                }
+            }
+            backhand::v3::InnerNode::CharacterDevice(backhand::v3::SquashfsCharacterDevice {
+                device_number,
+            }) => {
+                if root_process {
+                    match mknod(
+                        &filepath,
+                        SFlag::S_IFCHR,
+                        Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                        dev_t::try_from(*device_number).unwrap(),
+                    ) {
+                        Ok(_) => {
+                            if args.info && !args.quiet {
+                                created(&pb, filepath.to_str().unwrap());
+                            }
+
+                            v3_set_attributes(
+                                &pb,
+                                args,
+                                &filepath,
+                                &node.header,
+                                root_process,
+                                true,
+                            );
+                        }
+                        Err(_) => {
+                            if !args.quiet {
+                                let line = format!(
+                                    "char device {}, are you superuser?",
+                                    filepath.to_str().unwrap()
+                                );
+                                failed(&pb, &line);
+                            }
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
+                            return;
+                        }
+                    }
+                } else {
+                    if !args.quiet {
+                        let line = format!(
+                            "char device {}, are you superuser?",
+                            filepath.to_str().unwrap()
+                        );
+                        failed(&pb, &line);
+                    }
+                    let mut p = processing.lock().unwrap();
+                    p.remove(fullpath);
+                    drop(p);
+                    return;
+                }
+            }
+            backhand::v3::InnerNode::BlockDevice(backhand::v3::SquashfsBlockDevice {
+                device_number,
+            }) => {
+                match mknod(
+                    &filepath,
+                    SFlag::S_IFBLK,
+                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                    dev_t::try_from(*device_number).unwrap(),
+                ) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+
+                        v3_set_attributes(&pb, args, &filepath, &node.header, root_process, true);
+                    }
+                    Err(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
+                        return;
+                    }
+                }
+            }
+        }
+        let mut p = processing.lock().unwrap();
+        p.remove(fullpath);
+        drop(p);
+    });
+
+    // fixup dir permissions
+    for node in filesystem
+        .files()
+        .filter(|a| a.fullpath.starts_with(&args.path_filter))
+    {
+        if let backhand::v3::InnerNode::Dir(backhand::v3::SquashfsDir { .. }) = &node.inner {
+            let path = &node.fullpath;
+            let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
+            let path = Path::new(&args.dest).join(path);
+            v3_set_attributes(&pb, args, &path, &node.header, root_process, false);
         }
     }
 

@@ -61,6 +61,9 @@ pub mod kinds;
 pub mod v3;
 pub mod v4;
 
+use kind::Kind;
+use kinds::Version;
+
 pub use crate::v4::data::DataSize;
 pub use crate::v4::export::Export;
 pub use crate::v4::filesystem::node::{
@@ -90,4 +93,65 @@ pub mod compression {
         CompressionAction, CompressionOptions, Compressor, DefaultCompressor, Gzip, Lz4, Lzo, Xz,
         Zstd,
     };
+}
+
+pub enum MultiSquashfs {
+    V3(v3::Squashfs),
+    V4(v4::Squashfs),
+}
+
+impl MultiSquashfs {
+    pub fn from_reader_with_offset_and_kind(
+        reader: impl BufReadSeek + 'static,
+        offset: u64,
+        kind: Kind,
+    ) -> Result<MultiSquashfs, BackhandError> {
+        match kind.inner.version {
+            Version::V3_0 => {
+                let squashfs =
+                    v3::Squashfs::from_reader_with_offset_and_kind(reader, offset, kind)?;
+                Ok(MultiSquashfs::V3(squashfs))
+            }
+            Version::V4_0 => {
+                let squashfs =
+                    v4::Squashfs::from_reader_with_offset_and_kind(reader, offset, kind)?;
+                Ok(MultiSquashfs::V4(squashfs))
+            }
+        }
+    }
+
+    pub fn into_filesystem_reader(self) -> Result<MultiFilesystemReader, BackhandError> {
+        let a = match self {
+            Self::V3(v3) => MultiFilesystemReader::V3(v3.into_filesystem_reader()?),
+            Self::V4(v4) => MultiFilesystemReader::V4(v4.into_filesystem_reader()?),
+        };
+
+        Ok(a)
+    }
+}
+
+pub enum MultiFilesystemReader {
+    V3(v3::FilesystemReader),
+    V4(v4::FilesystemReader),
+}
+
+impl MultiFilesystemReader {
+    pub fn from_reader_with_offset_and_kind(
+        reader: impl BufReadSeek + 'static,
+        offset: u64,
+        kind: Kind,
+    ) -> Result<Self, BackhandError> {
+        match kind.inner.version {
+            Version::V3_0 => {
+                let fs =
+                    v3::FilesystemReader::from_reader_with_offset_and_kind(reader, offset, kind)?;
+                Ok(Self::V3(fs))
+            }
+            Version::V4_0 => {
+                let fs =
+                    v4::FilesystemReader::from_reader_with_offset_and_kind(reader, offset, kind)?;
+                Ok(Self::V4(fs))
+            }
+        }
+    }
 }

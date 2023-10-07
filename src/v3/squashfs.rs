@@ -391,7 +391,6 @@ impl<'b> Squashfs<'b> {
 
         info!("Reading Dirs");
         let dir_blocks = reader.dir_blocks(&superblock, superblock.fragment_table_start, &kind)?;
-        println!("{:02x?}", dir_blocks);
 
         let squashfs = Squashfs {
             kind,

@@ -64,6 +64,7 @@ pub mod v4;
 use kind::Kind;
 use kinds::Version;
 
+pub use crate::compressor::{CompressionExtra, ExtraXz, FilesystemCompressor};
 pub use crate::v4::data::DataSize;
 pub use crate::v4::export::Export;
 pub use crate::v4::filesystem::node::{

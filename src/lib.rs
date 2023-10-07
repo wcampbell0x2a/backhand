@@ -96,17 +96,17 @@ pub mod compression {
     };
 }
 
-pub enum MultiSquashfs {
-    V3(v3::Squashfs),
-    V4(v4::Squashfs),
+pub enum MultiSquashfs<'a> {
+    V3(v3::Squashfs<'a>),
+    V4(v4::Squashfs<'a>),
 }
 
-impl MultiSquashfs {
+impl<'a> MultiSquashfs<'a> {
     pub fn from_reader_with_offset_and_kind(
         reader: impl BufReadSeek + 'static,
         offset: u64,
         kind: Kind,
-    ) -> Result<MultiSquashfs, BackhandError> {
+    ) -> Result<MultiSquashfs<'a>, BackhandError> {
         match kind.inner.version {
             Version::V3_0 => {
                 let squashfs =
@@ -121,7 +121,7 @@ impl MultiSquashfs {
         }
     }
 
-    pub fn into_filesystem_reader(self) -> Result<MultiFilesystemReader, BackhandError> {
+    pub fn into_filesystem_reader(self) -> Result<MultiFilesystemReader<'a>, BackhandError> {
         let a = match self {
             Self::V3(v3) => MultiFilesystemReader::V3(v3.into_filesystem_reader()?),
             Self::V4(v4) => MultiFilesystemReader::V4(v4.into_filesystem_reader()?),
@@ -131,12 +131,12 @@ impl MultiSquashfs {
     }
 }
 
-pub enum MultiFilesystemReader {
-    V3(v3::FilesystemReader),
-    V4(v4::FilesystemReader),
+pub enum MultiFilesystemReader<'a> {
+    V3(v3::FilesystemReader<'a>),
+    V4(v4::FilesystemReader<'a>),
 }
 
-impl MultiFilesystemReader {
+impl<'a> MultiFilesystemReader<'a> {
     pub fn from_reader_with_offset_and_kind(
         reader: impl BufReadSeek + 'static,
         offset: u64,

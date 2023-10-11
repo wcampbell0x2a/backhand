@@ -91,3 +91,91 @@ fn test_unsquashfs_cli_auto_offset() {
         cmd.assert().code(&[0] as &[i32]);
     }
 }
+
+#[test]
+#[cfg(feature = "gzip")]
+fn test_v3_be() {
+    use std::fs;
+    use tempfile::tempdir;
+
+    const FILE_NAME: &str = "squashfs_v3_be.bin";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "4e9493d9c6f868005dea8f11992129c3399e0bcb8f3a966c750cb925989ca97c".to_string(),
+        url: format!("https://github.com/onekey-sec/unblob/raw/main/tests/integration/filesystem/squashfs/squashfs_v3/big_endian/__input__/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/squashfs_v3_be.bin";
+
+    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+
+    let tmp_dir = tempdir().unwrap();
+    {
+        let cmd = common::get_base_command("unsquashfs")
+            .env("RUST_LOG", "none")
+            .args([
+                "--auto-offset",
+                "--kind",
+                "be_v3_0",
+                "-d",
+                tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
+                &image_path,
+            ])
+            .unwrap();
+        cmd.assert().code(&[0] as &[i32]);
+    }
+
+    assert_eq!(
+        "apple\n",
+        fs::read_to_string(tmp_dir.path().join("squashfs-root-c").join("apple.txt")).unwrap()
+    );
+    assert_eq!(
+        "cherry\n",
+        fs::read_to_string(tmp_dir.path().join("squashfs-root-c").join("cherry.txt")).unwrap()
+    );
+}
+
+#[test]
+#[cfg(feature = "gzip")]
+fn test_v3_le() {
+    use std::fs;
+    use tempfile::tempdir;
+
+    const FILE_NAME: &str = "squashfs_v3_le.bin";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "0161351caec8e9da6e3e5ac7b046fd11d832efb18eb09e33011e6d19d50cd1f7".to_string(),
+        url: format!("https://github.com/onekey-sec/unblob/raw/main/tests/integration/filesystem/squashfs/squashfs_v3/little_endian/__input__/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/squashfs_v3_le.bin";
+
+    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+
+    let tmp_dir = tempdir().unwrap();
+    {
+        let cmd = common::get_base_command("unsquashfs")
+            .env("RUST_LOG", "none")
+            .args([
+                "--auto-offset",
+                "--kind",
+                "le_v3_0",
+                "-d",
+                tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
+                &image_path,
+            ])
+            .unwrap();
+        cmd.assert().code(&[0] as &[i32]);
+    }
+
+    assert_eq!(
+        "apple\n",
+        fs::read_to_string(tmp_dir.path().join("squashfs-root-c").join("apple.txt")).unwrap()
+    );
+    assert_eq!(
+        "cherry\n",
+        fs::read_to_string(tmp_dir.path().join("squashfs-root-c").join("cherry.txt")).unwrap()
+    );
+}

@@ -205,7 +205,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 
     pub fn fragment(&self) -> Option<&'a Fragment> {
-        if self.basic.frag == 0 {
+        if self.basic.frag == 0xffffffff {
             None
         } else {
             self.system

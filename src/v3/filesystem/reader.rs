@@ -205,13 +205,13 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 
     pub fn fragment(&self) -> Option<&'a Fragment> {
-        if self.basic.frag_index == 0xffffffff {
+        if self.basic.frag == 0 {
             None
         } else {
             self.system
                 .fragments
                 .as_ref()
-                .map(|fragments| &fragments[self.basic.frag_index as usize])
+                .map(|fragments| &fragments[self.basic.frag as usize])
         }
     }
 

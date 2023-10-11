@@ -16,9 +16,9 @@ const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(
+    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
     endian = "endian",
-    bit_order = "order",
-    ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order"
+    bit_order = "order"
 )]
 pub struct DataSize(u32);
 impl DataSize {

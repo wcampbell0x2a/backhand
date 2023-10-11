@@ -54,6 +54,9 @@ pub struct InnerKind<C: CompressionAction + ?Sized + 'static + Send + Sync> {
     pub(crate) version_minor: u16,
     /// Compression impl
     pub(crate) compressor: &'static C,
+    /// v3 needs the bit-order for reading with little endian
+    /// v4 does not need this field
+    pub(crate) bit_order: Option<deku::ctx::Order>,
 }
 
 /// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
@@ -151,6 +154,7 @@ impl Kind {
             "be_v4_0" => BE_V4_0,
             "le_v4_0" => LE_V4_0,
             "le_v3_0" => LE_V3_0,
+            "be_v3_0" => BE_V3_0,
             _ => return Err("not a valid kind".to_string()),
         };
 
@@ -256,6 +260,7 @@ pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     version_major: 4,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor,
+    bit_order: None,
 };
 
 /// Big-Endian Superblock v4.0
@@ -267,6 +272,7 @@ pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     version_major: 4,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor,
+    bit_order: None,
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
@@ -278,6 +284,7 @@ pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKin
     version_major: 4,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor,
+    bit_order: None,
 };
 
 /// Little-Endian v3.0
@@ -289,4 +296,17 @@ pub const LE_V3_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
     version_major: 3,
     version_minor: 0,
     compressor: &crate::compressor::DefaultCompressor, // Only Gzip
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// Big-Endian v3.0
+pub const BE_V3_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version: Version::V3_0,
+    version_major: 3,
+    version_minor: 0,
+    compressor: &crate::compressor::DefaultCompressor, // Only Gzip
+    bit_order: Some(deku::ctx::Order::Msb0),
 };

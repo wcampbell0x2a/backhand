@@ -33,16 +33,7 @@ impl NodeHeader {
         }
     }
 
-    pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Self {
-        Self {
-            permissions: inode_header.permissions,
-            uid: id_table[inode_header.uid as usize].num,
-            gid: id_table[inode_header.gid as usize].num,
-            mtime: inode_header.mtime,
-        }
-    }
-
-    pub fn from_inodev3(inode_header: InodeHeader, uid_table: &[u16], guid_table: &[u16]) -> Self {
+    pub fn from_inode(inode_header: InodeHeader, uid_table: &[u16], guid_table: &[u16]) -> Self {
         let uid = uid_table[inode_header.uid as usize] as u32;
         let gid = if inode_header.gid == 0xff {
             uid

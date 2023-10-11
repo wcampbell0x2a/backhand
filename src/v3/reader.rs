@@ -130,11 +130,12 @@ pub trait SquashFsReader: BufReadSeek {
                         u32::from(superblock.block_size_1),
                         superblock.block_log,
                         kind.inner.type_endian,
+                        kind.inner.bit_order.unwrap(),
                     ),
                 ) {
                     Ok(inode) => {
                         // Push the new Inode to the return, with the position this was read from
-                        trace!("{inode:02x?}");
+                        trace!("new: {inode:02x?}");
                         ret_vec.insert(inode.header.inode_number, inode);
                         container_bits_read = container.bits_read;
                     }
@@ -185,6 +186,7 @@ pub trait SquashFsReader: BufReadSeek {
                 superblock.block_size,
                 superblock.block_log,
                 kind.inner.type_endian,
+                kind.inner.bit_order.unwrap(),
             ),
         ) {
             return Ok(inode);
@@ -207,6 +209,7 @@ pub trait SquashFsReader: BufReadSeek {
                 superblock.block_size,
                 superblock.block_log,
                 kind.inner.type_endian,
+                kind.inner.bit_order.unwrap(),
             ),
         ) {
             Ok(inode) => Ok(inode),
@@ -250,7 +253,7 @@ pub trait SquashFsReader: BufReadSeek {
             u64::from(superblock.fragments) * fragment::SIZE as u64,
             kind,
         )?;
-
+        trace!("{:02x?}", table);
         Ok(Some((ptr, table)))
     }
 
@@ -289,7 +292,7 @@ pub trait SquashFsReader: BufReadSeek {
         for _ in 0..count {
             let v = u16::from_reader_with_ctx(
                 &mut deku_reader,
-                (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+                (kind.inner.type_endian, kind.inner.bit_order.unwrap()),
             )?;
             table.push(v);
         }
@@ -313,7 +316,7 @@ pub trait SquashFsReader: BufReadSeek {
         for _ in 0..count {
             let v = u16::from_reader_with_ctx(
                 &mut deku_reader,
-                (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+                (kind.inner.type_endian, kind.inner.bit_order.unwrap()),
             )?;
             table.push(v);
         }
@@ -344,7 +347,7 @@ pub trait SquashFsReader: BufReadSeek {
         let mut deku_reader = Reader::new(&mut cursor);
         let ptr = u64::from_reader_with_ctx(
             &mut deku_reader,
-            (kind.inner.type_endian, deku::ctx::Order::Lsb0),
+            (kind.inner.type_endian, kind.inner.bit_order.unwrap()),
         )?;
 
         let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
@@ -382,7 +385,7 @@ pub trait SquashFsReader: BufReadSeek {
         let mut container = Reader::new(&mut cursor);
         while let Ok(t) = T::from_reader_with_ctx(
             &mut container,
-            (kind.inner.type_endian, deku::ctx::Order::Msb0),
+            (kind.inner.type_endian, kind.inner.bit_order.unwrap()),
         ) {
             ret_vec.push(t);
         }

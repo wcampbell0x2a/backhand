@@ -241,33 +241,6 @@ impl<'b> Squashfs<'b> {
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
-        // // Parse Compression Options, if any
-        // info!("Reading Compression options");
-        // let compression_options = if superblock.compressor != Compressor::None
-        //     && superblock.compressor_options_are_present()
-        // {
-        //     let bytes = metadata::read_block(reader, &superblock, kind)?;
-        //     // data -> compression options
-        //     match CompressionOptions::from_reader_with_ctx(
-        //         &mut Reader::new(&mut Cursor::new(bytes)),
-        //         (kind.inner.type_endian, compressor::Gzip),
-        //     ) {
-        //         Ok(co) => {
-        //             //if !co.0.is_empty() {
-        //             //    error!("invalid compression options, bytes left over, using");
-        //             //}
-        //             Some(co)
-        //         }
-        //         Err(e) => {
-        //             error!("invalid compression options: {e:?}, not using");
-        //             None
-        //         }
-        //     }
-        // } else {
-        //     None
-        // };
-        // info!("compression_options: {compression_options:02x?}");
-
         let compression_options = None;
         Ok((superblock, compression_options))
     }
@@ -485,7 +458,10 @@ impl<'b> Squashfs<'b> {
         loop {
             match Dir::from_reader_with_ctx(
                 &mut container,
-                (self.kind.inner.type_endian, deku::ctx::Order::Lsb0),
+                (
+                    self.kind.inner.type_endian,
+                    self.kind.inner.bit_order.unwrap(),
+                ),
             ) {
                 Ok(t) => {
                     log::trace!("{:02x?}", t);
@@ -586,7 +562,7 @@ impl<'b> Squashfs<'b> {
                     };
                     let node = Node::new(
                         fullpath.clone(),
-                        NodeHeader::from_inodev3(header, guid_table, uid_table),
+                        NodeHeader::from_inode(header, guid_table, uid_table),
                         inner,
                     );
                     root.nodes.push(node);
@@ -646,7 +622,7 @@ impl<'b> Squashfs<'b> {
     #[instrument(skip_all)]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
-        let mut root = Nodes::new_root(NodeHeader::from_inodev3(
+        let mut root = Nodes::new_root(NodeHeader::from_inode(
             self.root_inode.header,
             &self.uid.as_ref().unwrap(),
             &self.guid.as_ref().unwrap(),

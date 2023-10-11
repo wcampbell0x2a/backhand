@@ -9,9 +9,11 @@ use crate::v3::data::DataSize;
 use crate::v3::dir::DirectoryIndex;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]
-#[deku(endian = "type_endian")]
-#[deku(bit_order = "lsb")]
+#[deku(
+    ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian, order: deku::ctx::Order",
+    endian = "type_endian",
+    bit_order = "order"
+)]
 pub struct Inode {
     pub id: InodeId,
     pub header: InodeHeader,
@@ -164,16 +166,16 @@ pub struct ExtendedDirectory {
     bit_order = "order"
 )]
 pub struct BasicFile {
-    pub blocks_start: u32,
-    pub frag_index: u32,
-    pub empty: u32,
+    pub blocks_start: u64, // TODO: this looks like a u64????
+    // this is more, "fragment_offset"
+    pub frag: u32,
     pub block_offset: u32,
     #[deku(
         bytes = "4",
         assert = "((*file_size as u128) < byte_unit::n_tib_bytes(1))"
     )]
     pub file_size: u64,
-    #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
+    #[deku(count = "block_count(block_size, block_log, *frag, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
 }
 

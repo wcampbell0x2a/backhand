@@ -12,8 +12,10 @@ use tracing::{error, info, instrument, trace};
 
 use super::node::{InnerNode, Nodes};
 use super::normalize_squashfs_path;
+use crate::bufread::WriteSeek;
 use crate::compressor::{CompressionOptions, Compressor, FilesystemCompressor};
 use crate::error::BackhandError;
+use crate::flags::Flags;
 use crate::kind::Kind;
 use crate::kinds::LE_V4_0;
 use crate::v4::data::DataWriter;
@@ -21,8 +23,7 @@ use crate::v4::entry::Entry;
 use crate::v4::filesystem::node::SquashfsSymlink;
 use crate::v4::id::Id;
 use crate::v4::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
-use crate::v4::reader::WriteSeek;
-use crate::v4::squashfs::{Flags, SuperBlock};
+use crate::v4::squashfs::SuperBlock;
 use crate::v4::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,

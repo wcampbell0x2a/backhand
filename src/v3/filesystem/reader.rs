@@ -1,6 +1,7 @@
 use std::io::{Read, SeekFrom};
 use std::sync::Mutex;
 
+use crate::bufread::BufReadSeek;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::error::BackhandError;
 use crate::kinds::Kind;
@@ -9,7 +10,6 @@ use crate::v3::filesystem::node::Nodes;
 use crate::v3::fragment::Fragment;
 use crate::v3::id::Id;
 use crate::v3::inode::BasicFile;
-use crate::v3::reader::BufReadSeek;
 use crate::v3::squashfs::Cache;
 use crate::v3::{Node, Squashfs, SquashfsFileReader};
 

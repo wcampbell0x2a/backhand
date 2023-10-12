@@ -11,14 +11,17 @@ use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
 
+use crate::bufread::BufReadSeek;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::error::BackhandError;
+use crate::flags::Flags;
 use crate::kinds::{Kind, LE_V4_0};
+use crate::v3::reader::SquashfsReaderWithOffset;
 use crate::v4::dir::Dir;
 use crate::v4::filesystem::node::{InnerNode, Nodes};
 use crate::v4::fragment::Fragment;
 use crate::v4::inode::{Inode, InodeId, InodeInner};
-use crate::v4::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::v4::reader::SquashFsReader;
 use crate::v4::{
     metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
@@ -46,7 +49,6 @@ pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
     ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
 )]
 pub struct SuperBlock {
-    /// Must be set to 0x73717368 ("hsqs" on disk).
     #[deku(assert_eq = "ctx_magic")]
     pub magic: [u8; 4],
     /// The number of inodes stored in the archive.
@@ -116,7 +118,7 @@ impl SuperBlock {
     }
 
     /// flag value
-    pub fn data_has_been_duplicated(&self) -> bool {
+    pub fn duplicate_data_removed(&self) -> bool {
         self.flags & Flags::DataHasBeenDeduplicated as u16 != 0
     }
 
@@ -165,23 +167,6 @@ impl SuperBlock {
             export_table: NOT_SET,
         }
     }
-}
-
-#[rustfmt::skip]
-#[allow(dead_code)]
-#[derive(Debug, Copy, Clone)]
-pub(crate) enum Flags {
-    InodesStoredUncompressed    = 0b0000_0000_0000_0001,
-    DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
-    Unused                      = 0b0000_0000_0000_0100,
-    FragmentsStoredUncompressed = 0b0000_0000_0000_1000,
-    FragmentsAreNotUsed         = 0b0000_0000_0001_0000,
-    FragmentsAreAlwaysGenerated = 0b0000_0000_0010_0000,
-    DataHasBeenDeduplicated     = 0b0000_0000_0100_0000,
-    NFSExportTableExists        = 0b0000_0000_1000_0000,
-    XattrsAreStoredUncompressed = 0b0000_0001_0000_0000,
-    NoXattrsInArchive           = 0b0000_0010_0000_0000,
-    CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -429,8 +414,8 @@ impl<'b> Squashfs<'b> {
             info!("flag: fragments are always generated");
         }
 
-        if superblock.data_has_been_duplicated() {
-            info!("flag: data has been duplicated");
+        if superblock.duplicate_data_removed() {
+            info!("flag: duplicate data has been removed");
         }
 
         if superblock.nfs_export_table_exists() {

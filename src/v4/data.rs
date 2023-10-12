@@ -5,11 +5,11 @@ use std::io::{Read, Seek, Write};
 use deku::prelude::*;
 use tracing::instrument;
 
+use crate::bufread::WriteSeek;
 use crate::compressor::{CompressionAction, FilesystemCompressor};
 use crate::error::BackhandError;
 use crate::v4::filesystem::reader::SquashfsRawData;
 use crate::v4::fragment::Fragment;
-use crate::v4::reader::WriteSeek;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;

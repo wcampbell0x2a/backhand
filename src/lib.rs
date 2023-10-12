@@ -55,15 +55,18 @@
 #[doc = include_str!("../README.md")]
 type _ReadmeTest = ();
 
+pub mod bufread;
 pub mod compressor;
 pub mod error;
+mod flags;
 pub mod kinds;
 pub mod v3;
 pub mod v4;
-
+use compressor::CompressionOptions;
 use kind::Kind;
 use kinds::Version;
 
+pub use crate::bufread::BufReadSeek;
 pub use crate::compressor::{CompressionExtra, ExtraXz, FilesystemCompressor};
 pub use crate::v4::data::DataSize;
 pub use crate::v4::export::Export;
@@ -76,7 +79,6 @@ pub use crate::v4::filesystem::writer::FilesystemWriter;
 pub use crate::v4::fragment::Fragment;
 pub use crate::v4::id::Id;
 pub use crate::v4::inode::{BasicFile, Inode};
-pub use crate::v4::reader::BufReadSeek;
 pub use crate::v4::squashfs::{
     Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
@@ -94,6 +96,29 @@ pub mod compression {
         CompressionAction, CompressionOptions, Compressor, DefaultCompressor, Gzip, Lz4, Lzo, Xz,
         Zstd,
     };
+}
+
+pub enum MultiSuperBlock {
+    V3(v3::SuperBlock),
+    V4(v4::SuperBlock),
+}
+
+impl MultiSuperBlock {
+    pub fn superblock_and_compression_options<'a>(
+        reader: &mut Box<dyn BufReadSeek + 'a>,
+        kind: &Kind,
+    ) -> Result<(Self, Option<CompressionOptions>), BackhandError> {
+        match kind.inner.version {
+            Version::V3_0 => {
+                let (s, comp) = v3::Squashfs::superblock_and_compression_options(reader, kind)?;
+                Ok((MultiSuperBlock::V3(s), comp))
+            }
+            Version::V4_0 => {
+                let (s, comp) = v4::Squashfs::superblock_and_compression_options(reader, kind)?;
+                Ok((MultiSuperBlock::V4(s), comp))
+            }
+        }
+    }
 }
 
 pub enum MultiSquashfs<'a> {

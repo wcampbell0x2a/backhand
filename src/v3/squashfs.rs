@@ -11,14 +11,16 @@ use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, info, instrument, trace};
 
+use crate::bufread::BufReadSeek;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::error::BackhandError;
+use crate::flags::Flags;
 use crate::kinds::{Kind, LE_V4_0};
 use crate::v3::dir::{Dir, DirInodeId};
 use crate::v3::filesystem::node::{InnerNode, Nodes};
 use crate::v3::fragment::Fragment;
 use crate::v3::inode::{Inode, InodeId, InodeInner};
-use crate::v3::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::v3::reader::{SquashFsReader, SquashfsReaderWithOffset};
 use crate::v3::{
     Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileReader, SquashfsSymlink,
@@ -78,98 +80,40 @@ pub struct SuperBlock {
 pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
 impl SuperBlock {
-    // /// flag value
-    // pub fn inodes_uncompressed(&self) -> bool {
-    //     self.flags & Flags::InodesStoredUncompressed as u16 != 0
-    // }
+    /// flag value
+    pub fn inodes_uncompressed(&self) -> bool {
+        u16::from(self.flags) & Flags::InodesStoredUncompressed as u16 != 0
+    }
 
-    // /// flag value
-    // pub fn data_block_stored_uncompressed(&self) -> bool {
-    //     self.flags & Flags::DataBlockStoredUncompressed as u16 != 0
-    // }
+    /// flag value
+    pub fn data_block_stored_uncompressed(&self) -> bool {
+        u16::from(self.flags) & Flags::DataBlockStoredUncompressed as u16 != 0
+    }
 
-    // /// flag value
-    // pub fn fragments_stored_uncompressed(&self) -> bool {
-    //     self.flags & Flags::FragmentsStoredUncompressed as u16 != 0
-    // }
+    /// flag value
+    pub fn fragments_stored_uncompressed(&self) -> bool {
+        u16::from(self.flags) & Flags::FragmentsStoredUncompressed as u16 != 0
+    }
 
-    // /// flag value
-    // pub fn fragments_are_not_used(&self) -> bool {
-    //     self.flags & Flags::FragmentsAreNotUsed as u16 != 0
-    // }
+    /// flag value
+    pub fn fragments_are_not_used(&self) -> bool {
+        u16::from(self.flags) & Flags::FragmentsAreNotUsed as u16 != 0
+    }
 
-    // /// flag value
-    // pub fn fragments_are_always_generated(&self) -> bool {
-    //     self.flags & Flags::FragmentsAreAlwaysGenerated as u16 != 0
-    // }
+    /// flag value
+    pub fn fragments_are_always_generated(&self) -> bool {
+        u16::from(self.flags) & Flags::FragmentsAreAlwaysGenerated as u16 != 0
+    }
 
-    // /// flag value
-    // pub fn data_has_been_duplicated(&self) -> bool {
-    //     self.flags & Flags::DataHasBeenDeduplicated as u16 != 0
-    // }
+    /// flag value
+    pub fn duplicate_data_removed(&self) -> bool {
+        u16::from(self.flags) & Flags::DataHasBeenDeduplicated as u16 != 0
+    }
 
-    // /// flag value
-    // pub fn nfs_export_table_exists(&self) -> bool {
-    //     self.flags & Flags::NFSExportTableExists as u16 != 0
-    // }
-
-    // /// flag value
-    // pub fn xattrs_are_stored_uncompressed(&self) -> bool {
-    //     self.flags & Flags::XattrsAreStoredUncompressed as u16 != 0
-    // }
-
-    // /// flag value
-    // pub fn no_xattrs_in_archive(&self) -> bool {
-    //     self.flags & Flags::NoXattrsInArchive as u16 != 0
-    // }
-
-    // /// flag value
-    // pub fn compressor_options_are_present(&self) -> bool {
-    //     self.flags & Flags::CompressorOptionsArePresent as u16 != 0
-    // }
-}
-
-// impl SuperBlock {
-//     pub fn new(compressor: Compressor, kind: Kind) -> Self {
-//         Self {
-//             magic: kind.inner.magic,
-//             inode_count: 0,
-//             mod_time: 0,
-//             block_size: DEFAULT_BLOCK_SIZE,
-//             frag_count: 0,
-//             compressor,
-//             block_log: DEFAULT_BLOCK_LOG,
-//             flags: 0,
-//             id_count: 0,
-//             version_major: kind.inner.version_major,
-//             version_minor: kind.inner.version_minor,
-//             root_inode: 0,
-//             bytes_used: 0,
-//             id_table: 0,
-//             xattr_table: NOT_SET,
-//             inode_table: 0,
-//             dir_table: 0,
-//             frag_table: NOT_SET,
-//             export_table: NOT_SET,
-//         }
-//     }
-// }
-
-#[rustfmt::skip]
-#[allow(dead_code)]
-#[derive(Debug, Copy, Clone)]
-pub(crate) enum Flags {
-    InodesStoredUncompressed    = 0b0000_0000_0000_0001,
-    DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
-    Unused                      = 0b0000_0000_0000_0100,
-    FragmentsStoredUncompressed = 0b0000_0000_0000_1000,
-    FragmentsAreNotUsed         = 0b0000_0000_0001_0000,
-    FragmentsAreAlwaysGenerated = 0b0000_0000_0010_0000,
-    DataHasBeenDeduplicated     = 0b0000_0000_0100_0000,
-    NFSExportTableExists        = 0b0000_0000_1000_0000,
-    XattrsAreStoredUncompressed = 0b0000_0001_0000_0000,
-    NoXattrsInArchive           = 0b0000_0010_0000_0000,
-    CompressorOptionsArePresent = 0b0000_0100_0000_0000,
+    /// flag value
+    pub fn nfs_export_table_exists(&self) -> bool {
+        u16::from(self.flags) & Flags::NFSExportTableExists as u16 != 0
+    }
 }
 
 #[derive(Default, Clone, Debug)]

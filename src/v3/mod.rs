@@ -22,7 +22,6 @@ pub use filesystem::reader::{FilesystemReader, FilesystemReaderFile, SquashfsRea
 pub use fragment::Fragment;
 pub use id::Id;
 pub use inode::{BasicFile, Inode};
-pub use reader::BufReadSeek;
 pub use squashfs::{
     Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };

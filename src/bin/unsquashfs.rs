@@ -9,11 +9,12 @@ use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Mutex;
 
+use backhand::compressor::CompressionOptions;
 use backhand::kind::Kind;
 use backhand::{
-    BufReadSeek, FilesystemReader, InnerNode, MultiFilesystemReader, MultiSquashfs, Node,
-    NodeHeader, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsSymlink,
+    BufReadSeek, FilesystemReader, InnerNode, MultiFilesystemReader, MultiSquashfs,
+    MultiSuperBlock, Node, NodeHeader, Squashfs, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
@@ -401,50 +402,89 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
     file.seek(SeekFrom::Start(args.offset)).unwrap();
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, compression_options) =
-        Squashfs::superblock_and_compression_options(&mut reader, &kind).unwrap();
+        MultiSuperBlock::superblock_and_compression_options(&mut reader, &kind).unwrap();
 
-    // show info about flags
+    match superblock {
+        MultiSuperBlock::V3(v3) => stat_v3(v3),
+        MultiSuperBlock::V4(v4) => stat_v4(v4, compression_options),
+    }
+}
+
+fn stat_v4(superblock: backhand::v4::SuperBlock, co: Option<CompressionOptions>) {
     println!("{superblock:#08x?}");
 
-    // // show info about compression options
-    // println!("Compression Options: {compression_options:#x?}");
+    // show info about compression options
+    println!("Compression Options: {co:#x?}");
 
-    // // show info about flags
-    // if superblock.inodes_uncompressed() {
-    //     println!("flag: inodes uncompressed");
-    // }
+    // show info about flags
+    if superblock.inodes_uncompressed() {
+        println!("flag: inodes uncompressed");
+    }
 
-    // if superblock.data_block_stored_uncompressed() {
-    //     println!("flag: data blocks stored uncompressed");
-    // }
+    if superblock.data_block_stored_uncompressed() {
+        println!("flag: data blocks stored uncompressed");
+    }
 
-    // if superblock.fragments_stored_uncompressed() {
-    //     println!("flag: fragments stored uncompressed");
-    // }
+    if superblock.fragments_stored_uncompressed() {
+        println!("flag: fragments stored uncompressed");
+    }
 
-    // if superblock.fragments_are_not_used() {
-    //     println!("flag: fragments are not used");
-    // }
+    if superblock.fragments_are_not_used() {
+        println!("flag: fragments are not used");
+    }
 
-    // if superblock.fragments_are_always_generated() {
-    //     println!("flag: fragments are always generated");
-    // }
+    if superblock.fragments_are_always_generated() {
+        println!("flag: fragments are always generated");
+    }
 
-    // if superblock.data_has_been_duplicated() {
-    //     println!("flag: data has been duplicated");
-    // }
+    if superblock.duplicate_data_removed() {
+        println!("flag: data has been duplicated");
+    }
 
-    // if superblock.nfs_export_table_exists() {
-    //     println!("flag: nfs export table exists");
-    // }
+    if superblock.nfs_export_table_exists() {
+        println!("flag: nfs export table exists");
+    }
 
-    // if superblock.xattrs_are_stored_uncompressed() {
-    //     println!("flag: xattrs are stored uncompressed");
-    // }
+    if superblock.xattrs_are_stored_uncompressed() {
+        println!("flag: xattrs are stored uncompressed");
+    }
 
-    // if superblock.compressor_options_are_present() {
-    //     println!("flag: compressor options are present");
-    // }
+    if superblock.compressor_options_are_present() {
+        println!("flag: compressor options are present");
+    }
+}
+
+fn stat_v3(superblock: backhand::v3::SuperBlock) {
+    println!("{superblock:#08x?}");
+
+    // show info about flags
+    if superblock.inodes_uncompressed() {
+        println!("flag: inodes uncompressed");
+    }
+
+    if superblock.data_block_stored_uncompressed() {
+        println!("flag: data blocks stored uncompressed");
+    }
+
+    if superblock.fragments_stored_uncompressed() {
+        println!("flag: fragments stored uncompressed");
+    }
+
+    if superblock.fragments_are_not_used() {
+        println!("flag: fragments are not used");
+    }
+
+    if superblock.fragments_are_always_generated() {
+        println!("flag: fragments are always generated");
+    }
+
+    if superblock.duplicate_data_removed() {
+        println!("flag: data duplicated was removed");
+    }
+
+    if superblock.nfs_export_table_exists() {
+        println!("flag: nfs export table exists");
+    }
 }
 
 fn set_attributes(

@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::io::{self, Cursor, Read, Seek, Write};
 
-use deku::bitvec::BitVec;
 use deku::prelude::*;
 use tracing::{instrument, trace};
 
@@ -63,9 +62,11 @@ impl MetadataWriter {
 
         // Remove the data consumed, if the uncompressed data is smalled, use it.
         let (compressed, metadata) = if compressed.len() > uncompressed_len {
+            trace!("using uncompressed");
             let uncompressed = self.uncompressed_bytes.drain(0..uncompressed_len).collect();
             (false, uncompressed)
         } else {
+            trace!("using compressed");
             self.uncompressed_bytes.drain(0..uncompressed_len);
             (true, compressed)
         };
@@ -75,7 +76,6 @@ impl MetadataWriter {
         trace!("new metadata start: {:#02x?}", self.metadata_start);
         self.final_bytes.push((compressed, metadata));
 
-        trace!("LEN: {:02x?}", self.uncompressed_bytes.len());
         Ok(())
     }
 
@@ -83,19 +83,20 @@ impl MetadataWriter {
     pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), BackhandError> {
         //add any remaining data
         while !self.uncompressed_bytes.is_empty() {
+            trace!("adding block");
             self.add_block()?;
         }
 
         // write all the metadata blocks
-        for (compressed, cb) in &self.final_bytes {
-            trace!("len: {:02x?}", cb.len());
-            //trace!("total: {:02x?}", out.len());
-            let mut bv = BitVec::new();
+        let mut writer = Writer::new(out);
+        for (compressed, compressed_bytes) in &self.final_bytes {
+            trace!("len: {:02x?}", compressed_bytes.len());
             // if uncompressed, set the highest bit of len
-            let len = cb.len() as u16 | if *compressed { 0 } else { 1 << (u16::BITS - 1) };
-            len.write(&mut bv, self.kind.inner.data_endian)?;
-            out.write_all(bv.as_raw_slice())?;
-            out.write_all(cb)?;
+            let len =
+                compressed_bytes.len() as u16 | if *compressed { 0 } else { 1 << (u16::BITS - 1) };
+            len.to_writer(&mut writer, self.kind.inner.data_endian)?;
+            // TODO: this is one byte at a time, which is slow
+            compressed_bytes.to_writer(&mut writer, ())?;
         }
 
         Ok(())

@@ -12,7 +12,8 @@ categories = ["filesystem", "parsing"]
 
 [dependencies]
 # for lib
-deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-reader" }
+#deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-writer" }
+deku = { path = "../deku", features = ["logging"] }
 tracing = "0.1.37"
 thiserror = "1.0.37"
 flate2 = { version = "1.0.24", optional = true }

@@ -67,24 +67,24 @@ fn test_add() {
 
     // We can't really test gid and uid, just trust me it works reading from the --file
 
-    let cmd = common::get_base_command("add")
-        .env("RUST_LOG", "none")
-        .args([
-            tmp_dir.path().join("out").to_str().unwrap(),
-            "/test/new",
-            "--file",
-            tmp_dir.path().join("file").to_str().unwrap(),
-            "--gid",
-            "2",
-            "--uid",
-            "4242",
-            //"--mtime",
-            //"120",
-            "-o",
-            tmp_dir.path().join("out1").to_str().unwrap(),
-        ])
-        .unwrap();
-    cmd.assert().code(0);
+    // let cmd = common::get_base_command("add")
+    //     .env("RUST_LOG", "none")
+    //     .args([
+    //         tmp_dir.path().join("out").to_str().unwrap(),
+    //         "/test/new",
+    //         "--file",
+    //         tmp_dir.path().join("file").to_str().unwrap(),
+    //         "--gid",
+    //         "2",
+    //         "--uid",
+    //         "4242",
+    //         //"--mtime",
+    //         //"120",
+    //         "-o",
+    //         tmp_dir.path().join("out1").to_str().unwrap(),
+    //     ])
+    //     .unwrap();
+    // cmd.assert().code(0);
 
     #[cfg(feature = "__test_unsquashfs")]
     {

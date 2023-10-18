@@ -65,10 +65,15 @@ fn test_replace() {
         .unwrap();
     cmd.assert().code(0);
 
+    std::fs::copy(
+        tmp_dir.path().join("replaced").to_str().unwrap(),
+        "./replaced",
+    );
+
     // extract
     {
         let cmd = common::get_base_command("unsquashfs")
-            .env("RUST_LOG", "none")
+            .env("RUST_BACKTRACE", "1")
             .args([
                 "--path-filter",
                 r#"/b/c/d"#,

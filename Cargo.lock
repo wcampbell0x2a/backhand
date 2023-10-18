@@ -475,8 +475,7 @@ dependencies = [
 [[package]]
 name = "deku_derive"
 version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e2ca12572239215a352a74ad7c776d7e8a914f8a23511c6cbedddd887e5009e"
+source = "git+https://github.com/sharksforarms/deku?branch=impl-writer#8a3596b07e4cff286e7da9c12698b0e48b5b26b8"
 dependencies = [
  "darling",
  "proc-macro-crate",

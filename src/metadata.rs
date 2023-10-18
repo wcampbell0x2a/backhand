@@ -52,6 +52,7 @@ impl MetadataWriter {
             self.uncompressed_bytes.make_contiguous();
         }
         let uncompressed = &self.uncompressed_bytes.as_slices().0[0..uncompressed_len];
+        println!("in: {:02x?}", uncompressed);
 
         trace!("time to compress");
         // "Write" the to the saved metablock
@@ -71,6 +72,7 @@ impl MetadataWriter {
             self.uncompressed_bytes.drain(0..uncompressed_len);
             (true, compressed)
         };
+        println!("out: {:02x?}", metadata);
 
         // Metadata len + bytes + last metadata_start
         self.metadata_start += 2 + metadata.len() as u32;

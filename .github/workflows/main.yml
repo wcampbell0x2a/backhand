@@ -16,6 +16,11 @@ jobs:
     env:
       RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
+      # By default, this is set to `true`, which means that a single CI job
+      # failure will cause all outstanding jobs to be canceled. This slows down
+      # development because it means that errors need to be encountered and
+      # fixed one at a time.
+      fail-fast: false
       matrix:
         target:
           - x86_64-unknown-linux-musl

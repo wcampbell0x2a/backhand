@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "acid_io"
-version = "0.1.0"
-source = "git+https://github.com/dataphract/acid_io.git#2d549317fe9253df8b510ba6bbdcfe623a837286"
-dependencies = [
- "byteorder",
- "libc",
- "memchr",
-]
-
-[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -208,12 +198,6 @@ dependencies = [
  "serde",
  "utf8-width",
 ]
-
-[[package]]
-name = "byteorder"
-version = "1.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cast"
@@ -484,18 +468,18 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.16.0"
-source = "git+https://github.com/sharksforarms/deku/?branch=impl-reader-bit-order#b9e3102cb3b6931d1ec9e8b8d39f4f087711be32"
+source = "git+https://github.com/sharksforarms/deku/?branch=impl-reader-bit-order#bd6fd423f33753e3044889f045ad7e9416cd3a36"
 dependencies = [
- "acid_io",
  "bitvec",
  "deku_derive",
  "log",
+ "no_std_io",
 ]
 
 [[package]]
 name = "deku_derive"
 version = "0.16.0"
-source = "git+https://github.com/sharksforarms/deku/?branch=impl-reader-bit-order#b9e3102cb3b6931d1ec9e8b8d39f4f087711be32"
+source = "git+https://github.com/sharksforarms/deku/?branch=impl-reader-bit-order#bd6fd423f33753e3044889f045ad7e9416cd3a36"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -894,6 +878,15 @@ dependencies = [
  "cfg-if",
  "libc",
  "static_assertions",
+]
+
+[[package]]
+name = "no_std_io"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "762f99e20001f0c1cedf5c85df1e96d0866f9739d752520d97bf562ee5f05341"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

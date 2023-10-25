@@ -6,7 +6,7 @@ use test_assets::TestAssetDef;
 #[test]
 #[cfg(feature = "xz")]
 #[cfg(feature = "__test_unsquashfs")]
-fn test_unsquashfs_cli_path_filter() {
+fn test_unsquashfs_cli() {
     const FILE_NAME: &str = "870D97.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -43,6 +43,63 @@ fn test_unsquashfs_cli_path_filter() {
 /www/webpages/data
 /www/webpages/data/region.json
 /www/webpages/data/timezone.json
+"#,
+    );
+
+    // stat
+    //
+    // the following is squashfs-tools/unsquashfs -s
+    // Found a valid SQUASHFS 4:0 superblock on test-assets/test_re815_xev160/870D97.squashfs.
+    // Creation or last append time Fri Sep  2 07:26:23 2022
+    // Filesystem size 19957138 bytes (19489.39 Kbytes / 19.03 Mbytes)
+    // Compression xz
+    // Block size 131072
+    // Filesystem is exportable via NFS
+    // Inodes are compressed
+    // Data is compressed
+    // Uids/Gids (Id table) are compressed
+    // Fragments are compressed
+    // Always-use-fragments option is not specified
+    // Xattrs are compressed
+    // Duplicates are removed
+    // Number of fragments 169
+    // Number of inodes 1828
+    // Number of ids 1
+    // Number of xattr ids 0
+    let cmd = common::get_base_command("unsquashfs")
+        .env("RUST_LOG", "none")
+        .args(["-s", "--quiet", &image_path])
+        .unwrap();
+    cmd.assert().stdout(
+        r#"SuperBlock {
+    magic: [
+        0x000068,
+        0x000073,
+        0x000071,
+        0x000073,
+    ],
+    inode_count: 0x000724,
+    mod_time: 0x6311e85f,
+    block_size: 0x020000,
+    frag_count: 0x0000a9,
+    compressor: Xz,
+    block_log: 0x000011,
+    flags: 0x0000c0,
+    id_count: 0x000001,
+    version_major: 0x000004,
+    version_minor: 0x000000,
+    root_inode: 0x3c6e1276,
+    bytes_used: 0x1308592,
+    id_table: 0x130858a,
+    xattr_table: 0xffffffffffffffff,
+    inode_table: 0x12fec8c,
+    dir_table: 0x1302d9c,
+    frag_table: 0x13076e0,
+    export_table: 0x1308574,
+}
+Compression Options: None
+flag: data has been duplicated
+flag: nfs export table exists
 "#,
     );
 }

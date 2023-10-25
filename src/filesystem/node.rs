@@ -22,12 +22,7 @@ pub struct NodeHeader {
 
 impl NodeHeader {
     pub fn new(permissions: u16, uid: u32, gid: u32, mtime: u32) -> Self {
-        Self {
-            permissions,
-            uid,
-            gid,
-            mtime,
-        }
+        Self { permissions, uid, gid, mtime }
     }
 }
 
@@ -69,21 +64,13 @@ impl<T> Ord for Node<T> {
 
 impl<T> Node<T> {
     pub(crate) fn new(fullpath: PathBuf, header: NodeHeader, inner: InnerNode<T>) -> Self {
-        Self {
-            fullpath,
-            header,
-            inner,
-        }
+        Self { fullpath, header, inner }
     }
 
     pub fn new_root(header: NodeHeader) -> Self {
         let fullpath = PathBuf::from("/");
         let inner = InnerNode::Dir(SquashfsDir::default());
-        Self {
-            fullpath,
-            header,
-            inner,
-        }
+        Self { fullpath, header, inner }
     }
 }
 
@@ -146,9 +133,7 @@ pub struct Nodes<T> {
 
 impl<T> Nodes<T> {
     pub fn new_root(header: NodeHeader) -> Self {
-        Self {
-            nodes: vec![Node::new_root(header)],
-        }
+        Self { nodes: vec![Node::new_root(header)] }
     }
 
     pub fn root(&self) -> &Node<T> {
@@ -171,20 +156,12 @@ impl<T> Nodes<T> {
 
     pub fn insert(&mut self, node: Node<T>) -> Result<(), BackhandError> {
         let path = &node.fullpath;
-        let parent = node
-            .fullpath
-            .parent()
-            .ok_or(BackhandError::InvalidFilePath)?;
+        let parent = node.fullpath.parent().ok_or(BackhandError::InvalidFilePath)?;
 
         //check the parent exists
-        let _parent = self
-            .node_mut(parent)
-            .ok_or(BackhandError::InvalidFilePath)?;
+        let _parent = self.node_mut(parent).ok_or(BackhandError::InvalidFilePath)?;
 
-        match self
-            .nodes
-            .binary_search_by(|node| node.fullpath.as_path().cmp(path))
-        {
+        match self.nodes.binary_search_by(|node| node.fullpath.as_path().cmp(path)) {
             //file with this fullpath already exists
             Ok(_index) => Err(BackhandError::DuplicatedFileName),
             //file don't exists, insert it at this location
@@ -216,15 +193,8 @@ impl<T> Nodes<T> {
         &self,
         node_index: NonZeroUsize,
     ) -> impl Iterator<Item = (NonZeroUsize, &Node<T>)> {
-        self.inner_children_of(node_index.get() - 1)
-            .unwrap_or(&[])
-            .iter()
-            .enumerate()
-            .map(move |(index, node)| {
-                (
-                    NonZeroUsize::new(node_index.get() + index + 1).unwrap(),
-                    node,
-                )
-            })
+        self.inner_children_of(node_index.get() - 1).unwrap_or(&[]).iter().enumerate().map(
+            move |(index, node)| (NonZeroUsize::new(node_index.get() + index + 1).unwrap(), node),
+        )
     }
 }

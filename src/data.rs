@@ -58,15 +58,9 @@ impl DataSize {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Added {
     // Only Data was added
-    Data {
-        blocks_start: u32,
-        block_sizes: Vec<DataSize>,
-    },
+    Data { blocks_start: u32, block_sizes: Vec<DataSize> },
     // Only Fragment was added
-    Fragment {
-        frag_index: u32,
-        block_offset: u32,
-    },
+    Fragment { frag_index: u32, block_offset: u32 },
 }
 
 struct DataWriterChunkReader<R: std::io::Read> {
@@ -139,15 +133,7 @@ impl<'a> DataWriter<'a> {
         let first_block = match reader.next_block(&mut read_buf) {
             Some(Ok(first_block)) => first_block,
             Some(Err(x)) => return Err(x),
-            None => {
-                return Ok((
-                    0,
-                    Added::Data {
-                        blocks_start,
-                        block_sizes,
-                    },
-                ))
-            }
+            None => return Ok((0, Added::Data { blocks_start, block_sizes })),
         };
         if first_block.fragment {
             reader.decompress(first_block, &mut read_buf, &mut decompress_buf)?;
@@ -161,13 +147,7 @@ impl<'a> DataWriter<'a> {
             let block_offset = self.fragment_bytes.len() as u32;
             self.fragment_bytes.write_all(&decompress_buf)?;
 
-            return Ok((
-                decompress_buf.len(),
-                Added::Fragment {
-                    frag_index,
-                    block_offset,
-                },
-            ));
+            return Ok((decompress_buf.len(), Added::Fragment { frag_index, block_offset }));
         } else {
             //if is a block, just copy it
             writer.write_all(&read_buf)?;
@@ -178,8 +158,7 @@ impl<'a> DataWriter<'a> {
                 reader.decompress(block, &mut read_buf, &mut decompress_buf)?;
                 // TODO: support tail-end fragments, for now just treat it like a block
                 let cb =
-                    self.kind
-                        .compress(&decompress_buf, self.fs_compressor, self.block_size)?;
+                    self.kind.compress(&decompress_buf, self.fs_compressor, self.block_size)?;
                 // compression didn't reduce size
                 if cb.len() > decompress_buf.len() {
                     // store uncompressed
@@ -196,13 +175,7 @@ impl<'a> DataWriter<'a> {
             }
         }
         let file_size = reader.file.basic.file_size as usize;
-        Ok((
-            file_size,
-            Added::Data {
-                blocks_start,
-                block_sizes,
-            },
-        ))
+        Ok((file_size, Added::Data { blocks_start, block_sizes }))
     }
 
     /// Add to data writer, either a Data or Fragment
@@ -232,21 +205,13 @@ impl<'a> DataWriter<'a> {
             let block_offset = self.fragment_bytes.len() as u32;
             self.fragment_bytes.write_all(chunk)?;
 
-            Ok((
-                chunk_reader.file_len,
-                Added::Fragment {
-                    frag_index,
-                    block_offset,
-                },
-            ))
+            Ok((chunk_reader.file_len, Added::Fragment { frag_index, block_offset }))
         } else {
             // Add to data bytes
             let blocks_start = writer.stream_position()? as u32;
             let mut block_sizes = vec![];
             while !chunk.is_empty() {
-                let cb = self
-                    .kind
-                    .compress(chunk, self.fs_compressor, self.block_size)?;
+                let cb = self.kind.compress(chunk, self.fs_compressor, self.block_size)?;
 
                 // compression didn't reduce size
                 if cb.len() > chunk.len() {
@@ -261,13 +226,7 @@ impl<'a> DataWriter<'a> {
                 chunk = chunk_reader.read_chunk()?;
             }
 
-            Ok((
-                chunk_reader.file_len,
-                Added::Data {
-                    blocks_start,
-                    block_sizes,
-                },
-            ))
+            Ok((chunk_reader.file_len, Added::Data { blocks_start, block_sizes }))
         }
     }
 
@@ -275,9 +234,7 @@ impl<'a> DataWriter<'a> {
     /// current fragment_bytes
     pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), BackhandError> {
         let start = writer.stream_position()?;
-        let cb = self
-            .kind
-            .compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
+        let cb = self.kind.compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
 
         // compression didn't reduce size
         let size = if cb.len() > self.fragment_bytes.len() {

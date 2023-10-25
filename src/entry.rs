@@ -114,10 +114,7 @@ impl<'a> Entry<'a> {
             mtime: header.mtime,
         };
         let basic_file = match added {
-            Added::Data {
-                blocks_start,
-                block_sizes,
-            } => {
+            Added::Data { blocks_start, block_sizes } => {
                 BasicFile {
                     blocks_start: *blocks_start,
                     frag_index: 0xffffffff, // <- no fragment
@@ -126,10 +123,7 @@ impl<'a> Entry<'a> {
                     block_sizes: block_sizes.to_vec(),
                 }
             }
-            Added::Fragment {
-                frag_index,
-                block_offset,
-            } => BasicFile {
+            Added::Fragment { frag_index, block_offset } => BasicFile {
                 blocks_start: 0,
                 frag_index: *frag_index,
                 block_offset: *block_offset,
@@ -138,11 +132,7 @@ impl<'a> Entry<'a> {
             },
         };
 
-        let file_inode = Inode::new(
-            InodeId::BasicFile,
-            header,
-            InodeInner::BasicFile(basic_file),
-        );
+        let file_inode = Inode::new(InodeId::BasicFile, header, InodeInner::BasicFile(basic_file));
 
         file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }

@@ -56,10 +56,7 @@ impl MetadataWriter {
         trace!("time to compress");
         // "Write" the to the saved metablock
         let compressed =
-            self.kind
-                .inner
-                .compressor
-                .compress(uncompressed, self.compressor, self.block_size)?;
+            self.kind.inner.compressor.compress(uncompressed, self.compressor, self.block_size)?;
 
         // Remove the data consumed, if the uncompressed data is smalled, use it.
         let (compressed, metadata) = if compressed.len() > uncompressed_len {
@@ -142,9 +139,7 @@ pub fn read_block<R: Read + ?Sized>(
     let bytes = if is_compressed(metadata_len) {
         tracing::trace!("compressed");
         let mut out = Vec::with_capacity(8 * 1024);
-        kind.inner
-            .compressor
-            .decompress(&buf, &mut out, superblock.compressor)?;
+        kind.inner.compressor.decompress(&buf, &mut out, superblock.compressor)?;
         out
     } else {
         tracing::trace!("uncompressed");

@@ -159,10 +159,7 @@ pub struct ExtendedDirectory {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
-#[deku(
-    endian = "endian",
-    ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16"
-)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16")]
 pub struct BasicFile {
     pub blocks_start: u32,
     pub frag_index: u32,

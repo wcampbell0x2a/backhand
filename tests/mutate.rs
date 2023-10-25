@@ -58,41 +58,25 @@ fn test_add_00() {
     let og_filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
-    let h = NodeHeader {
-        permissions: 0o755,
-        uid: 0,
-        gid: 0,
-        mtime: 0,
-    };
+    let h = NodeHeader { permissions: 0o755, uid: 0, gid: 0, mtime: 0 };
 
     //create directories
     new_filesystem.push_dir_all("a/d/e", h).unwrap();
     new_filesystem.push_dir_all("a/b/c/d/e", h).unwrap();
     // Add file
     let bytes = Cursor::new(b"this is a new file, wowo!");
-    new_filesystem
-        .push_file(bytes, "a/d/e/new_file", h)
-        .unwrap();
+    new_filesystem.push_file(bytes, "a/d/e/new_file", h).unwrap();
     // Add file
-    new_filesystem
-        .push_file(Cursor::new("i am (g)root"), "root_file", h)
-        .unwrap();
+    new_filesystem.push_file(Cursor::new("i am (g)root"), "root_file", h).unwrap();
 
     // Add file
-    new_filesystem
-        .push_file(Cursor::new("dude"), "a/b/c/d/dude", h)
-        .unwrap();
+    new_filesystem.push_file(Cursor::new("dude"), "a/b/c/d/dude", h).unwrap();
 
-    new_filesystem
-        .push_symlink("a/b/c/d/dude", "ptr", h)
-        .unwrap();
+    new_filesystem.push_symlink("a/b/c/d/dude", "ptr", h).unwrap();
 
     // Modify file
     new_filesystem
-        .replace_file(
-            "/a/b/c/d/e/first_file",
-            Cursor::new(b"MODIFIEDfirst file!\n"),
-        )
+        .replace_file("/a/b/c/d/e/first_file", Cursor::new(b"MODIFIEDfirst file!\n"))
         .unwrap();
 
     // create the modified squashfs

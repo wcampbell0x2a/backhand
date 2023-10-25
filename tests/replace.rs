@@ -38,26 +38,15 @@ fn test_replace() {
 
     // edit that file
     let text = b"The mystery of life isn't a problem to solve, but a reality to experience.";
-    std::fs::write(
-        tmp_dir
-            .path()
-            .join("squashfs-root-rust/b/c/d")
-            .to_str()
-            .unwrap(),
-        text,
-    )
-    .unwrap();
+    std::fs::write(tmp_dir.path().join("squashfs-root-rust/b/c/d").to_str().unwrap(), text)
+        .unwrap();
 
     // replace that file
     let cmd = common::get_base_command("replace")
         .env("RUST_LOG", "none")
         .args([
             &image_path,
-            tmp_dir
-                .path()
-                .join("squashfs-root-rust/b/c/d")
-                .to_str()
-                .unwrap(),
+            tmp_dir.path().join("squashfs-root-rust/b/c/d").to_str().unwrap(),
             "/b/c/d",
             "-o",
             tmp_dir.path().join("replaced").to_str().unwrap(),
@@ -81,14 +70,9 @@ fn test_replace() {
         cmd.assert().code(0);
 
         // assert the text changed!
-        let bytes = std::fs::read(
-            tmp_dir
-                .path()
-                .join("squashfs-root-rust2/b/c/d")
-                .to_str()
-                .unwrap(),
-        )
-        .unwrap();
+        let bytes =
+            std::fs::read(tmp_dir.path().join("squashfs-root-rust2/b/c/d").to_str().unwrap())
+                .unwrap();
         assert_eq!(bytes, text);
     }
 }

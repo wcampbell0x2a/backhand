@@ -86,9 +86,7 @@ fn full_test(
     // convert to bytes
     info!("calling to_bytes");
     let mut output = BufWriter::new(File::create(&new_path).unwrap());
-    new_filesystem
-        .write_with_offset(&mut output, offset)
-        .unwrap();
+    new_filesystem.write_with_offset(&mut output, offset).unwrap();
 
     // Test Debug is impl'ed properly on FilesystemWriter
     let _ = format!("{new_filesystem:#02x?}");
@@ -284,13 +282,7 @@ fn test_openwrt_tplink_archera7v5() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
-    full_test(
-        &asset_defs,
-        FILE_NAME,
-        TEST_PATH,
-        0x0022_5fd0,
-        Verify::Extract,
-    );
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x0022_5fd0, Verify::Extract);
 }
 
 #[test]
@@ -306,13 +298,7 @@ fn test_openwrt_netgear_ex6100v2() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
-    full_test(
-        &asset_defs,
-        FILE_NAME,
-        TEST_PATH,
-        0x002c_0080,
-        Verify::Extract,
-    );
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x002c_0080, Verify::Extract);
 }
 
 #[test]

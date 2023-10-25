@@ -21,13 +21,7 @@ fn test_unsquashfs_cli_path_filter() {
     // single file
     let cmd = common::get_base_command("unsquashfs")
         .env("RUST_LOG", "none")
-        .args([
-            "--path-filter",
-            r#"/usr/bin/wget"#,
-            "-l",
-            "--quiet",
-            &image_path,
-        ])
+        .args(["--path-filter", r#"/usr/bin/wget"#, "-l", "--quiet", &image_path])
         .unwrap();
     cmd.assert().stdout(
         r#"/
@@ -40,13 +34,7 @@ fn test_unsquashfs_cli_path_filter() {
     // multiple file
     let cmd = common::get_base_command("unsquashfs")
         .env("RUST_LOG", "none")
-        .args([
-            "--path-filter",
-            r#"/www/webpages/data"#,
-            "-l",
-            "--quiet",
-            &image_path,
-        ])
+        .args(["--path-filter", r#"/www/webpages/data"#, "-l", "--quiet", &image_path])
         .unwrap();
     cmd.assert().stdout(
         r#"/

@@ -295,13 +295,7 @@ impl<'b> Squashfs<'b> {
         reader: impl BufReadSeek + 'b,
         offset: u64,
     ) -> Result<Self, BackhandError> {
-        Self::from_reader_with_offset_and_kind(
-            reader,
-            offset,
-            Kind {
-                inner: Arc::new(LE_V4_0),
-            },
-        )
+        Self::from_reader_with_offset_and_kind(reader, offset, Kind { inner: Arc::new(LE_V4_0) })
     }
 
     /// Same as [`Self::from_reader_with_offset`], but including custom `kind`
@@ -523,9 +517,8 @@ impl<'b> Squashfs<'b> {
             for d in &dirs {
                 trace!("extracing entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
-                    let inode_key = (d.inode_num as i32 + entry.inode_offset as i32)
-                        .try_into()
-                        .unwrap();
+                    let inode_key =
+                        (d.inode_num as i32 + entry.inode_offset as i32).try_into().unwrap();
                     let found_inode = &self.inodes[&inode_key];
                     let header = found_inode.header;
                     fullpath.push(entry.name()?);
@@ -633,12 +626,7 @@ impl<'b> Squashfs<'b> {
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
         let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id));
-        self.extract_dir(
-            &mut PathBuf::from("/"),
-            &mut root,
-            &self.root_inode,
-            &self.id,
-        )?;
+        self.extract_dir(&mut PathBuf::from("/"), &mut root, &self.root_inode, &self.id)?;
         root.nodes.sort();
 
         info!("created fs tree");

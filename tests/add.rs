@@ -58,12 +58,7 @@ fn test_add() {
 
     permissions.set_mode(0o644);
     let timeval = TimeVal::new(60 * 2, 0);
-    utimes(
-        tmp_dir.path().join("file").to_str().unwrap(),
-        &timeval,
-        &timeval,
-    )
-    .unwrap();
+    utimes(tmp_dir.path().join("file").to_str().unwrap(), &timeval, &timeval).unwrap();
 
     // We can't really test gid and uid, just trust me it works reading from the --file
 
@@ -89,11 +84,7 @@ fn test_add() {
     #[cfg(feature = "__test_unsquashfs")]
     {
         let output = Command::new("unsquashfs")
-            .args([
-                "-lln",
-                "-UTC",
-                tmp_dir.path().join("out1").to_str().unwrap(),
-            ])
+            .args(["-lln", "-UTC", tmp_dir.path().join("out1").to_str().unwrap()])
             .output()
             .unwrap();
         let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root

@@ -22,17 +22,9 @@ fn test_raw_00() {
     let new_path = format!("{TEST_PATH}/bytes.squashfs");
     test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
 
-    let header = NodeHeader {
-        permissions: 0o755,
-        uid: 0,
-        gid: 0,
-        mtime: 0,
-    };
+    let header = NodeHeader { permissions: 0o755, uid: 0, gid: 0, mtime: 0 };
 
-    let o_header = NodeHeader {
-        permissions: 0o766,
-        ..header
-    };
+    let o_header = NodeHeader { permissions: 0o766, ..header };
 
     // test out max xz level
     let mut xz_extra = ExtraXz::default();
@@ -56,19 +48,9 @@ fn test_raw_00() {
 
     //don't do anything if the directory exists
     fs.push_dir_all("usr/bin", o_header).unwrap();
-    fs.push_file(
-        std::io::Cursor::new(vec![0x00, 0x01]),
-        "usr/bin/heyo",
-        header,
-    )
-    .unwrap();
+    fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/heyo", header).unwrap();
     fs.push_dir_all("this/is/a", o_header).unwrap();
-    fs.push_file(
-        std::io::Cursor::new(vec![0x0f; 0xff]),
-        "this/is/a/file",
-        header,
-    )
-    .unwrap();
+    fs.push_file(std::io::Cursor::new(vec![0x0f; 0xff]), "this/is/a/file", header).unwrap();
 
     // create the modified squashfs
     let mut output = std::io::BufWriter::new(std::fs::File::create(&new_path).unwrap());

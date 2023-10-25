@@ -32,10 +32,7 @@ pub enum Compressor {
 }
 
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
-#[deku(
-    endian = "endian",
-    ctx = "endian: deku::ctx::Endian, compressor: Compressor"
-)]
+#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian, compressor: Compressor")]
 #[deku(id = "compressor")]
 pub enum CompressionOptions {
     #[deku(id = "Compressor::Gzip")]

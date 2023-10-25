@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fix
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
 - Remove manual `Clone` impl for `FilesystemReaderFile` ([#277](https://github.com/wcampbell0x2a/backhand/pull/277))
+- Increase `DirectoryIndex::name_size` length from 100 to 255. ([@eatradish](https://github.com/eatradish)) ([!282](https://github.com/wcampbell0x2a/backhand/issues/282)), Fixed: ([#283](https://github.com/wcampbell0x2a/backhand/pull/283))
 
 ## Security
 - Only allow root and simple filenames into `DirEntry`([@rbran](https://github.com/rbran)) ([#271](https://github.com/wcampbell0x2a/backhand/pull/271))

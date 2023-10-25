@@ -9,12 +9,13 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
+      - run: sudo apt-get install -y squashfs-tools
       - name: Install Rust
         run: rustup update stable
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate code coverage
-        run: cargo llvm-cov --workspace --codecov --output-path codecov.json
+        run: cargo llvm-cov --workspace --codecov --output-path codecov.json --features __test_unsquashfs
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:

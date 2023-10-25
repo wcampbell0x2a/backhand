@@ -124,3 +124,31 @@ impl DirectoryIndex {
         std::str::from_utf8(&self.name).unwrap().to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_invalid_dir_entry() {
+        // just root
+        let dir = DirEntry {
+            offset: 0x300,
+            inode_offset: 0x0,
+            t: InodeId::BasicDirectory,
+            name_size: 0x1,
+            name: b"/".to_vec(),
+        };
+        assert_eq!(Path::new("/"), dir.name().unwrap());
+
+        // InvalidFilePath
+        let dir = DirEntry {
+            offset: 0x300,
+            inode_offset: 0x0,
+            t: InodeId::BasicDirectory,
+            name_size: 0x1,
+            name: b"/nice/".to_vec(),
+        };
+        assert!(dir.name().is_err());
+    }
+}

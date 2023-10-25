@@ -43,9 +43,7 @@ fn full_test(
         // convert to bytes
         info!("calling to_bytes");
         let mut output = BufWriter::new(File::create(&new_path).unwrap());
-        new_filesystem
-            .write_with_offset(&mut output, offset)
-            .unwrap();
+        new_filesystem.write_with_offset(&mut output, offset).unwrap();
     }
 
     {
@@ -73,13 +71,7 @@ fn test_non_standard_be_v4_0() {
         url: "https://github.com/onekey-sec/unblob/raw/3c7e886e2616413a4d6109ba3d197f91c9596881/tests/integration/filesystem/squashfs/squashfs_v4_be/__input__/squashfs_v4.bin".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/non_standard_be_v4_0";
-    full_test(
-        &asset_defs,
-        FILE_NAME,
-        TEST_PATH,
-        0,
-        &Kind::from_const(kind::BE_V4_0).unwrap(),
-    );
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &Kind::from_const(kind::BE_V4_0).unwrap());
 
     // test custom kind "builder-lite"
     let _kind = Kind::new(&DefaultCompressor)
@@ -97,13 +89,7 @@ fn test_non_standard_be_v4_1() {
         url: "https://github.com/onekey-sec/unblob/raw/3c7e886e2616413a4d6109ba3d197f91c9596881/tests/integration/filesystem/squashfs/squashfs_v4_be/__input__/squashfs_v4.nopad.bin".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/non_standard_be_v4_1";
-    full_test(
-        &asset_defs,
-        FILE_NAME,
-        TEST_PATH,
-        0,
-        &Kind::from_const(kind::BE_V4_0).unwrap(),
-    );
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &Kind::from_const(kind::BE_V4_0).unwrap());
 }
 
 #[test]

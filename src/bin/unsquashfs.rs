@@ -186,11 +186,8 @@ fn main() -> ExitCode {
         }
         if let Some(found_offset) = find_offset(&mut file, &kind) {
             if !args.quiet {
-                let line = format!(
-                    "{:>14} 0x{:08x}",
-                    blue_bold.apply_to("Found magic"),
-                    found_offset,
-                );
+                let line =
+                    format!("{:>14} 0x{:08x}", blue_bold.apply_to("Found magic"), found_offset,);
                 pb.finish_with_message(line);
             }
             args.offset = found_offset;
@@ -256,11 +253,9 @@ fn main() -> ExitCode {
 
     // gather all files and dirs
     let files_len = files.len();
-    let nodes = files.into_iter().chain(
-        filesystem
-            .files()
-            .filter(|a| a.fullpath.starts_with(&args.path_filter)),
-    );
+    let nodes = files
+        .into_iter()
+        .chain(filesystem.files().filter(|a| a.fullpath.starts_with(&args.path_filter)));
 
     // extract or list
     if args.list {
@@ -283,9 +278,7 @@ fn main() -> ExitCode {
             &args,
             &filesystem,
             root_process,
-            nodes
-                .collect::<Vec<&Node<SquashfsFileReader>>>()
-                .into_par_iter(),
+            nodes.collect::<Vec<&Node<SquashfsFileReader>>>().into_par_iter(),
             n_nodes,
             start,
         );
@@ -368,11 +361,7 @@ fn set_attributes(
     // Only chown when root
     if root_process {
         // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
-        let path_bytes = PathBuf::from(path)
-            .as_os_str()
-            .as_bytes()
-            .as_ptr()
-            .cast::<i8>();
+        let path_bytes = PathBuf::from(path).as_os_str().as_bytes().as_ptr().cast::<i8>();
         unsafe {
             lchown(path_bytes as *const _, header.uid, header.gid);
         }
@@ -525,11 +514,8 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
 
                 if root_process {
                     // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
-                    let path_bytes = PathBuf::from(&filepath)
-                        .as_os_str()
-                        .as_bytes()
-                        .as_ptr()
-                        .cast::<i8>();
+                    let path_bytes =
+                        PathBuf::from(&filepath).as_os_str().as_bytes().as_ptr().cast::<i8>();
                     unsafe {
                         lchown(path_bytes as *const _, node.header.uid, node.header.gid);
                     }
@@ -538,14 +524,8 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
                 // Make sure this doesn't follow symlinks when changed to std library!
                 let timespec = TimeSpec::new(node.header.mtime as _, 0);
-                utimensat(
-                    None,
-                    &filepath,
-                    &timespec,
-                    &timespec,
-                    UtimensatFlags::NoFollowSymlink,
-                )
-                .unwrap();
+                utimensat(None, &filepath, &timespec, &timespec, UtimensatFlags::NoFollowSymlink)
+                    .unwrap();
             }
             InnerNode::Dir(SquashfsDir { .. }) => {
                 // These permissions are corrected later (user default permissions for now)
@@ -631,10 +611,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
     });
 
     // fixup dir permissions
-    for node in filesystem
-        .files()
-        .filter(|a| a.fullpath.starts_with(&args.path_filter))
-    {
+    for node in filesystem.files().filter(|a| a.fullpath.starts_with(&args.path_filter)) {
         if let InnerNode::Dir(SquashfsDir { .. }) = &node.inner {
             let path = &node.fullpath;
             let path = path.strip_prefix(Component::RootDir).unwrap_or(path);

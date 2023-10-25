@@ -17,10 +17,6 @@ pub struct Fragment {
 
 impl Fragment {
     pub fn new(start: u64, size: DataSize, unused: u32) -> Self {
-        Self {
-            start,
-            size,
-            unused,
-        }
+        Self { start, size, unused }
     }
 }

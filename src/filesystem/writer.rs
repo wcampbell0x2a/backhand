@@ -93,9 +93,7 @@ impl<'a, 'b> Default for FilesystemWriter<'a, 'b> {
             mod_time: 0,
             id_table: Id::root(),
             fs_compressor: FilesystemCompressor::default(),
-            kind: Kind {
-                inner: Arc::new(LE_V4_0),
-            },
+            kind: Kind { inner: Arc::new(LE_V4_0) },
             root: Nodes::new_root(NodeHeader::default()),
             block_log: (block_size as f32).log2() as u16,
             pad_len: DEFAULT_PAD_LEN,
@@ -130,10 +128,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
 
     /// Set time of image as current time
     pub fn set_current_time(&mut self) {
-        self.mod_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as u32;
+        self.mod_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32;
     }
 
     /// Set kind as `kind`
@@ -216,18 +211,12 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
                     InnerNode::CharacterDevice(x) => InnerNode::CharacterDevice(*x),
                     InnerNode::BlockDevice(x) => InnerNode::BlockDevice(*x),
                 };
-                Node {
-                    fullpath: node.fullpath.clone(),
-                    header: node.header,
-                    inner,
-                }
+                Node { fullpath: node.fullpath.clone(), header: node.header, inner }
             })
             .collect();
         root.sort();
         Ok(Self {
-            kind: Kind {
-                inner: reader.kind.inner.clone(),
-            },
+            kind: Kind { inner: reader.kind.inner.clone() },
             block_size: reader.block_size,
             block_log: reader.block_log,
             fs_compressor: FilesystemCompressor::new(
@@ -303,9 +292,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         find_path: S,
         reader: impl Read + 'b,
     ) -> Result<(), BackhandError> {
-        let file = self
-            .mut_file(find_path)
-            .ok_or(BackhandError::FileNotFound)?;
+        let file = self.mut_file(find_path).ok_or(BackhandError::FileNotFound)?;
         let reader = Arc::new(Mutex::new(reader));
         *file = SquashfsFileWriter::UserDefined(reader);
         Ok(())
@@ -354,11 +341,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         let ancestors: Vec<&Path> = path.ancestors().collect();
 
         for file in ancestors.iter().rev() {
-            match self
-                .root
-                .nodes
-                .binary_search_by(|node| node.fullpath.as_path().cmp(file))
-            {
+            match self.root.nodes.binary_search_by(|node| node.fullpath.as_path().cmp(file)) {
                 Ok(index) => {
                     //if exists, but is not a directory, return an error
                     let node = &self.root.nodes[index];
@@ -429,14 +412,10 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         writer: &mut W,
         data_writer: &mut DataWriter<'b>,
     ) -> Result<(), BackhandError> {
-        let files = self
-            .root
-            .nodes
-            .iter_mut()
-            .filter_map(|node| match &mut node.inner {
-                InnerNode::File(file) => Some(file),
-                _ => None,
-            });
+        let files = self.root.nodes.iter_mut().filter_map(|node| match &mut node.inner {
+            InnerNode::File(file) => Some(file),
+            _ => None,
+        });
         for file in files {
             let (filesize, added) = match file {
                 SquashfsFileWriter::UserDefined(file) => {
@@ -547,11 +526,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
             .children_of(node_id)
             //only direct children
             .filter(|(_child_id, child)| {
-                child
-                    .fullpath
-                    .parent()
-                    .map(|child| child == node.fullpath)
-                    .unwrap_or(false)
+                child.fullpath.parent().map(|child| child == node.fullpath).unwrap_or(false)
             })
             .map(|(child_id, _child)| {
                 self.write_inode_dir(
@@ -607,12 +582,8 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         &mut self,
         w: &mut W,
     ) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut superblock = SuperBlock::new(
-            self.fs_compressor.id,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
-        );
+        let mut superblock =
+            SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
         trace!("{:#02x?}", self.root);
 
@@ -638,32 +609,23 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
             let mut metadata = MetadataWriter::new(
                 self.fs_compressor,
                 self.block_size,
-                Kind {
-                    inner: self.kind.inner.clone(),
-                },
+                Kind { inner: self.kind.inner.clone() },
             );
             metadata.write_all(buf.as_raw_slice())?;
             metadata.finalize(w)?;
         }
 
-        let mut data_writer = DataWriter::new(
-            self.kind.inner.compressor,
-            self.fs_compressor,
-            self.block_size,
-        );
+        let mut data_writer =
+            DataWriter::new(self.kind.inner.compressor, self.fs_compressor, self.block_size);
         let mut inode_writer = MetadataWriter::new(
             self.fs_compressor,
             self.block_size,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
+            Kind { inner: self.kind.inner.clone() },
         );
         let mut dir_writer = MetadataWriter::new(
             self.fs_compressor,
             self.block_size,
-            Kind {
-                inner: self.kind.inner.clone(),
-            },
+            Kind { inner: self.kind.inner.clone() },
         );
 
         info!("Creating Inodes and Dirs");
@@ -919,11 +881,7 @@ impl FilesystemCompressor {
                 return Err(BackhandError::InvalidCompressionOption);
             }
         }
-        Ok(Self {
-            id,
-            options,
-            extra: None,
-        })
+        Ok(Self { id, options, extra: None })
     }
 
     /// Set options that are originally derived from the image if from a [`FilesystemReader`].

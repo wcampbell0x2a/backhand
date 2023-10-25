@@ -214,10 +214,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 
     pub(crate) fn raw_data_reader(&self) -> SquashfsRawData<'a, 'b> {
-        SquashfsRawData::new(Self {
-            system: self.system,
-            basic: self.basic,
-        })
+        SquashfsRawData::new(Self { system: self.system, basic: self.basic })
     }
 }
 
@@ -226,10 +223,7 @@ impl<'a, 'b> IntoIterator for FilesystemReaderFile<'a, 'b> {
     type Item = <BlockIterator<'a> as Iterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
-        BlockIterator {
-            blocks: &self.basic.block_sizes,
-            fragment: self.fragment(),
-        }
+        BlockIterator { blocks: &self.basic.block_sizes, fragment: self.fragment() }
     }
 }
 
@@ -273,11 +267,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     pub fn new(file: FilesystemReaderFile<'a, 'b>) -> Self {
         let pos = file.basic.blocks_start.into();
         let current_block = file.into_iter();
-        Self {
-            file,
-            current_block,
-            pos,
-        }
+        Self { file, current_block, pos }
     }
 
     fn read_raw_data(
@@ -295,10 +285,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 reader.seek(SeekFrom::Start(self.pos))?;
                 reader.read_exact(data)?;
                 self.pos = reader.stream_position()?;
-                Ok(RawDataBlock {
-                    fragment: false,
-                    uncompressed: block.uncompressed(),
-                })
+                Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
                 let cache = self.file.system.cache.lock().unwrap();
@@ -308,10 +295,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     data.resize(cache_size, 0);
                     data[..cache_size].copy_from_slice(cache_bytes);
                     //cache is store uncompressed
-                    Ok(RawDataBlock {
-                        fragment: true,
-                        uncompressed: true,
-                    })
+                    Ok(RawDataBlock { fragment: true, uncompressed: true })
                 } else {
                     //otherwise read and return it
                     let frag_size = fragment.size.size() as usize;
@@ -319,19 +303,14 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     let mut reader = self.file.system.reader.lock().unwrap();
                     reader.seek(SeekFrom::Start(fragment.start))?;
                     reader.read_exact(data)?;
-                    Ok(RawDataBlock {
-                        fragment: true,
-                        uncompressed: fragment.size.uncompressed(),
-                    })
+                    Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
                 }
             }
         }
     }
 
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
-        self.current_block
-            .next()
-            .map(|next| self.read_raw_data(buf, &next))
+        self.current_block.next().map(|next| self.read_raw_data(buf, &next))
     }
 
     fn fragment_range(&self) -> std::ops::Range<usize> {
@@ -389,13 +368,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         buf_decompress: &'a mut Vec<u8>,
     ) -> SquashfsReadFile<'a, 'b> {
         let bytes_available = self.file.basic.file_size as usize;
-        SquashfsReadFile {
-            raw_data: self,
-            buf_read,
-            buf_decompress,
-            last_read: 0,
-            bytes_available,
-        }
+        SquashfsReadFile { raw_data: self, buf_read, buf_decompress, last_read: 0, bytes_available }
     }
 }
 
@@ -428,8 +401,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
             None => return Ok(()),
         };
         self.buf_decompress.clear();
-        self.raw_data
-            .decompress(block, self.buf_read, self.buf_decompress)?;
+        self.raw_data.decompress(block, self.buf_read, self.buf_decompress)?;
         self.last_read = 0;
         Ok(())
     }

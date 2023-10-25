@@ -116,21 +116,14 @@ impl Kind {
     /// let kind = Kind::new(&CustomCompressor);
     /// ```
     pub fn new<C: CompressionAction + Send + Sync>(compressor: &'static C) -> Self {
-        Self {
-            inner: Arc::new(InnerKind {
-                compressor,
-                ..LE_V4_0
-            }),
-        }
+        Self { inner: Arc::new(InnerKind { compressor, ..LE_V4_0 }) }
     }
 
     pub fn new_with_const<C: CompressionAction + Send + Sync>(
         compressor: &'static C,
         c: InnerKind<dyn CompressionAction + Send + Sync>,
     ) -> Self {
-        Self {
-            inner: Arc::new(InnerKind { compressor, ..c }),
-        }
+        Self { inner: Arc::new(InnerKind { compressor, ..c }) }
     }
 
     /// From a string, return a kind
@@ -153,9 +146,7 @@ impl Kind {
             _ => return Err("not a valid kind".to_string()),
         };
 
-        Ok(Kind {
-            inner: Arc::new(kind),
-        })
+        Ok(Kind { inner: Arc::new(kind) })
     }
 
     /// From a known Squashfs image Kind, return a [`Kind`]
@@ -170,16 +161,12 @@ impl Kind {
     pub fn from_const(
         inner: InnerKind<dyn CompressionAction + Send + Sync>,
     ) -> Result<Kind, String> {
-        Ok(Kind {
-            inner: Arc::new(inner),
-        })
+        Ok(Kind { inner: Arc::new(inner) })
     }
 
     // TODO: example
     pub fn from_kind(kind: &Kind) -> Kind {
-        Self {
-            inner: kind.inner.clone(),
-        }
+        Self { inner: kind.inner.clone() }
     }
 
     /// Set magic type at the beginning of the image

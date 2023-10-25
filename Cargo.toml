@@ -15,7 +15,7 @@ categories = ["filesystem", "parsing"]
 deku = "0.16.0"
 tracing = "0.1.37"
 thiserror = "1.0.37"
-flate2 = { version = "1.0.24", optional = true }
+flate2 = { version = "1.0.28", optional = true }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.12.3", optional = true }

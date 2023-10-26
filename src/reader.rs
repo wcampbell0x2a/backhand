@@ -6,7 +6,7 @@ use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use deku::bitvec::{BitView, Msb0};
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
-use tracing::{error, instrument, trace};
+use tracing::{error, trace};
 
 use crate::error::BackhandError;
 use crate::export::Export;
@@ -155,7 +155,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Extract the root `Inode` as a `BasicDirectory`
-    #[instrument(skip_all)]
     fn root_inode(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Inode, BackhandError> {
         let root_inode_start = (superblock.root_inode >> 16) as usize;
         let root_inode_offset = (superblock.root_inode & 0xffff) as usize;
@@ -215,7 +214,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse required number of `Metadata`s uncompressed blocks required for `Dir`s
-    #[instrument(skip_all)]
     fn dir_blocks(
         &mut self,
         superblock: &SuperBlock,
@@ -235,7 +233,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse Fragment Table
-    #[instrument(skip_all)]
     fn fragments(
         &mut self,
         superblock: &SuperBlock,
@@ -255,7 +252,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse Export Table
-    #[instrument(skip_all)]
     fn export(
         &mut self,
         superblock: &SuperBlock,
@@ -272,7 +268,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse ID Table
-    #[instrument(skip_all)]
     fn id(
         &mut self,
         superblock: &SuperBlock,
@@ -285,7 +280,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse Lookup Table
-    #[instrument(skip_all)]
     fn lookup_table<T: for<'a> DekuRead<'a, deku::ctx::Endian>>(
         &mut self,
         superblock: &SuperBlock,
@@ -312,7 +306,6 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse count of `Metadata` block at offset into `T`
-    #[instrument(skip_all)]
     fn metadata_with_count<T: for<'a> DekuRead<'a, deku::ctx::Endian>>(
         &mut self,
         superblock: &SuperBlock,

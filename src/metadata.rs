@@ -3,7 +3,7 @@ use std::io::{self, Read, Seek, Write};
 
 use deku::bitvec::{BitVec, BitView};
 use deku::prelude::*;
-use tracing::{instrument, trace};
+use tracing::trace;
 
 use crate::error::BackhandError;
 use crate::filesystem::writer::FilesystemCompressor;
@@ -27,7 +27,6 @@ pub(crate) struct MetadataWriter {
 }
 
 impl MetadataWriter {
-    #[instrument(skip_all)]
     pub fn new(compressor: FilesystemCompressor, block_size: u32, kind: Kind) -> Self {
         Self {
             compressor,
@@ -39,7 +38,6 @@ impl MetadataWriter {
         }
     }
 
-    #[instrument(skip_all)]
     fn add_block(&mut self) -> io::Result<()> {
         // uncompress data that will create the metablock
         let uncompressed_len = self.uncompressed_bytes.len().min(METADATA_MAXSIZE);
@@ -76,7 +74,6 @@ impl MetadataWriter {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), BackhandError> {
         //add any remaining data
         while !self.uncompressed_bytes.is_empty() {
@@ -100,7 +97,6 @@ impl MetadataWriter {
 }
 
 impl Write for MetadataWriter {
-    #[instrument(skip_all)]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         // add all of buf into uncompressed
         self.uncompressed_bytes.write_all(buf)?;
@@ -118,7 +114,6 @@ impl Write for MetadataWriter {
     }
 }
 
-#[instrument(skip_all)]
 pub fn read_block<R: Read + ?Sized>(
     reader: &mut R,
     superblock: &SuperBlock,

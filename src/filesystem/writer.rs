@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::bitvec::BitVec;
 use deku::DekuWrite;
-use tracing::{error, info, instrument, trace};
+use tracing::{error, info, trace};
 
 use super::node::{InnerNode, Nodes};
 use super::normalize_squashfs_path;
@@ -395,7 +395,6 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
 
     /// Same as [`Self::write`], but seek'ing to `offset` in `w` before reading. This offset
     /// is treated as the base image offset.
-    #[instrument(skip_all)]
     pub fn write_with_offset<W: Write + Seek>(
         &mut self,
         w: &mut W,
@@ -577,7 +576,6 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    #[instrument(skip_all)]
     pub fn write<W: Write + Seek>(
         &mut self,
         w: &mut W,

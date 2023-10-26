@@ -7,7 +7,6 @@ use deku::prelude::*;
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "gzip")]
 use flate2::Compression;
-use tracing::instrument;
 #[cfg(feature = "xz")]
 use xz2::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]
@@ -183,7 +182,6 @@ pub struct DefaultCompressor;
 
 impl CompressionAction for DefaultCompressor {
     /// Using the current compressor from the superblock, decompress bytes
-    #[instrument(skip_all)]
     fn decompress(
         &self,
         bytes: &[u8],
@@ -221,7 +219,6 @@ impl CompressionAction for DefaultCompressor {
         Ok(())
     }
 
-    #[instrument(skip_all)]
     fn compress(
         &self,
         bytes: &[u8],

@@ -2,8 +2,6 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::os::unix::prelude::OsStrExt;
 
-use tracing::instrument;
-
 use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
 use crate::inode::{
@@ -278,7 +276,6 @@ impl<'a> Entry<'a> {
     }
 
     /// Create entries, input need to be alphabetically sorted
-    #[instrument(skip_all)]
     pub(crate) fn into_dir(entries: Vec<Self>) -> Vec<Dir> {
         let mut dirs = vec![];
         let mut creating_dir = vec![];

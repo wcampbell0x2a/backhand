@@ -3,7 +3,6 @@
 use std::io::{Read, Seek, Write};
 
 use deku::prelude::*;
-use tracing::instrument;
 
 use crate::compressor::CompressionAction;
 use crate::error::BackhandError;
@@ -100,7 +99,6 @@ pub(crate) struct DataWriter<'a> {
 }
 
 impl<'a> DataWriter<'a> {
-    #[instrument(skip_all)]
     pub fn new(
         kind: &'a dyn CompressionAction,
         fs_compressor: FilesystemCompressor,

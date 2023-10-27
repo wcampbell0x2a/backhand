@@ -13,7 +13,7 @@ categories = ["filesystem", "parsing"]
 [dependencies]
 # for lib
 deku = "0.16.0"
-tracing = "0.1.37"
+tracing = "0.1.40"
 thiserror = "1.0.50"
 flate2 = { version = "1.0.28", optional = true }
 xz2 = { version = "0.1.7", optional = true }

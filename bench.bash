@@ -17,8 +17,8 @@ bench () {
 }
 
 # install msrv (make sure no perf regressions)
-rustup toolchain install 1.65.0
-cargo +1.65.0 build --release --target-dir target-msrv
+rustup toolchain install 1.73.0
+cargo +1.73.0 build --release --target-dir target-msrv
 cargo build --release
 cargo build --release --target x86_64-unknown-linux-musl
 RUSTFLAGS="-C target-cpu=native" cargo build --release --target x86_64-unknown-linux-musl --target-dir target-native

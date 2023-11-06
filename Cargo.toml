@@ -26,7 +26,7 @@ nix = { version = "0.27.1", default-features = false, features = ["fs"] }
 clap = { version = "4.4.7", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 byte-unit = "4.0.18"
-libc = "0.2.140"
+libc = "0.2.150"
 clap_complete = "4.4.4"
 indicatif = "0.17.7"
 console = "0.15.7"

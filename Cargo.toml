@@ -23,7 +23,7 @@ rustc-hash = "1.1.0"
 
 # for bins
 nix = { version = "0.27.1", default-features = false, features = ["fs"] }
-clap = { version = "4.2.0", features = ["derive", "wrap_help"] }
+clap = { version = "4.4.7", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 byte-unit = "4.0.18"
 libc = "0.2.140"

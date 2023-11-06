@@ -64,11 +64,12 @@ fn full_test(
 fn test_non_standard_be_v4_0() {
     use backhand::compression::DefaultCompressor;
 
-    const FILE_NAME: &str = "squashfs_v4.bin";
+    const FILE_NAME: &str = "squashfs_v4.unblob.bin";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "9c7c523c5d1d1cafc0b679af9092ce0289d9656f6a24bc3bd0009f95b69397c0".to_string(),
-        url: "https://github.com/onekey-sec/unblob/raw/3c7e886e2616413a4d6109ba3d197f91c9596881/tests/integration/filesystem/squashfs/squashfs_v4_be/__input__/squashfs_v4.bin".to_string(),
+        url: "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.unblob.bin"
+            .to_string(),
     }];
     const TEST_PATH: &str = "test-assets/non_standard_be_v4_0";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &Kind::from_const(kind::BE_V4_0).unwrap());
@@ -82,11 +83,12 @@ fn test_non_standard_be_v4_0() {
 #[test]
 #[cfg(feature = "gzip")]
 fn test_non_standard_be_v4_1() {
-    const FILE_NAME: &str = "squashfs_v4.nopad.bin";
+    const FILE_NAME: &str = "squashfs_v4.nopad.unblob.bin";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "a29ddc15f5a6abcabf28b7161837eb56b34111e48420e7392e648f2fdfe956ed".to_string(),
-        url: "https://github.com/onekey-sec/unblob/raw/3c7e886e2616413a4d6109ba3d197f91c9596881/tests/integration/filesystem/squashfs/squashfs_v4_be/__input__/squashfs_v4.nopad.bin".to_string(),
+        url: "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.nopad.unblob.bin"
+            .to_string(),
     }];
     const TEST_PATH: &str = "test-assets/non_standard_be_v4_1";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &Kind::from_const(kind::BE_V4_0).unwrap());
@@ -95,11 +97,12 @@ fn test_non_standard_be_v4_1() {
 #[test]
 #[cfg(feature = "gzip")]
 fn test_custom_compressor() {
-    const FILE_NAME: &str = "squashfs_v4.nopad.bin";
+    const FILE_NAME: &str = "squashfs_v4.nopad.unblob.bin";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
         hash: "a29ddc15f5a6abcabf28b7161837eb56b34111e48420e7392e648f2fdfe956ed".to_string(),
-        url: "https://github.com/onekey-sec/unblob/raw/3c7e886e2616413a4d6109ba3d197f91c9596881/tests/integration/filesystem/squashfs/squashfs_v4_be/__input__/squashfs_v4.nopad.bin".to_string(),
+        url: "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.nopad.unblob.bin"
+            .to_string(),
     }];
 
     #[derive(Copy, Clone)]

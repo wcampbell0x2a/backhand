@@ -27,7 +27,7 @@ clap = { version = "4.4.7", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
 byte-unit = "4.0.18"
 libc = "0.2.140"
-clap_complete = "4.2.1"
+clap_complete = "4.4.4"
 indicatif = "0.17.7"
 console = "0.15.7"
 rayon = "1.7.0"

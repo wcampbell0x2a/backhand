@@ -4,7 +4,8 @@ use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::iter::Iterator;
-use std::os::unix::prelude::{OsStrExt, PermissionsExt};
+use std::os::unix::fs::lchown;
+use std::os::unix::prelude::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Mutex;
@@ -20,7 +21,6 @@ use clap_complete::{generate, Shell};
 use common::after_help;
 use console::Term;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
-use libc::lchown;
 use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
@@ -361,9 +361,16 @@ fn set_attributes(
     // Only chown when root
     if root_process {
         // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
-        let path_bytes = PathBuf::from(path).as_os_str().as_bytes().as_ptr().cast::<i8>();
-        unsafe {
-            lchown(path_bytes as *const _, header.uid, header.gid);
+        match lchown(path, Some(header.uid), Some(header.gid)) {
+            Ok(_) => (),
+            Err(e) => {
+                if !args.quiet {
+                    let line =
+                        format!("lchown {} {} {} : {e}", path.display(), header.uid, header.gid,);
+                    failed(pb, &line);
+                }
+                return;
+            }
         }
     } else if is_file {
         // bitwise-not if not rooted (disable write permissions for user/group). Following
@@ -514,10 +521,23 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
 
                 if root_process {
                     // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
-                    let path_bytes =
-                        PathBuf::from(&filepath).as_os_str().as_bytes().as_ptr().cast::<i8>();
-                    unsafe {
-                        lchown(path_bytes as *const _, node.header.uid, node.header.gid);
+                    match lchown(&filepath, Some(node.header.uid), Some(node.header.gid)) {
+                        Ok(_) => (),
+                        Err(e) => {
+                            if !args.quiet {
+                                let line = format!(
+                                    "lchown {} {} {} : {e}",
+                                    filepath.display(),
+                                    node.header.uid,
+                                    node.header.gid,
+                                );
+                                failed(&pb, &line);
+                            }
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
+                            return;
+                        }
                     }
                 }
 

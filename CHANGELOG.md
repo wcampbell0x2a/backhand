@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Change `Rc<T>` into `Arc<T>`
   - Change `dyn CompressionAction` to `dyn CompressionAction + Send + Sync` for `Kind` uses
   - Change `BufReadSeek: BufRead + Seek {}` to `BufReadSeek: BufRead + Seek + Send {}`
+- Allow user provided read/write files to not be static ([@rbran](https://github.com/rbran)) ([#285](https://github.com/wcampbell0x2a/backhand/pull/285))
+- Bump flate2 from 1.0.26 to 1.0.28 ([#307](https://github.com/wcampbell0x2a/backhand/pull/307))
 
 ### Bug Fix
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
@@ -21,20 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Increase `DirectoryIndex::name_size` length from 100 to 255. ([@eatradish](https://github.com/eatradish)) ([!282](https://github.com/wcampbell0x2a/backhand/issues/282)), Fixed: ([#283](https://github.com/wcampbell0x2a/backhand/pull/283))
 
 ## Security
-- Only allow root and simple filenames into `DirEntry`([@rbran](https://github.com/rbran)) ([#271](https://github.com/wcampbell0x2a/backhand/pull/271))
+- Only allow root and simple filenames into `DirEntry` ([@rbran](https://github.com/rbran)) ([#271](https://github.com/wcampbell0x2a/backhand/pull/271))
 
 ## All binaries
 ### Changes
 - `strip` and `LTO` are enabled for release binaries
 - Fix macOS builds ([#260](https://github.com/wcampbell0x2a/backhand/pull/260))
+- Bump jemallocator from 0.5.0 to 0.5.4 ([#305](https://github.com/wcampbell0x2a/backhand/pull/305))
+- Bump thiserror from 1.0.40 to 1.0.50 ([#304](https://github.com/wcampbell0x2a/backhand/pull/304))
 
 ## unsquashfs 
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add `--quiet` for not displaying progress bar and RUST_LOG output ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add multiple threads for extracing files, giving us the same performance in most cases as `squashfs-tools/unsquashfs`! ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
+- Bump MSRV to `1.73.0` to use now stabilized `std::os::unix::fs::lchown`
 
 ## ci
-- Fix libc calls, add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
+- Add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
    - `aarch64-unknown-linux-musl`
    - `arm-unknown-linux-musleabi`
    - `mips-unknown-linux-musl`

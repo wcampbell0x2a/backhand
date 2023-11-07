@@ -118,9 +118,10 @@ fn test_custom_compressor() {
             compressor: Compressor,
         ) -> Result<(), BackhandError> {
             if let Compressor::Gzip = compressor {
-                let mut decoder = zune_inflate::DeflateDecoder::new(bytes);
-                let decompressed_data = decoder.decode_zlib().unwrap();
-                out.write_all(&decompressed_data)?;
+                out.resize(out.capacity(), 0);
+                let mut decompressor = libdeflater::Decompressor::new();
+                let amt = decompressor.zlib_decompress(&bytes, out).unwrap();
+                out.truncate(amt);
             } else {
                 unimplemented!();
             }

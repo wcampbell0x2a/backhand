@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing and release binaries were not added for macOS, support was tested on that platform.
 ## testing
 - Replace curl in test dependency `test-assets` with ureq ([#264](https://github.com/wcampbell0x2a/backhand/pull/264))
+- Replace `zune-inflate` with `libdeflater` for custom decompression testing for reliability ([#325](https://github.com/wcampbell0x2a/backhand/pull/325))
 
 # [v0.13.0] - 2023-06-18
 ## backhand

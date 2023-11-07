@@ -188,7 +188,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     ///
     /// * `buf_read` - Pre-allocated buffer of `block_size`, from [alloc_read_buffers].
     ///     Calls [Vec::clear] after final [Read::read] call.
-    /// * `buf_decompress` - Pre-allocated buffer of `block_size`, from [alloc_read_buffers].
+    /// * `buf_decompress` - Pre-allocated buffer from [alloc_read_buffers].
     ///     Calls [Vec::clear] after final [Read::read] call.
     ///
     /// [alloc_read_buffers]: FilesystemReader::alloc_read_buffers

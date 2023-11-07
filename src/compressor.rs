@@ -139,7 +139,7 @@ pub struct Zstd {
 /// implement the Squashfs found within `squashfs-tools` and the Linux kernel.
 ///
 /// However, the "wonderful world of vendor formats" has other ideas and has implemented their own
-/// ideas of compression with custom tables and such! Thus, if the need arises you can implemented
+/// ideas of compression with custom tables and such! Thus, if the need arises you can implement
 /// your own [`CompressionAction`] to override the compression and de-compression used in this
 /// library by default.
 pub trait CompressionAction {
@@ -148,7 +148,8 @@ pub trait CompressionAction {
     /// # Arguments
     ///
     /// * `bytes` - Input compressed bytes
-    /// * `out` - Output uncompressed bytes
+    /// * `out` - Output uncompressed bytes. You will need to call `out.resize(out.capacity(), 0)`
+    /// if your compressor relies on having a max sized bufer to write into.
     /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
     /// compressor doesn't follow the normal values of the Compressor Id.
     ///

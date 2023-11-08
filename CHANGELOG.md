@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace curl in test dependency `test-assets` with ureq ([#264](https://github.com/wcampbell0x2a/backhand/pull/264))
 - Replace `zune-inflate` with `libdeflater` for custom decompression testing for reliability ([#325](https://github.com/wcampbell0x2a/backhand/pull/325))
 
+### Dependencies
+- Bump `tempfile` from 3.8.0 to 3.8.1 ([#330](https://github.com/wcampbell0x2a/backhand/pull/330))
+
 ## [v0.13.0] - 2023-06-18
 ### backhand
 #### Changes

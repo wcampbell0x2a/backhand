@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased]
-## backhand
-### Changes
+## [Unreleased]
+### backhand
+#### Changes
 - Following changes were done to allow multi-threaded applications ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
   - Change `RefCell<Box<T>>` into `Arc<Mutex<T>>`
   - Change `RefCell<T>` into `Mutex<T>`
@@ -17,28 +17,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow user provided read/write files to not be static ([@rbran](https://github.com/rbran)) ([#285](https://github.com/wcampbell0x2a/backhand/pull/285))
 - Bump flate2 from 1.0.26 to 1.0.28 ([#307](https://github.com/wcampbell0x2a/backhand/pull/307))
 
-### Bug Fix
+#### Bug Fix
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
 - Remove manual `Clone` impl for `FilesystemReaderFile` ([#277](https://github.com/wcampbell0x2a/backhand/pull/277))
 - Increase `DirectoryIndex::name_size` length from 100 to 255. ([@eatradish](https://github.com/eatradish)) ([!282](https://github.com/wcampbell0x2a/backhand/issues/282)), Fixed: ([#283](https://github.com/wcampbell0x2a/backhand/pull/283))
 
-### Security
+#### Security
 - Only allow root and simple filenames into `DirEntry` ([@rbran](https://github.com/rbran)) ([#271](https://github.com/wcampbell0x2a/backhand/pull/271))
 
-## All binaries
-### Changes
+### All binaries
+#### Changes
 - `strip` and `LTO` are enabled for release binaries
 - Fix macOS builds ([#260](https://github.com/wcampbell0x2a/backhand/pull/260))
 - Bump jemallocator from 0.5.0 to 0.5.4 ([#305](https://github.com/wcampbell0x2a/backhand/pull/305))
 - Bump thiserror from 1.0.40 to 1.0.50 ([#304](https://github.com/wcampbell0x2a/backhand/pull/304))
 
-## unsquashfs 
+### unsquashfs 
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add `--quiet` for not displaying progress bar and RUST_LOG output ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add multiple threads for extracing files, giving us the same performance in most cases as `squashfs-tools/unsquashfs`! ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
 - Bump MSRV to `1.73.0` to use now stabilized `std::os::unix::fs::lchown`
 
-## ci
+### ci
 - Add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
    - `aarch64-unknown-linux-musl`
    - `arm-unknown-linux-musleabi`
@@ -46,24 +46,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - `mipsel-unknown-linux-musl`
    - `x86_64-unknown-linux-musl` (previously already release supported)
 - Testing and release binaries were not added for macOS, support was tested on that platform.
-## testing
+### testing
 - Replace curl in test dependency `test-assets` with ureq ([#264](https://github.com/wcampbell0x2a/backhand/pull/264))
 - Replace `zune-inflate` with `libdeflater` for custom decompression testing for reliability ([#325](https://github.com/wcampbell0x2a/backhand/pull/325))
 
-# [v0.13.0] - 2023-06-18
-## backhand
-### Changes
+## [v0.13.0] - 2023-06-18
+### backhand
+#### Changes
 - Decrease in memory usage for file reader and write ([#255](https://github.com/wcampbell0x2a/backhand/pull/255))
 - Remove unnecessary deconstruction/reconstruction of Vec when reading inodes ([@rbran](https://github.com/rbran)) ([#251](https://github.com/wcampbell0x2a/backhand/pull/251))
 - Only store file data compressed if it results in smaller size ([@rbran](https://github.com/rbran)) ([#250](https://github.com/wcampbell0x2a/backhand/pull/250))
 - Remove `lzo` being a default feature because of GPL license ([#240](https://github.com/wcampbell0x2a/backhand/pull/240))
 - Add support for OpenWRT compression options ([#239](https://github.com/wcampbell0x2a/backhand/pull/239))
 - Bump MSRV to `1.65.0` for latest `clap` requirements ([#253](https://github.com/wcampbell0x2a/backhand/pull/253))
-### Bug Fix
+#### Bug Fix
 - Fix bug in generating Uid and Gid's with `FilesystemWriter`. All internal representation of Gid and Uid are changed to u32 ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
 - Remove case where invalid filesystem root_inode_offset would cause invalid bounds read panic. Found by fuzzer ([#245](https://github.com/wcampbell0x2a/backhand/pull/245))
 
-### Complete API Updates
+#### Complete API Updates
 ```
 $ cargo public-api -ss diff v0.12.0..HEAD
 ```
@@ -100,28 +100,28 @@ Added items to the public API
 
 </details>
 
-## All binaries
-### Changes
+### All binaries
+#### Changes
 - jemalloc is now used for `-musl` release targets for performance reasons ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
 - `HAVE_DECODER_ARM`, `HAVE_DECODER_ARM64`, and `HAVE_DECODER_ARMTHUMB` filter flags are now defined for xz2. This only effects static build created in our CI. ([#254](https://github.com/wcampbell0x2a/backhand/pull/248))
 - Add `RUST_LOG` and available Decompressors to `--help` of all binaries ([#242](https://github.com/wcampbell0x2a/backhand/pull/242))
 
-## add
-### Changes
+### add
+#### Changes
 - Add `--dir` to create a empty directory ([#242](https://github.com/wcampbell0x2a/backhand/pull/242))
-### Bug Fix
+#### Bug Fix
 - Add correctly reading new file metadata from `--file`, force other arguments for `--dir` ([#254](https://github.com/wcampbell0x2a/backhand/pull/254))
 
-## unsquashfs
-### Changes
+### unsquashfs
+#### Changes
 - Add `--auto-offset` for automatic finding of initial SquashFS offset in image ([#241](https://github.com/wcampbell0x2a/backhand/pull/241))
 - Add possible `kind` values to `--help` output ([#236](https://github.com/wcampbell0x2a/backhand/pull/236))
 - Add `--path-filter` to limit file extraction to a path ([#237](https://github.com/wcampbell0x2a/backhand/pull/237))
 
-# [v0.12.0] - 2023-05-07
+## [v0.12.0] - 2023-05-07
 Thanks [@rbran](https://github.com/rbran/) for the contributions!
 
-## backhand
+### backhand
 - `Kind` has been extended to take an `CompressionAction` to have a custom compression and decompression
   algorithm. This defaults to the `DefaultCompressor` in most situations to be like the Linux kernel
   squashfs code. This should allow an ever greater array of custom vendor Squashfs image support.
@@ -176,7 +176,7 @@ The following `BackhandError`s were added to support this: `DuplicatedFileName`,
 ```
 - `FilesystemReader::from_reader_*()` functions now take `BufReadSeek` for an increase in performance during reading for some images.
 
-### Detailed Changed/Added/Removed
+#### Detailed Changed/Added/Removed
 
 ```
 $ cargo public-api -ss diff v0.11.0..HEAD
@@ -431,27 +431,27 @@ Added items to the public API
 
 </details>
 
-## `unsquashfs`
+### `unsquashfs`
 - Added `--kind` for custom squashfs type image extraction
 ```
   -k, --kind <KIND>      Kind(type of image) to parse [default: le_v4_0] [possible values: be_v4_0, le_v4_0, amv_be_v4_0]
 ```
 - Added `--completions` for the generation of shell completions scripts
 
-### Performance
+#### Performance
 See https://github.com/wcampbell0x2a/backhand/discussions/145 for more details.
 These are benchmarked against the SquashFS image from `TP-Link AXE5400 Mesh Wi-Fi 6E Range Extender`.
 
-#### Speed
+##### Speed
 For single threaded mode `squashfs-tools/unsquashfs-v4.6.1`, testing on my machine lets me know that 
 our `backhand/unsquashfs` is around the same speed performance with a single thread.
 
-#### Allocations
+##### Allocations
 Only testing single threaded mode, peak heap memory consumption for `squashfs-tools/unsquashfs-v4.6.1`
 is 74.8MB, while our `backhand/unsquashfs` only uses 18.1MB.
 
-# [v0.11.0] - 2023-03-14
-## Added
+## [v0.11.0] - 2023-03-14
+### Added
 - Support for Read/Write of non-standard custom squashfs images:
     - `LE_V4_0`: (linux kernel) Little-Endian default official v4.0
     - `BE_V4_0`: Big-Endian v4.0
@@ -469,65 +469,65 @@ is 74.8MB, while our `backhand/unsquashfs` only uses 18.1MB.
 - `add`: now reads file details to derive the details when the file is added the image
 - `add`: `--mtime`, `--uid`, `--gid` and `--permission` to override file details derived from file
 - `unsquashfs`: now correctly extracts ownership and permission details
-## Fixed
+### Fixed
 - `ID` now supports multiple IDs for GUI and UID in the table
 - `id_table` is now properly a u64 pointer
 - Data is now *not* copied when during the use of a `FilesystemWriter` you decide to change the compression used.
   Thanks [@rbran](https://github.com/rbran/)
-## Changed
+### Changed
 - Renamed `SquashfsError` to `BackhandError`
 
-# [v0.10.1] - 2023-02-22
-## Added
+## [v0.10.1] - 2023-02-22
+### Added
 - Zstd compression support 
 
-## Fixed
+### Fixed
 - `FilesystemWriter` Debug impl now works
 - `FilesystemReader::from_reader_with_offset(..)` now properly respects given offsets
 - `FilesystemWriter::write_with_offset(..)` now properly respects given offsets
 
-# [v0.10.0] - 2023-02-20
-## Added
+## [v0.10.0] - 2023-02-20
+### Added
 - Fuzz testing with `cargo fuzz`. Mostly fuzz bytes as bytes/image input into this library.
 - `unsquashfs`: Add `-o, --out <OUT>` flag for output squashfs image destination
 - `replace`: Add binary to replace file in squashfs filesystems
 - Add support for Lzo compression, and feature `lzo`
 
-## Fixed
+### Fixed
 - Fixed many issues found with fuzz testing related to legal images.
   Checks are now added at every stop possible to prevent many soundness issues.
 - Fixed `Compressor` id values for Lzo and Lzma
 
-## Changed
+### Changed
 - Pass internal raw data by reference, improving `only_read` benchmarks by ~9%.
 - Invalid `Superblock.block_size` is now checked against MiB(1) instead of MB(1)
 
-# [v0.9.1] - 2023-02-16
-## Fixed
+## [v0.9.1] - 2023-02-16
+### Fixed
 - Fix `unsquashfs` extracting wrong file data
 
-# [v0.9.0] - 2023-02-13
-## Fixed
+## [v0.9.0] - 2023-02-13
+### Fixed
 - `FilesystemWriter::push_file(..)` correctly enters file into filesystem
-## Changed
+### Changed
 - Remove Result return type from `FilesystemWriter::{push_file(..), push_dir(..), push_symlink(..), push_char_device(..) and push_block_devivce(..)`.
 - Remove unused errors: `FieldNotInitialized` and `OsStringToStr`.
 
-# [v0.8.1] - 2023-02-11
+## [v0.8.1] - 2023-02-11
 - Fix `src/lib.rs` version for docs.rs
 
-# [v0.8.0] - 2023-02-11
-## Added
+## [v0.8.0] - 2023-02-11
+### Added
 - unsquashfs: Add `--stat`, `--force`, `--info` flags.
 - unsquashfs: Add support for Char and Block device file creation when superuser.
 - features: `xz` and `gzip`. By default both are enabled, but conditionally you may compile only one type of decompressor.
 - `SquashfsError::Unreachable`, `SquashfsError::UnexpectedInode`, `SquashfsError::UnsupportedInode`.
   These are all returned by the public API of filesystem and more panics were removed.
 
-## Fixed
+### Fixed
 - `inode_count` is fixed, previously was +1 the actual inode count.
 
-## Changed
+### Changed
 - The Public API of the library has been condensed, lmk if you have lost access to a required struct/field/enum.
 - Add `FilesystemReader` and `FilesystemWriter` for lazy-reading the files only when required.
   This significantly speeds up the initial read of the filesystem and splits the reading of the filesystem and the writing of the filesystem.
@@ -549,7 +549,7 @@ is 74.8MB, while our `backhand/unsquashfs` only uses 18.1MB.
   +NodeHeader
   ```
 
-## Performance
+### Performance
 This releases allows massive performance improvements by only reading files from disk when required 
 and reducing the amount of memory required to read and write an image.
 
@@ -575,18 +575,18 @@ only_read/tplink_ax1800
                         time:   [22.383 ms 22.398 ms 22.415 ms]
 ```
 
-## [v0.7.0] - 2023-01-23
-### Added
+### [v0.7.0] - 2023-01-23
+#### Added
 - Use `block_size` as XZ default `dict_size` when compressing data
 - Add `Filesystem::push_symlink(..)`
 - Add `Filesystem::push_dir(..)`
 - Add `Filesystem::push_char_device(..)`
 - Add `Filesystem::push_block_device(..)`
 
-### Fixed
+#### Fixed
 - Correctly choose between storing uncompressed and compressed data on which takes the least space
 
-### Changed
+#### Changed
 - Improve `unsquashfs` and `add` cli args to match `squashfs-tools/unsquashfs` cli
 - `Filesystem::push_file(..)` now takes for bytes anything that is `into Read` instead of `into Vec<u8>`
 - `Node::Path` renamed to `Node::Dir`
@@ -595,7 +595,7 @@ only_read/tplink_ax1800
 - `Filesystem::from_reader_with_offset(..)`, `R` now takes `Read + Seek` instead our own `ReadSeek`
 - `Filesystem::push_symlink(..)` now only needs `path` and `link`
 
-## [v0.6.0] - 2023-01-10
+### [v0.6.0] - 2023-01-10
 - Fix bug in our filesystem tree causing directory header information (gui, uid, permissions)
   to not be saved in resulting filesystem when calling `Filesystem::to_bytes(..)`.
 - Rework `filesystem::Node` to be a struct containing the path and `InnerNode`.
@@ -603,7 +603,7 @@ only_read/tplink_ax1800
 - Make more types public that are useful for Squashfs detailed introspection
 - Improve documentation
 
-## [v0.5.0] - 2023-01-08
+### [v0.5.0] - 2023-01-08
 - Fix warning when compression options isn't standard size
 - In `from_reader(..)`, show info about flags used
 - Add `Filesystem::from_reader(..)` and `Filesystem::from_reader_with_offset(..)`
@@ -614,22 +614,22 @@ only_read/tplink_ax1800
 - Fix tail-end fragment support for reading image
 - Fix `unsquashfs` file path extraction
 
-## [v0.4.0] - 2023-01-04
+### [v0.4.0] - 2023-01-04
 - Add `mod_time` from `Squashfs` to `Filesystem` used in creation of new image with `to_bytes(..)`
 
-## [v0.3.0] - 2023-01-03
+### [v0.3.0] - 2023-01-03
 - Restrict public API
 - Improve docs
 - Add `Filesystem::push_file(..)` for adding a file, as well as the dirs for the path
 - Add `Filesystem::mut_file(..)` for mutating a file at a path already in the filesystem
 
-## [v0.2.1] - 2023-01-02
+### [v0.2.1] - 2023-01-02
 - Fix Cargo.toml issues
 
-## [v0.2.0] - 2023-01-02
+### [v0.2.0] - 2023-01-02
 - Add `block_size` and `block_log` to Filesystem. Automatically taken from `Squashfs` when using `into_filesystem()`
 - Add support for data fragments for `filesystem::to_bytes()`
 - `DirEntry` uses `InodeId` instead of `u8`
 
-## [v0.1.0] - 2023-01-01
+### [v0.1.0] - 2023-01-01
 - Initial Release

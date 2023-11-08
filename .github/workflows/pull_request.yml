@@ -1,0 +1,33 @@
+name: 'pull-request'
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: dangoslen/dependabot-changelog-helper@42a15783b60a034cdf8ce491d10012b87b0ad4b4 # v3.5.0
+        with:
+          version: 'Unreleased'
+          activationLabel: 'dependabot'
+          changelogPath: './CHANGELOG.md'
+        
+      - name: Commit the changes
+        uses: stefanzweifel/git-auto-commit-action@8756aa072ef5b4a080af5dc8fef36c5d586e521d # v5.0.0
+        with:
+          commit_message: "Update changelog"
+          branch: ${{ github.head_ref }}
+          commit_user_name: dependabot[bot]
+          commit_user_email: support@github.com
+          commit_options: '--signoff'

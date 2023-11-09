@@ -20,7 +20,7 @@ This allows changing the magic bytes, custom compression algorithms, and the End
 
 
 ## Library
-*Compiler support: requires rustc 1.73+*
+*Compiler support: requires rustc 1.67.1+*
 
 Add the following to your `Cargo.toml` file:
 ```toml
@@ -59,9 +59,11 @@ write_filesystem.write(&mut output).unwrap();
 ```
 
 ## Binaries
+*Compiler support: requires rustc 1.73+*
+
 These are currently under development and are missing features, MR's welcome!
 
-To install, run `cargo install backhand --locked`, or download from the
+To install, run `cargo install backhand-cli --locked`, or download from the
 [latest github release](https://github.com/wcampbell0x2a/backhand/releases/latest).
 
 See ``--help`` for more information.
@@ -138,7 +140,4 @@ While there is still work to do, in most cases our speed is comparable to single
 Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB` in the case of `test_re815_xev160/870D97.squashfs`.
 
 ## Testing
-This library is extensively tested with all library features and images from openwrt and extracted from manufacturers devices.
-
-To run tests, use `cargo test --release`.
-To start fuzzing, run `cargo fuzz list` then pick one! Then start with `cargo fuzz run [NAME]`.
+See [backhand-test](backhand-test/README.md).

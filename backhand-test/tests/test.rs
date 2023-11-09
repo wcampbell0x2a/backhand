@@ -5,7 +5,7 @@ use std::io::{BufReader, BufWriter};
 use assert_cmd::prelude::*;
 use assert_cmd::Command;
 use backhand::{FilesystemReader, FilesystemWriter};
-use common::{test_unsquashfs, test_unsquashfs_list};
+use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use tempfile::tempdir;
 use test_assets::TestAssetDef;
 use test_log::test;
@@ -13,52 +13,7 @@ use tracing::info;
 
 enum Verify {
     Extract,
-    List,
 }
-
-/// test our own unsquashfs
-pub fn test_bin_unsquashfs(control: &str, new: &str, control_offset: Option<u64>) {
-    let tmp_dir = tempdir().unwrap();
-    {
-        let cmd = common::get_base_command("unsquashfs")
-            .args([
-                "-d",
-                tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),
-                "-o",
-                &control_offset.unwrap_or(0).to_string(),
-                control,
-            ])
-            .unwrap();
-        tracing::info!("{:?}", cmd);
-        cmd.assert().code(&[0] as &[i32]);
-
-        // only squashfs-tools/unsquashfs when x86_64
-        #[cfg(feature = "__test_unsquashfs")]
-        {
-            let cmd = Command::new("unsquashfs")
-                .args([
-                    "-d",
-                    tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
-                    "-o",
-                    &control_offset.unwrap_or(0).to_string(),
-                    // we don't run as root, avoid special file errors
-                    "-ignore-errors",
-                    "-no-exit-code",
-                    new,
-                ])
-                .unwrap();
-            tracing::info!("{:?}", cmd);
-            cmd.assert().code(&[0] as &[i32]);
-
-            let d = dir_diff::is_different(
-                tmp_dir.path().join("squashfs-root-rust"),
-                tmp_dir.path().join("squashfs-root-c"),
-            );
-            assert!(!d.expect("couldn't compare dirs"));
-        }
-    }
-}
-
 /// - Download file
 /// - Read into Squashfs
 /// - Into Filesystem
@@ -72,6 +27,7 @@ fn full_test(
     test_path: &str,
     offset: u64,
     verify: Verify,
+    assert_success: bool,
 ) {
     test_assets::download_test_files(assets_defs, test_path, true).unwrap();
 
@@ -96,6 +52,8 @@ fn full_test(
     let created_file = BufReader::new(File::open(&new_path).unwrap());
     let written_new_filesystem =
         FilesystemReader::from_reader_with_offset(created_file, offset).unwrap();
+
+    // compression options are the same
     let new_comp_opts = written_new_filesystem.compression_options;
     assert_eq!(og_comp_opts, new_comp_opts);
 
@@ -104,17 +62,12 @@ fn full_test(
             #[cfg(feature = "__test_unsquashfs")]
             {
                 info!("starting squashfs-tools/unsquashfs test");
-                test_unsquashfs(&og_path, &new_path, Some(offset));
+                test_squashfs_tools_unsquashfs(&og_path, &new_path, Some(offset), assert_success);
             }
-            info!("starting backhand/unsquashfs test");
-            test_bin_unsquashfs(&og_path, &new_path, Some(offset));
-        }
-        Verify::List => {
-            #[cfg(feature = "__test_unsquashfs")]
-            {
-                info!("starting --list test");
-                test_unsquashfs_list(&og_path, &new_path, Some(offset));
-            }
+            info!("starting backhand/unsquashfs original test");
+            test_bin_unsquashfs(&og_path, Some(offset), assert_success);
+            info!("starting backhand/unsquashfs created test");
+            test_bin_unsquashfs(&new_path, Some(offset), assert_success);
         }
     }
 }
@@ -130,7 +83,7 @@ fn test_00() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_00/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_00";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
@@ -144,7 +97,7 @@ fn test_01() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_01/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_01";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
@@ -158,7 +111,7 @@ fn test_02() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_02/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_02";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
@@ -172,7 +125,7 @@ fn test_03() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_03/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_03";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -185,7 +138,7 @@ fn test_04() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_04/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_04";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -198,7 +151,7 @@ fn test_05() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_05";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
@@ -212,7 +165,7 @@ fn test_06() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_06/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_06";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
@@ -226,7 +179,7 @@ fn test_07() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_07/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_07";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
@@ -240,7 +193,7 @@ fn test_08() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_08";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -253,7 +206,7 @@ fn test_19() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_19/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_19";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -266,7 +219,7 @@ fn test_20() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_20/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_20";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -282,7 +235,7 @@ fn test_openwrt_tplink_archera7v5() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x0022_5fd0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x0022_5fd0, Verify::Extract, false);
 }
 
 #[test]
@@ -298,7 +251,7 @@ fn test_openwrt_netgear_ex6100v2() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x002c_0080, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x002c_0080, Verify::Extract, false);
 }
 
 #[test]
@@ -311,7 +264,7 @@ fn test_slow_appimage_plexamp() {
         url: format!("https://plexamp.plex.tv/plexamp.plex.tv/desktop/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_plexamp";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8, Verify::Extract, true);
 }
 
 #[test]
@@ -324,7 +277,7 @@ fn test_slow_appimage_firefox() {
         url: "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_firefox";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0, Verify::Extract, true);
 }
 
 /// Archer\ AX1800\(US\)_V3_221016.zip from https://www.tp-link.com/us/support/download/archer-ax1800/#Firmware
@@ -339,7 +292,7 @@ fn test_tplink_ax1800() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }
 
 /// one /console char device
@@ -353,10 +306,9 @@ fn test_21() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_21/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_21";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }
 
-/// This has a char device (/dev/console), so we can only test the list
 #[test]
 #[cfg(feature = "xz")]
 fn test_er605() {
@@ -367,10 +319,9 @@ fn test_er605() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_er605_v2_2.0.1/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_er605_v2_2";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }
 
-/// This has a char device (/dev/console), so we can only test the list
 #[test]
 #[cfg(feature = "xz")]
 fn test_re815xe() {
@@ -381,7 +332,7 @@ fn test_re815xe() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_re815xev1.60/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_re815_xev160";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }
 
 #[test]
@@ -395,7 +346,7 @@ fn test_slow_archlinux_iso_rootfs() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_archlinux_iso_rootfs";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -409,7 +360,7 @@ fn test_many_files() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_many_files";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -423,7 +374,7 @@ fn test_many_dirs() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_many_dirs";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
 
 #[test]
@@ -437,5 +388,5 @@ fn test_few_dirs_many_files() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_few_dirs_many_files";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::List);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }

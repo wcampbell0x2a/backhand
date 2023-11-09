@@ -1,0 +1,45 @@
+[package]
+name = "backhand"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version = "1.67.1"
+description = "Library for the reading, creating, and modification of SquashFS file systems"
+
+[dependencies]
+# for lib
+deku = "0.16.0"
+tracing = "0.1.40"
+thiserror = "1.0.50"
+flate2 = { version = "1.0.28", optional = true }
+xz2 = { version = "0.1.7", optional = true }
+rust-lzo = { version = "0.6.2", optional = true }
+zstd = { version = "0.13.0", optional = true }
+rustc-hash = "1.1.0"
+byte-unit = "4.0.18"
+
+[features]
+default = ["xz", "gzip", "zstd"]
+xz = ["dep:xz2"]
+xz-static = ["dep:xz2", "xz2?/static"]
+gzip = ["dep:flate2"]
+# this library is licensed GPL and thus disabled by default
+lzo = ["dep:rust-lzo"]
+zstd = ["dep:zstd"]
+
+[dev-dependencies]
+test-log = { version = "0.2.13", features = ["trace"] }
+test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
+assert_cmd = { version = "2.0.12", features = ["color", "color-auto"] }
+dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
+tempfile = "3.8.1"
+criterion = "0.5"
+libdeflater = "1.19.0"
+
+[[bench]]
+name = "benchmark"
+harness = false

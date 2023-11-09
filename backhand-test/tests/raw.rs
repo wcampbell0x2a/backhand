@@ -5,7 +5,7 @@ use backhand::{
     kind, CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, NodeHeader,
     SuperBlock, DEFAULT_BLOCK_SIZE,
 };
-use common::test_unsquashfs;
+use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use test_assets::TestAssetDef;
 
 #[test]
@@ -87,6 +87,7 @@ fn test_raw_00() {
     #[cfg(feature = "__test_unsquashfs")]
     {
         let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_unsquashfs(&new_path, &control_new_path, None);
+        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
+        test_bin_unsquashfs(&new_path, None, true);
     }
 }

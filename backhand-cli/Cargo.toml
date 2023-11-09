@@ -1,0 +1,36 @@
+[package]
+name = "backhand-cli"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version = "1.73.0"
+description = "Binaries for the reading, creating, and modification of SquashFS file systems"
+
+[dependencies]
+nix = { version = "0.27.1", default-features = false, features = ["fs"] }
+clap = { version = "4.4.7", features = ["derive", "wrap_help"] }
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
+libc = "0.2.150"
+clap_complete = "4.4.4"
+indicatif = "0.17.7"
+console = "0.15.7"
+rayon = "1.8.0"
+backhand = { path = "../backhand", default-features = false }
+tracing = "0.1.40"
+
+[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
+version = "0.5.4"
+
+# These features mirror the backhand features
+[features]
+default = ["backhand/xz", "backhand/gzip", "backhand/zstd"]
+xz = ["backhand/xz"]
+xz-static = ["backhand/xz-static"]
+gzip = ["backhand/gzip"]
+# this library is licensed GPL and thus disabled by default
+lzo = ["backhand/lzo"]
+zstd = ["backhand/zstd"]

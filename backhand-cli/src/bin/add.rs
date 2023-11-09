@@ -1,5 +1,3 @@
-#[path = "../../common/common.rs"]
-mod common;
 use std::fs::File;
 use std::io::BufReader;
 use std::os::unix::fs::MetadataExt;
@@ -7,8 +5,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
+use backhand_cli::after_help;
 use clap::Parser;
-use common::after_help;
 
 // -musl malloc is slow, use jemalloc
 #[cfg(all(target_env = "musl", target_pointer_width = "64"))]

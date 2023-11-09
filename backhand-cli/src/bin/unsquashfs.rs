@@ -1,5 +1,3 @@
-#[path = "../../common/common.rs"]
-mod common;
 use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
@@ -15,10 +13,10 @@ use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
+use backhand_cli::after_help;
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
-use common::after_help;
 use console::Term;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use nix::libc::geteuid;

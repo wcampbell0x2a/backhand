@@ -256,7 +256,7 @@ fn test_openwrt_netgear_ex6100v2() {
 
 #[test]
 #[cfg(feature = "gzip")]
-fn test_slow_appimage_plexamp() {
+fn test_appimage_plexamp() {
     const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -269,7 +269,7 @@ fn test_slow_appimage_plexamp() {
 
 #[test]
 #[cfg(feature = "gzip")]
-fn test_slow_appimage_firefox() {
+fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),

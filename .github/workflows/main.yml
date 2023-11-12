@@ -29,7 +29,7 @@ jobs:
           - armv7-unknown-linux-musleabi
         toolchain:
           - stable
-            # msrv
+            # msrv of backhand-cli
           - 1.73.0
         features:
           # default features
@@ -46,19 +46,21 @@ jobs:
       # install cross
       - run: cargo install cargo-quickinstall
       - run: cargo quickinstall cross@0.2.5 --force
-      # build with cross
-      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --locked --lib
+      # build lib and bins with cross
+      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
       # test with cross
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow
 
   # build/test all supported on native(musl) arch for library and bins (all tests)
   build-test-native:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        target:
+          - x86_64-unknown-linux-musl
         toolchain:
           - stable
-            # msrv
+            # msrv of backhand-cli
           - 1.73.0
         features:
           - --no-default-features --features xz
@@ -74,7 +76,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@439cf607258077187679211f12aa6f19af4a0af7 # master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: RUST_LOG=info cargo test --release ${{ matrix.features }} --locked --features __test_unsquashfs
+      # install cross
+      - run: cargo install cargo-quickinstall
+      - run: cargo quickinstall cross@0.2.5 --force
+      # build bins
+      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
+      # run tests with native unsquashfs on x86_64-unknown-linux-musl (using Cross.toml)
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked --features __test_unsquashfs -- --skip slow
 
 
   # benchmark

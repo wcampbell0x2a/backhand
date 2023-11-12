@@ -49,7 +49,7 @@
 //! write_filesystem.write(&mut output).unwrap();
 //! ```
 
-#[doc = include_str!("../README.md")]
+#[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();
 
 mod compressor;

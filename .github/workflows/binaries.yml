@@ -35,7 +35,7 @@ jobs:
           target: ${{ matrix.targets }}
       - run: cargo install cargo-quickinstall
       - run: cargo quickinstall cross@0.2.5 --force
-      - run: cross build --bins --locked --target ${{ matrix.targets }} --profile=dist
+      - run: cross build -p backhand-cli --bins --locked --target ${{ matrix.targets }} --profile=dist
 
       - name: archive
         run: |

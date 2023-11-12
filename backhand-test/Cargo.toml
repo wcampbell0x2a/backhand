@@ -1,0 +1,51 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+backhand = { path = "../backhand", default-features = false }
+backhand-cli = { path = "../backhand-cli", default-features = false }
+assert_cmd = { version = "2.0.12", features = ["color", "color-auto"] }
+dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
+tempfile = "3.8.1"
+test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
+test-log = { version = "0.2.13", features = ["trace"] }
+tracing = "0.1.40"
+libdeflater = "1.19.0"
+env_logger = "0.10.0"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
+nix = { version = "0.27.1", default-features = false, features = ["fs"] }
+
+[features]
+# testing only feature for testing vs squashfs-tools/unsquashfs
+__test_unsquashfs = []
+default = ["backhand-cli/xz", "backhand-cli/gzip", "backhand-cli/zstd"]
+xz = ["backhand-cli/xz"]
+xz-static = ["backhand-cli/xz-static"]
+gzip = ["backhand-cli/gzip"]
+# this library is licensed GPL and thus disabled by default
+lzo = ["backhand-cli/lzo"]
+zstd = ["backhand-cli/zstd"]
+
+[[test]]
+name = "add"
+
+[[test]]
+name = "issues"
+
+[[test]]
+name = "mutate"
+
+[[test]]
+name = "non_standard"
+
+[[test]]
+name = "raw"
+
+[[test]]
+name = "replace"
+
+[[test]]
+name = "unsquashfs"

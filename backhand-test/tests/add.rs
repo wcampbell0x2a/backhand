@@ -95,6 +95,7 @@ dr----x--t 2/4242                   26 1970-01-01 00:01 squashfs-root/test
 -rw-r--r-- 4242/2                    4 1970-01-01 00:02 squashfs-root/test/new
 "#;
 
-        assert_eq!(expected, std::str::from_utf8(&output.stdout).unwrap());
+        // using contains here, the output of squashfs varies between versions
+        assert!(std::str::from_utf8(&output.stdout).unwrap().contains(expected));
     }
 }

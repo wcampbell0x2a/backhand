@@ -1,64 +1,21 @@
-[package]
-name = "backhand"
-repository = "https://github.com/wcampbell0x2a/backhand"
+[workspace]
+members = [
+    "backhand-cli",
+    "backhand",
+
+    # Internal
+    "backhand-test",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.13.0"
-edition = "2021"
-rust-version = "1.73.0"
-license = "MIT OR Apache-2.0"
 authors = ["wcampbell <wcampbell1995@gmail.com>"]
-description = "Library for the reading, creating, and modification of SquashFS file systems"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+repository = "https://github.com/wcampbell0x2a/backhand"
 keywords = ["filesystem", "deku", "squashfs", "linux"]
 categories = ["filesystem", "parsing"]
-
-[dependencies]
-# for lib
-deku = "0.16.0"
-tracing = "0.1.40"
-thiserror = "1.0.50"
-flate2 = { version = "1.0.28", optional = true }
-xz2 = { version = "0.1.7", optional = true }
-rust-lzo = { version = "0.6.2", optional = true }
-zstd = { version = "0.13.0", optional = true }
-rustc-hash = "1.1.0"
-
-# for bins
-nix = { version = "0.27.1", default-features = false, features = ["fs"] }
-clap = { version = "4.4.7", features = ["derive", "wrap_help"] }
-tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
-byte-unit = "4.0.18"
-libc = "0.2.150"
-clap_complete = "4.4.4"
-indicatif = "0.17.7"
-console = "0.15.7"
-rayon = "1.8.0"
-
-[features]
-default = ["xz", "gzip", "zstd"]
-xz = ["dep:xz2"]
-xz-static = ["dep:xz2", "xz2?/static"]
-gzip = ["dep:flate2"]
-# this library is licensed GPL and thus disabled by default
-lzo = ["dep:rust-lzo"]
-zstd = ["dep:zstd"]
-# testing only feature for testing vs squashfs-tools/unsquashfs
-__test_unsquashfs = []
-
-[dev-dependencies]
-env_logger = "0.10.0"
-test-log = { version = "0.2.13", features = ["trace"] }
-test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
-assert_cmd = { version = "2.0.12", features = ["color", "color-auto"] }
-dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
-tempfile = "3.8.1"
-criterion = "0.5"
-libdeflater = "1.19.0"
-
-[[bench]]
-name = "benchmark"
-harness = false
-
-[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
-version = "0.5.4"
 
 # Release(dist) binaries are setup for maximum runtime speed, at the cost of CI time
 [profile.dist]

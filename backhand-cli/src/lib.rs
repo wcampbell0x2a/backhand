@@ -1,5 +1,6 @@
 // Compiled for every binary, as this is not a workspce. Don't put many functinos in this file
 
+#[doc(hidden)]
 pub fn after_help(rayon_env: bool) -> String {
     let mut s = "Decompressors available:\n".to_string();
 

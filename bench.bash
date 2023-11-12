@@ -8,10 +8,10 @@ UNSQUASHFS="/usr/bin/unsquashfs"
 
 bench () {
     file $1
-    hyperfine --runs 20 --warmup 5 -i "$BACKHAND -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        "$BACKHAND_MUSL -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        "$BACKHAND_MUSL_NATIVE -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        "$BACKHAND_MSRV -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+    hyperfine --runs 20 --warmup 5 -i "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND_MUSL_NATIVE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND_MSRV --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX) -p 1 -f -o $(rz-ax $2) -ignore-errors $1" \
         "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1"
 }

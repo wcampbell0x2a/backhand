@@ -136,7 +136,7 @@ Options:
 
 ## Performance
 See `./benches` using `cargo bench` to benchmark the library, or run `./bench.bash` to benchmark against system `squashfs-tools/unsquashfs`.
-While there is still work to do, in most cases our speed is comparable to single-threaded `squashfs-tools/unsquashfs`.
+While there is still work to do, in most cases our speed is comparable to `squashfs-tools/unsquashfs`.
 Comparing memory usage, our `unsquashfs` beats `squashfs-tools` by using `18.1MB` instead of `74.8MB` in the case of `test_re815_xev160/870D97.squashfs`.
 
 ## Testing

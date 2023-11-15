@@ -55,6 +55,7 @@ jobs:
   build-test-native:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - x86_64-unknown-linux-musl

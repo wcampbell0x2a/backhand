@@ -15,7 +15,7 @@ test-log = { version = "0.2.13", features = ["trace"] }
 tracing = "0.1.40"
 libdeflater = "1.19.0"
 env_logger = "0.10.1"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 nix = { version = "0.27.1", default-features = false, features = ["fs"] }
 
 [features]

@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `env_logger` from 0.10.0 to 0.10.1 ([#341](https://github.com/wcampbell0x2a/backhand/pull/341))
 - Bump `clap` from 4.4.7 to 4.4.8 ([#340](https://github.com/wcampbell0x2a/backhand/pull/340))
 - Bump `dangoslen/dependabot-changelog-helper` from 3.5.0 to 3.6.0 ([#342](https://github.com/wcampbell0x2a/backhand/pull/342))
+- Bump `tracing-subscriber` from 0.3.17 to 0.3.18 ([#347](https://github.com/wcampbell0x2a/backhand/pull/347))
 
 ## [v0.13.0] - 2023-06-18
 ### backhand

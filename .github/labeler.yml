@@ -1,0 +1,17 @@
+A-backhand-lib:
+- backhand/**
+
+A-tests:
+- backhand-test/**
+
+A-CI:
+- .github/**
+
+A-unsquashfs:
+- backhand-cli/src/bin/unsquashfs.rs
+
+A-add:
+- backhand-cli/src/bin/add.rs
+
+A-mutate:
+- backhand-cli/src/bin/mutate.rs

@@ -1,6 +1,9 @@
 A-backhand-lib:
 - backhand/**
 
+A-backhand-cli:
+- backhand-cli/**
+
 A-tests:
 - backhand-test/**
 

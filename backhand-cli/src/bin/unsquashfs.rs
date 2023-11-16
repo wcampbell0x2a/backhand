@@ -173,7 +173,7 @@ fn main() -> ExitCode {
     let mut file = BufReader::new(File::open(args.filesystem.as_ref().unwrap()).unwrap());
 
     let blue_bold: console::Style = console::Style::new().blue().bold();
-    let red_bold: console::Style = console::Style::new().blue().bold();
+    let red_bold: console::Style = console::Style::new().red().bold();
     let pb = ProgressBar::new_spinner();
 
     if args.auto_offset {

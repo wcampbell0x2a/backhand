@@ -31,7 +31,7 @@ fn test_add() {
     // Add /test dir
     // ./target/release/add test-assets/test_05/out.squashfs /test --dir --gid 4242 --mtime 1 --uid 2 --mode 511 -o $tmp/out
     let tmp_dir = tempdir().unwrap();
-    let cmd = common::get_base_command("add")
+    let cmd = common::get_base_command("add-backhand")
         .env("RUST_LOG", "none")
         .args([
             &image_path,
@@ -62,7 +62,7 @@ fn test_add() {
 
     // We can't really test gid and uid, just trust me it works reading from the --file
 
-    let cmd = common::get_base_command("add")
+    let cmd = common::get_base_command("add-backhand")
         .env("RUST_LOG", "none")
         .args([
             tmp_dir.path().join("out").to_str().unwrap(),

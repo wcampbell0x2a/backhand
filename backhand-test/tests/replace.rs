@@ -23,7 +23,7 @@ fn test_replace() {
 
     // extract single file
     let tmp_dir = tempdir().unwrap();
-    let cmd = common::get_base_command("unsquashfs")
+    let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
         .args([
             "--path-filter",
@@ -42,7 +42,7 @@ fn test_replace() {
         .unwrap();
 
     // replace that file
-    let cmd = common::get_base_command("replace")
+    let cmd = common::get_base_command("replace-backhand")
         .env("RUST_LOG", "none")
         .args([
             &image_path,
@@ -56,7 +56,7 @@ fn test_replace() {
 
     // extract
     {
-        let cmd = common::get_base_command("unsquashfs")
+        let cmd = common::get_base_command("unsquashfs-backhand")
             .env("RUST_LOG", "none")
             .args([
                 "--path-filter",

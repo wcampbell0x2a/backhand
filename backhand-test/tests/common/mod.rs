@@ -64,7 +64,7 @@ pub fn test_squashfs_tools_unsquashfs(
 pub fn test_bin_unsquashfs(file: &str, file_offset: Option<u64>, assert_success: bool) {
     let tmp_dir = tempdir().unwrap();
     // Run "our" unsquashfs against the control
-    let cmd = get_base_command("unsquashfs")
+    let cmd = get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
         .args([
             "-d",

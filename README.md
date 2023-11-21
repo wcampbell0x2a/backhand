@@ -72,7 +72,7 @@ See ``--help`` for more information.
 ```no_test
 tool to uncompress, extract and list squashfs filesystems
 
-Usage: unsquashfs [OPTIONS] [FILESYSTEM]
+Usage: unsquashfs-backhand [OPTIONS] [FILESYSTEM]
 
 Arguments:
   [FILESYSTEM]  Squashfs file
@@ -99,7 +99,7 @@ Options:
 ```no_test
 tool to add a file or directory to squashfs filesystems
 
-Usage: add [OPTIONS] <IMAGE> <FILE_PATH_IN_IMAGE>
+Usage: add-backhand [OPTIONS] <IMAGE> <FILE_PATH_IN_IMAGE>
 
 Arguments:
   <IMAGE>               Squashfs input image
@@ -121,7 +121,7 @@ Options:
 ```no_test
 tool to replace files in squashfs filesystems
 
-Usage: replace [OPTIONS] <IMAGE> <FILE> <FILE_PATH_IN_IMAGE>
+Usage: replace-backhand [OPTIONS] <IMAGE> <FILE> <FILE_PATH_IN_IMAGE>
 
 Arguments:
   <IMAGE>               Squashfs input image

@@ -19,7 +19,7 @@ fn test_unsquashfs_cli() {
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
 
     // single file
-    let cmd = common::get_base_command("unsquashfs")
+    let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
         .args(["--path-filter", r#"/usr/bin/wget"#, "-l", "--quiet", &image_path])
         .unwrap();
@@ -32,7 +32,7 @@ fn test_unsquashfs_cli() {
     );
 
     // multiple file
-    let cmd = common::get_base_command("unsquashfs")
+    let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
         .args(["--path-filter", r#"/www/webpages/data"#, "-l", "--quiet", &image_path])
         .unwrap();
@@ -66,7 +66,7 @@ fn test_unsquashfs_cli() {
     // Number of inodes 1828
     // Number of ids 1
     // Number of xattr ids 0
-    let cmd = common::get_base_command("unsquashfs")
+    let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
         .args(["-s", "--quiet", &image_path])
         .unwrap();
@@ -124,7 +124,7 @@ fn test_unsquashfs_cli_auto_offset() {
 
     let tmp_dir = tempdir().unwrap();
     {
-        let cmd = common::get_base_command("unsquashfs")
+        let cmd = common::get_base_command("unsquashfs-backhand")
             .env("RUST_LOG", "none")
             .args([
                 "--auto-offset",

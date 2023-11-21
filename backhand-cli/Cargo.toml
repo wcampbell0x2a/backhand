@@ -28,9 +28,17 @@ version = "0.5.4"
 # These features mirror the backhand features
 [features]
 default = ["backhand/xz", "backhand/gzip", "backhand/zstd"]
+## Enables xz compression inside library and binaries
 xz = ["backhand/xz"]
+## Enables xz compression and forces static build inside library and binaries
 xz-static = ["backhand/xz-static"]
+## Enables gzip compression inside library and binaries
 gzip = ["backhand/gzip"]
-# this library is licensed GPL and thus disabled by default
+## This library is licensed GPL and thus disabled by default
 lzo = ["backhand/lzo"]
+## Enables zstd compression inside library and binaries
 zstd = ["backhand/zstd"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

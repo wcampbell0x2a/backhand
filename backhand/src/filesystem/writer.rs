@@ -350,16 +350,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
                     }
                 }
                 //if the dir don't exists, create it
-                Err(index) => {
-                    self.root.nodes.insert(
-                        index,
-                        Node::new(
-                            file.to_path_buf(),
-                            header,
-                            InnerNode::Dir(SquashfsDir::default()),
-                        ),
-                    );
-                }
+                Err(_index) => self.push_dir(file, header)?,
             }
         }
         Ok(())

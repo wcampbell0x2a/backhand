@@ -158,8 +158,13 @@ impl<T> Nodes<T> {
         let path = &node.fullpath;
         let parent = node.fullpath.parent().ok_or(BackhandError::InvalidFilePath)?;
 
-        //check the parent exists
-        let _parent = self.node_mut(parent).ok_or(BackhandError::InvalidFilePath)?;
+        //check if the parent exists and is a dir
+        let parent = self.node_mut(parent).ok_or(BackhandError::InvalidFilePath)?;
+        match &parent.inner {
+            InnerNode::Dir(_) => {}
+            _ => return Err(BackhandError::InvalidFilePath),
+        }
+
 
         match self.nodes.binary_search_by(|node| node.fullpath.as_path().cmp(path)) {
             //file with this fullpath already exists

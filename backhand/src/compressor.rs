@@ -190,6 +190,7 @@ impl CompressionAction for DefaultCompressor {
         compressor: Compressor,
     ) -> Result<(), BackhandError> {
         match compressor {
+            Compressor::None => out.extend_from_slice(bytes),
             #[cfg(feature = "gzip")]
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
@@ -227,6 +228,7 @@ impl CompressionAction for DefaultCompressor {
         block_size: u32,
     ) -> Result<Vec<u8>, BackhandError> {
         match (fc.id, fc.options, fc.extra) {
+            (Compressor::None, None, _) => Ok(bytes.to_vec()),
             #[cfg(feature = "xz")]
             (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
                 let dict_size = match option {

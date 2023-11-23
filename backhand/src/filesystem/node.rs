@@ -165,7 +165,6 @@ impl<T> Nodes<T> {
             _ => return Err(BackhandError::InvalidFilePath),
         }
 
-
         match self.nodes.binary_search_by(|node| node.fullpath.as_path().cmp(path)) {
             //file with this fullpath already exists
             Ok(_index) => Err(BackhandError::DuplicatedFileName),

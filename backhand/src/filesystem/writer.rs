@@ -63,7 +63,7 @@ use crate::{
 /// fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/file", header);
 /// ```
 #[derive(Debug)]
-pub struct FilesystemWriter<'a, 'b> {
+pub struct FilesystemWriter<'a, 'b, 'c> {
     pub(crate) kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub(crate) block_size: u32,
@@ -75,13 +75,13 @@ pub struct FilesystemWriter<'a, 'b> {
     /// Compressor used when writing
     pub(crate) fs_compressor: FilesystemCompressor,
     /// All files and directories in filesystem, including root
-    pub(crate) root: Nodes<SquashfsFileWriter<'a, 'b>>,
+    pub(crate) root: Nodes<SquashfsFileWriter<'a, 'b, 'c>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
     pub(crate) pad_len: u32,
 }
 
-impl<'a, 'b> Default for FilesystemWriter<'a, 'b> {
+impl Default for FilesystemWriter<'_, '_, '_> {
     /// Create default FilesystemWriter
     ///
     /// block_size: [`DEFAULT_BLOCK_SIZE`], compressor: default XZ compression, no nodes,
@@ -101,7 +101,7 @@ impl<'a, 'b> Default for FilesystemWriter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> FilesystemWriter<'a, 'b> {
+impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// Set block size
     ///
     /// # Panics
@@ -234,7 +234,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     fn mut_node<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut Node<SquashfsFileWriter<'a, 'b>>> {
+    ) -> Option<&mut Node<SquashfsFileWriter<'a, 'b, 'c>>> {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
         let find_path = normalize_squashfs_path(find_path.as_ref()).ok()?;
@@ -245,7 +245,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         &mut self,
         path: P,
         header: NodeHeader,
-        node: InnerNode<SquashfsFileWriter<'a, 'b>>,
+        node: InnerNode<SquashfsFileWriter<'a, 'b, 'c>>,
     ) -> Result<(), BackhandError> {
         // create gid id
         self.lookup_add_id(header.gid);
@@ -262,7 +262,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P: AsRef<Path>>(
         &mut self,
-        reader: impl Read + 'b,
+        reader: impl Read + 'c,
         path: P,
         header: NodeHeader,
     ) -> Result<(), BackhandError> {
@@ -276,7 +276,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     pub fn mut_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-    ) -> Option<&mut SquashfsFileWriter<'a, 'b>> {
+    ) -> Option<&mut SquashfsFileWriter<'a, 'b, 'c>> {
         self.mut_node(find_path).and_then(|node| {
             if let InnerNode::File(file) = &mut node.inner {
                 Some(file)
@@ -290,7 +290,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     pub fn replace_file<S: AsRef<Path>>(
         &mut self,
         find_path: S,
-        reader: impl Read + 'b,
+        reader: impl Read + 'c,
     ) -> Result<(), BackhandError> {
         let file = self.mut_file(find_path).ok_or(BackhandError::FileNotFound)?;
         let reader = Arc::new(Mutex::new(reader));
@@ -388,18 +388,18 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     /// is treated as the base image offset.
     pub fn write_with_offset<W: Write + Seek>(
         &mut self,
-        w: &mut W,
+        w: W,
         offset: u64,
     ) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut writer = WriterWithOffset::new(w, offset)?;
-        self.write(&mut writer)
+        let writer = WriterWithOffset::new(w, offset)?;
+        self.write(writer)
     }
 
     fn write_data<W: WriteSeek>(
         &mut self,
         compressor: FilesystemCompressor,
         block_size: u32,
-        writer: &mut W,
+        mut writer: W,
         data_writer: &mut DataWriter<'b>,
     ) -> Result<(), BackhandError> {
         let files = self.root.nodes.iter_mut().filter_map(|node| match &mut node.inner {
@@ -411,7 +411,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
                 SquashfsFileWriter::UserDefined(file) => {
                     let file_ptr = Arc::clone(file);
                     let mut file_lock = file_ptr.lock().unwrap();
-                    data_writer.add_bytes(&mut *file_lock, writer)?
+                    data_writer.add_bytes(&mut *file_lock, &mut writer)?
                 }
                 SquashfsFileWriter::SquashfsFile(file) => {
                     // if the source file and the destination files are both
@@ -421,12 +421,14 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
                         && file.system.compression_options == compressor.options
                         && file.system.block_size == block_size
                     {
-                        data_writer.just_copy_it(file.raw_data_reader(), writer)?
+                        data_writer.just_copy_it(file.raw_data_reader(), &mut writer)?
                     } else {
                         let mut buf_read = Vec::with_capacity(file.system.block_size as usize);
                         let mut buf_decompress = vec![];
-                        data_writer
-                            .add_bytes(file.reader(&mut buf_read, &mut buf_decompress), writer)?
+                        data_writer.add_bytes(
+                            file.reader(&mut buf_read, &mut buf_decompress),
+                            &mut writer,
+                        )?
                     }
                 }
                 SquashfsFileWriter::Consumed(_, _) => unreachable!(),
@@ -442,8 +444,8 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     /// keeps track of parent directories by calling this function on all nodes of a dir to get only
     /// the nodes, but going into the child dirs in the case that it contains a child dir.
     #[allow(clippy::too_many_arguments)]
-    fn write_inode_dir<'c>(
-        &'c self,
+    fn write_inode_dir<'slf>(
+        &'slf self,
         inode_writer: &'_ mut MetadataWriter,
         dir_writer: &'_ mut MetadataWriter,
         parent_node_id: u32,
@@ -451,7 +453,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &Vec<Id>,
-    ) -> Result<Entry<'c>, BackhandError> {
+    ) -> Result<Entry<'slf>, BackhandError> {
         let node = &self.root.node(node_id).unwrap();
         let filename = node.fullpath.file_name().unwrap_or(OsStr::new("/"));
         //if not a dir, return the entry
@@ -567,10 +569,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write<W: Write + Seek>(
-        &mut self,
-        w: &mut W,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
+    pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
@@ -601,7 +600,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
                 Kind { inner: self.kind.inner.clone() },
             );
             metadata.write_all(buf.as_raw_slice())?;
-            metadata.finalize(w)?;
+            metadata.finalize(&mut w)?;
         }
 
         let mut data_writer =
@@ -620,10 +619,10 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", &self.root);
         info!("Writing Data");
-        self.write_data(self.fs_compressor, self.block_size, w, &mut data_writer)?;
+        self.write_data(self.fs_compressor, self.block_size, &mut w, &mut data_writer)?;
         info!("Writing Data Fragments");
         // Compress fragments and write
-        data_writer.finalize(w)?;
+        data_writer.finalize(&mut w)?;
 
         info!("Writing Other stuff");
         let root = self.write_inode_dir(
@@ -644,25 +643,25 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
 
         info!("Writing Inodes");
         superblock.inode_table = w.stream_position()?;
-        inode_writer.finalize(w)?;
+        inode_writer.finalize(&mut w)?;
 
         info!("Writing Dirs");
         superblock.dir_table = w.stream_position()?;
-        dir_writer.finalize(w)?;
+        dir_writer.finalize(&mut w)?;
 
         info!("Writing Frag Lookup Table");
         let (table_position, count) =
-            self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
+            self.write_lookup_table(&mut w, &data_writer.fragment_table, fragment::SIZE)?;
         superblock.frag_table = table_position;
         superblock.frag_count = count;
 
         info!("Writing Id Lookup Table");
-        let (table_position, count) = self.write_lookup_table(w, &self.id_table, Id::SIZE)?;
+        let (table_position, count) = self.write_lookup_table(&mut w, &self.id_table, Id::SIZE)?;
         superblock.id_table = table_position;
         superblock.id_count = count.try_into().unwrap();
 
         info!("Finalize Superblock and End Bytes");
-        let bytes_written = self.finalize(w, &mut superblock)?;
+        let bytes_written = self.finalize(&mut w, &mut superblock)?;
 
         info!("Success");
         Ok((superblock, bytes_written))
@@ -670,7 +669,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
 
     fn finalize<W: Write + Seek>(
         &self,
-        w: &mut W,
+        mut w: W,
         superblock: &mut SuperBlock,
     ) -> Result<u64, BackhandError> {
         superblock.bytes_used = w.stream_position()?;
@@ -753,7 +752,7 @@ impl<'a, 'b> FilesystemWriter<'a, 'b> {
     ///  ```
     fn write_lookup_table<D: DekuWrite<deku::ctx::Endian>, W: Write + Seek>(
         &self,
-        w: &mut W,
+        mut w: W,
         table: &Vec<D>,
         element_size: usize,
     ) -> Result<(u64, u32), BackhandError> {

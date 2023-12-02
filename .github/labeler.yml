@@ -1,6 +1,9 @@
 A-backhand-lib:
 - backhand/**
 
+A-fuzz:
+- fuzz/**
+
 A-backhand-cli:
 - backhand-cli/**
 

@@ -35,10 +35,10 @@ pub const DEFAULT_PAD_LEN: u32 = 0x1000;
 const DEFAULT_BLOCK_LOG: u16 = 0x11;
 
 /// 1MiB
-pub const MAX_BLOCK_SIZE: u32 = byte_unit::n_mib_bytes(1) as u32;
+pub const MAX_BLOCK_SIZE: u32 = 0x10_0000;
 
 /// 4KiB
-pub const MIN_BLOCK_SIZE: u32 = byte_unit::n_kb_bytes(4) as u32;
+pub const MIN_BLOCK_SIZE: u32 = 0x1000;
 
 /// Contains important information about the archive, including the locations of other sections
 #[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]

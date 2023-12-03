@@ -19,5 +19,5 @@ A-unsquashfs:
 A-add:
 - backhand-cli/src/bin/add.rs
 
-A-mutate:
-- backhand-cli/src/bin/mutate.rs
+A-replace:
+- backhand-cli/src/bin/replace.rs

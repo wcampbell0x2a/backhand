@@ -53,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Bump `env_logger` from 0.10.0 to 0.10.1 ([#341](https://github.com/wcampbell0x2a/backhand/pull/341))
-- Bump `clap` from 4.4.7 to 4.4.10 ([#340](https://github.com/wcampbell0x2a/backhand/pull/340), [#371](https://github.com/wcampbell0x2a/backhand/pull/371))
+- Bump `clap` from 4.4.7 to 4.4.11 ([#340](https://github.com/wcampbell0x2a/backhand/pull/340), [#371](https://github.com/wcampbell0x2a/backhand/pull/371), [#376](https://github.com/wcampbell0x2a/backhand/pull/376))
 - Bump `dangoslen/dependabot-changelog-helper` from 3.5.0 to 3.7.0 ([#342](https://github.com/wcampbell0x2a/backhand/pull/342), [#369](https://github.com/wcampbell0x2a/backhand/pull/369))
 - Bump `tracing-subscriber` from 0.3.17 to 0.3.18 ([#347](https://github.com/wcampbell0x2a/backhand/pull/347))
 - Bump `byte-unit` from 4.0.19 to 5.0.3 ([#367](https://github.com/wcampbell0x2a/backhand/pull/367))

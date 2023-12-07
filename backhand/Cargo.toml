@@ -36,7 +36,7 @@ lzo = ["dep:rust-lzo"]
 zstd = ["dep:zstd"]
 
 [dev-dependencies]
-test-log = { version = "0.2.13", features = ["trace"] }
+test-log = { version = "0.2.14", features = ["trace"] }
 test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
 assert_cmd = { version = "2.0.12", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }

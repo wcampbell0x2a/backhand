@@ -685,7 +685,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
             // Write 1K at a time
             let mut total_written = 0;
-            while w.stream_position()? < (superblock.bytes_used + u64::try_from(pad_len).unwrap()) {
+            while w.stream_position()? < (superblock.bytes_used + u64::from(pad_len)) {
                 let arr = &[0x00; 1024];
 
                 // check if last block to write
@@ -720,7 +720,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         //clean any cache, make sure the output is on disk
         w.flush()?;
-        Ok(superblock.bytes_used + u64::try_from(pad_len).unwrap())
+        Ok(superblock.bytes_used + u64::from(pad_len))
     }
 
     /// For example, writing a fragment table:

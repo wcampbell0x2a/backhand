@@ -31,7 +31,7 @@ use std::time::{Duration, Instant};
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 pub fn required_root(a: &str) -> Result<PathBuf, String> {
-    let p = PathBuf::try_from(a).or(Err("could not".to_string()))?;
+    let p = PathBuf::from(a);
 
     if p.has_root() {
         Ok(p)
@@ -560,7 +560,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         &filepath,
                         SFlag::S_IFCHR,
                         Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                        dev_t::try_from(*device_number).unwrap(),
+                        dev_t::from(*device_number),
                     ) {
                         Ok(_) => {
                             if args.info && !args.quiet {
@@ -602,7 +602,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     &filepath,
                     SFlag::S_IFBLK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                    dev_t::try_from(*device_number).unwrap(),
+                    dev_t::from(*device_number),
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {

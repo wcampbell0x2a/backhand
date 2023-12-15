@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use deku::prelude::Reader;
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, info, trace};

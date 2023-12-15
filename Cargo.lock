@@ -463,17 +463,17 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "819b87cc7a05b3abe3fc38e59b3980a5fd3162f25a247116441a9171d3e84481"
+source = "git+https://github.com/sharksforarms/deku?branch=impl-writer#a9df540c10fefa34387eeddafbdc62d2ba5dd036"
 dependencies = [
  "bitvec",
  "deku_derive",
+ "no_std_io",
 ]
 
 [[package]]
 name = "deku_derive"
 version = "0.16.0"
-source = "git+https://github.com/sharksforarms/deku?branch=impl-writer#8a3596b07e4cff286e7da9c12698b0e48b5b26b8"
+source = "git+https://github.com/sharksforarms/deku?branch=impl-writer#a9df540c10fefa34387eeddafbdc62d2ba5dd036"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -878,6 +878,15 @@ dependencies = [
  "bitflags 2.4.1",
  "cfg-if",
  "libc",
+]
+
+[[package]]
+name = "no_std_io"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "762f99e20001f0c1cedf5c85df1e96d0866f9739d752520d97bf562ee5f05341"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

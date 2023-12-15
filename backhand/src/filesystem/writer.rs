@@ -391,8 +391,8 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         w: W,
         offset: u64,
     ) -> Result<(SuperBlock, u64), BackhandError> {
-        let writer = WriterWithOffset::new(w, offset)?;
-        self.write(writer)
+        let mut writer = WriterWithOffset::new(w, offset)?;
+        self.write(&mut writer)
     }
 
     fn write_data<W: WriteSeek>(
@@ -568,7 +568,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
+    pub fn write<W: Write + Seek>(
+        &mut self,
+        mut w: &mut W,
+    ) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
@@ -628,7 +631,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         self.write_data(self.fs_compressor, self.block_size, &mut w, &mut data_writer)?;
         info!("Writing Data Fragments");
         // Compress fragments and write
-        data_writer.finalize(&mut w)?;
+        data_writer.finalize(w)?;
 
         info!("Writing Other stuff");
         let root = self.write_inode_dir(
@@ -649,15 +652,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         info!("Writing Inodes");
         superblock.inode_table = w.stream_position()?;
-        inode_writer.finalize(&mut w)?;
+        inode_writer.finalize(w)?;
 
         info!("Writing Dirs");
         superblock.dir_table = w.stream_position()?;
-        dir_writer.finalize(&mut w)?;
+        dir_writer.finalize(w)?;
 
         info!("Writing Frag Lookup Table");
         let (table_position, count) =
-            self.write_lookup_table(&mut w, &data_writer.fragment_table, fragment::SIZE)?;
+            self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
         superblock.frag_table = table_position;
         superblock.frag_count = count;
 
@@ -667,7 +670,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         superblock.id_count = count.try_into().unwrap();
 
         info!("Finalize Superblock and End Bytes");
-        let bytes_written = self.finalize(&mut w, &mut superblock)?;
+        let bytes_written = self.finalize(w, &mut superblock)?;
 
         info!("Success");
         Ok((superblock, bytes_written))
@@ -710,7 +713,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         // Seek back the beginning and write the superblock
         info!("Writing Superblock");
         w.rewind()?;
-        let mut writer = Writer::new(w);
+        let mut writer = Writer::new(&mut w);
         superblock.to_writer(
             &mut writer,
             (
@@ -757,7 +760,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///  ```
     fn write_lookup_table<D: DekuWriter<deku::ctx::Endian>, W: Write + Seek>(
         &self,
-        mut w: W,
+        mut w: &mut W,
         table: &Vec<D>,
         element_size: usize,
     ) -> Result<(u64, u32), BackhandError> {
@@ -775,7 +778,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
                 // write metadata len
                 let len = metadata::set_if_uncompressed(table_bytes.len() as u16);
-                let mut writer = Writer::new(w);
+                let mut writer = Writer::new(&mut w);
                 len.to_writer(&mut writer, self.kind.inner.data_endian)?;
                 // write metadata bytes
                 w.write_all(&table_bytes)?;
@@ -789,7 +792,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         // write ptr
         for ptr in ptrs {
-            let mut writer = Writer::new(w);
+            let mut writer = Writer::new(&mut w);
             ptr.to_writer(&mut writer, self.kind.inner.type_endian)?;
         }
 

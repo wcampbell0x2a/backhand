@@ -55,8 +55,8 @@ fn main() -> ExitCode {
     }
 
     // write new file
-    let output = File::create(&args.out).unwrap();
-    filesystem.write(output).unwrap();
+    let mut output = File::create(&args.out).unwrap();
+    filesystem.write(&mut output).unwrap();
     println!("replaced file and wrote to {}", args.out.display());
 
     ExitCode::SUCCESS

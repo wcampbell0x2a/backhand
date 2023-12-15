@@ -118,7 +118,7 @@ impl<'a> DataWriter<'a> {
     pub(crate) fn just_copy_it<W: WriteSeek>(
         &mut self,
         mut reader: SquashfsRawData,
-        mut writer: W,
+        writer: &mut W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
         let mut block_sizes = reader.file.basic.block_sizes.clone();
@@ -181,7 +181,7 @@ impl<'a> DataWriter<'a> {
     pub(crate) fn add_bytes<W: WriteSeek>(
         &mut self,
         reader: impl Read,
-        mut writer: W,
+        writer: &mut W,
     ) -> Result<(usize, Added), BackhandError> {
         let mut chunk_reader = DataWriterChunkReader {
             chunk: vec![0u8; self.block_size as usize],
@@ -230,7 +230,7 @@ impl<'a> DataWriter<'a> {
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear
     /// current fragment_bytes
-    pub fn finalize<W: Write + Seek>(&mut self, mut writer: W) -> Result<(), BackhandError> {
+    pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), BackhandError> {
         let start = writer.stream_position()?;
         let cb = self.kind.compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
 

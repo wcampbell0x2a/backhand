@@ -21,7 +21,7 @@ nix = { version = "0.27.1", default-features = false, features = ["fs"] }
 [features]
 # testing only feature for testing vs squashfs-tools/unsquashfs
 __test_unsquashfs = []
-default = ["backhand-cli/xz", "backhand-cli/gzip", "backhand-cli/zstd"]
+default = ["xz", "gzip", "zstd"]
 xz = ["backhand-cli/xz"]
 xz-static = ["backhand-cli/xz-static"]
 gzip = ["backhand-cli/gzip"]

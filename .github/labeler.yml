@@ -1,23 +1,31 @@
 A-backhand-lib:
-- backhand/**
+- changed-files:
+  - any-glob-to-any-file: backhand/**
 
 A-fuzz:
-- fuzz/**
+- changed-files:
+  - any-glob-to-any-file: fuzz/**
 
 A-backhand-cli:
-- backhand-cli/**
+- changed-files:
+  - any-glob-to-any-file: backhand-cli/**
 
 A-tests:
-- backhand-test/**
+- changed-files:
+  - any-glob-to-any-file: backhand-test/**
 
 A-CI:
-- .github/**
+- changed-files:
+  - any-glob-to-any-file: .github/**
 
 A-unsquashfs:
-- backhand-cli/src/bin/unsquashfs.rs
+- changed-files:
+  - any-glob-to-any-file: backhand-cli/src/bin/unsquashfs.rs
 
 A-add:
-- backhand-cli/src/bin/add.rs
+- changed-files:
+  - any-glob-to-any-file: backhand-cli/src/bin/add.rs
 
 A-replace:
-- backhand-cli/src/bin/replace.rs
+- changed-files:
+  - any-glob-to-any-file: backhand-cli/src/bin/replace.rs

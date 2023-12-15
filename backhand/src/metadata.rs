@@ -75,7 +75,7 @@ impl MetadataWriter {
         Ok(())
     }
 
-    pub fn finalize<W: Write + Seek>(&mut self, mut out: W) -> Result<(), BackhandError> {
+    pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), BackhandError> {
         //add any remaining data
         while !self.uncompressed_bytes.is_empty() {
             self.add_block()?;

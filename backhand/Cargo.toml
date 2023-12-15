@@ -12,7 +12,7 @@ description = "Library for the reading, creating, and modification of SquashFS f
 
 [dependencies]
 # for lib
-deku = "0.16.0"
+deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-writer" }
 tracing = "0.1.40"
 thiserror = "1.0.50"
 flate2 = { version = "1.0.28", optional = true }

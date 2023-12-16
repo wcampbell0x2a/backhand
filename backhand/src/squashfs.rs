@@ -496,15 +496,15 @@ impl<'b> Squashfs<'b> {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
                 self.dir_from_index(
-                    basic_dir.block_index.try_into().unwrap(),
-                    basic_dir.file_size.try_into().unwrap(),
+                    u64::from(basic_dir.block_index),
+                    u32::from(basic_dir.file_size),
                     basic_dir.block_offset as usize,
                 )?
             }
             InodeInner::ExtendedDirectory(ext_dir) => {
                 trace!("EXT_DIR: {:#02x?}", ext_dir);
                 self.dir_from_index(
-                    ext_dir.block_index.try_into().unwrap(),
+                    u64::from(ext_dir.block_index),
                     ext_dir.file_size,
                     ext_dir.block_offset as usize,
                 )?

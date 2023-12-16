@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+Major changes were made to the organization of this repo, with the library `backhand` now being separated from
+the `backhand-cli` package, which is used to install `unsquashfs`, `replace`, and `add`.
 ### `backhand`
 #### Changes
 - Following changes were done to allow multi-threaded applications ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
@@ -15,8 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Change `dyn CompressionAction` to `dyn CompressionAction + Send + Sync` for `Kind` uses
   - Change `BufReadSeek: BufRead + Seek {}` to `BufReadSeek: BufRead + Seek + Send {}`
 - Allow user provided read/write files to not be static ([@rbran](https://github.com/rbran)) ([#285](https://github.com/wcampbell0x2a/backhand/pull/285))
-- Bump flate2 from 1.0.26 to 1.0.28 ([#307](https://github.com/wcampbell0x2a/backhand/pull/307))
 - Bump MSRV to `1.67.1`
+- Allow creating and reading uncompressed files ([#365](https://github.com/wcampbell0x2a/backhand/pull/365))
+- Allow calling `FilesystemWriter::write` with Owned and RefMut writer ([#361](https://github.com/wcampbell0x2a/backhand/pull/361))
+- Push dir, file, etc, with lifetimes unrelated to reader from `from_fs_reader` ([#361](https://github.com/wcampbell0x2a/backhand/pull/361))
+- Prevent `push_file` "file within file", will now return `InvalidFilePath` ([#364](https://github.com/wcampbell0x2a/backhand/pull/364))
+- Fix `gid` and `uid` for `push_dir_all(..)`` ([#360](https://github.com/wcampbell0x2a/backhand/pull/360))
+
+For example, the following is now allowed:
+```diff
+-   let mut output = File::create(&args.out).unwrap();
+-   if let Err(e) = filesystem.write(&mut output) {
++   let output = File::create(&args.out).unwrap();
++   if let Err(e) = filesystem.write(output) {
+````
 
 #### Bug Fix
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
@@ -30,8 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changes to All
 - `strip` and `LTO` are enabled for release binaries
 - Fix macOS builds ([#260](https://github.com/wcampbell0x2a/backhand/pull/260))
-- Bump jemallocator from 0.5.0 to 0.5.4 ([#305](https://github.com/wcampbell0x2a/backhand/pull/305))
-- Bump thiserror from 1.0.40 to 1.0.50 ([#304](https://github.com/wcampbell0x2a/backhand/pull/304))
 - Bump MSRV to `1.73.0` to use now stabilized `std::os::unix::fs::lchown`
 - Add color styling to help output ([#387](https://github.com/wcampbell0x2a/backhand/pull/387))
 
@@ -58,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `zune-inflate` with `libdeflater` for custom decompression testing for reliability ([#325](https://github.com/wcampbell0x2a/backhand/pull/325))
 
 ### Dependencies
+- Bump `flate2` from 1.0.26 to 1.0.28 ([#307](https://github.com/wcampbell0x2a/backhand/pull/307))
+- Bump `jemallocator` from 0.5.0 to 0.5.4 ([#305](https://github.com/wcampbell0x2a/backhand/pull/305))
 - Bump `env_logger` from 0.10.0 to 0.10.1 ([#341](https://github.com/wcampbell0x2a/backhand/pull/341))
 - Bump `clap` from 4.4.7 to 4.4.12 ([#340](https://github.com/wcampbell0x2a/backhand/pull/340), [#371](https://github.com/wcampbell0x2a/backhand/pull/371), [#376](https://github.com/wcampbell0x2a/backhand/pull/376), [#399](https://github.com/wcampbell0x2a/backhand/pull/399))
 - Bump `dangoslen/dependabot-changelog-helper` from 3.5.0 to 3.7.0 ([#342](https://github.com/wcampbell0x2a/backhand/pull/342), [#369](https://github.com/wcampbell0x2a/backhand/pull/369))

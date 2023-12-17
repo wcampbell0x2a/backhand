@@ -28,7 +28,7 @@ version = "0.5.4"
 
 # These features mirror the backhand features
 [features]
-default = ["backhand/xz", "backhand/gzip", "backhand/zstd"]
+default = ["xz", "gzip", "zstd"]
 ## Enables xz compression inside library and binaries
 xz = ["backhand/xz"]
 ## Enables xz compression and forces static build inside library and binaries

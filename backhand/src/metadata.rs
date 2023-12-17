@@ -75,7 +75,7 @@ impl MetadataWriter {
         Ok(())
     }
 
-    pub fn finalize<W: Write + Seek>(&mut self, out: &mut W) -> Result<(), BackhandError> {
+    pub fn finalize<W: Write + Seek>(&mut self, mut out: W) -> Result<(), BackhandError> {
         //add any remaining data
         while !self.uncompressed_bytes.is_empty() {
             self.add_block()?;
@@ -87,7 +87,7 @@ impl MetadataWriter {
             // if uncompressed, set the highest bit of len
             let len =
                 compressed_bytes.len() as u16 | if *compressed { 0 } else { 1 << (u16::BITS - 1) };
-            let mut writer = Writer::new(out);
+            let mut writer = Writer::new(&mut out);
             len.to_writer(&mut writer, self.kind.inner.data_endian)?;
             out.write_all(compressed_bytes)?;
         }

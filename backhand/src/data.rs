@@ -230,7 +230,7 @@ impl<'a> DataWriter<'a> {
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear
     /// current fragment_bytes
-    pub fn finalize<W: Write + Seek>(&mut self, writer: &mut W) -> Result<(), BackhandError> {
+    pub fn finalize<W: Write + Seek>(&mut self, mut writer: W) -> Result<(), BackhandError> {
         let start = writer.stream_position()?;
         let cb = self.kind.compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
 

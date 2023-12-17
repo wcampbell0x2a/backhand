@@ -104,8 +104,8 @@ fn main() -> ExitCode {
     }
 
     // write new file
-    let mut output = File::create(&args.out).unwrap();
-    if let Err(e) = filesystem.write(&mut output) {
+    let output = File::create(&args.out).unwrap();
+    if let Err(e) = filesystem.write(output) {
         println!("[!] {e}");
     }
     println!("[-] added file and wrote to {}", args.out.display());

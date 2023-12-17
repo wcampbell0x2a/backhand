@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump jemallocator from 0.5.0 to 0.5.4 ([#305](https://github.com/wcampbell0x2a/backhand/pull/305))
 - Bump thiserror from 1.0.40 to 1.0.50 ([#304](https://github.com/wcampbell0x2a/backhand/pull/304))
 - Bump MSRV to `1.73.0` to use now stabilized `std::os::unix::fs::lchown`
+- Add color styling to help output ([#387](https://github.com/wcampbell0x2a/backhand/pull/387))
 
 #### unsquashfs 
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))

@@ -13,7 +13,7 @@ use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
-use backhand_cli::after_help;
+use backhand_cli::{after_help, styles};
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
@@ -84,6 +84,7 @@ pub fn failed(pb: &ProgressBar, s: &str) {
           name = "unsquashfs-backhand",
           after_help = after_help(true),
           max_term_width = 98,
+          styles = styles(),
 )]
 struct Args {
     /// Squashfs file

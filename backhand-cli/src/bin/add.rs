@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
-use backhand_cli::after_help;
+use backhand_cli::{after_help, styles};
 use clap::Parser;
 
 // -musl malloc is slow, use jemalloc
@@ -20,6 +20,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
           name = "add-backhand",
           after_help = after_help(false),
           max_term_width = 98,
+          styles = styles(),
 )]
 struct Args {
     /// Squashfs input image

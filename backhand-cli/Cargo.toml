@@ -21,13 +21,14 @@ console = "0.15.7"
 rayon = "1.8.0"
 backhand = { path = "../backhand", default-features = false }
 tracing = "0.1.40"
+color-print = "0.3.5"
 
 [target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
 version = "0.5.4"
 
 # These features mirror the backhand features
 [features]
-default = ["backhand/xz", "backhand/gzip", "backhand/zstd"]
+default = ["xz", "gzip", "zstd"]
 ## Enables xz compression inside library and binaries
 xz = ["backhand/xz"]
 ## Enables xz compression and forces static build inside library and binaries

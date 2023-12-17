@@ -568,10 +568,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write<W: Write + Seek>(
-        &mut self,
-        mut w: &mut W,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
+    pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
@@ -609,7 +606,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                 Kind { inner: self.kind.inner.clone() },
             );
             metadata.write_all(&compression_opt_buf_out)?;
-            metadata.finalize(w)?;
+            metadata.finalize(&mut w)?;
         }
 
         let mut data_writer =
@@ -631,7 +628,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         self.write_data(self.fs_compressor, self.block_size, &mut w, &mut data_writer)?;
         info!("Writing Data Fragments");
         // Compress fragments and write
-        data_writer.finalize(w)?;
+        data_writer.finalize(&mut w)?;
 
         info!("Writing Other stuff");
         let root = self.write_inode_dir(
@@ -652,15 +649,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         info!("Writing Inodes");
         superblock.inode_table = w.stream_position()?;
-        inode_writer.finalize(w)?;
+        inode_writer.finalize(&mut w)?;
 
         info!("Writing Dirs");
         superblock.dir_table = w.stream_position()?;
-        dir_writer.finalize(w)?;
+        dir_writer.finalize(&mut w)?;
 
         info!("Writing Frag Lookup Table");
         let (table_position, count) =
-            self.write_lookup_table(w, &data_writer.fragment_table, fragment::SIZE)?;
+            self.write_lookup_table(&mut w, &data_writer.fragment_table, fragment::SIZE)?;
         superblock.frag_table = table_position;
         superblock.frag_count = count;
 
@@ -760,7 +757,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///  ```
     fn write_lookup_table<D: DekuWriter<deku::ctx::Endian>, W: Write + Seek>(
         &self,
-        mut w: &mut W,
+        mut w: W,
         table: &Vec<D>,
         element_size: usize,
     ) -> Result<(u64, u32), BackhandError> {

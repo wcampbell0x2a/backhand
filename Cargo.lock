@@ -129,6 +129,8 @@ dependencies = [
  "document-features",
  "flate2",
  "libdeflater",
+ "nix",
+ "rayon",
  "rust-lzo",
  "rustc-hash",
  "tempfile",

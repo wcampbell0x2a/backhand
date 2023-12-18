@@ -51,6 +51,27 @@ pub enum BackhandError {
 
     #[error("file duplicated in squashfs image")]
     DuplicatedFileName,
+
+    #[error("invalid path filter for unsquashing, path doesn't exist: {0:?}")]
+    InvalidPathFilter(std::path::PathBuf),
+
+    #[error("failed to unsquash file '{path:?}'")]
+    UnsquashFile { source: std::io::Error, path: std::path::PathBuf },
+
+    #[error("failed to unsquash symlink '{from:?}' -> '{to:?}'")]
+    UnsquashSymlink { source: std::io::Error, from: std::path::PathBuf, to: std::path::PathBuf },
+
+    #[error("failed to unsquash character device '{path:?}'")]
+    UnsquashCharDev { source: nix::Error, path: std::path::PathBuf },
+
+    #[error("failed to unsquash block device '{path:?}'")]
+    UnsquashBlockDev { source: nix::Error, path: std::path::PathBuf },
+
+    #[error("failed to set attributes for '{path:?}'")]
+    SetAttributes { source: std::io::Error, path: std::path::PathBuf },
+
+    #[error("failed to set utimes for '{path:?}'")]
+    SetUtimes { source: nix::Error, path: std::path::PathBuf },
 }
 
 impl From<BackhandError> for io::Error {
@@ -61,6 +82,9 @@ impl From<BackhandError> for io::Error {
             Deku(e) => e.into(),
             StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
             StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            UnsquashFile { source, .. }
+            | UnsquashSymlink { source, .. }
+            | SetAttributes { source, .. } => source,
             e @ UnsupportedCompression(_) => Self::new(io::ErrorKind::Unsupported, e),
             e @ FileNotFound => Self::new(io::ErrorKind::NotFound, e),
             e @ (Unreachable
@@ -70,7 +94,11 @@ impl From<BackhandError> for io::Error {
             | InvalidCompressionOption
             | InvalidFilePath
             | UndefineFileName
-            | DuplicatedFileName) => Self::new(io::ErrorKind::InvalidData, e),
+            | DuplicatedFileName
+            | InvalidPathFilter(_)
+            | UnsquashCharDev { .. }
+            | UnsquashBlockDev { .. }
+            | SetUtimes { .. }) => Self::new(io::ErrorKind::InvalidData, e),
         }
     }
 }

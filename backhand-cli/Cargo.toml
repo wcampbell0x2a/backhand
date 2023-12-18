@@ -23,6 +23,9 @@ backhand = { path = "../backhand", default-features = false }
 tracing = "0.1.40"
 color-print = "0.3.5"
 
+[lib]
+bench = false
+
 [target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
 version = "0.5.4"
 
@@ -43,3 +46,15 @@ zstd = ["backhand/zstd"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bin]]
+name = "add"
+bench = false
+
+[[bin]]
+name = "unsquashfs"
+bench = false
+
+[[bin]]
+name = "replace"
+bench = false

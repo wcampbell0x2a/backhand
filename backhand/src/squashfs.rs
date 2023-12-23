@@ -639,4 +639,245 @@ impl<'b> Squashfs<'b> {
         };
         Ok(filesystem)
     }
+
+    /// Extract the Squashfs into `dest`
+    #[cfg(unix)]
+    #[cfg(feature = "util")]
+    pub fn unsquashfs(
+        self,
+        dest: &std::path::Path,
+        path_filter: Option<PathBuf>,
+        force: bool,
+    ) -> Result<(), BackhandError> {
+        use std::fs::{self, File};
+        use std::io::{self};
+        use std::os::unix::fs::lchown;
+        use std::path::{Component, Path};
+
+        use nix::{
+            libc::geteuid,
+            sys::stat::{dev_t, mknod, mode_t, umask, utimensat, Mode, SFlag, UtimensatFlags},
+            sys::time::TimeSpec,
+        };
+        use rayon::prelude::*;
+
+        // Quick hack to ensure we reset `umask` even when we return due to an error
+        struct UmaskGuard {
+            old: Mode,
+        }
+        impl UmaskGuard {
+            fn new(mode: Mode) -> Self {
+                let old = umask(mode);
+                Self { old }
+            }
+        }
+        impl Drop for UmaskGuard {
+            fn drop(&mut self) {
+                umask(self.old);
+            }
+        }
+
+        let root_process = unsafe { geteuid() == 0 };
+
+        // FIXME: Do we want to set `umask` here, or leave it up to the caller?
+        let _umask_guard = root_process.then(|| UmaskGuard::new(Mode::from_bits(0).unwrap()));
+
+        let filesystem = self.into_filesystem_reader()?;
+
+        let path_filter = path_filter.unwrap_or(PathBuf::from("/"));
+
+        // if we can find a parent, then a filter must be applied and the exact parent dirs must be
+        // found above it
+        let mut files: Vec<&Node<SquashfsFileReader>> = vec![];
+        if path_filter.parent().is_some() {
+            let mut current = PathBuf::new();
+            current.push("/");
+            for part in path_filter.iter() {
+                current.push(part);
+                if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {
+                    files.push(exact);
+                } else {
+                    return Err(BackhandError::InvalidPathFilter(path_filter));
+                }
+            }
+            // remove the final node, this is a file and will be caught in the following statement
+            files.pop();
+        }
+
+        // gather all files and dirs
+        let nodes = files
+            .into_iter()
+            .chain(filesystem.files().filter(|a| a.fullpath.starts_with(&path_filter)))
+            .collect::<Vec<_>>();
+
+        nodes
+            .into_par_iter()
+            .map(|node| {
+                let path = &node.fullpath;
+                let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
+
+                let filepath = Path::new(&dest).join(fullpath);
+                // create required dirs, we will fix permissions later
+                let _ = fs::create_dir_all(filepath.parent().unwrap());
+
+                match &node.inner {
+                    InnerNode::File(file) => {
+                        // alloc required space for file data readers
+                        let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
+
+                        // check if file exists
+                        if !force && filepath.exists() {
+                            trace!(path=%filepath.display(), "file exists");
+                            return Ok(());
+                        }
+
+                        // write to file
+                        let mut fd = File::create(&filepath)?;
+                        let file = filesystem.file(&file.basic);
+                        let mut reader = file.reader(&mut buf_read, &mut buf_decompress);
+
+                        io::copy(&mut reader, &mut fd).map_err(|e| {
+                            BackhandError::UnsquashFile { source: e, path: filepath.clone() }
+                        })?;
+                        trace!(path=%filepath.display(), "unsquashed file");
+                    }
+                    InnerNode::Symlink(SquashfsSymlink { link }) => {
+                        // check if file exists
+                        if !force && filepath.exists() {
+                            trace!(path=%filepath.display(), "symlink exists");
+                            return Ok(());
+                        }
+                        // create symlink
+                        std::os::unix::fs::symlink(link, &filepath).map_err(|e| {
+                            BackhandError::UnsquashSymlink {
+                                source: e,
+                                from: link.to_path_buf(),
+                                to: filepath.clone(),
+                            }
+                        })?;
+                        // set attributes, but special to not follow the symlink
+                        // TODO: unify with set_attributes?
+                        if root_process {
+                            // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
+                            lchown(&filepath, Some(node.header.uid), Some(node.header.gid))
+                                .map_err(|e| BackhandError::SetAttributes {
+                                    source: e,
+                                    path: filepath.to_path_buf(),
+                                })?;
+                        }
+
+                        // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
+                        // Make sure this doesn't follow symlinks when changed to std library!
+                        let timespec = TimeSpec::new(node.header.mtime as _, 0);
+                        utimensat(
+                            None,
+                            &filepath,
+                            &timespec,
+                            &timespec,
+                            UtimensatFlags::NoFollowSymlink,
+                        )
+                        .map_err(|e| BackhandError::SetUtimes {
+                            source: e,
+                            path: filepath.clone(),
+                        })?;
+                        trace!(from=%link.display(), to=%filepath.display(), "unsquashed symlink");
+                    }
+                    InnerNode::Dir(SquashfsDir { .. }) => {
+                        // These permissions are corrected later (user default permissions for now)
+                        //
+                        // don't display error if this was already created, we might have already
+                        // created it in another thread to put down a file
+                        if std::fs::create_dir(&filepath).is_ok() {
+                            trace!(path=%filepath.display(), "unsquashed dir");
+                        }
+                    }
+                    InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
+                        mknod(
+                            &filepath,
+                            SFlag::S_IFCHR,
+                            Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                            dev_t::try_from(*device_number).unwrap(),
+                        )
+                        .map_err(|e| BackhandError::UnsquashCharDev {
+                            source: e,
+                            path: filepath.clone(),
+                        })?;
+                        set_attributes(&filepath, &node.header, root_process, true)?;
+                        trace!(path=%filepath.display(), "unsquashed character device");
+                    }
+                    InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
+                        mknod(
+                            &filepath,
+                            SFlag::S_IFBLK,
+                            Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                            dev_t::try_from(*device_number).unwrap(),
+                        )
+                        .map_err(|e| BackhandError::UnsquashBlockDev {
+                            source: e,
+                            path: filepath.clone(),
+                        })?;
+                        set_attributes(&filepath, &node.header, root_process, true)?;
+                        trace!(path=%filepath.display(), "unsquashed block device");
+                    }
+                }
+                Ok(())
+            })
+            .collect::<Result<(), BackhandError>>()?;
+
+        // fixup dir permissions
+        for node in filesystem.files().filter(|a| a.fullpath.starts_with(&path_filter)) {
+            if let InnerNode::Dir(SquashfsDir { .. }) = &node.inner {
+                let path = &node.fullpath;
+                let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
+                let path = Path::new(&dest).join(path);
+                set_attributes(&path, &node.header, root_process, false)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+#[cfg(feature = "util")]
+fn set_attributes(
+    path: &std::path::Path,
+    header: &NodeHeader,
+    root_process: bool,
+    is_file: bool,
+) -> Result<(), BackhandError> {
+    // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
+    use nix::{sys::stat::utimes, sys::time::TimeVal};
+    use std::os::unix::fs::lchown;
+
+    use std::{fs::Permissions, os::unix::fs::PermissionsExt};
+    let timeval = TimeVal::new(header.mtime as _, 0);
+    utimes(path, &timeval, &timeval)
+        .map_err(|e| BackhandError::SetUtimes { source: e, path: path.to_path_buf() })?;
+
+    let mut mode = u32::from(header.permissions);
+
+    // Only chown when root
+    if root_process {
+        // TODO: Use (unix_chown) when not nightly: https://github.com/rust-lang/rust/issues/88989
+        lchown(path, Some(header.uid), Some(header.gid))
+            .map_err(|e| BackhandError::SetAttributes { source: e, path: path.to_path_buf() })?;
+    } else if is_file {
+        // bitwise-not if not rooted (disable write permissions for user/group). Following
+        // squashfs-tools/unsquashfs behavior
+        mode &= !0o022;
+    }
+
+    // set permissions
+    //
+    // NOTE: In squashfs-tools/unsquashfs they remove the write bits for user and group?
+    // I don't know if there is a reason for that but I keep the permissions the same if possible
+    match std::fs::set_permissions(path, Permissions::from_mode(mode)) {
+        Ok(_) => return Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {}
+        Err(e) => return Err(BackhandError::SetAttributes { source: e, path: path.to_path_buf() }),
+    };
+    // retry without sticky bit
+    std::fs::set_permissions(path, Permissions::from_mode(mode & !1000))
+        .map_err(|e| BackhandError::SetAttributes { source: e, path: path.to_path_buf() })
 }

@@ -11,14 +11,14 @@ rust-version = "1.73.0"
 description = "Binaries for the reading, creating, and modification of SquashFS file systems"
 
 [dependencies]
-nix = { version = "0.27.1", default-features = false, features = ["fs"] }
+nix.workspace = true
 clap = { version = "4.4.11", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 libc = "0.2.150"
 clap_complete = "4.4.4"
 indicatif = "0.17.7"
 console = "0.15.7"
-rayon = "1.8.0"
+rayon.workspace = true
 backhand = { path = "../backhand", default-features = false }
 tracing = "0.1.40"
 color-print = "0.3.5"

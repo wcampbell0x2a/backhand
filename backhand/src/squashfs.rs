@@ -641,6 +641,7 @@ impl<'b> Squashfs<'b> {
     }
 
     /// Extract the Squashfs into `dest`
+    #[cfg(unix)]
     #[cfg(feature = "util")]
     pub fn unsquashfs(
         self,
@@ -837,6 +838,7 @@ impl<'b> Squashfs<'b> {
     }
 }
 
+#[cfg(unix)]
 #[cfg(feature = "util")]
 fn set_attributes(
     path: &std::path::Path,

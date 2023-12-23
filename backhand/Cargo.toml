@@ -21,7 +21,7 @@ rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.0", optional = true }
 rustc-hash = "1.1.0"
 document-features = { version = "0.2.7", optional = true }
-nix.workspace = true
+nix = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 
 [features]
@@ -37,7 +37,7 @@ lzo = ["dep:rust-lzo"]
 ## Enables zstd compression inside library and binaries
 zstd = ["dep:zstd"]
 ## Enables higher level helpers and utilities
-util = ["dep:rayon"]
+util = ["dep:rayon", "dep:nix"]
 
 [dev-dependencies]
 test-log = { version = "0.2.14", features = ["trace"] }

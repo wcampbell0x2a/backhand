@@ -52,24 +52,31 @@ pub enum BackhandError {
     #[error("file duplicated in squashfs image")]
     DuplicatedFileName,
 
+    #[cfg(feature = "util")]
     #[error("invalid path filter for unsquashing, path doesn't exist: {0:?}")]
     InvalidPathFilter(std::path::PathBuf),
 
+    #[cfg(feature = "util")]
     #[error("failed to unsquash file '{path:?}'")]
     UnsquashFile { source: std::io::Error, path: std::path::PathBuf },
 
+    #[cfg(feature = "util")]
     #[error("failed to unsquash symlink '{from:?}' -> '{to:?}'")]
     UnsquashSymlink { source: std::io::Error, from: std::path::PathBuf, to: std::path::PathBuf },
 
+    #[cfg(feature = "util")]
     #[error("failed to unsquash character device '{path:?}'")]
     UnsquashCharDev { source: nix::Error, path: std::path::PathBuf },
 
+    #[cfg(feature = "util")]
     #[error("failed to unsquash block device '{path:?}'")]
     UnsquashBlockDev { source: nix::Error, path: std::path::PathBuf },
 
+    #[cfg(feature = "util")]
     #[error("failed to set attributes for '{path:?}'")]
     SetAttributes { source: std::io::Error, path: std::path::PathBuf },
 
+    #[cfg(feature = "util")]
     #[error("failed to set utimes for '{path:?}'")]
     SetUtimes { source: nix::Error, path: std::path::PathBuf },
 }
@@ -82,6 +89,7 @@ impl From<BackhandError> for io::Error {
             Deku(e) => e.into(),
             StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
             StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
+            #[cfg(feature = "util")]
             UnsquashFile { source, .. }
             | UnsquashSymlink { source, .. }
             | SetAttributes { source, .. } => source,
@@ -94,8 +102,9 @@ impl From<BackhandError> for io::Error {
             | InvalidCompressionOption
             | InvalidFilePath
             | UndefineFileName
-            | DuplicatedFileName
-            | InvalidPathFilter(_)
+            | DuplicatedFileName) => Self::new(io::ErrorKind::InvalidData, e),
+            #[cfg(feature = "util")]
+            e @ (InvalidPathFilter(_)
             | UnsquashCharDev { .. }
             | UnsquashBlockDev { .. }
             | SetUtimes { .. }) => Self::new(io::ErrorKind::InvalidData, e),

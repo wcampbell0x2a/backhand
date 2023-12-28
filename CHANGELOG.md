@@ -44,8 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add testing and release binaries for the following platforms:([#259](https://github.com/wcampbell0x2a/backhand/pull/259))
    - `aarch64-unknown-linux-musl`
    - `arm-unknown-linux-musleabi`
-   - `mips-unknown-linux-musl`
-   - `mipsel-unknown-linux-musl`
    - `x86_64-unknown-linux-musl` (previously already release supported)
 - Testing and release binaries were not added for macOS, support was tested on that platform.
 ### testing

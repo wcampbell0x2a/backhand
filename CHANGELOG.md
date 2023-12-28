@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `actions/labeler` from 4 to 5 ([#377](https://github.com/wcampbell0x2a/backhand/pull/377))
 - Bump `test-log` from 0.2.13 to 0.2.14 ([#378](https://github.com/wcampbell0x2a/backhand/pull/378))
 - Bump `clap_complete` from 4.4.4 to 4.4.5 ([#393](https://github.com/wcampbell0x2a/backhand/pull/393))
+- Bump `thiserror` from 1.0.51 to 1.0.52 ([#391](https://github.com/wcampbell0x2a/backhand/pull/391))
 
 ## [v0.13.0] - 2023-06-18
 ### backhand

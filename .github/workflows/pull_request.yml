@@ -1,6 +1,6 @@
 name: 'pull-request'
 on:
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - synchronize
@@ -12,6 +12,7 @@ on:
 jobs:
   changelog:
     runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
 
     permissions:
       # Give the default GITHUB_TOKEN write permission to commit and push the
@@ -21,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: dangoslen/dependabot-changelog-helper@15b927ce4f654cd41fb14e5a676d17414b9dbb64 # v3.7.0
         with:

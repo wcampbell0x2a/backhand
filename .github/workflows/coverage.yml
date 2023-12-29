@@ -31,9 +31,9 @@ jobs:
 
       # generate release builds of the testable binaries
       # this is meant to actually run the binary, so this will fail but the binary will be built
-      - run: cargo llvm-cov run --bin replace --no-clean --release || true
-      - run: cargo llvm-cov run --bin add --no-clean --release || true
-      - run: cargo llvm-cov run --bin unsquashfs --no-clean --release || true
+      - run: cargo llvm-cov run --bin replace-backhand --no-clean --release || true
+      - run: cargo llvm-cov run --bin add-backhand --no-clean --release || true
+      - run: cargo llvm-cov run --bin unsquashfs-backhand --no-clean --release || true
 
       # run coverage on tests
       - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --all-features --release --no-clean -- --skip slow

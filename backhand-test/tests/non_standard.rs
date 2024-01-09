@@ -108,7 +108,7 @@ fn test_custom_compressor() {
     #[derive(Copy, Clone)]
     pub struct CustomCompressor;
 
-    // Special decompress that only has support for the Rust version of gzip: zune-inflate for
+    // Special decompress that only has support for the Rust version of gzip: lideflator for
     // decompression
     impl CompressionAction for CustomCompressor {
         fn decompress(
@@ -142,6 +142,6 @@ fn test_custom_compressor() {
 
     let kind = Kind::new_with_const(&CustomCompressor, kind::BE_V4_0);
 
-    const TEST_PATH: &str = "test-assets/non_standard_be_v4_1";
+    const TEST_PATH: &str = "test-assets/custom_compressor";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &kind);
 }

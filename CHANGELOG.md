@@ -18,12 +18,9 @@ the `backhand-cli` package, which is used to install `unsquashfs`, `replace`, an
   - Change `BufReadSeek: BufRead + Seek {}` to `BufReadSeek: BufRead + Seek + Send {}`
 - Allow user provided read/write files to not be static ([@rbran](https://github.com/rbran)) ([#285](https://github.com/wcampbell0x2a/backhand/pull/285))
 - Bump MSRV to `1.67.1`
-- Allow creating and reading uncompressed files ([#365](https://github.com/wcampbell0x2a/backhand/pull/365))
-- Allow calling `FilesystemWriter::write` with Owned and RefMut writer ([#361](https://github.com/wcampbell0x2a/backhand/pull/361))
-- Push dir, file, etc, with lifetimes unrelated to reader from `from_fs_reader` ([#361](https://github.com/wcampbell0x2a/backhand/pull/361))
-- Prevent `push_file` "file within file", will now return `InvalidFilePath` ([#364](https://github.com/wcampbell0x2a/backhand/pull/364))
-- Fix `gid` and `uid` for `push_dir_all(..)`` ([#360](https://github.com/wcampbell0x2a/backhand/pull/360))
-
+- Allow creating and reading uncompressed files ([@rbran](https://github.com/rbran)) ([#365](https://github.com/wcampbell0x2a/backhand/pull/365))
+- Allow calling `FilesystemWriter::write` with Owned and RefMut writer ([@rbran](https://github.com/rbran)) ([#361](https://github.com/wcampbell0x2a/backhand/pull/361))
+- Push dir, file, etc, with lifetimes unrelated to reader from `from_fs_reader` ([@rbran](https://github.com/rbran)) ([#361](https://github.com/wcampbell0x2a/backhand/pull/361))
 For example, the following is now allowed:
 ```diff
 -   let mut output = File::create(&args.out).unwrap();
@@ -36,6 +33,8 @@ For example, the following is now allowed:
 - When creating an empty image using `FilesystemWriter::default()`, correctly create the ID table for UID and GID entries. Reported: ([@hwittenborn](https://github.com/hwittenborn)) ([!250](https://github.com/wcampbell0x2a/backhand/issues/275)), Fixed: ([#275](https://github.com/wcampbell0x2a/backhand/pull/275))
 - Remove manual `Clone` impl for `FilesystemReaderFile` ([#277](https://github.com/wcampbell0x2a/backhand/pull/277))
 - Increase `DirectoryIndex::name_size` length from 100 to 255. ([@eatradish](https://github.com/eatradish)) ([!282](https://github.com/wcampbell0x2a/backhand/issues/282)), Fixed: ([#283](https://github.com/wcampbell0x2a/backhand/pull/283))
+- Prevent `push_file` "file within file", will now return `InvalidFilePath` ([@rbran](https://github.com/rbran)) ([#364](https://github.com/wcampbell0x2a/backhand/pull/364))
+- Fix `gid` and `uid` for `push_dir_all(..)` ([#360](https://github.com/wcampbell0x2a/backhand/pull/360))
 
 #### Security
 - Only allow root and simple filenames into `DirEntry` ([@rbran](https://github.com/rbran)) ([#271](https://github.com/wcampbell0x2a/backhand/pull/271))

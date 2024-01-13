@@ -53,6 +53,8 @@ jobs:
           RUSTFLAGS: ""
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         uses: obi1kenobi/cargo-semver-checks-action@e275dda72e250d4df5b564e969e1348d67fefa52 # v2.2
+        with:
+          package: backhand
 
       - name: Upload binary to release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}

@@ -7,7 +7,7 @@ $ cargo build --release --bins
 ```
 Then, run the tests:
 ```
-$ cargo test --release --all-features
+$ cargo test --workspace --release --all-features
 ```
 
 ## Cross platform testing

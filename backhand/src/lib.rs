@@ -52,6 +52,7 @@
 //! # Features
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 
+#[cfg(doctest)]
 #[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();
 

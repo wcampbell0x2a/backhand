@@ -5,7 +5,7 @@
 //! Add the following to your `Cargo.toml` file:
 //! ```toml
 //! [dependencies]
-//! backhand = "0.13.0"
+//! backhand = "0.14.0"
 //! ```
 //!
 //! ### Reading

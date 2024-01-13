@@ -1,5 +1,6 @@
 // Compiled for every binary, as this is not a workspce
 use clap::builder::styling::*;
+#[doc(hidden)]
 pub fn styles() -> clap::builder::Styles {
     Styles::styled()
         .header(AnsiColor::Green.on_default() | Effects::BOLD)

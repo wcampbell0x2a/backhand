@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.14.1] - 2024-01-13
+### `backhand`
+#### Changes
+- Fix path to project `README.md` for `crates.io`
+
 ## [v0.14.0] - 2024-01-13
 Major changes were made to the organization of this repo, with the library `backhand` now being separated from
 the `backhand-cli` package, which is used to install `unsquashfs`, `replace`, and `add`.

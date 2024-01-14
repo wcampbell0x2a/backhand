@@ -9,6 +9,7 @@ keywords.workspace = true
 categories.workspace = true
 rust-version = "1.73.0"
 description = "Binaries for the reading, creating, and modification of SquashFS file systems"
+readme = "../README.md"
 
 [dependencies]
 nix = { version = "0.27.1", default-features = false, features = ["fs"] }
@@ -19,7 +20,7 @@ clap_complete = "4.4.5"
 indicatif = "0.17.7"
 console = "0.15.7"
 rayon = "1.8.0"
-backhand = { path = "../backhand", default-features = false, version = "0.14.0" }
+backhand = { path = "../backhand", default-features = false, version = "0.14.1" }
 tracing = "0.1.40"
 color-print = "0.3.5"
 

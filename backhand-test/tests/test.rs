@@ -11,9 +11,29 @@ use test_assets::TestAssetDef;
 use test_log::test;
 use tracing::info;
 
+#[cfg(feature = "gzip")]
+fn has_gzip_feature() -> bool {
+    true
+}
+
+#[cfg(not(feature = "gzip"))]
+fn has_gzip_feature() -> bool {
+    false
+}
+
 enum Verify {
     Extract,
 }
+
+fn only_read(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offset: u64) {
+    test_assets::download_test_files(assets_defs, test_path, true).unwrap();
+
+    let og_path = format!("{test_path}/{filepath}");
+    let file = BufReader::new(File::open(&og_path).unwrap());
+    info!("calling from_reader");
+    let _ = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
+}
+
 /// - Download file
 /// - Read into Squashfs
 /// - Into Filesystem
@@ -74,7 +94,7 @@ fn full_test(
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_00() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -83,12 +103,17 @@ fn test_00() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_00/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_00";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_01() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -97,7 +122,11 @@ fn test_01() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_01/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_01";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
@@ -156,7 +185,7 @@ fn test_05() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_06() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -165,12 +194,16 @@ fn test_06() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_06/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_06";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_07() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -179,7 +212,12 @@ fn test_07() {
         url: format!("https://wcampbell.dev/squashfs/testing/test_07/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_07";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
@@ -255,7 +293,7 @@ fn test_openwrt_netgear_ex6100v2() {
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_appimage_plexamp() {
     const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
     let asset_defs = [TestAssetDef {
@@ -264,11 +302,16 @@ fn test_appimage_plexamp() {
         url: format!("https://plexamp.plex.tv/plexamp.plex.tv/desktop/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_plexamp";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8, Verify::Extract, true);
+
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0x2dfe8);
+    }
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
@@ -277,7 +320,12 @@ fn test_appimage_firefox() {
         url: "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage".to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_appimage_firefox";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0, Verify::Extract, true);
+
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0x2f4c0);
+    }
 }
 
 /// Archer\ AX1800\(US\)_V3_221016.zip from https://www.tp-link.com/us/support/download/archer-ax1800/#Firmware
@@ -350,7 +398,7 @@ fn test_slow_archlinux_iso_rootfs() {
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_many_files() {
     const FILE_NAME: &str = "many_files.squashfs";
     let asset_defs = [TestAssetDef {
@@ -360,11 +408,15 @@ fn test_many_files() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_many_files";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_many_dirs() {
     const FILE_NAME: &str = "many_dirs.squashfs";
     let asset_defs = [TestAssetDef {
@@ -374,11 +426,15 @@ fn test_many_dirs() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_many_dirs";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
 fn test_few_dirs_many_files() {
     const FILE_NAME: &str = "few_dirs_many_files.squashfs";
     let asset_defs = [TestAssetDef {
@@ -388,5 +444,10 @@ fn test_few_dirs_many_files() {
     }];
 
     const TEST_PATH: &str = "test-assets/test_few_dirs_many_files";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+
+    if has_gzip_feature() {
+        full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
 }

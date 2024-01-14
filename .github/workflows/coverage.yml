@@ -36,7 +36,7 @@ jobs:
       - run: cargo llvm-cov run --bin unsquashfs-backhand --no-clean --release || true
 
       # run coverage on tests
-      - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --all-features --release --no-clean -- --skip slow
+      - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean -- --skip slow
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4

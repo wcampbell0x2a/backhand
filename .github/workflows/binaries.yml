@@ -34,8 +34,9 @@ jobs:
           target: ${{ matrix.targets }}
       - run: cargo install cargo-quickinstall
       - run: cargo quickinstall cross@0.2.5 --force
-      - run: cross build -p backhand-cli --bins --locked --target ${{ matrix.targets }} --profile=dist
-
+      - run: cross build -p backhand-cli --bin add-backhand --bin replace-backhand --locked --target ${{ matrix.targets }} --profile=dist
+      # default features, but replace gzip with gzip-zune-inflate
+      - run: cross build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.targets }} --profile=dist --no-default-features --features zstd,xz,gzip-zune-inflate
       - name: archive
         run: |
           tar -czvf backhand-${{ matrix.targets }}.tar.gz \

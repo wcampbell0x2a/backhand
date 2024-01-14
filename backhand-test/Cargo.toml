@@ -6,7 +6,6 @@ publish = false
 
 [dev-dependencies]
 backhand = { path = "../backhand", default-features = false }
-backhand-cli = { path = "../backhand-cli", default-features = false }
 assert_cmd = { version = "2.0.12", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.9.0"
@@ -25,12 +24,13 @@ bench = false
 # testing only feature for testing vs squashfs-tools/unsquashfs
 __test_unsquashfs = []
 default = ["xz", "gzip", "zstd"]
-xz = ["backhand-cli/xz"]
-xz-static = ["backhand-cli/xz-static"]
-gzip = ["backhand-cli/gzip"]
+xz = ["backhand/xz"]
+xz-static = ["backhand/xz-static"]
+gzip = ["backhand/gzip"]
+gzip-zune-inflate = ["backhand/gzip-zune-inflate"]
 # this library is licensed GPL and thus disabled by default
-lzo = ["backhand-cli/lzo"]
-zstd = ["backhand-cli/zstd"]
+lzo = ["backhand/lzo"]
+zstd = ["backhand/zstd"]
 
 [[test]]
 name = "add"

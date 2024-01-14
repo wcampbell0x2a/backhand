@@ -12,11 +12,11 @@ description = "Library for the reading, creating, and modification of SquashFS f
 readme = "../README.md"
 
 [dependencies]
-# for lib
 deku = "0.16.0"
 tracing = "0.1.40"
 thiserror = "1.0.56"
 flate2 = { version = "1.0.28", optional = true }
+zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.0", optional = true }
@@ -31,6 +31,9 @@ xz = ["dep:xz2"]
 xz-static = ["dep:xz2", "xz2?/static"]
 ## Enables gzip compression inside library and binaries
 gzip = ["dep:flate2"]
+## Enables faster gzip (de-compression only) inside library and binaries
+## Cannot be used with the `gzip` feature
+gzip-zune-inflate = ["dep:zune-inflate"]
 ## This library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
 ## Enables zstd compression inside library and binaries

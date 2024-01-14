@@ -6,11 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### `backhand`
+- Enable overflow-checks ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
+
+### `backhand-cli`
+#### unsquashfs 
+- Enable overflow-checks for dist builds ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
 
 ## [v0.14.1] - 2024-01-13
 ### `backhand`
 #### Changes
-- Fix path to project `README.md` for `crates.io`
+- Fix path to project `README.md` for `crates.io` ([#420](https://github.com/wcampbell0x2a/backhand/pull/420))
 
 ## [v0.14.0] - 2024-01-13
 Major changes were made to the organization of this repo, with the library `backhand` now being separated from

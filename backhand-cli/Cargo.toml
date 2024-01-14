@@ -9,6 +9,7 @@ keywords.workspace = true
 categories.workspace = true
 rust-version = "1.73.0"
 description = "Binaries for the reading, creating, and modification of SquashFS file systems"
+readme = "../README.md"
 
 [dependencies]
 nix = { version = "0.27.1", default-features = false, features = ["fs"] }

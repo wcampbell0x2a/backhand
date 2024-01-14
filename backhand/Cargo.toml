@@ -9,6 +9,7 @@ keywords.workspace = true
 categories.workspace = true
 rust-version = "1.67.1"
 description = "Library for the reading, creating, and modification of SquashFS file systems"
+readme = "../README.md"
 
 [dependencies]
 # for lib

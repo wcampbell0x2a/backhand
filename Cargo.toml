@@ -17,10 +17,13 @@ repository = "https://github.com/wcampbell0x2a/backhand"
 keywords = ["filesystem", "deku", "squashfs", "linux"]
 categories = ["filesystem", "parsing"]
 
+[profile.release]
+overflow-checks = true
+
 # Release(dist) binaries are setup for maximum runtime speed, at the cost of CI time
 [profile.dist]
 inherits = "release"
 codegen-units = 1
 lto = true
 strip = true
-
+overflow-checks = true

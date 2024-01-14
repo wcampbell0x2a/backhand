@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### unsquashfs 
 - Enable overflow-checks for dist builds ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
 
+### Dependencies
+- Bump `clap` from 4.4.12 to 4.4.16 ([#417](https://github.com/wcampbell0x2a/backhand/pull/417))
+
 ## [v0.14.1] - 2024-01-13
 ### `backhand`
 #### Changes

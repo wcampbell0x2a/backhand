@@ -16,7 +16,7 @@ nix = { version = "0.27.1", default-features = false, features = ["fs"] }
 clap = { version = "4.4.16", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 libc = "0.2.150"
-clap_complete = "4.4.5"
+clap_complete = "4.4.6"
 indicatif = "0.17.7"
 console = "0.15.7"
 rayon = "1.8.0"

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### `backhand`
 - Enable overflow-checks ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
 - Add feature `gzip-zune-inflate` to add a decompress only option with speed improvements ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))
+- Remove allocation for `impl From<BackhandError> for io::Error {` ([#425](https://github.com/wcampbell0x2a/backhand/pull/425))
 
 ### `backhand-cli`
 - Enable overflow-checks for dist builds ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))

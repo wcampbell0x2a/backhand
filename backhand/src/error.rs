@@ -58,19 +58,19 @@ impl From<BackhandError> for io::Error {
         use BackhandError::*;
         match value {
             StdIo(io) => io,
-            Deku(e) => e.into(),
-            StringUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            StrUtf8(e) => Self::new(io::ErrorKind::InvalidData, e),
-            e @ UnsupportedCompression(_) => Self::new(io::ErrorKind::Unsupported, e),
-            e @ FileNotFound => Self::new(io::ErrorKind::NotFound, e),
-            e @ (Unreachable
+            StringUtf8(_) => Self::from(io::ErrorKind::InvalidData),
+            StrUtf8(_) => Self::from(io::ErrorKind::InvalidData),
+            UnsupportedCompression(_) => Self::from(io::ErrorKind::Unsupported),
+            FileNotFound => Self::from(io::ErrorKind::NotFound),
+            Unreachable
+            | Deku(_)
             | UnexpectedInode(_)
             | UnsupportedInode(_)
             | CorruptedOrInvalidSquashfs
             | InvalidCompressionOption
             | InvalidFilePath
             | UndefineFileName
-            | DuplicatedFileName) => Self::new(io::ErrorKind::InvalidData, e),
+            | DuplicatedFileName => Self::from(io::ErrorKind::InvalidData),
         }
     }
 }

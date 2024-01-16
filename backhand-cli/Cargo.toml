@@ -13,7 +13,7 @@ readme = "../README.md"
 
 [dependencies]
 nix = { version = "0.27.1", default-features = false, features = ["fs"] }
-clap = { version = "4.4.16", features = ["derive", "wrap_help"] }
+clap = { version = "4.4.17", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 libc = "0.2.150"
 clap_complete = "4.4.5"

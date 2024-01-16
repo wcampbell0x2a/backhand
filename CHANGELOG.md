@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `actions/upload-artifact` from 4.0.0 to 4.1.0 ([#423](https://github.com/wcampbell0x2a/backhand/pull/423))
 - Bump `libc` from 0.2.151 to 0.2.152 ([#408](https://github.com/wcampbell0x2a/backhand/pull/408))
 - Bump `clap_complete` from 4.4.5 to 4.4.7 ([#426](https://github.com/wcampbell0x2a/backhand/pull/426))
+- Bump `assert_cmd` from 2.0.12 to 2.0.13 ([#422](https://github.com/wcampbell0x2a/backhand/pull/422))
 
 ## [v0.14.1] - 2024-01-13
 ### `backhand`

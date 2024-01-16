@@ -68,6 +68,7 @@ jobs:
           - --no-default-features --features gzip
           - --no-default-features --features gzip,xz
           - --no-default-features --features xz-static
+          - --no-default-features --features gzip-zune-inflate
           # default features
           -
 

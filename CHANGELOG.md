@@ -8,10 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### `backhand`
 - Enable overflow-checks ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
+- Add feature `gzip-zune-inflate` to add a decompress only option with speed improvements ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))
 
 ### `backhand-cli`
-#### unsquashfs 
 - Enable overflow-checks for dist builds ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
+
+#### unsquashfs 
+- Use feature `gzip-zune-inflate` for dist build and speed improvements ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))
+- Updated benchmarks to show improvement ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))
 
 ### Dependencies
 - Bump `clap` from 4.4.12 to 4.4.17 ([#417](https://github.com/wcampbell0x2a/backhand/pull/417), [#424](https://github.com/wcampbell0x2a/backhand/pull/424))

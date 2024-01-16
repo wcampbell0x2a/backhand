@@ -138,6 +138,7 @@ dependencies = [
  "tracing",
  "xz2",
  "zstd",
+ "zune-inflate",
 ]
 
 [[package]]
@@ -1286,6 +1287,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "simd-adler32"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
+
+[[package]]
 name = "smallvec"
 version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1406,7 +1413,6 @@ version = "0.0.0"
 dependencies = [
  "assert_cmd",
  "backhand",
- "backhand-cli",
  "dir-diff",
  "env_logger",
  "libdeflater",
@@ -2012,4 +2018,13 @@ checksum = "9e16efa8a874a0481a574084d34cc26fdb3b99627480f785888deb6386506656"
 dependencies = [
  "cc",
  "pkg-config",
+]
+
+[[package]]
+name = "zune-inflate"
+version = "0.2.54"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73ab332fe2f6680068f3582b16a24f90ad7096d5d39b974d1c0aff0125116f02"
+dependencies = [
+ "simd-adler32",
 ]

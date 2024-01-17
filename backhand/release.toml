@@ -2,4 +2,5 @@ push=false
 publish=false
 pre-release-replacements = [
   {file="src/lib.rs", search="backhand = .*", replace="{{crate_name}} = \"{{version}}\""},
+  {file="../README.md", search="backhand = .*", replace="{{crate_name}} = \"{{version}}\""},
 ]

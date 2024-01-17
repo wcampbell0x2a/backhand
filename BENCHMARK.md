@@ -35,7 +35,7 @@ Vendor ID:               GenuineIntel
 
 </details>
 
-## Wall time: `backhand/unsquashfs-v0.14.0` vs `squashfs-tools/unsquashfs-4.6.1`
+## Wall time: `backhand/unsquashfs-v0.14.2` vs `squashfs-tools/unsquashfs-4.6.1`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
 | `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BHgGC -o 2252752 backhand-test/test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 199.8 ± 5.4 | 192.9 | 219.4 | 1.18 ± 0.07 |

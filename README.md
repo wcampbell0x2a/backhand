@@ -25,7 +25,7 @@ This allows changing the magic bytes, custom compression algorithms, and the End
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-backhand = "0.14.1"
+backhand = "0.14.2"
 ```
 ### Reading/Writing/Modifying Firmware
 ```rust,no_run

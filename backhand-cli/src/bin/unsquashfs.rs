@@ -427,9 +427,9 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
     nodes.for_each(|node| {
         let path = &node.fullpath;
         let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
-        let mut p = processing.lock().unwrap();
-        p.insert(fullpath);
         if !args.quiet {
+            let mut p = processing.lock().unwrap();
+            p.insert(fullpath);
             pb.set_message(
                 p.iter()
                     .map(|a| a.to_path_buf().into_os_string().into_string().unwrap())
@@ -437,8 +437,8 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     .join(", "),
             );
             pb.inc(1);
+            drop(p);
         }
-        drop(p);
 
         let filepath = Path::new(&args.dest).join(fullpath);
         // create required dirs, we will fix permissions later
@@ -453,10 +453,10 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 if !args.force && filepath.exists() {
                     if !args.quiet {
                         exists(&pb, filepath.to_str().unwrap());
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
                     }
-                    let mut p = processing.lock().unwrap();
-                    p.remove(fullpath);
-                    drop(p);
                     return;
                 }
 
@@ -476,10 +476,10 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         if !args.quiet {
                             let line = format!("{} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
                         }
-                        let mut p = processing.lock().unwrap();
-                        p.remove(fullpath);
-                        drop(p);
                         return;
                     }
                 }
@@ -508,10 +508,10 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             let line =
                                 format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
                         }
-                        let mut p = processing.lock().unwrap();
-                        p.remove(fullpath);
-                        drop(p);
                         return;
                     }
                 }
@@ -577,10 +577,10 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                     filepath.to_str().unwrap()
                                 );
                                 failed(&pb, &line);
+                                let mut p = processing.lock().unwrap();
+                                p.remove(fullpath);
+                                drop(p);
                             }
-                            let mut p = processing.lock().unwrap();
-                            p.remove(fullpath);
-                            drop(p);
                             return;
                         }
                     }
@@ -615,10 +615,10 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     Err(_) => {
                         if args.info && !args.quiet {
                             created(&pb, filepath.to_str().unwrap());
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
                         }
-                        let mut p = processing.lock().unwrap();
-                        p.remove(fullpath);
-                        drop(p);
                         return;
                     }
                 }

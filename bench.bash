@@ -5,11 +5,16 @@ BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
 bench () {
+    echo ""
     file $1
-    hyperfine --runs 50 --warmup 10 --export-markdown bench-results/$3.md -i \
+    hyperfine --runs 50 --warmup 10 \
+        --command-name backhand-dist-musl-$(basename $1) \
         "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        --command-name backhand-dist-$(basename $1) \
         "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1"
+        --command-name squashfs-tools-$(basename $1) \
+        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1" \
+        --export-markdown bench-results/$3.md -i
 }
 
 cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate

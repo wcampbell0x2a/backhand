@@ -35,42 +35,42 @@ Vendor ID:               GenuineIntel
 
 </details>
 
-## Wall time: `backhand/unsquashfs-v0.14.2` vs `squashfs-tools/unsquashfs-4.6.1`
+## Wall time: `backhand/unsquashfs-master` vs `squashfs-tools/unsquashfs-4.6.1`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BHgGC -o 2252752 backhand-test/test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 199.8 ± 5.4 | 192.9 | 219.4 | 1.18 ± 0.07 |
-| `./target/dist/unsquashfs-backhand --quiet -f -d /tmp/BHGD0 -o 2252752 backhand-test/test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 180.0 ± 4.9 | 170.1 | 190.6 | 1.06 ± 0.06 |
-| `/usr/bin/unsquashfs -quiet -no-progress -d /tmp/BH7Ww      -f -o 2252752 -ignore-errors backhand-test/test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 169.0 ± 8.5 | 159.1 | 194.9 | 1.00 |
+| `backhand-dist-musl-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 198.0 ± 4.3 | 191.9 | 217.8 | 1.17 ± 0.06 |
+| `backhand-dist-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 180.3 ± 3.5 | 172.2 | 188.4 | 1.07 ± 0.06 |
+| `squashfs-tools-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 169.0 ± 8.2 | 155.6 | 192.9 | 1.00 |
 
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BHi7s -o 2883712 backhand-test/test-assets/test_openwrt_netgear_ex6100v2/openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 202.6 ± 4.1 | 196.1 | 212.0 | 1.25 ± 0.06 |
-| `./target/dist/unsquashfs-backhand --quiet -f -d /tmp/BHxh9 -o 2883712 backhand-test/test-assets/test_openwrt_netgear_ex6100v2/openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 183.4 ± 8.5 | 169.2 | 219.8 | 1.13 ± 0.07 |
-| `/usr/bin/unsquashfs -quiet -no-progress -d /tmp/BHpvG      -f -o 2883712 -ignore-errors backhand-test/test-assets/test_openwrt_netgear_ex6100v2/openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 162.1 ± 6.8 | 152.1 | 185.0 | 1.00 |
+| `backhand-dist-musl-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 202.4 ± 9.4 | 195.1 | 257.2 | 1.24 ± 0.09 |
+| `backhand-dist-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 184.2 ± 12.6 | 166.5 | 233.7 | 1.13 ± 0.10 |
+| `squashfs-tools-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 162.8 ± 8.7 | 149.9 | 188.0 | 1.00 |
+
+| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
+|:---|---:|---:|---:|---:|
+| `backhand-dist-musl-870D97.squashfs` | 982.8 ± 42.2 | 925.1 | 1200.4 | 1.43 ± 0.07 |
+| `backhand-dist-870D97.squashfs` | 867.4 ± 27.8 | 808.8 | 930.1 | 1.26 ± 0.05 |
+| `squashfs-tools-870D97.squashfs` | 686.4 ± 14.1 | 676.7 | 741.1 | 1.00 |
 
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
-| `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BH04Q -o 0 backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 1.005 ± 0.042 | 0.949 | 1.221 | 1.44 ± 0.08 |
-| `./target/dist/unsquashfs-backhand --quiet -f -d /tmp/BHNDa -o 0 backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 0.870 ± 0.023 | 0.820 | 0.911 | 1.25 ± 0.05 |
-| `/usr/bin/unsquashfs -quiet -no-progress -d /tmp/BHlK0      -f -o 0 -ignore-errors backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 0.698 ± 0.024 | 0.684 | 0.815 | 1.00 |
+| `backhand-dist-musl-img-1571203182_vol-ubi_rootfs.ubifs` | 1.068 ± 0.044 | 1.037 | 1.200 | 1.12 ± 0.06 |
+| `backhand-dist-img-1571203182_vol-ubi_rootfs.ubifs` | 0.976 ± 0.054 | 0.922 | 1.096 | 1.02 ± 0.06 |
+| `squashfs-tools-img-1571203182_vol-ubi_rootfs.ubifs` | 0.955 ± 0.028 | 0.924 | 1.093 | 1.00 |
+
+| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
+|:---|---:|---:|---:|---:|
+| `backhand-dist-musl-2611E3.squashfs` | 490.4 ± 23.1 | 463.3 | 577.6 | 1.12 ± 0.06 |
+| `backhand-dist-2611E3.squashfs` | 439.2 ± 12.4 | 414.2 | 469.1 | 1.00 |
+| `squashfs-tools-2611E3.squashfs` | 454.3 ± 18.7 | 421.1 | 524.4 | 1.03 ± 0.05 |
 
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
-| `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BHkLA -o 0 backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 1.070 ± 0.041 | 1.041 | 1.243 | 1.12 ± 0.05 |
-| `./target/dist/unsquashfs-backhand --quiet -f -d /tmp/BHxKt -o 0 backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 0.964 ± 0.048 | 0.923 | 1.087 | 1.01 ± 0.05 |
-| `/usr/bin/unsquashfs -quiet -no-progress -d /tmp/BHmjP      -f -o 0 -ignore-errors backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 0.953 ± 0.019 | 0.925 | 1.037 | 1.00 |
-
-| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
-|:---|---:|---:|---:|---:|
-| `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BHyeJ -o 0 backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs` | 489.4 ± 20.7 | 465.6 | 542.5 | 1.10 ± 0.06 |
-| `./target/dist/unsquashfs-backhand --quiet -f -d /tmp/BHKaH -o 0 backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs` | 444.6 ± 17.0 | 418.4 | 485.0 | 1.00 |
-| `/usr/bin/unsquashfs -quiet -no-progress -d /tmp/BHxoF      -f -o 0 -ignore-errors backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs` | 456.1 ± 12.9 | 429.4 | 482.8 | 1.03 ± 0.05 |
-
-| Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
-|:---|---:|---:|---:|---:|
-| `./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand --quiet -f -d /tmp/BHQl3 -o 188392 backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage` | 646.1 ± 6.4 | 634.5 | 661.8 | 1.21 ± 0.02 |
-| `./target/dist/unsquashfs-backhand --quiet -f -d /tmp/BHm5w -o 188392 backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage` | 635.6 ± 8.2 | 618.4 | 663.0 | 1.19 ± 0.02 |
-| `/usr/bin/unsquashfs -quiet -no-progress -d /tmp/BHUlC      -f -o 188392 -ignore-errors backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage` | 533.3 ± 6.6 | 527.6 | 571.7 | 1.00 |
+| `backhand-dist-musl-Plexamp-4.6.1.AppImage` | 1.266 ± 0.017 | 1.239 | 1.321 | 2.37 ± 0.16 |
+| `backhand-dist-Plexamp-4.6.1.AppImage` | 0.716 ± 0.017 | 0.695 | 0.783 | 1.34 ± 0.09 |
+| `squashfs-tools-Plexamp-4.6.1.AppImage` | 0.533 ± 0.034 | 0.518 | 0.698 | 1.00 |
 
 ## Heap Usage: `backhand/unsquashfs-v0.14.0` vs `squashfs-tools/unsquashfs-4.6.1`
 | Command | Peak Heap Memory Consumption |

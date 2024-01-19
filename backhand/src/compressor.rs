@@ -289,7 +289,7 @@ impl CompressionAction for DefaultCompressor {
                     .unwrap();
 
                 let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
-                let mut buf = vec![];
+                let mut buf = Vec::with_capacity(block_size as usize);
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)
             }
@@ -306,7 +306,7 @@ impl CompressionAction for DefaultCompressor {
                 // TODO(#8): Use window_size and strategies (current window size defaults to 15)
 
                 let mut encoder = ZlibEncoder::new(Cursor::new(bytes), compression_level);
-                let mut buf = vec![];
+                let mut buf = Vec::with_capacity(block_size as usize);
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)
             }
@@ -328,7 +328,7 @@ impl CompressionAction for DefaultCompressor {
                     Some(_) => unreachable!(),
                 };
                 let mut encoder = zstd::bulk::Compressor::new(compression_level as i32)?;
-                let mut buf = vec![];
+                let mut buf = Vec::with_capacity(block_size as usize);
                 encoder.compress_to_buffer(bytes, &mut buf)?;
                 Ok(buf)
             }

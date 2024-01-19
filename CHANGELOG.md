@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+- Bump `actions/upload-artifact` from 4.1.0 to 4.2.0 ([#435](https://github.com/wcampbell0x2a/backhand/pull/435))
+
 ## [v0.14.2] - 2024-01-16
 ### `backhand`
 - Enable overflow-checks ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))

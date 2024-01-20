@@ -17,7 +17,7 @@ use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-#[deku(type = "u16")]
+#[deku(id_type = "u16")]
 #[rustfmt::skip]
 pub enum Compressor {
     None = 0,

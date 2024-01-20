@@ -12,7 +12,7 @@ description = "Library for the reading, creating, and modification of SquashFS f
 readme = "../README.md"
 
 [dependencies]
-deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-writer" }
+deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-writer-inline-read-bytes" }
 tracing = "0.1.40"
 thiserror = "1.0.56"
 flate2 = { version = "1.0.28", optional = true }

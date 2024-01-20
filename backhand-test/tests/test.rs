@@ -32,6 +32,8 @@ fn only_read(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offs
     let file = BufReader::new(File::open(&og_path).unwrap());
     info!("calling from_reader");
     let _ = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
+
+    // TODO: this should still check our own unsquashfs
 }
 
 /// - Download file

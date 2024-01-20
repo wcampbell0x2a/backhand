@@ -107,6 +107,7 @@ pub trait SquashFsReader: BufReadSeek {
 
         let mut metadata_offsets = vec![];
         let mut ret_vec = HashMap::default();
+        ret_vec.reserve(superblock.inode_count as usize);
         let start = self.stream_position()?;
 
         while self.stream_position()? < superblock.dir_table {
@@ -149,6 +150,10 @@ pub trait SquashFsReader: BufReadSeek {
             // save leftover bits to new bits to leave for the next metadata block
             // this is safe, input_bits is always byte aligned
             ret_bytes.drain(..(ret_bytes.len() - (input_bits.len() / 8)));
+        }
+
+        if ret_vec.len() != superblock.inode_count as usize {
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
         Ok(ret_vec)

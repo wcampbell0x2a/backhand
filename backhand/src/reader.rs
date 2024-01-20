@@ -89,7 +89,7 @@ impl<T: Write + Seek> WriteSeek for T {}
 impl<T: BufReadSeek> SquashFsReader for T {}
 
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
-pub trait SquashFsReader: BufReadSeek {
+pub trait SquashFsReader: BufReadSeek + Sized {
     /// Parse Inode Table into `Vec<(position_read, Inode)>`
     fn inodes(
         &mut self,
@@ -297,12 +297,8 @@ pub trait SquashFsReader: BufReadSeek {
         // find the pointer at the initial offset
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
-        let buf: &mut [u8] = &mut [0u8; 8];
-        self.read_exact(buf)?;
-        trace!("{:02x?}", buf);
 
-        let mut cursor = Cursor::new(buf);
-        let mut deku_reader = Reader::new(&mut cursor);
+        let mut deku_reader = Reader::new(self);
         let ptr = u64::from_reader_with_ctx(&mut deku_reader, kind.inner.type_endian)?;
 
         let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
@@ -331,6 +327,8 @@ pub trait SquashFsReader: BufReadSeek {
         for _ in 0..count {
             let mut bytes = metadata::read_block(self, superblock, kind)?;
             all_bytes.append(&mut bytes);
+
+            // TODO: parse as we go
         }
 
         let mut ret_vec = vec![];

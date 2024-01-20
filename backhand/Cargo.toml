@@ -13,7 +13,7 @@ readme = "../README.md"
 
 [dependencies]
 tracing = { version = "0.1.40", features = ["release_max_level_off"] }
-deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-writer" }
+deku = { git = "https://github.com/sharksforarms/deku", branch = "impl-writer-inline-read-bytes" }
 thiserror = "1.0.56"
 flate2 = { version = "1.0.28", optional = true }
 zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }

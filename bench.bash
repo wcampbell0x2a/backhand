@@ -17,6 +17,7 @@ bench () {
         --export-markdown bench-results/$3.md -i
 }
 
+# Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
 cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate
 cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate
 mkdir -p bench-results

@@ -19,7 +19,7 @@ libc = "0.2.152"
 clap_complete = "4.4.7"
 indicatif = "0.17.7"
 console = "0.15.8"
-rayon = "1.8.0"
+rayon = "1.8.1"
 backhand = { path = "../backhand", default-features = false, version = "0.14.2" }
 tracing = "0.1.40"
 color-print = "0.3.5"

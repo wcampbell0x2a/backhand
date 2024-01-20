@@ -35,6 +35,10 @@ Vendor ID:               GenuineIntel
 
 </details>
 
+```
+$ ./bench.bash
+```
+
 ## Wall time: `backhand/unsquashfs-master` vs `squashfs-tools/unsquashfs-4.6.1`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
@@ -72,8 +76,17 @@ Vendor ID:               GenuineIntel
 | `backhand-dist-Plexamp-4.6.1.AppImage` | 0.716 ± 0.017 | 0.695 | 0.783 | 1.34 ± 0.09 |
 | `squashfs-tools-Plexamp-4.6.1.AppImage` | 0.533 ± 0.034 | 0.518 | 0.698 | 1.00 |
 
-## Heap Usage: `backhand/unsquashfs-v0.14.0` vs `squashfs-tools/unsquashfs-4.6.1`
+## Heap Usage: `backhand/unsquashfs-master` vs `squashfs-tools/unsquashfs-4.6.1`
+```
+$ cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate
+```
+
 | Command | Peak Heap Memory Consumption |
 | :------ | ---------------------------: |
-| `heaptrack ./target/release/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 19.4MB |
-| `heaptrack unsquashfs -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 75.7MB |
+| `heaptrack ./target/dist/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 19.4MB |
+| `heaptrack unsquashfs -quiet -no-progress -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 75.7MB |
+
+| Command | Peak Heap Memory Consumption |
+| :------ | ---------------------------: |
+| `heaptrack ./target/dist/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 39.6MB |
+| `heaptrack unsquashfs -d $(mktemp -d) backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 114.4MB |

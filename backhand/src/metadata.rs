@@ -114,17 +114,12 @@ impl Write for MetadataWriter {
     }
 }
 
-pub fn read_block<R: Read + ?Sized>(
+pub fn read_block<R: Read>(
     reader: &mut R,
     superblock: &SuperBlock,
     kind: &Kind,
 ) -> Result<Vec<u8>, BackhandError> {
-    let buf: &mut [u8] = &mut [0u8; 2];
-    reader.read_exact(buf)?;
-
-    trace!("{:02x?}", buf);
-    let mut cursor = Cursor::new(buf);
-    let mut deku_reader = Reader::new(&mut cursor);
+    let mut deku_reader = Reader::new(reader);
     let metadata_len = u16::from_reader_with_ctx(&mut deku_reader, kind.inner.data_endian)?;
 
     let byte_len = len(metadata_len);

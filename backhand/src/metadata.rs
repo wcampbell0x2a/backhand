@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::io::{self, Cursor, Read, Seek, Write};
+use std::io::{self, Read, Seek, Write};
 
 use deku::prelude::*;
 use tracing::trace;

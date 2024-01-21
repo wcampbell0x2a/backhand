@@ -12,8 +12,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248 # master
         with:
           toolchain: stable
-      - run: cargo build --bins --release --locked --workspace
-      - uses: boa-dev/criterion-compare-action@v3
+      - uses: wcampbell0x2a/criterion-compare-action@20e6511506d7c141bcb0e336db78928cc5504870
         with:
           branchName: ${{ github.base_ref }}
+          before: "cargo build --bins --release --locked --workspace"
           token: ${{ secrets.GITHUB_TOKEN }}

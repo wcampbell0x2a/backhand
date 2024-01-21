@@ -112,7 +112,6 @@ pub fn bench_read(c: &mut Criterion) {
 pub fn bench_unsquashfs_extract(c: &mut Criterion) {
     let mut group = c.benchmark_group("unsquashfs");
     group.sampling_mode(SamplingMode::Flat);
-    group.sample_size(10);
 
     const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
 

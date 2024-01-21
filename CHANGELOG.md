@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `actions/upload-artifact` from 4.1.0 to 4.2.0 ([#435](https://github.com/wcampbell0x2a/backhand/pull/435))
 - Bump `env_logger` from 0.10.1 to 0.10.2 ([#432](https://github.com/wcampbell0x2a/backhand/pull/432))
 - Bump `rayon` from 1.8.0 to 1.8.1 ([#431](https://github.com/wcampbell0x2a/backhand/pull/431))
+- Bump `clap` from 4.4.17 to 4.4.18 ([#428](https://github.com/wcampbell0x2a/backhand/pull/428))
 
 ## [v0.14.2] - 2024-01-16
 ### `backhand`

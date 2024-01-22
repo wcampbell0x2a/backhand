@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `env_logger` from 0.10.1 to 0.10.2 ([#432](https://github.com/wcampbell0x2a/backhand/pull/432))
 - Bump `rayon` from 1.8.0 to 1.8.1 ([#431](https://github.com/wcampbell0x2a/backhand/pull/431))
 - Bump `clap` from 4.4.17 to 4.4.18 ([#428](https://github.com/wcampbell0x2a/backhand/pull/428))
+- Bump `clap_complete` from 4.4.7 to 4.4.8 ([#444](https://github.com/wcampbell0x2a/backhand/pull/444))
 
 ## [v0.14.2] - 2024-01-16
 ### `backhand`

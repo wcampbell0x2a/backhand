@@ -224,17 +224,19 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         end_ptr: u64,
         kind: &Kind,
-    ) -> Result<Vec<(u64, Vec<u8>)>, BackhandError> {
+    ) -> Result<(FxHashMap<u64, u64>, Vec<u8>), BackhandError> {
         let seek = superblock.dir_table;
         self.seek(SeekFrom::Start(seek))?;
+        let mut map = HashMap::default();
         let mut all_bytes = vec![];
         while self.stream_position()? != end_ptr {
             let metadata_start = self.stream_position()?;
-            let bytes = metadata::read_block(self, superblock, kind)?;
-            all_bytes.push((metadata_start - seek, bytes));
+            let mut bytes = metadata::read_block(self, superblock, kind)?;
+            map.insert(metadata_start - seek, all_bytes.len() as u64);
+            all_bytes.append(&mut bytes);
         }
 
-        Ok(all_bytes)
+        Ok((map, all_bytes))
     }
 
     /// Parse Fragment Table

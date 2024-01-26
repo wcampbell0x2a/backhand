@@ -205,7 +205,7 @@ pub struct Squashfs<'b> {
     /// Root Inode
     pub root_inode: Inode,
     /// Bytes containing Directory Table
-    pub dir_blocks: Vec<(u64, Vec<u8>)>,
+    pub dir_blocks: (FxHashMap<u64, u64>, Vec<u8>),
     /// Fragments Lookup Table
     pub fragments: Option<Vec<Fragment>>,
     /// Export Lookup Table
@@ -464,13 +464,8 @@ impl<'b> Squashfs<'b> {
 
         // ignore blocks before our block_index, grab all the rest of the bytes
         // TODO: perf
-        let block: Vec<u8> = self
-            .dir_blocks
-            .iter()
-            .filter(|(a, _)| *a >= block_index)
-            .flat_map(|(_, b)| b.iter())
-            .copied()
-            .collect();
+        let offset = self.dir_blocks.0.get(&block_index).unwrap();
+        let block = &self.dir_blocks.1[*offset as usize..];
 
         let bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];

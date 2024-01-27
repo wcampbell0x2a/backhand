@@ -95,7 +95,10 @@ impl<'b> FilesystemReader<'b> {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     ///
     /// With default kind: [`crate::kind::LE_V4_0`] and offset `0`.
-    pub fn from_reader<R: BufReadSeek + 'b>(reader: R) -> Result<Self, BackhandError> {
+    pub fn from_reader<R>(reader: R) -> Result<Self, BackhandError>
+    where
+        R: BufReadSeek + 'b,
+    {
         let squashfs = Squashfs::from_reader_with_offset(reader, 0)?;
         squashfs.into_filesystem_reader()
     }
@@ -109,20 +112,23 @@ impl<'b> FilesystemReader<'b> {
     }
 
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
-    pub fn from_reader_with_offset<R: BufReadSeek + 'b>(
-        reader: R,
-        offset: u64,
-    ) -> Result<Self, BackhandError> {
+    pub fn from_reader_with_offset<R>(reader: R, offset: u64) -> Result<Self, BackhandError>
+    where
+        R: BufReadSeek + 'b,
+    {
         let squashfs = Squashfs::from_reader_with_offset(reader, offset)?;
         squashfs.into_filesystem_reader()
     }
 
     /// Same as [`Self::from_reader_with_offset`], but setting custom `kind`
-    pub fn from_reader_with_offset_and_kind<R: BufReadSeek + 'b>(
+    pub fn from_reader_with_offset_and_kind<R>(
         reader: R,
         offset: u64,
         kind: Kind,
-    ) -> Result<Self, BackhandError> {
+    ) -> Result<Self, BackhandError>
+    where
+        R: BufReadSeek + 'b,
+    {
         let squashfs = Squashfs::from_reader_with_offset_and_kind(reader, offset, kind)?;
         squashfs.into_filesystem_reader()
     }

@@ -200,17 +200,17 @@ pub struct Squashfs<'b> {
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
-    // All Inodes
+    // Inode Cache `<InodeNumber, Inode>`
     pub inodes: FxHashMap<u32, Inode>,
     /// Root Inode
     pub root_inode: Inode,
-    /// Bytes containing Directory Table
+    /// Bytes containing Directory Table `(<OffsetFromImage, OffsetInData>, Data)`
     pub dir_blocks: (FxHashMap<u64, u64>, Vec<u8>),
-    /// Fragments Lookup Table
+    /// Fragments Lookup Table Cache
     pub fragments: Option<Vec<Fragment>>,
-    /// Export Lookup Table
+    /// Export Lookup Table Cache
     pub export: Option<Vec<Export>>,
-    /// Id Lookup Table
+    /// Id Lookup Table Cache
     pub id: Vec<Id>,
     //file reader
     file: Box<dyn BufReadSeek + 'b>,

@@ -1,5 +1,6 @@
 //! Reader traits
 
+use std::cmp::min;
 use std::collections::HashMap;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 
@@ -91,7 +92,7 @@ impl<T: BufReadSeek> SquashFsReader for T {}
 
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
 pub trait SquashFsReader: BufReadSeek {
-    /// Parse Inode Table into `Vec<(position_read, Inode)>`
+    /// Cache Inode Table
     fn inodes(
         &mut self,
         superblock: &SuperBlock,
@@ -107,7 +108,8 @@ pub trait SquashFsReader: BufReadSeek {
 
         let mut metadata_offsets = vec![];
         let mut ret_vec = HashMap::default();
-        ret_vec.reserve(superblock.inode_count as usize);
+
+        ret_vec.try_reserve(min(superblock.inode_count as usize, 10000))?;
         let start = self.stream_position()?;
 
         while self.stream_position()? < superblock.dir_table {
@@ -239,7 +241,7 @@ pub trait SquashFsReader: BufReadSeek {
         Ok((map, all_bytes))
     }
 
-    /// Parse Fragment Table
+    /// Parse and Cache Fragment Table
     fn fragments(
         &mut self,
         superblock: &SuperBlock,
@@ -274,7 +276,7 @@ pub trait SquashFsReader: BufReadSeek {
         }
     }
 
-    /// Parse ID Table
+    /// Parse and Cache ID Table
     fn id(
         &mut self,
         superblock: &SuperBlock,

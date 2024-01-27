@@ -390,7 +390,8 @@ impl<'b> Squashfs<'b> {
         };
 
         info!("Reading Dirs");
-        let dir_blocks = reader.dir_blocks(&superblock, last_dir_position, &kind)?;
+        let dir_blocks =
+            reader.dir_blocks(superblock.dir_table, &superblock, last_dir_position, &kind)?;
 
         let squashfs = Squashfs {
             kind,

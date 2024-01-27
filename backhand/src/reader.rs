@@ -33,7 +33,10 @@ impl<R: BufReadSeek> SquashfsReaderWithOffset<R> {
     }
 }
 
-impl<R: BufReadSeek> BufRead for SquashfsReaderWithOffset<R> {
+impl<R> BufRead for SquashfsReaderWithOffset<R>
+where
+    R: BufReadSeek,
+{
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
         self.io.fill_buf()
     }
@@ -43,13 +46,19 @@ impl<R: BufReadSeek> BufRead for SquashfsReaderWithOffset<R> {
     }
 }
 
-impl<R: BufReadSeek> Read for SquashfsReaderWithOffset<R> {
+impl<R> Read for SquashfsReaderWithOffset<R>
+where
+    R: BufReadSeek,
+{
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.io.read(buf)
     }
 }
 
-impl<R: BufReadSeek> Seek for SquashfsReaderWithOffset<R> {
+impl<R> Seek for SquashfsReaderWithOffset<R>
+where
+    R: BufReadSeek,
+{
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         let seek = match pos {
             SeekFrom::Start(start) => SeekFrom::Start(self.offset + start),
@@ -65,7 +74,10 @@ pub trait SeekRewind {
     fn rewind(&mut self) -> std::io::Result<()>;
 }
 
-impl<T: Seek> SeekRewind for T {
+impl<T> SeekRewind for T
+where
+    T: Seek,
+{
     fn rewind(&mut self) -> std::io::Result<()> {
         <Self as Seek>::rewind(self)
     }
@@ -97,66 +109,32 @@ pub trait SquashFsReader: BufReadSeek {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Result<FxHashMap<u32, Inode>, BackhandError> {
+        let (map, bytes) =
+            self.dir_blocks(superblock.inode_table, superblock, superblock.dir_table, kind)?;
         self.seek(SeekFrom::Start(superblock.inode_table))?;
 
-        // The directory inodes store the total, uncompressed size of the entire listing, including headers.
-        // Using this size, a SquashFS reader can determine if another header with further entries
-        // should be following once it reaches the end of a run.
-
-        let mut ret_bytes = Vec::with_capacity(METADATA_MAXSIZE);
-
-        let mut metadata_offsets = vec![];
-        let mut ret_vec = HashMap::default();
-        ret_vec.reserve(superblock.inode_count as usize);
-        let start = self.stream_position()?;
-
-        while self.stream_position()? < superblock.dir_table {
-            trace!("offset: {:02x?}", self.stream_position());
-            metadata_offsets.push(self.stream_position()? - start);
-            // parse into metadata
-            let mut bytes = metadata::read_block(self, superblock, kind)?;
-
-            // parse as many inodes as you can
-            ret_bytes.append(&mut bytes);
-
-            let mut input_bits = ret_bytes.view_bits::<deku::bitvec::Msb0>();
-            while !input_bits.is_empty() {
-                match Inode::read(
-                    input_bits,
-                    (
-                        superblock.bytes_used,
-                        superblock.block_size,
-                        superblock.block_log,
-                        kind.inner.type_endian,
-                    ),
-                ) {
-                    Ok((rest, inode)) => {
-                        // Push the new Inode to the return, with the position this was read from
-                        ret_vec.insert(inode.header.inode_number, inode);
-                        input_bits = rest;
-                    }
-                    Err(e) => {
-                        if let DekuError::Incomplete(_) = e {
-                            // try next block, inodes can span multiple blocks!
-                            break;
-                        } else {
-                            error!("{e}");
-                            return Err(BackhandError::Deku(e));
-                        }
-                    }
-                }
-            }
-
-            // save leftover bits to new bits to leave for the next metadata block
-            // this is safe, input_bits is always byte aligned
-            ret_bytes.drain(..(ret_bytes.len() - (input_bits.len() / 8)));
+        let mut rest = bytes.view_bits::<deku::bitvec::Msb0>();
+        let mut inodes = HashMap::default();
+        while rest.len() != 0 {
+            let (new_rest, i) = Inode::read(
+                rest,
+                (
+                    superblock.bytes_used,
+                    superblock.block_size,
+                    superblock.block_log,
+                    kind.inner.type_endian,
+                ),
+            )?;
+            rest = new_rest;
+            inodes.insert(i.header.inode_number, i);
         }
 
-        if ret_vec.len() != superblock.inode_count as usize {
+        if inodes.len() != superblock.inode_count as usize {
+            error!("inodes {} != superblock.inode_count {}", inodes.len(), superblock.inode_count);
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
-        Ok(ret_vec)
+        Ok(inodes)
     }
 
     /// Extract the root `Inode` as a `BasicDirectory`
@@ -221,11 +199,11 @@ pub trait SquashFsReader: BufReadSeek {
     /// Parse required number of `Metadata`s uncompressed blocks required for `Dir`s
     fn dir_blocks(
         &mut self,
+        seek: u64,
         superblock: &SuperBlock,
         end_ptr: u64,
         kind: &Kind,
     ) -> Result<(FxHashMap<u64, u64>, Vec<u8>), BackhandError> {
-        let seek = superblock.dir_table;
         self.seek(SeekFrom::Start(seek))?;
         let mut map = HashMap::default();
         let mut all_bytes = vec![];
@@ -287,13 +265,16 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse Lookup Table
-    fn lookup_table<T: for<'a> DekuRead<'a, deku::ctx::Endian>>(
+    fn lookup_table<T>(
         &mut self,
         superblock: &SuperBlock,
         seek: u64,
         size: u64,
         kind: &Kind,
-    ) -> Result<(u64, Vec<T>), BackhandError> {
+    ) -> Result<(u64, Vec<T>), BackhandError>
+    where
+        T: for<'a> DekuRead<'a, deku::ctx::Endian>,
+    {
         // find the pointer at the initial offset
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
@@ -313,13 +294,16 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse count of `Metadata` block at offset into `T`
-    fn metadata_with_count<T: for<'a> DekuRead<'a, deku::ctx::Endian>>(
+    fn metadata_with_count<T>(
         &mut self,
         superblock: &SuperBlock,
         seek: u64,
         count: u64,
         kind: &Kind,
-    ) -> Result<Vec<T>, BackhandError> {
+    ) -> Result<Vec<T>, BackhandError>
+    where
+        T: for<'a> DekuRead<'a, deku::ctx::Endian>,
+    {
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
 

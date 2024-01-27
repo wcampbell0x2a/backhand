@@ -1,5 +1,6 @@
 //! Errors
 
+use std::collections::TryReserveError;
 use std::{io, string};
 
 use thiserror::Error;
@@ -51,6 +52,9 @@ pub enum BackhandError {
 
     #[error("file duplicated in squashfs image")]
     DuplicatedFileName,
+
+    #[error("allocator try_reserve error")]
+    TryReserveError(#[from] TryReserveError),
 }
 
 impl From<BackhandError> for io::Error {
@@ -70,7 +74,8 @@ impl From<BackhandError> for io::Error {
             | InvalidCompressionOption
             | InvalidFilePath
             | UndefineFileName
-            | DuplicatedFileName => Self::from(io::ErrorKind::InvalidData),
+            | DuplicatedFileName
+            | TryReserveError(_) => Self::from(io::ErrorKind::InvalidData),
         }
     }
 }

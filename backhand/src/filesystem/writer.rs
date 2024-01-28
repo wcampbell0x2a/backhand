@@ -231,22 +231,25 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     }
 
     //find the node relative to this path and return a mutable reference
-    fn mut_node<S: AsRef<Path>>(
-        &mut self,
-        find_path: S,
-    ) -> Option<&mut Node<SquashfsFileWriter<'a, 'b, 'c>>> {
+    fn mut_node<S>(&mut self, find_path: S) -> Option<&mut Node<SquashfsFileWriter<'a, 'b, 'c>>>
+    where
+        S: AsRef<Path>,
+    {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
         let find_path = normalize_squashfs_path(find_path.as_ref()).ok()?;
         self.root.node_mut(find_path)
     }
 
-    fn insert_node<P: AsRef<Path>>(
+    fn insert_node<P>(
         &mut self,
         path: P,
         header: NodeHeader,
         node: InnerNode<SquashfsFileWriter<'a, 'b, 'c>>,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
         // create gid id
         self.lookup_add_id(header.gid);
         // create uid id
@@ -260,12 +263,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
-    pub fn push_file<P: AsRef<Path>>(
+    pub fn push_file<P>(
         &mut self,
         reader: impl Read + 'c,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
         let reader = Arc::new(Mutex::new(reader));
         let new_file = InnerNode::File(SquashfsFileWriter::UserDefined(reader));
         self.insert_node(path, header, new_file)?;
@@ -273,10 +279,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     }
 
     /// Take a mutable reference to existing file at `find_path`
-    pub fn mut_file<S: AsRef<Path>>(
-        &mut self,
-        find_path: S,
-    ) -> Option<&mut SquashfsFileWriter<'a, 'b, 'c>> {
+    pub fn mut_file<S>(&mut self, find_path: S) -> Option<&mut SquashfsFileWriter<'a, 'b, 'c>>
+    where
+        S: AsRef<Path>,
+    {
         self.mut_node(find_path).and_then(|node| {
             if let InnerNode::File(file) = &mut node.inner {
                 Some(file)
@@ -287,11 +293,14 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     }
 
     /// Replace an existing file
-    pub fn replace_file<S: AsRef<Path>>(
+    pub fn replace_file<S>(
         &mut self,
         find_path: S,
         reader: impl Read + 'c,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        S: AsRef<Path>,
+    {
         let file = self.mut_file(find_path).ok_or(BackhandError::FileNotFound)?;
         let reader = Arc::new(Mutex::new(reader));
         *file = SquashfsFileWriter::UserDefined(reader);
@@ -301,12 +310,16 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// Insert symlink `path` -> `link`
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
-    pub fn push_symlink<P: AsRef<Path>, S: Into<PathBuf>>(
+    pub fn push_symlink<P, S>(
         &mut self,
         link: S,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+        S: Into<PathBuf>,
+    {
         let new_symlink = InnerNode::Symlink(SquashfsSymlink { link: link.into() });
         self.insert_node(path, header, new_symlink)?;
         Ok(())
@@ -315,11 +328,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// Insert empty `dir` at `path`
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
-    pub fn push_dir<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        header: NodeHeader,
-    ) -> Result<(), BackhandError> {
+    pub fn push_dir<P>(&mut self, path: P, header: NodeHeader) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
         let new_dir = InnerNode::Dir(SquashfsDir::default());
         self.insert_node(path, header, new_dir)?;
         Ok(())
@@ -329,11 +341,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// if they are missing.
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
-    pub fn push_dir_all<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        header: NodeHeader,
-    ) -> Result<(), BackhandError> {
+    pub fn push_dir_all<P>(&mut self, path: P, header: NodeHeader) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
         let path = normalize_squashfs_path(path.as_ref())?;
@@ -359,12 +370,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// Insert character device with `device_number` at `path`
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
-    pub fn push_char_device<P: AsRef<Path>>(
+    pub fn push_char_device<P>(
         &mut self,
         device_number: u32,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
         let new_device = InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number });
         self.insert_node(path, header, new_device)?;
         Ok(())
@@ -373,12 +387,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// Insert block device with `device_number` at `path`
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
-    pub fn push_block_device<P: AsRef<Path>>(
+    pub fn push_block_device<P>(
         &mut self,
         device_number: u32,
         path: P,
         header: NodeHeader,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
         let new_device = InnerNode::BlockDevice(SquashfsBlockDevice { device_number });
         self.insert_node(path, header, new_device)?;
         Ok(())
@@ -386,22 +403,28 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
     /// Same as [`Self::write`], but seek'ing to `offset` in `w` before reading. This offset
     /// is treated as the base image offset.
-    pub fn write_with_offset<W: Write + Seek>(
+    pub fn write_with_offset<W>(
         &mut self,
         w: W,
         offset: u64,
-    ) -> Result<(SuperBlock, u64), BackhandError> {
+    ) -> Result<(SuperBlock, u64), BackhandError>
+    where
+        W: Write + Seek,
+    {
         let writer = WriterWithOffset::new(w, offset)?;
         self.write(writer)
     }
 
-    fn write_data<W: WriteSeek>(
+    fn write_data<W>(
         &mut self,
         compressor: FilesystemCompressor,
         block_size: u32,
         mut writer: W,
         data_writer: &mut DataWriter<'b>,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<(), BackhandError>
+    where
+        W: WriteSeek,
+    {
         let files = self.root.nodes.iter_mut().filter_map(|node| match &mut node.inner {
             InnerNode::File(file) => Some(file),
             _ => None,
@@ -569,7 +592,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
+    pub fn write<W>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError>
+    where
+        W: Write + Seek,
+    {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
@@ -667,11 +693,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok((superblock, bytes_written))
     }
 
-    fn finalize<W: Write + Seek>(
-        &self,
-        mut w: W,
-        superblock: &mut SuperBlock,
-    ) -> Result<u64, BackhandError> {
+    fn finalize<W>(&self, mut w: W, superblock: &mut SuperBlock) -> Result<u64, BackhandError>
+    where
+        W: Write + Seek,
+    {
         superblock.bytes_used = w.stream_position()?;
 
         // pad bytes if required
@@ -750,12 +775,16 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///  │└────────────────────────────┘│
     ///  └──────────────────────────────┘
     ///  ```
-    fn write_lookup_table<D: DekuWrite<deku::ctx::Endian>, W: Write + Seek>(
+    fn write_lookup_table<D, W>(
         &self,
         mut w: W,
-        table: &Vec<D>,
+        table: &[D],
         element_size: usize,
-    ) -> Result<(u64, u32), BackhandError> {
+    ) -> Result<(u64, u32), BackhandError>
+    where
+        D: DekuWrite<deku::ctx::Endian>,
+        W: Write + Seek,
+    {
         let mut ptrs: Vec<u64> = vec![];
         let mut table_bytes = Vec::with_capacity(table.len() * element_size);
         let mut iter = table.iter().peekable();
@@ -812,13 +841,18 @@ struct WriterWithOffset<W: WriteSeek> {
     w: W,
     offset: u64,
 }
+
 impl<W: WriteSeek> WriterWithOffset<W> {
     pub fn new(mut w: W, offset: u64) -> std::io::Result<Self> {
         w.seek(SeekFrom::Start(offset))?;
         Ok(Self { w, offset })
     }
 }
-impl<W: WriteSeek> Write for WriterWithOffset<W> {
+
+impl<W> Write for WriterWithOffset<W>
+where
+    W: WriteSeek,
+{
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.w.write(buf)
     }
@@ -828,7 +862,10 @@ impl<W: WriteSeek> Write for WriterWithOffset<W> {
     }
 }
 
-impl<W: Write + Seek> Seek for WriterWithOffset<W> {
+impl<W> Seek for WriterWithOffset<W>
+where
+    W: Write + Seek,
+{
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         let seek = match pos {
             SeekFrom::Start(start) => SeekFrom::Start(self.offset + start),

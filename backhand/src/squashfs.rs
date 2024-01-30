@@ -358,10 +358,7 @@ impl<'b> Squashfs<'b> {
 
         // Read all fields from filesystem to make a Squashfs
         info!("Reading Inodes");
-        let inodes = reader.inodes(&superblock, &kind)?;
-
-        info!("Reading Root Inode");
-        let root_inode = reader.root_inode(&superblock, &kind)?;
+        let (root_inode, inodes) = reader.inodes(&superblock, &kind)?;
 
         info!("Reading Fragments");
         let fragments = reader.fragments(&superblock, &kind)?;
@@ -390,8 +387,12 @@ impl<'b> Squashfs<'b> {
         };
 
         info!("Reading Dirs");
-        let dir_blocks =
-            reader.dir_blocks(superblock.dir_table, &superblock, last_dir_position, &kind)?;
+        let dir_blocks = reader.uncompress_metadatas(
+            superblock.dir_table,
+            &superblock,
+            last_dir_position,
+            &kind,
+        )?;
 
         let squashfs = Squashfs {
             kind,

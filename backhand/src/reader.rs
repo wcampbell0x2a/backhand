@@ -105,14 +105,19 @@ impl<T: BufReadSeek> SquashFsReader for T {}
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
 pub trait SquashFsReader: BufReadSeek {
     /// Cache Inode Table
+    /// # Returns
+    /// - `(RootInode, HashMap<inode_number, Inode>)``
     fn inodes(
         &mut self,
         superblock: &SuperBlock,
         kind: &Kind,
-    ) -> Result<FxHashMap<u32, Inode>, BackhandError> {
-        let (_map, bytes) =
-            self.dir_blocks(superblock.inode_table, superblock, superblock.dir_table, kind)?;
-        self.seek(SeekFrom::Start(superblock.inode_table))?;
+    ) -> Result<(Inode, FxHashMap<u32, Inode>), BackhandError> {
+        let (map, bytes) = self.uncompress_metadatas(
+            superblock.inode_table,
+            superblock,
+            superblock.dir_table,
+            kind,
+        )?;
 
         let mut rest = bytes.view_bits::<deku::bitvec::Msb0>();
         let mut inodes = HashMap::default();
@@ -136,70 +141,39 @@ pub trait SquashFsReader: BufReadSeek {
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
-        Ok(inodes)
-    }
-
-    /// Extract the root `Inode` as a `BasicDirectory`
-    fn root_inode(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Inode, BackhandError> {
         let root_inode_start = (superblock.root_inode >> 16) as usize;
         let root_inode_offset = (superblock.root_inode & 0xffff) as usize;
-        trace!("root_inode_start:  0x{root_inode_start:02x?}");
-        trace!("root_inode_offset: 0x{root_inode_offset:02x?}");
-        if (root_inode_start as u64) > superblock.bytes_used {
-            error!("root_inode_offset > bytes_used");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
 
-        // Assumptions are made here that the root inode fits within two metadatas
-        let seek = superblock.inode_table + root_inode_start as u64;
-        self.seek(SeekFrom::Start(seek))?;
-        let mut bytes_01 = metadata::read_block(self, superblock, kind)?;
-
-        // try reading just one metdata block
-        if root_inode_offset > bytes_01.len() {
-            error!("root_inode_offset > bytes.len()");
+        let Some(root_offset) = map.get(&(root_inode_start as u64)) else {
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-        let new_bytes = &bytes_01[root_inode_offset..];
-        let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
-        if let Ok((_, inode)) = Inode::read(
-            input_bits,
+        };
+
+        let Some(rest) = bytes.get(*root_offset as usize..) else {
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        };
+
+        let Some(rest) = rest.get(root_inode_offset..) else {
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        };
+        let rest = rest.view_bits::<deku::bitvec::Msb0>();
+        let (_, root_inode) = Inode::read(
+            rest,
             (
                 superblock.bytes_used,
                 superblock.block_size,
                 superblock.block_log,
                 kind.inner.type_endian,
             ),
-        ) {
-            return Ok(inode);
-        }
+        )?;
 
-        // if that doesn't work, we need another block
-        let bytes_02 = metadata::read_block(self, superblock, kind)?;
-        bytes_01.write_all(&bytes_02)?;
-        if root_inode_offset > bytes_01.len() {
-            error!("root_inode_offset > bytes.len()");
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        }
-        let new_bytes = &bytes_01[root_inode_offset..];
-
-        let input_bits = new_bytes.view_bits::<::deku::bitvec::Msb0>();
-        match Inode::read(
-            input_bits,
-            (
-                superblock.bytes_used,
-                superblock.block_size,
-                superblock.block_log,
-                kind.inner.type_endian,
-            ),
-        ) {
-            Ok((_, inode)) => Ok(inode),
-            Err(e) => Err(e.into()),
-        }
+        Ok((root_inode, inodes))
     }
 
     /// Parse required number of `Metadata`s uncompressed blocks required for `Dir`s
-    fn dir_blocks(
+    ///
+    /// # Returns
+    /// - `(HashMap<offset_from_seek, offset_from_bytes>, Bytes)`
+    fn uncompress_metadatas(
         &mut self,
         seek: u64,
         superblock: &SuperBlock,

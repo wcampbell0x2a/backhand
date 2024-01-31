@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `rayon` from 1.8.0 to 1.8.1 ([#431](https://github.com/wcampbell0x2a/backhand/pull/431))
 - Bump `clap` from 4.4.17 to 4.4.18 ([#428](https://github.com/wcampbell0x2a/backhand/pull/428))
 - Bump `clap_complete` from 4.4.7 to 4.4.9 ([#444](https://github.com/wcampbell0x2a/backhand/pull/444), [#445](https://github.com/wcampbell0x2a/backhand/pull/445))
-- Bump `codecov/codecov-action` from 3.1.4 to 3.1.5 ([#448](https://github.com/wcampbell0x2a/backhand/pull/448))
+- Bump `codecov/codecov-action` from 3.1.4 to 3.1.6 ([#448](https://github.com/wcampbell0x2a/backhand/pull/448), [#457](https://github.com/wcampbell0x2a/backhand/pull/457))
 - Bump `obi1kenobi/cargo-semver-checks-action` from 2.2 to 2.3 ([#449](https://github.com/wcampbell0x2a/backhand/pull/449))
 
 ## [v0.14.2] - 2024-01-16

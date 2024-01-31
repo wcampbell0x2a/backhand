@@ -14,6 +14,7 @@ fn test_add() {
     use std::io::Write;
     use std::os::unix::prelude::PermissionsExt;
 
+    use backhand::DEFAULT_BLOCK_SIZE;
     use nix::sys::stat::utimes;
     use nix::sys::time::TimeVal;
 
@@ -53,6 +54,9 @@ fn test_add() {
 
     let mut file = File::create(tmp_dir.path().join("file").to_str().unwrap()).unwrap();
     file.write_all(b"nice").unwrap();
+    let mut file = File::create(tmp_dir.path().join("big_file").to_str().unwrap()).unwrap();
+    file.write_all(&[b'a'; DEFAULT_BLOCK_SIZE as usize * 2]).unwrap();
+
     let metadata = file.metadata().unwrap();
     let mut permissions = metadata.permissions();
 
@@ -81,19 +85,38 @@ fn test_add() {
         .unwrap();
     cmd.assert().code(0);
 
+    let cmd = common::get_base_command("add-backhand")
+        .env("RUST_LOG", "none")
+        .args([
+            tmp_dir.path().join("out1").to_str().unwrap(),
+            "/test/big_file",
+            "--file",
+            tmp_dir.path().join("big_file").to_str().unwrap(),
+            "--gid",
+            "2",
+            "--uid",
+            "4242",
+            "--mtime",
+            "120",
+            "-o",
+            tmp_dir.path().join("out2").to_str().unwrap(),
+        ])
+        .unwrap();
+    cmd.assert().code(0);
+
     #[cfg(feature = "__test_unsquashfs")]
     {
         let output = Command::new("unsquashfs")
-            .args(["-lln", "-UTC", tmp_dir.path().join("out1").to_str().unwrap()])
+            .args(["-lln", "-UTC", tmp_dir.path().join("out2").to_str().unwrap()])
             .output()
             .unwrap();
         let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root
 drwxr-xr-x 1000/1000                24 2022-10-14 03:02 squashfs-root/b
 drwxr-xr-x 1000/1000                24 2022-10-14 03:03 squashfs-root/b/c
 -rw-r--r-- 1000/1000                39 2022-10-14 03:03 squashfs-root/b/c/d
-dr----x--t 2/4242                   26 1970-01-01 00:01 squashfs-root/test
--rw-r--r-- 4242/2                    4 1970-01-01 00:02 squashfs-root/test/new
-"#;
+dr----x--t 2/4242                   42 1970-01-01 00:01 squashfs-root/test
+-rw-r--r-- 4242/2               262144 1970-01-01 00:02 squashfs-root/test/big_file
+-rw-r--r-- 4242/2                    4 1970-01-01 00:02 squashfs-root/test/new"#;
 
         // using contains here, the output of squashfs varies between versions
         assert!(std::str::from_utf8(&output.stdout).unwrap().contains(expected));

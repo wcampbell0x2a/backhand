@@ -65,4 +65,5 @@ jobs:
           file: backhand-${{ matrix.targets }}.tar.gz
           asset_name: backhand-${{ github.ref_name }}-${{ matrix.targets }}.tar.gz
           tag: ${{ github.ref }}
+          prerelease: true
           overwrite: true

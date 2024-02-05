@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `codecov/codecov-action` from 3.1.4 to 4.0.0 ([#448](https://github.com/wcampbell0x2a/backhand/pull/448), [#457](https://github.com/wcampbell0x2a/backhand/pull/457), [#458](https://github.com/wcampbell0x2a/backhand/pull/458))
 - Bump `obi1kenobi/cargo-semver-checks-action` from 2.2 to 2.3 ([#449](https://github.com/wcampbell0x2a/backhand/pull/449))
 - Bump `libc` from 0.2.152 to 0.2.153 ([#459](https://github.com/wcampbell0x2a/backhand/pull/459))
+- Bump `dangoslen/dependabot-changelog-helper` from 3.7.0 to 3.8.0 ([#461](https://github.com/wcampbell0x2a/backhand/pull/461))
 
 ## [v0.14.2] - 2024-01-16
 ### `backhand`

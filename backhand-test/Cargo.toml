@@ -8,7 +8,7 @@ publish = false
 backhand = { path = "../backhand", default-features = false }
 assert_cmd = { version = "2.0.13", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
-tempfile = "3.9.0"
+tempfile = "3.10.0"
 test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
 test-log = { version = "0.2.14", features = ["trace"] }
 tracing = "0.1.40"

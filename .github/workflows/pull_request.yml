@@ -27,7 +27,7 @@ jobs:
       - uses: dangoslen/dependabot-changelog-helper@ffabc6ebe06fd7717ad1929945c8b95a4d9e7ba0 # v3.8.0
         with:
           version: 'Unreleased'
-          activationLabel: 'C-dependencies'
+          activationLabels: 'C-dependencies,dependabot-reviewed'
           changelogPath: './CHANGELOG.md'
         
       - name: Commit the changes

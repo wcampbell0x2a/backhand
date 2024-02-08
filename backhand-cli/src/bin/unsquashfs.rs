@@ -22,6 +22,7 @@ use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
+use nix::unistd::mkfifo;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -619,6 +620,29 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             p.remove(fullpath);
                             drop(p);
                         }
+                        return;
+                    }
+                }
+            }
+            InnerNode::NamedPipe => {
+                match mkfifo(
+                    &filepath,
+                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                ) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+
+                        set_attributes(&pb, args, &filepath, &node.header, root_process, true);
+                    }
+                    Err(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
                         return;
                     }
                 }

@@ -210,6 +210,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     InnerNode::Dir(x) => InnerNode::Dir(*x),
                     InnerNode::CharacterDevice(x) => InnerNode::CharacterDevice(*x),
                     InnerNode::BlockDevice(x) => InnerNode::BlockDevice(*x),
+                    InnerNode::NamedPipe => InnerNode::NamedPipe,
                 };
                 Node { fullpath: node.fullpath.clone(), header: node.header, inner }
             })
@@ -524,6 +525,17 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     block,
+                    node_id.get().try_into().unwrap(),
+                    inode_writer,
+                    superblock,
+                    kind,
+                    id_table,
+                ))
+            }
+            InnerNode::NamedPipe => {
+                return Ok(Entry::named_pipe(
+                    filename,
+                    node.header,
                     node_id.get().try_into().unwrap(),
                     inode_writer,
                     superblock,

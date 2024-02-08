@@ -6,7 +6,7 @@ use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
 use crate::inode::{
     BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory, Inode,
-    InodeHeader, InodeId, InodeInner,
+    InodeHeader, InodeId, InodeInner, BasicNamedPipe,
 };
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
@@ -234,6 +234,37 @@ impl<'a> Entry<'a> {
         );
 
         block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+    }
+
+    /// Write data and metadata for named pipe node
+    #[allow(clippy::too_many_arguments)]
+    pub fn named_pipe(
+        node_path: &'a OsStr,
+        header: NodeHeader,
+        inode: u32,
+        inode_writer: &mut MetadataWriter,
+        superblock: &SuperBlock,
+        kind: &Kind,
+        id_table: &[Id],
+    ) -> Self {
+        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
+        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+        let header = InodeHeader {
+            inode_number: inode,
+            uid,
+            gid,
+            permissions: header.permissions,
+            mtime: header.mtime,
+        };
+        let char_inode = Inode::new(
+            InodeId::BasicNamedPipe,
+            header,
+            InodeInner::BasicNamedPipe(BasicNamedPipe {
+                link_count: 0x1,
+            }),
+        );
+
+        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
     }
 }
 

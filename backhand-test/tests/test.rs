@@ -51,6 +51,18 @@ fn full_test(
     verify: Verify,
     assert_success: bool,
 ) {
+    full_test_inner(assets_defs, filepath, test_path, offset, verify, assert_success, true)
+}
+
+fn full_test_inner(
+    assets_defs: &[TestAssetDef],
+    filepath: &str,
+    test_path: &str,
+    offset: u64,
+    verify: Verify,
+    assert_success: bool,
+    run_squashfs_tools_unsquashfs: bool,
+) {
     test_assets::download_test_files(assets_defs, test_path, true).unwrap();
 
     let og_path = format!("{test_path}/{filepath}");
@@ -81,15 +93,32 @@ fn full_test(
 
     match verify {
         Verify::Extract => {
-            #[cfg(feature = "__test_unsquashfs")]
-            {
-                info!("starting squashfs-tools/unsquashfs test");
-                test_squashfs_tools_unsquashfs(&og_path, &new_path, Some(offset), assert_success);
+            if run_squashfs_tools_unsquashfs {
+                #[cfg(feature = "__test_unsquashfs")]
+                {
+                    info!("starting squashfs-tools/unsquashfs test");
+                    test_squashfs_tools_unsquashfs(
+                        &og_path,
+                        &new_path,
+                        Some(offset),
+                        assert_success,
+                    );
+                }
             }
             info!("starting backhand/unsquashfs original test");
-            test_bin_unsquashfs(&og_path, Some(offset), assert_success);
+            test_bin_unsquashfs(
+                &og_path,
+                Some(offset),
+                assert_success,
+                run_squashfs_tools_unsquashfs,
+            );
             info!("starting backhand/unsquashfs created test");
-            test_bin_unsquashfs(&new_path, Some(offset), assert_success);
+            test_bin_unsquashfs(
+                &new_path,
+                Some(offset),
+                assert_success,
+                run_squashfs_tools_unsquashfs,
+            );
         }
     }
 }
@@ -449,6 +478,25 @@ fn test_few_dirs_many_files() {
 
     if has_gzip_feature() {
         full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+    } else {
+        only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
+    }
+}
+
+#[test]
+#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+fn test_socket_fifo() {
+    const FILE_NAME: &str = "squashfs_v4.specfile.bin";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "d27f2e4baf57df961b9aa7298ac390a54fd0d2c904bf1d4baaee49cbdd0a93f1".to_string(),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_socket_fifo/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/socket_fifo";
+
+    if has_gzip_feature() {
+        full_test_inner(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true, false);
     } else {
         only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
     }

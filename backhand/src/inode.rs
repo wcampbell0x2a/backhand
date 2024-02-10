@@ -73,6 +73,7 @@ pub enum InodeId {
     BasicBlockDevice     = 4,
     BasicCharacterDevice = 5,
     BasicNamedPipe       = 6, // aka FIFO
+    BasicSocket          = 7,
     ExtendedDirectory    = 8,
     ExtendedFile         = 9,
     // TODO:
@@ -116,7 +117,10 @@ pub enum InodeInner {
     BasicCharacterDevice(BasicDeviceSpecialFile),
 
     #[deku(id = "InodeId::BasicNamedPipe")]
-    BasicNamedPipe(BasicNamedPipe),
+    BasicNamedPipe(IPCNode),
+
+    #[deku(id = "InodeId::BasicSocket")]
+    BasicSocket(IPCNode),
 
     #[deku(id = "InodeId::ExtendedDirectory")]
     ExtendedDirectory(ExtendedDirectory),
@@ -251,6 +255,6 @@ pub struct BasicDeviceSpecialFile {
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-pub struct BasicNamedPipe {
+pub struct IPCNode {
     pub link_count: u32,
 }

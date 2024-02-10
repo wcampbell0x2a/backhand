@@ -647,6 +647,31 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     }
                 }
             }
+            InnerNode::Socket => {
+                match mknod(
+                    &filepath,
+                    SFlag::S_IFSOCK,
+                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                    dev_t::from(0_u64),
+                ) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+
+                        set_attributes(&pb, args, &filepath, &node.header, root_process, true);
+                    }
+                    Err(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
+                        }
+                        return;
+                    }
+                }
+            }
         }
         let mut p = processing.lock().unwrap();
         p.remove(fullpath);

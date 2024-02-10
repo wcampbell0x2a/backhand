@@ -211,6 +211,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     InnerNode::CharacterDevice(x) => InnerNode::CharacterDevice(*x),
                     InnerNode::BlockDevice(x) => InnerNode::BlockDevice(*x),
                     InnerNode::NamedPipe => InnerNode::NamedPipe,
+                    InnerNode::Socket => InnerNode::Socket,
                 };
                 Node { fullpath: node.fullpath.clone(), header: node.header, inner }
             })
@@ -534,6 +535,17 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             }
             InnerNode::NamedPipe => {
                 return Ok(Entry::named_pipe(
+                    filename,
+                    node.header,
+                    node_id.get().try_into().unwrap(),
+                    inode_writer,
+                    superblock,
+                    kind,
+                    id_table,
+                ))
+            }
+            InnerNode::Socket => {
+                return Ok(Entry::socket(
                     filename,
                     node.header,
                     node_id.get().try_into().unwrap(),

@@ -289,10 +289,12 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 data.resize(block_size, 0);
                 //NOTE: storing/restoring the file-pos is not required at the
                 //moment of writing, but in the future, it may.
-                let mut reader = self.file.system.reader.lock().unwrap();
-                reader.seek(SeekFrom::Start(self.pos))?;
-                reader.read_exact(data)?;
-                self.pos = reader.stream_position()?;
+                {
+                    let mut reader = self.file.system.reader.lock().unwrap();
+                    reader.seek(SeekFrom::Start(self.pos))?;
+                    reader.read_exact(data)?;
+                    self.pos = reader.stream_position()?;
+                }
                 Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
@@ -308,9 +310,11 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     //otherwise read and return it
                     let frag_size = fragment.size.size() as usize;
                     data.resize(frag_size, 0);
-                    let mut reader = self.file.system.reader.lock().unwrap();
-                    reader.seek(SeekFrom::Start(fragment.start))?;
-                    reader.read_exact(data)?;
+                    {
+                        let mut reader = self.file.system.reader.lock().unwrap();
+                        reader.seek(SeekFrom::Start(fragment.start))?;
+                        reader.read_exact(data)?;
+                    }
                     Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
                 }
             }

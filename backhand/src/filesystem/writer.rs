@@ -403,6 +403,30 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok(())
     }
 
+    /// Insert FIFO (named pipe)
+    ///
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
+    pub fn push_fifo<P>(&mut self, path: P, header: NodeHeader) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
+        let new_device = InnerNode::NamedPipe;
+        self.insert_node(path, header, new_device)?;
+        Ok(())
+    }
+
+    /// Insert Socket (UNIX domain socket)
+    ///
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
+    pub fn push_socket<P>(&mut self, path: P, header: NodeHeader) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
+        let new_device = InnerNode::Socket;
+        self.insert_node(path, header, new_device)?;
+        Ok(())
+    }
+
     /// Same as [`Self::write`], but seek'ing to `offset` in `w` before reading. This offset
     /// is treated as the base image offset.
     pub fn write_with_offset<W>(

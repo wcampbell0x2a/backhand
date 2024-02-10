@@ -210,6 +210,8 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     InnerNode::Dir(x) => InnerNode::Dir(*x),
                     InnerNode::CharacterDevice(x) => InnerNode::CharacterDevice(*x),
                     InnerNode::BlockDevice(x) => InnerNode::BlockDevice(*x),
+                    InnerNode::NamedPipe => InnerNode::NamedPipe,
+                    InnerNode::Socket => InnerNode::Socket,
                 };
                 Node { fullpath: node.fullpath.clone(), header: node.header, inner }
             })
@@ -401,6 +403,30 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok(())
     }
 
+    /// Insert FIFO (named pipe)
+    ///
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
+    pub fn push_fifo<P>(&mut self, path: P, header: NodeHeader) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
+        let new_device = InnerNode::NamedPipe;
+        self.insert_node(path, header, new_device)?;
+        Ok(())
+    }
+
+    /// Insert Socket (UNIX domain socket)
+    ///
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
+    pub fn push_socket<P>(&mut self, path: P, header: NodeHeader) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
+        let new_device = InnerNode::Socket;
+        self.insert_node(path, header, new_device)?;
+        Ok(())
+    }
+
     /// Same as [`Self::write`], but seek'ing to `offset` in `w` before reading. This offset
     /// is treated as the base image offset.
     pub fn write_with_offset<W>(
@@ -524,6 +550,28 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     block,
+                    node_id.get().try_into().unwrap(),
+                    inode_writer,
+                    superblock,
+                    kind,
+                    id_table,
+                ))
+            }
+            InnerNode::NamedPipe => {
+                return Ok(Entry::named_pipe(
+                    filename,
+                    node.header,
+                    node_id.get().try_into().unwrap(),
+                    inode_writer,
+                    superblock,
+                    kind,
+                    id_table,
+                ))
+            }
+            InnerNode::Socket => {
+                return Ok(Entry::socket(
+                    filename,
+                    node.header,
                     node_id.get().try_into().unwrap(),
                     inode_writer,
                     superblock,

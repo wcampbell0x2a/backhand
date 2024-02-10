@@ -40,6 +40,8 @@ use crate::{Node, Squashfs, SquashfsFileReader};
 ///         InnerNode::Dir(_) => (),
 ///         InnerNode::CharacterDevice(_) => (),
 ///         InnerNode::BlockDevice(_) => (),
+///         InnerNode::NamedPipe => (),
+///         InnerNode::Socket => (),
 ///     }
 /// }
 /// ```

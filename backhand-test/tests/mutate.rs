@@ -91,7 +91,7 @@ fn test_add_00() {
     {
         let control_new_path = format!("{TEST_PATH}/control.squashfs");
         test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
-        test_bin_unsquashfs(&og_path, None, true);
-        test_bin_unsquashfs(&new_path, None, true);
+        test_bin_unsquashfs(&og_path, None, true, true);
+        test_bin_unsquashfs(&new_path, None, true, true);
     }
 }

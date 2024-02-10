@@ -61,7 +61,12 @@ pub fn test_squashfs_tools_unsquashfs(
 }
 
 // Test that both our unsquashfs and unsquashfs both extract to the same
-pub fn test_bin_unsquashfs(file: &str, file_offset: Option<u64>, assert_success: bool) {
+pub fn test_bin_unsquashfs(
+    file: &str,
+    file_offset: Option<u64>,
+    assert_success: bool,
+    run_squashfs_tools_unsquashfs: bool,
+) {
     let tmp_dir = tempdir().unwrap();
     // Run "our" unsquashfs against the control
     let cmd = get_base_command("unsquashfs-backhand")
@@ -78,37 +83,39 @@ pub fn test_bin_unsquashfs(file: &str, file_offset: Option<u64>, assert_success:
     cmd.assert().code(&[0] as &[i32]);
 
     // only squashfs-tools/unsquashfs when x86_64
-    #[cfg(feature = "__test_unsquashfs")]
-    {
-        let mut cmd = Command::new("unsquashfs");
-        let cmd = cmd.args([
-            "-d",
-            tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
-            "-o",
-            &file_offset.unwrap_or(0).to_string(),
-            // we don't run as root, avoid special file errors
-            "-ignore-errors",
-            //"-no-exit-code",
-            file,
-        ]);
+    if run_squashfs_tools_unsquashfs {
+        #[cfg(feature = "__test_unsquashfs")]
+        {
+            let mut cmd = Command::new("unsquashfs");
+            let cmd = cmd.args([
+                "-d",
+                tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
+                "-o",
+                &file_offset.unwrap_or(0).to_string(),
+                // we don't run as root, avoid special file errors
+                "-ignore-errors",
+                //"-no-exit-code",
+                file,
+            ]);
 
-        // For older version of squashfs-tools that the cross-rs/cross projects uses,
-        // we can't using new -no-exit-code option in unsquashfs, so for the images
-        // that contain /dev devices we can't assert the success of unsquashfs.
-        if assert_success {
-            cmd.assert().code(&[0] as &[i32]);
-        } else {
-            cmd.assert();
+            // For older version of squashfs-tools that the cross-rs/cross projects uses,
+            // we can't using new -no-exit-code option in unsquashfs, so for the images
+            // that contain /dev devices we can't assert the success of unsquashfs.
+            if assert_success {
+                cmd.assert().code(&[0] as &[i32]);
+            } else {
+                cmd.assert();
+            }
+            tracing::info!("{:?}", cmd);
+
+            let d = dir_diff::is_different(
+                tmp_dir.path().join("squashfs-root-rust"),
+                tmp_dir.path().join("squashfs-root-c"),
+            );
+            // remove the followig comment to keep around tmp dirs
+            // let _ = tmp_dir.into_path();
+            assert!(!d.expect("couldn't compare dirs"));
         }
-        tracing::info!("{:?}", cmd);
-
-        let d = dir_diff::is_different(
-            tmp_dir.path().join("squashfs-root-rust"),
-            tmp_dir.path().join("squashfs-root-c"),
-        );
-        // remove the followig comment to keep around tmp dirs
-        // let _ = tmp_dir.into_path();
-        assert!(!d.expect("couldn't compare dirs"));
     }
 }
 

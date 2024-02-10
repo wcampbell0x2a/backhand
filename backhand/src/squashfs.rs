@@ -554,6 +554,8 @@ impl<'b> Squashfs<'b> {
                             let device_number = self.block_device(found_inode)?;
                             InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
                         }
+                        InodeId::BasicNamedPipe => InnerNode::NamedPipe,
+                        InodeId::BasicSocket => InnerNode::Socket,
                         InodeId::ExtendedFile => {
                             return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
                         }

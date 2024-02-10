@@ -83,6 +83,8 @@ pub enum InnerNode<T> {
     Dir(SquashfsDir),
     CharacterDevice(SquashfsCharacterDevice),
     BlockDevice(SquashfsBlockDevice),
+    NamedPipe,
+    Socket,
 }
 
 /// Unread file for filesystem

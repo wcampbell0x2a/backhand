@@ -22,6 +22,7 @@ use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
+use nix::unistd::mkfifo;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -604,6 +605,54 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     SFlag::S_IFBLK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
                     dev_t::from(*device_number),
+                ) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+
+                        set_attributes(&pb, args, &filepath, &node.header, root_process, true);
+                    }
+                    Err(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                            let mut p = processing.lock().unwrap();
+                            p.remove(fullpath);
+                            drop(p);
+                        }
+                        return;
+                    }
+                }
+            }
+            InnerNode::NamedPipe => {
+                match mkfifo(
+                    &filepath,
+                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                ) {
+                    Ok(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+
+                        set_attributes(&pb, args, &filepath, &node.header, root_process, true);
+                    }
+                    Err(_) => {
+                        if args.info && !args.quiet {
+                            created(&pb, filepath.to_str().unwrap());
+                        }
+                        let mut p = processing.lock().unwrap();
+                        p.remove(fullpath);
+                        drop(p);
+                        return;
+                    }
+                }
+            }
+            InnerNode::Socket => {
+                match mknod(
+                    &filepath,
+                    SFlag::S_IFSOCK,
+                    Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
+                    dev_t::from(0_u64),
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {

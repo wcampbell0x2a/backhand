@@ -828,7 +828,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     fn write_lookup_table<D: DekuWriter<deku::ctx::Endian>, W: Write + Seek>(
         &self,
         mut w: W,
-        table: &Vec<D>,
+        table: &[D],
         element_size: usize,
     ) -> Result<(u64, u32), BackhandError>
     where

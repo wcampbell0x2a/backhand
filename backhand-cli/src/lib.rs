@@ -33,7 +33,7 @@ pub fn after_help(rayon_env: bool) -> String {
 
     s.push_str(color_print::cstr!("<green, bold>Environment Variables:\n"));
     s.push_str(color_print::cstr!("  <cyan, bold>RUST_LOG:"));
-    s.push_str(r#"    "https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables""#);
+    s.push_str("    https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables");
     if rayon_env {
         s.push('\n');
         s.push_str(color_print::cstr!("  <cyan, bold>RAYON_NUM_THREADS:"));

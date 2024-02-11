@@ -438,7 +438,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     .join(", "),
             );
             pb.inc(1);
-            drop(p);
         }
 
         let filepath = Path::new(&args.dest).join(fullpath);
@@ -456,7 +455,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         exists(&pb, filepath.to_str().unwrap());
                         let mut p = processing.lock().unwrap();
                         p.remove(fullpath);
-                        drop(p);
                     }
                     return;
                 }
@@ -479,7 +477,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             failed(&pb, &line);
                             let mut p = processing.lock().unwrap();
                             p.remove(fullpath);
-                            drop(p);
                         }
                         return;
                     }
@@ -493,7 +490,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     exists(&pb, filepath.to_str().unwrap());
                     let mut p = processing.lock().unwrap();
                     p.remove(fullpath);
-                    drop(p);
                     return;
                 }
 
@@ -511,7 +507,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             failed(&pb, &line);
                             let mut p = processing.lock().unwrap();
                             p.remove(fullpath);
-                            drop(p);
                         }
                         return;
                     }
@@ -535,7 +530,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             }
                             let mut p = processing.lock().unwrap();
                             p.remove(fullpath);
-                            drop(p);
                             return;
                         }
                     }
@@ -580,7 +574,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                 failed(&pb, &line);
                                 let mut p = processing.lock().unwrap();
                                 p.remove(fullpath);
-                                drop(p);
                             }
                             return;
                         }
@@ -595,7 +588,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     }
                     let mut p = processing.lock().unwrap();
                     p.remove(fullpath);
-                    drop(p);
                     return;
                 }
             }
@@ -618,7 +610,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             created(&pb, filepath.to_str().unwrap());
                             let mut p = processing.lock().unwrap();
                             p.remove(fullpath);
-                            drop(p);
                         }
                         return;
                     }
@@ -642,7 +633,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         }
                         let mut p = processing.lock().unwrap();
                         p.remove(fullpath);
-                        drop(p);
                         return;
                     }
                 }
@@ -666,7 +656,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             created(&pb, filepath.to_str().unwrap());
                             let mut p = processing.lock().unwrap();
                             p.remove(fullpath);
-                            drop(p);
                         }
                         return;
                     }
@@ -675,7 +664,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         }
         let mut p = processing.lock().unwrap();
         p.remove(fullpath);
-        drop(p);
     });
 
     // fixup dir permissions

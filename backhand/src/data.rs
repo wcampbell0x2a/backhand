@@ -118,7 +118,7 @@ impl<'a> DataWriter<'a> {
     pub(crate) fn just_copy_it<W: WriteSeek>(
         &mut self,
         mut reader: SquashfsRawData,
-        mut writer: W,
+        writer: &mut W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
         let mut block_sizes = reader.file.basic.block_sizes.clone();
@@ -181,7 +181,7 @@ impl<'a> DataWriter<'a> {
     pub(crate) fn add_bytes<W: WriteSeek>(
         &mut self,
         reader: impl Read,
-        mut writer: W,
+        writer: &mut W,
     ) -> Result<(usize, Added), BackhandError> {
         let mut chunk_reader = DataWriterChunkReader {
             chunk: vec![0u8; self.block_size as usize],

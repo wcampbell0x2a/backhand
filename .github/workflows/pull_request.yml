@@ -24,7 +24,7 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
 
-      - uses: dangoslen/dependabot-changelog-helper@ffabc6ebe06fd7717ad1929945c8b95a4d9e7ba0 # v3.8.0
+      - uses: dangoslen/dependabot-changelog-helper@3e4e9ccb99f4a3214f6ae9fe3339917d8f836ba7 # v3.8.1
         with:
           version: 'Unreleased'
           activationLabels: 'C-dependencies,dependabot-reviewed'

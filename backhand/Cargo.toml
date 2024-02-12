@@ -14,7 +14,7 @@ readme = "../README.md"
 [dependencies]
 deku = "0.16.0"
 tracing = { version = "0.1.40", features = ["release_max_level_off"] }
-thiserror = "1.0.56"
+thiserror = "1.0.57"
 flate2 = { version = "1.0.28", optional = true }
 zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }
 xz2 = { version = "0.1.7", optional = true }

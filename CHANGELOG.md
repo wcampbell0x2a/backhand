@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `dangoslen/dependabot-changelog-helper` from 3.7.0 to 3.8.0 ([#461](https://github.com/wcampbell0x2a/backhand/pull/461))
 - Bump `thiserror` from 1.0.56 to 1.0.57 ([#476](https://github.com/wcampbell0x2a/backhand/pull/476))
 - Bump `indicatif` from 0.17.7 to 0.17.8 ([#477](https://github.com/wcampbell0x2a/backhand/pull/477))
+- Bump `libdeflater` from 1.19.0 to 1.19.2 ([#486](https://github.com/wcampbell0x2a/backhand/pull/486))
 
 ## [v0.14.2] - 2024-01-16
 ### `backhand`

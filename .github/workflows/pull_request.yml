@@ -32,5 +32,6 @@ jobs:
       - name: Commit the changes
         uses: stefanzweifel/git-auto-commit-action@8756aa072ef5b4a080af5dc8fef36c5d586e521d # v5.0.0
         with:
+          skip_checkout: true
           commit_message: "Update changelog"
           branch: ${{ github.head_ref }}

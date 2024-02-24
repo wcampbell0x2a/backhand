@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
+          ref: ${{ github.head_ref }}
           token: ${{ secrets.PAT }}
 
       - uses: dangoslen/dependabot-changelog-helper@3e4e9ccb99f4a3214f6ae9fe3339917d8f836ba7 # v3.8.1

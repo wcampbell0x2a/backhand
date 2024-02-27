@@ -30,7 +30,7 @@ jobs:
         toolchain:
           - stable
             # msrv of backhand-cli
-          - 1.73.0
+          - 1.74.0
         features:
           # default features
           -
@@ -62,7 +62,7 @@ jobs:
         toolchain:
           - stable
             # msrv of backhand-cli
-          - 1.73.0
+          - 1.74.0
         features:
           - --no-default-features --features xz
           - --no-default-features --features gzip

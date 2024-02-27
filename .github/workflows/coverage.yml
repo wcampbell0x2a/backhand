@@ -39,7 +39,7 @@ jobs:
       - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean -- --skip slow
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@0cfda1dd0a4ad9efc75517f399d859cd1ea4ced1 # v4.0.2
+        uses: codecov/codecov-action@54bcd8715eee62d40e33596ef5e8f0f48dbbccab # v4.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: codecov.json

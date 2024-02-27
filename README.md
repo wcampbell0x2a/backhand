@@ -109,10 +109,10 @@ Options:
   -d, --dir            Create empty directory
   -f, --file <FILE>    Path of file to read, to write into squashfs
   -o, --out <OUT>      Squashfs output image [default: added.squashfs]
-      --mode <MODE>    Overide mode read from <FILE>
-      --uid <UID>      Overide uid read from <FILE>
-      --gid <GID>      Overide gid read from <FILE>
-      --mtime <MTIME>  Overide mtime read from <FILE>
+      --mode <MODE>    Override mode read from <FILE>
+      --uid <UID>      Override uid read from <FILE>
+      --gid <GID>      Override gid read from <FILE>
+      --mtime <MTIME>  Override mtime read from <FILE>
   -h, --help           Print help
   -V, --version        Print version
 ```

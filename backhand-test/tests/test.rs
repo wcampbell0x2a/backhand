@@ -81,7 +81,7 @@ fn full_test_inner(
     // Test Debug is impl'ed properly on FilesystemWriter
     let _ = format!("{new_filesystem:#02x?}");
 
-    // assert that our library can atleast read the output, use unsquashfs to really assert this
+    // assert that our library can at least read the output, use unsquashfs to really assert this
     info!("calling from_reader");
     let created_file = BufReader::new(File::open(&new_path).unwrap());
     let written_new_filesystem =

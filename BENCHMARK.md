@@ -1,4 +1,4 @@
-# libary benchmarks
+# library benchmarks
 ```
 $ cargo bench
 ```

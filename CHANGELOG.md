@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `assert_cmd` from 2.0.13 to 2.0.14 ([#484](https://github.com/wcampbell0x2a/backhand/pull/484))
 - Bump `nix` from 0.27.1 to 0.28.0 ([#489](https://github.com/wcampbell0x2a/backhand/pull/489))
 - Bump `test-log` from 0.2.14 to 0.2.15 ([#492](https://github.com/wcampbell0x2a/backhand/pull/492))
+- Bump `tempfile` from 3.9.0 to 3.10.1 ([#491](https://github.com/wcampbell0x2a/backhand/pull/491))
 
 ## [v0.14.2] - 2024-01-16
 ### `backhand`

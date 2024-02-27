@@ -101,7 +101,7 @@ For example, the following is now allowed:
 - Changed name to `unsquashfs-backhand` ([#356](https://github.com/wcampbell0x2a/backhand/pull/356))
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add `--quiet` for not displaying progress bar and RUST_LOG output ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
-- Add multiple threads for extracing files, giving us the same performance in most cases as `squashfs-tools/unsquashfs`! ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
+- Add multiple threads for extracting files, giving us the same performance in most cases as `squashfs-tools/unsquashfs`! ([#278](https://github.com/wcampbell0x2a/backhand/pull/278))
 
 #### add
 - Changed name to `add-backhand` ([#356](https://github.com/wcampbell0x2a/backhand/pull/356))

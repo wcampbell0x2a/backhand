@@ -47,7 +47,7 @@ fn full_test(
     }
 
     {
-        // assert that our library can atleast read the output
+        // assert that our library can at least read the output
         info!("calling from_reader");
         let created_file = BufReader::new(File::open(&new_path).unwrap());
         let _new_filesystem = FilesystemReader::from_reader_with_offset_and_kind(

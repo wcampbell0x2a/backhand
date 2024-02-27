@@ -355,7 +355,7 @@ impl<'a> Entry<'a> {
             if let Some(next) = &iter.peek() {
                 // if the next entry would be > the lowest_inode
                 let max_inode = (next.inode as u64).abs_diff(lowest_inode as u64) > i16::MAX as u64;
-                // make sure entires have the correct start and amount of directories
+                // make sure entries have the correct start and amount of directories
                 if next.start != creating_start || creating_dir.len() >= 255 || max_inode {
                     let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode);
                     dirs.push(dir);

@@ -1,4 +1,4 @@
-// Compiled for every binary, as this is not a workspce
+// Compiled for every binary, as this is not a workspace
 use clap::builder::styling::*;
 #[doc(hidden)]
 pub fn styles() -> clap::builder::Styles {

@@ -81,7 +81,7 @@ pub struct Xz {
     // for these aren't found
     // TODO: both are currently unused in this library
     // TODO: in openwrt, git-hash:f97ad870e11ebe5f3dcf833dda6c83b9165b37cb shows that before
-    // offical squashfs-tools had xz support they had the dictionary_size field as the last field
+    // official squashfs-tools had xz support they had the dictionary_size field as the last field
     // in this struct. If we get test images, I guess we can support this in the future.
     #[deku(cond = "!deku::rest.is_empty()")]
     pub bit_opts: Option<u16>,
@@ -149,7 +149,7 @@ pub trait CompressionAction {
     ///
     /// * `bytes` - Input compressed bytes
     /// * `out` - Output uncompressed bytes. You will need to call `out.resize(out.capacity(), 0)`
-    /// if your compressor relies on having a max sized bufer to write into.
+    /// if your compressor relies on having a max sized buffer to write into.
     /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
     /// compressor doesn't follow the normal values of the Compressor Id.
     ///

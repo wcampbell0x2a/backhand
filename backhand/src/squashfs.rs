@@ -510,7 +510,7 @@ impl<'b> Squashfs<'b> {
         };
         if let Some(dirs) = dirs {
             for d in &dirs {
-                trace!("extracing entry: {:#?}", d.dir_entries);
+                trace!("extracting entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
                     let inode_key =
                         (d.inode_num as i32 + entry.inode_offset as i32).try_into().unwrap();

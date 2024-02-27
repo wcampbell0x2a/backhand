@@ -43,19 +43,19 @@ struct Args {
     #[clap(short, long, default_value = "added.squashfs")]
     out: PathBuf,
 
-    /// Overide mode read from <FILE>
+    /// Override mode read from <FILE>
     #[clap(long, required_if_eq("dir", "true"))]
     mode: Option<u16>,
 
-    /// Overide uid read from <FILE>
+    /// Override uid read from <FILE>
     #[clap(long, required_if_eq("dir", "true"))]
     uid: Option<u32>,
 
-    /// Overide gid read from <FILE>
+    /// Override gid read from <FILE>
     #[clap(long, required_if_eq("dir", "true"))]
     gid: Option<u32>,
 
-    /// Overide mtime read from <FILE>
+    /// Override mtime read from <FILE>
     #[clap(long, required_if_eq("dir", "true"))]
     mtime: Option<u32>,
 }

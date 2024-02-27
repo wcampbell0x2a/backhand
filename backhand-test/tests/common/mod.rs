@@ -112,7 +112,7 @@ pub fn test_bin_unsquashfs(
                 tmp_dir.path().join("squashfs-root-rust"),
                 tmp_dir.path().join("squashfs-root-c"),
             );
-            // remove the followig comment to keep around tmp dirs
+            // remove the following comment to keep around tmp dirs
             // let _ = tmp_dir.into_path();
             assert!(!d.expect("couldn't compare dirs"));
         }

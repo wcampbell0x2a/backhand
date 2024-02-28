@@ -31,7 +31,7 @@ jobs:
       - name: Populate cache
         uses: ./.github/workflows/cache
 
-      - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248 # master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
       - run: cargo install cargo-quickinstall

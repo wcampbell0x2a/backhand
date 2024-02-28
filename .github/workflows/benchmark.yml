@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248 # master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
       - uses: wcampbell0x2a/criterion-compare-action@20e6511506d7c141bcb0e336db78928cc5504870

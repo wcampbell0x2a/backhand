@@ -562,7 +562,7 @@ impl<'b> Squashfs<'b> {
                     };
                     let node = Node::new(
                         fullpath.clone(),
-                        NodeHeader::from_inode(header, id_table),
+                        NodeHeader::from_inode(header, id_table)?,
                         inner,
                     );
                     root.nodes.push(node);
@@ -618,7 +618,7 @@ impl<'b> Squashfs<'b> {
     /// like structure in-memory
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
-        let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id));
+        let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id)?);
         self.extract_dir(&mut PathBuf::from("/"), &mut root, &self.root_inode, &self.id)?;
         root.nodes.sort();
 

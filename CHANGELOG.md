@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### `backhand`
 - Add support for `Socket` and `NamedFIFO` Inodes in library and extraction binaries. Thanks ([@tnias](https://github.com/tnias)) ([#472](https://github.com/wcampbell0x2a/backhand/pull/472), [#470](https://github.com/wcampbell0x2a/backhand/pull/470))
   - Add `FilesytemWriter::push_fifo` and  `FilesystemWriter::push_socket`
+- Fix panic found with fuzz testing in `NodeHeader::from_inode` ([#494](https://github.com/wcampbell0x2a/backhand/pull/494))
 ### `backhand-cli`
 #### unsquashfs 
 - Performance: Remove progress bar Mutex lock when `--quiet` ([#430](https://github.com/wcampbell0x2a/backhand/pull/430))

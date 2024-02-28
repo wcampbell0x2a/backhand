@@ -27,13 +27,15 @@ impl NodeHeader {
 }
 
 impl NodeHeader {
-    pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Self {
-        Self {
+    pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Result<Self, BackhandError> {
+        let uid = id_table.get(inode_header.uid as usize).ok_or(BackhandError::InvalidIdTable)?;
+        let gid = id_table.get(inode_header.gid as usize).ok_or(BackhandError::InvalidIdTable)?;
+        Ok(Self {
             permissions: inode_header.permissions,
-            uid: id_table[inode_header.uid as usize].num,
-            gid: id_table[inode_header.gid as usize].num,
+            uid: uid.num,
+            gid: gid.num,
             mtime: inode_header.mtime,
-        }
+        })
     }
 }
 

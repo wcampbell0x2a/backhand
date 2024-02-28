@@ -55,6 +55,9 @@ pub enum BackhandError {
 
     #[error("allocator try_reserve error")]
     TryReserveError(#[from] TryReserveError),
+
+    #[error("invalid id_table for node")]
+    InvalidIdTable,
 }
 
 impl From<BackhandError> for io::Error {
@@ -75,6 +78,7 @@ impl From<BackhandError> for io::Error {
             | InvalidFilePath
             | UndefineFileName
             | DuplicatedFileName
+            | InvalidIdTable
             | TryReserveError(_) => Self::from(io::ErrorKind::InvalidData),
         }
     }

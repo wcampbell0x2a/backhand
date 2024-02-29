@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `FilesytemWriter::push_fifo` and  `FilesystemWriter::push_socket`
 - Fix panic found with fuzz testing in `NodeHeader::from_inode` ([#494](https://github.com/wcampbell0x2a/backhand/pull/494))
 ### `backhand-cli`
+- Bump MSRV to `1.74` for `clap-4.5.1` update ([#483](https://github.com/wcampbell0x2a/backhand/pull/483))
 #### unsquashfs 
 - Performance: Remove progress bar Mutex lock when `--quiet` ([#430](https://github.com/wcampbell0x2a/backhand/pull/430))
 
@@ -41,7 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### `backhand-cli`
 - Enable overflow-checks for dist builds ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
-- Bump MSRV to `1.74` for `clap-4.5.1` update ([#483](https://github.com/wcampbell0x2a/backhand/pull/483))
 
 #### unsquashfs 
 - Use feature `gzip-zune-inflate` for dist build and speed improvements ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))

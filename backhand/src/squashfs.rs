@@ -464,10 +464,16 @@ impl<'b> Squashfs<'b> {
             return Ok(None);
         }
 
-        // ignore blocks before our block_index, grab all the rest of the bytes
-        // TODO: perf
-        let offset = self.dir_blocks.0.get(&block_index).unwrap();
-        let block = &self.dir_blocks.1[*offset as usize..];
+        let Some(offset) = self.dir_blocks.0.get(&block_index) else {
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        };
+        let Some(block) = &self.dir_blocks.1.get(*offset as usize..) else {
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        };
+
+        if (block.len() as u32) < (block_offset as u32 + file_size - 3) {
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
+        }
 
         let bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];
@@ -512,9 +518,13 @@ impl<'b> Squashfs<'b> {
             for d in &dirs {
                 trace!("extracting entry: {:#?}", d.dir_entries);
                 for entry in &d.dir_entries {
-                    let inode_key =
-                        (d.inode_num as i32 + entry.inode_offset as i32).try_into().unwrap();
-                    let found_inode = &self.inodes[&inode_key];
+                    let Ok(inode_key) = (d.inode_num as i32 + entry.inode_offset as i32).try_into()
+                    else {
+                        return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                    };
+                    let Some(found_inode) = &self.inodes.get(&inode_key) else {
+                        return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                    };
                     let header = found_inode.header;
                     fullpath.push(entry.name()?);
 

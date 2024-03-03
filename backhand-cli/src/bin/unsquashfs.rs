@@ -205,7 +205,14 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let squashfs = Squashfs::from_reader_with_offset_and_kind(file, args.offset, kind).unwrap();
+    let squashfs = match Squashfs::from_reader_with_offset_and_kind(file, args.offset, kind) {
+        Ok(s) => s,
+        Err(_e) => {
+            let line = format!("{:>14}", red_bold.apply_to(format!("Could not read image: {_e}")));
+            pb.finish_with_message(line);
+            return ExitCode::FAILURE;
+        }
+    };
     let root_process = unsafe { geteuid() == 0 };
     if root_process {
         umask(Mode::from_bits(0).unwrap());

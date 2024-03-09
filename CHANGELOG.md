@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `actions/upload-artifact` from 4.1.0 to 4.3.1 ([#435](https://github.com/wcampbell0x2a/backhand/pull/435), [#446](https://github.com/wcampbell0x2a/backhand/pull/446), [#465](https://github.com/wcampbell0x2a/backhand/pull/465))
 - Bump `env_logger` from 0.10.1 to 0.10.2 ([#432](https://github.com/wcampbell0x2a/backhand/pull/432))
 - Bump `rayon` from 1.8.0 to 1.9.0 ([#431](https://github.com/wcampbell0x2a/backhand/pull/431), [#496](https://github.com/wcampbell0x2a/backhand/pull/496))
-- Bump `clap` from 4.4.17 to 4.4.18 ([#428](https://github.com/wcampbell0x2a/backhand/pull/428))
+- Bump `clap` from 4.4.17 to 4.5.2 ([#428](https://github.com/wcampbell0x2a/backhand/pull/428), [#500](https://github.com/wcampbell0x2a/backhand/pull/500))
 - Bump `clap_complete` from 4.4.7 to 4.5.1 ([#444](https://github.com/wcampbell0x2a/backhand/pull/444), [#445](https://github.com/wcampbell0x2a/backhand/pull/445), [#482](https://github.com/wcampbell0x2a/backhand/pull/482))
 - Bump `codecov/codecov-action` from 3.1.4 to 4.1.0 ([#448](https://github.com/wcampbell0x2a/backhand/pull/448), [#457](https://github.com/wcampbell0x2a/backhand/pull/457), [#458](https://github.com/wcampbell0x2a/backhand/pull/458), [#462](https://github.com/wcampbell0x2a/backhand/pull/462), [#488](https://github.com/wcampbell0x2a/backhand/pull/488), [#493](https://github.com/wcampbell0x2a/backhand/pull/493))
 - Bump `obi1kenobi/cargo-semver-checks-action` from 2.2 to 2.3 ([#449](https://github.com/wcampbell0x2a/backhand/pull/449))

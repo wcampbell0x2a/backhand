@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `obi1kenobi/cargo-semver-checks-action` from 2.2 to 2.3 ([#449](https://github.com/wcampbell0x2a/backhand/pull/449))
 - Bump `libc` from 0.2.152 to 0.2.153 ([#459](https://github.com/wcampbell0x2a/backhand/pull/459))
 - Bump `dangoslen/dependabot-changelog-helper` from 3.7.0 to 3.8.0 ([#461](https://github.com/wcampbell0x2a/backhand/pull/461))
-- Bump `thiserror` from 1.0.56 to 1.0.57 ([#476](https://github.com/wcampbell0x2a/backhand/pull/476))
+- Bump `thiserror` from 1.0.56 to 1.0.58 ([#476](https://github.com/wcampbell0x2a/backhand/pull/476), [#502](https://github.com/wcampbell0x2a/backhand/pull/502))
 - Bump `indicatif` from 0.17.7 to 0.17.8 ([#477](https://github.com/wcampbell0x2a/backhand/pull/477))
 - Bump `libdeflater` from 1.19.0 to 1.19.3 ([#486](https://github.com/wcampbell0x2a/backhand/pull/486), [#498](https://github.com/wcampbell0x2a/backhand/pull/498))
 - Bump `assert_cmd` from 2.0.13 to 2.0.14 ([#484](https://github.com/wcampbell0x2a/backhand/pull/484))

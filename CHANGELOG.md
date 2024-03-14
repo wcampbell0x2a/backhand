@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `nix` from 0.27.1 to 0.28.0 ([#489](https://github.com/wcampbell0x2a/backhand/pull/489))
 - Bump `test-log` from 0.2.14 to 0.2.15 ([#492](https://github.com/wcampbell0x2a/backhand/pull/492))
 - Bump `tempfile` from 3.9.0 to 3.10.1 ([#491](https://github.com/wcampbell0x2a/backhand/pull/491))
+- Bump `actions/checkout` from 4.1.1 to 4.1.2 ([#501](https://github.com/wcampbell0x2a/backhand/pull/501))
 
 ## [v0.14.2] - 2024-01-16
 ### `backhand`

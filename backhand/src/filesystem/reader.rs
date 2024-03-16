@@ -1,5 +1,5 @@
 use std::io::{Read, SeekFrom};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
@@ -90,7 +90,7 @@ pub struct FilesystemReader<'b> {
     // File reader
     pub(crate) reader: Mutex<Box<dyn BufReadSeek + 'b>>,
     // Cache used in the decompression
-    pub(crate) cache: Mutex<Cache>,
+    pub(crate) cache: RwLock<Cache>,
 }
 
 impl<'b> FilesystemReader<'b> {
@@ -298,7 +298,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
-                let cache = self.file.system.cache.lock().unwrap();
+                let cache = self.file.system.cache.read().unwrap();
                 if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                     //if in cache, just return the cache, don't read it
                     let cache_size = cache_bytes.len();
@@ -359,7 +359,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 self.file
                     .system
                     .cache
-                    .lock()
+                    .write()
                     .unwrap()
                     .fragment_cache
                     .insert(self.file.fragment().unwrap().start, output_buf.clone());

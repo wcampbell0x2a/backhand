@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
-use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom};
 use std::iter::Iterator;
 use std::os::unix::fs::lchown;
 use std::os::unix::prelude::PermissionsExt;
@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use backhand::kind::Kind;
 use backhand::{
     BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink, DEFAULT_BLOCK_SIZE,
 };
 use backhand_cli::{after_help, styles};
 use clap::builder::PossibleValuesParser;
@@ -172,7 +172,10 @@ fn main() -> ExitCode {
 
     let kind = Kind::from_target(&args.kind).unwrap();
 
-    let mut file = BufReader::new(File::open(args.filesystem.as_ref().unwrap()).unwrap());
+    let mut file = BufReader::with_capacity(
+        DEFAULT_BLOCK_SIZE as usize,
+        File::open(args.filesystem.as_ref().unwrap()).unwrap(),
+    );
 
     let blue_bold: console::Style = console::Style::new().blue().bold();
     let red_bold: console::Style = console::Style::new().red().bold();
@@ -460,11 +463,12 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 }
 
                 // write to file
-                let mut fd = File::create(&filepath).unwrap();
+                let fd = File::create(&filepath).unwrap();
+                let mut writer = BufWriter::with_capacity(file.basic.file_size as usize, &fd);
                 let file = filesystem.file(&file.basic);
                 let mut reader = file.reader(&mut buf_read, &mut buf_decompress);
 
-                match io::copy(&mut reader, &mut fd) {
+                match io::copy(&mut reader, &mut writer) {
                     Ok(_) => {
                         if args.info && !args.quiet {
                             extracted(&pb, filepath.to_str().unwrap());

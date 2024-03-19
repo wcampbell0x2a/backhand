@@ -298,33 +298,37 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
-                let cache = self.file.system.cache.read().unwrap();
-                if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
-                    //if in cache, just return the cache, don't read it
-                    let cache_size = cache_bytes.len();
-                    data.resize(cache_size, 0);
-                    data[..cache_size].copy_from_slice(cache_bytes);
-                    //cache is store uncompressed
-                    Ok(RawDataBlock { fragment: true, uncompressed: true })
-                } else {
-                    //otherwise read and return it
-                    let frag_size = fragment.size.size() as usize;
-                    data.resize(frag_size, 0);
-                    {
-                        let mut reader = self.file.system.reader.lock().unwrap();
-                        reader.seek(SeekFrom::Start(fragment.start))?;
-                        reader.read_exact(data)?;
+                {
+                    let cache = self.file.system.cache.read().unwrap();
+                    if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
+                        //if in cache, just return the cache, don't read it
+                        let range = self.fragment_range();
+                        data.resize(range.end - range.start, 0);
+                        data.copy_from_slice(&cache_bytes[range]);
+                        //cache is store uncompressed
+                        return Ok(RawDataBlock { fragment: true, uncompressed: true });
                     }
-                    Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
                 }
+
+                //otherwise read and return it
+                let frag_size = fragment.size.size() as usize;
+                data.resize(frag_size, 0);
+                {
+                    let mut reader = self.file.system.reader.lock().unwrap();
+                    reader.seek(SeekFrom::Start(fragment.start))?;
+                    reader.read_exact(data)?;
+                }
+                Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
             }
         }
     }
 
+    #[inline]
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
         self.current_block.next().map(|next| self.read_raw_data(buf, &next))
     }
 
+    #[inline]
     fn fragment_range(&self) -> std::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
         let block_num = self.file.basic.block_sizes.len();
@@ -363,13 +367,12 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     .unwrap()
                     .fragment_cache
                     .insert(self.file.fragment().unwrap().start, output_buf.clone());
+
+                //apply the fragment offset
+                let range = self.fragment_range();
+                output_buf.drain(range.end..);
+                output_buf.drain(..range.start);
             }
-        }
-        //apply the fragment offset
-        if data.fragment {
-            let range = self.fragment_range();
-            output_buf.drain(range.end..);
-            output_buf.drain(..range.start);
         }
         Ok(())
     }

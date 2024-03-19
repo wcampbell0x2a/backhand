@@ -18,6 +18,7 @@ const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct DataSize(u32);
 impl DataSize {
+    #[inline]
     pub fn new(size: u32, uncompressed: bool) -> Self {
         let mut value: u32 = size;
         if value > DATA_STORED_UNCOMPRESSED {
@@ -29,26 +30,32 @@ impl DataSize {
         Self(value)
     }
 
+    #[inline]
     pub fn new_compressed(size: u32) -> Self {
         Self::new(size, false)
     }
 
+    #[inline]
     pub fn new_uncompressed(size: u32) -> Self {
         Self::new(size, true)
     }
 
+    #[inline]
     pub fn uncompressed(&self) -> bool {
         self.0 & DATA_STORED_UNCOMPRESSED != 0
     }
 
+    #[inline]
     pub fn set_uncompressed(&mut self) {
         self.0 |= DATA_STORED_UNCOMPRESSED
     }
 
+    #[inline]
     pub fn set_compressed(&mut self) {
         self.0 &= !DATA_STORED_UNCOMPRESSED
     }
 
+    #[inline]
     pub fn size(&self) -> u32 {
         self.0 & !DATA_STORED_UNCOMPRESSED
     }

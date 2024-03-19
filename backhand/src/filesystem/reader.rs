@@ -377,6 +377,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         Ok(())
     }
 
+    #[inline]
     pub fn into_reader(
         self,
         buf_read: &'a mut Vec<u8>,
@@ -397,10 +398,12 @@ pub struct SquashfsReadFile<'a, 'b> {
 }
 
 impl<'a, 'b> SquashfsReadFile<'a, 'b> {
+    #[inline]
     fn available(&self) -> &[u8] {
         &self.buf_decompress[self.last_read..]
     }
 
+    #[inline]
     fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available();
         let read_len = buf.len().min(available.len()).min(self.bytes_available);
@@ -410,6 +413,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         read_len
     }
 
+    #[inline]
     fn read_next_block(&mut self) -> Result<(), BackhandError> {
         let block = match self.raw_data.next_block(self.buf_read) {
             Some(block) => block?,
@@ -423,6 +427,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
 }
 
 impl<'a, 'b> Read for SquashfsReadFile<'a, 'b> {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // file was fully consumed
         if self.bytes_available == 0 {

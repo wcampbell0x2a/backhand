@@ -106,19 +106,21 @@ fn test_add() {
 
     #[cfg(feature = "__test_unsquashfs")]
     {
+        let dir = tmp_dir.path().join("out2");
         let output = Command::new("unsquashfs")
-            .args(["-lln", "-UTC", tmp_dir.path().join("out2").to_str().unwrap()])
+            .args(["-lln", "-UTC", dir.to_str().unwrap()])
             .output()
             .unwrap();
         let expected = r#"drwxr-xr-x 1000/1000                36 2022-10-14 03:02 squashfs-root
 drwxr-xr-x 1000/1000                24 2022-10-14 03:02 squashfs-root/b
 drwxr-xr-x 1000/1000                24 2022-10-14 03:03 squashfs-root/b/c
--rw-r--r-- 1000/1000                39 2022-10-14 03:03 squashfs-root/b/c/d
+-rw-r--r-- 1000/1000                43 2022-10-14 03:03 squashfs-root/b/c/d
 dr----x--t 2/4242                   42 1970-01-01 00:01 squashfs-root/test
 -rw-r--r-- 4242/2               262144 1970-01-01 00:02 squashfs-root/test/big_file
--rw-r--r-- 4242/2                    4 1970-01-01 00:02 squashfs-root/test/new"#;
+-rw-r--r-- 4242/2                   43 1970-01-01 00:02 squashfs-root/test/new
+"#;
 
         // using contains here, the output of squashfs varies between versions
-        assert!(std::str::from_utf8(&output.stdout).unwrap().contains(expected));
+        assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), expected);
     }
 }

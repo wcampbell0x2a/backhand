@@ -32,8 +32,7 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.targets }}
-      - run: cargo install cargo-quickinstall
-      - run: cargo quickinstall cross@0.2.5 --force
+      - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
       - run: cross build -p backhand-cli --bin add-backhand --bin replace-backhand --locked --target ${{ matrix.targets }} --profile=dist
       # default features, but replace gzip with gzip-zune-inflate
       - run: cross build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.targets }} --profile=dist --no-default-features --features zstd,xz,gzip-zune-inflate

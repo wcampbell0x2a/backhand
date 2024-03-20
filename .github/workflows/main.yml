@@ -44,8 +44,7 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
       # install cross
-      - run: cargo install cargo-quickinstall
-      - run: cargo quickinstall cross@0.2.5 --force
+      - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
       # build lib and bins with cross
       - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
       # test with cross
@@ -79,8 +78,7 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
       # install cross
-      - run: cargo install cargo-quickinstall
-      - run: cargo quickinstall cross@0.2.5 --force
+      - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
       # build bins
       - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
       # run tests with native unsquashfs on x86_64-unknown-linux-musl (using Cross.toml)

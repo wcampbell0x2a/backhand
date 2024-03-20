@@ -34,6 +34,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: cargo install cargo-quickinstall
-      - run: cargo quickinstall cross@0.2.5 --force
+      - run: cargo install cross --git https://github.com/cross-rs/cross
       - run: cross check --all-features --target ${{ matrix.target }} --locked -p backhand

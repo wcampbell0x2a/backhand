@@ -24,6 +24,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: stable
           toolchain: ${{ matrix.toolchain }}
 
       - name: Install cargo-llvm-cov

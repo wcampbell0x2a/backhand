@@ -304,7 +304,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                         //if in cache, just return the cache, don't read it
                         let range = self.fragment_range();
-                        tracing::info!("fragment in cache: {:02x}{range:?}", fragment.start);
+                        tracing::trace!("fragment in cache: {:02x}:{range:02x?}", fragment.start);
                         data.resize(range.end - range.start, 0);
                         data.copy_from_slice(&cache_bytes[range]);
 
@@ -316,7 +316,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 // if not in the cache, read the entire fragment bytes to store into
                 // the cache. Once that is done, if uncompressed just return the bytes
                 // that were read that are for the file
-                tracing::info!("fragment: reading from data");
+                tracing::trace!("fragment: reading from data");
                 let frag_size = fragment.size.size() as usize;
                 data.resize(frag_size, 0);
                 {

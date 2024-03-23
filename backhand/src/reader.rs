@@ -1,6 +1,5 @@
 //! Reader traits
 
-use std::cmp::min;
 use std::collections::HashMap;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 

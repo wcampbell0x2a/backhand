@@ -298,25 +298,47 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
+                // if in the cache, just read from the cache bytes and return the fragment bytes
                 {
                     let cache = self.file.system.cache.read().unwrap();
                     if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                         //if in cache, just return the cache, don't read it
                         let range = self.fragment_range();
+                        tracing::info!("fragment in cache: {:02x}{range:?}", fragment.start);
                         data.resize(range.end - range.start, 0);
                         data.copy_from_slice(&cache_bytes[range]);
+
                         //cache is store uncompressed
                         return Ok(RawDataBlock { fragment: true, uncompressed: true });
                     }
                 }
 
-                //otherwise read and return it
+                // if not in the cache, read the entire fragment bytes to store into
+                // the cache. Once that is done, if uncompressed just return the bytes
+                // that were read that are for the file
+                tracing::info!("fragment: reading from data");
                 let frag_size = fragment.size.size() as usize;
                 data.resize(frag_size, 0);
                 {
                     let mut reader = self.file.system.reader.lock().unwrap();
                     reader.seek(SeekFrom::Start(fragment.start))?;
                     reader.read_exact(data)?;
+                }
+
+                // if already decompressed, store
+                if fragment.size.uncompressed() {
+                    self.file
+                        .system
+                        .cache
+                        .write()
+                        .unwrap()
+                        .fragment_cache
+                        .insert(self.file.fragment().unwrap().start, data.clone());
+
+                    //apply the fragment offset
+                    let range = self.fragment_range();
+                    data.drain(range.end..);
+                    data.drain(..range.start);
                 }
                 Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
             }

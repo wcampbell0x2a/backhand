@@ -77,9 +77,12 @@ fn full_test_inner(
     info!("calling to_bytes");
     let mut output = BufWriter::new(File::create(&new_path).unwrap());
     new_filesystem.write_with_offset(&mut output, offset).unwrap();
+    info!("done with writing to bytes");
 
     // Test Debug is impl'ed properly on FilesystemWriter
     let _ = format!("{new_filesystem:#02x?}");
+    drop(new_filesystem);
+    drop(og_filesystem);
 
     // assert that our library can at least read the output, use unsquashfs to really assert this
     info!("calling from_reader");
@@ -91,6 +94,7 @@ fn full_test_inner(
     let new_comp_opts = written_new_filesystem.compression_options;
     assert_eq!(og_comp_opts, new_comp_opts);
 
+    drop(written_new_filesystem);
     match verify {
         Verify::Extract => {
             if run_squashfs_tools_unsquashfs {

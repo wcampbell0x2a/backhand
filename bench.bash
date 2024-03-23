@@ -18,8 +18,8 @@ bench () {
 }
 
 # Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
-cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate
-cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate
+cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
+cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
 mkdir -p bench-results
 
 # xz
@@ -36,5 +36,7 @@ bench "backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootf
 bench "backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs" 0x0 4_er605
 # gzip
 bench "backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage" 0x2dfe8 5_plexamp
+# zstd
+bench "backhand-test/test-assets/crates_io_zstd/crates-io.squashfs" 0x0 6_crates_zstd
 
 rm -rf /tmp/BH*

@@ -50,14 +50,12 @@ jobs:
       # test with cross, skipping slow test and tests that use more then qemu default memory
       - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow --skip no_qemu
 
-  # build/test all supported on native(musl) arch for library and bins (all tests)
+  # build/test all supported on native x86_64 arch for library and bins (all tests)
   build-test-native:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-musl
         toolchain:
           - stable
             # msrv of backhand-cli
@@ -77,12 +75,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248 # master
         with:
           toolchain: ${{ matrix.toolchain }}
-      # install cross
-      - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
       # build bins
-      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
+      - run: cargo build ${{ matrix.features }} --release --locked --workspace
       # run tests with native unsquashfs on x86_64-unknown-linux-musl (using Cross.toml)
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked --features __test_unsquashfs -- --skip slow
+      - run: RUST_LOG=info cargo test --workspace --release ${{ matrix.features }}  --locked --features __test_unsquashfs -- --skip slow
 
   # fmt and clippy on stable
   fmt-clippy-stable:

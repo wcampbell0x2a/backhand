@@ -11,7 +11,7 @@ name: ci
 
 jobs:
   # build/test all supported targets for library and bins (skipping slow and squashfs-tools tests)
-  build-test:
+  cross-test:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: "-C target-feature=+crt-static"
@@ -47,8 +47,8 @@ jobs:
       - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
       # build lib and bins with cross
       - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
-      # test with cross
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow
+      # test with cross, skipping slow test and tests that use more then qemu default memory
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow --skip no_qemu
 
   # build/test all supported on native(musl) arch for library and bins (all tests)
   build-test-native:

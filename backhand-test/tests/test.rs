@@ -506,7 +506,8 @@ fn test_socket_fifo() {
 
 #[test]
 #[cfg(any(feature = "zstd"))]
-fn test_crates_zstd() {
+fn no_qemu_test_crates_zstd() {
+    tracing::trace!("nice");
     const FILE_NAME: &str = "crates-io.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),

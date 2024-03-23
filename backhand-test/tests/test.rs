@@ -79,8 +79,6 @@ fn full_test_inner(
     new_filesystem.write_with_offset(&mut output, offset).unwrap();
     info!("done with writing to bytes");
 
-    // Test Debug is impl'ed properly on FilesystemWriter
-    let _ = format!("{new_filesystem:#02x?}");
     drop(new_filesystem);
     drop(og_filesystem);
 

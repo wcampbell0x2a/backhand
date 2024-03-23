@@ -501,3 +501,18 @@ fn test_socket_fifo() {
         only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
     }
 }
+
+#[test]
+#[cfg(any(feature = "zstd"))]
+fn test_crates_zstd() {
+    const FILE_NAME: &str = "crates-io.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "f9d9938626c6cade032a3e54ce9e16fbabaf9e0cb6a0eb486c5c189d7fb9d13d".to_string(),
+        url: format!("https://wcampbell.dev/squashfs/testing/crates.io-zstd/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/crates_io_zstd";
+
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
+}

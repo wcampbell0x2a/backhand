@@ -1,5 +1,8 @@
 #!/bin/bash
 
+LAST_RELEASE="v0.14.2"
+
+BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
@@ -8,7 +11,9 @@ bench () {
     echo ""
     file $1
     hyperfine --runs 50 --warmup 10 \
-        --command-name backhand-dist-musl-$(basename $1) \
+        --command-name backhand-dist-${LAST_RELEASE}-$(basename $1) \
+        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        --command-name backhand-dist-$(basename $1) \
         "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name backhand-dist-$(basename $1) \
         "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
@@ -19,6 +24,7 @@ bench () {
 
 # Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
 cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
+cargo +stable install backhand-cli --git https://github.com/wcampbell0x2a/backhand.git --root last-release --tag "$LAST_RELEASE" --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
 cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
 mkdir -p bench-results
 

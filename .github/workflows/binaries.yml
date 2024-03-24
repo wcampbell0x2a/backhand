@@ -13,38 +13,48 @@ name: binaries
 jobs:
   # release binaries
   release-bins:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.job.os }}
     env:
       RUSTFLAGS: "-C target-feature=+crt-static"
+      BUILD_CMD: cargo
     strategy:
+      fail-fast: false
       matrix:
-        targets:
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
-          - arm-unknown-linux-musleabi
+        job:
+          - { target: x86_64-unknown-linux-musl,  os: ubuntu-latest, use-cross: true }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          - { target: arm-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-apple-darwin,        os: macos-12                       }
 
     steps:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
       - name: Populate cache
         uses: ./.github/workflows/cache
 
+      - name: Overwrite build command env variable
+        if: matrix.job.use-cross
+        shell: bash
+        run: |
+          echo "BUILD_CMD=cross" >> $GITHUB_ENV
+          RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
+
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          target: ${{ matrix.targets }}
-      - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
-      - run: cross build -p backhand-cli --bin add-backhand --bin replace-backhand --locked --target ${{ matrix.targets }} --profile=dist
+          target: ${{ matrix.job.target }}
+
+      - run: $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --features xz-static --locked --target ${{ matrix.job.target }} --profile=dist
       # default features, but replace gzip with gzip-zune-inflate
-      - run: cross build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.targets }} --profile=dist --no-default-features --features zstd,xz,gzip-zune-inflate
+      - run: $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip-zune-inflate
       - name: archive
         run: |
-          tar -czvf backhand-${{ matrix.targets }}.tar.gz \
-              -C target/${{ matrix.targets }}/dist/ $BINS
+          tar -czvf backhand-${{ matrix.job.target }}.tar.gz \
+              -C target/${{ matrix.job.target }}/dist/ $BINS
 
       - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
-          name: backhand-${{ matrix.targets }}.tar.gz
-          path: backhand-${{ matrix.targets }}.tar.gz
+          name: backhand-${{ matrix.job.target }}.tar.gz
+          path: backhand-${{ matrix.job.target }}.tar.gz
 
       # check semvar before release!
       - name: Check semver
@@ -61,8 +71,8 @@ jobs:
         uses: svenstaro/upload-release-action@04733e069f2d7f7f0b4aebc4fbdbce8613b03ccd # v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: backhand-${{ matrix.targets }}.tar.gz
-          asset_name: backhand-${{ github.ref_name }}-${{ matrix.targets }}.tar.gz
+          file: backhand-${{ matrix.job.target }}.tar.gz
+          asset_name: backhand-${{ github.ref_name }}-${{ matrix.job.target }}.tar.gz
           tag: ${{ github.ref }}
           prerelease: true
           overwrite: true

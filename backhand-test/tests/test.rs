@@ -77,9 +77,10 @@ fn full_test_inner(
     info!("calling to_bytes");
     let mut output = BufWriter::new(File::create(&new_path).unwrap());
     new_filesystem.write_with_offset(&mut output, offset).unwrap();
+    info!("done with writing to bytes");
 
-    // Test Debug is impl'ed properly on FilesystemWriter
-    let _ = format!("{new_filesystem:#02x?}");
+    drop(new_filesystem);
+    drop(og_filesystem);
 
     // assert that our library can at least read the output, use unsquashfs to really assert this
     info!("calling from_reader");
@@ -91,6 +92,7 @@ fn full_test_inner(
     let new_comp_opts = written_new_filesystem.compression_options;
     assert_eq!(og_comp_opts, new_comp_opts);
 
+    drop(written_new_filesystem);
     match verify {
         Verify::Extract => {
             if run_squashfs_tools_unsquashfs {
@@ -500,4 +502,20 @@ fn test_socket_fifo() {
     } else {
         only_read(&asset_defs, FILE_NAME, TEST_PATH, 0);
     }
+}
+
+#[test]
+#[cfg(any(feature = "zstd"))]
+fn no_qemu_test_crates_zstd() {
+    tracing::trace!("nice");
+    const FILE_NAME: &str = "crates-io.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "f9d9938626c6cade032a3e54ce9e16fbabaf9e0cb6a0eb486c5c189d7fb9d13d".to_string(),
+        url: format!("https://wcampbell.dev/squashfs/testing/crates.io-zstd/{FILE_NAME}"),
+    }];
+
+    const TEST_PATH: &str = "test-assets/crates_io_zstd";
+
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }

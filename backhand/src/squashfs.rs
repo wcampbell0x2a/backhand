@@ -4,8 +4,8 @@ use std::ffi::OsString;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::{Arc, RwLock};
 
 use deku::bitvec::{BitVec, BitView, Msb0};
 use deku::prelude::*;
@@ -634,7 +634,7 @@ impl<'b> Squashfs<'b> {
             fragments: self.fragments,
             root,
             reader: Mutex::new(Box::new(self.file)),
-            cache: Mutex::new(Cache::default()),
+            cache: RwLock::new(Cache::default()),
         };
         Ok(filesystem)
     }

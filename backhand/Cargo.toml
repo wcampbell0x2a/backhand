@@ -13,13 +13,14 @@ readme = "../README.md"
 
 [dependencies]
 deku = "0.16.0"
-tracing = { version = "0.1.40", features = ["release_max_level_off"] }
+tracing = { version = "0.1.40" }
 thiserror = "1.0.58"
 flate2 = { version = "1.0.28", optional = true }
 zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.0", optional = true }
+zstd-safe = { version = "7.0.0", optional = true }
 rustc-hash = "1.1.0"
 document-features = { version = "0.2.8", optional = true }
 
@@ -37,7 +38,7 @@ gzip-zune-inflate = ["dep:zune-inflate"]
 ## This library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
 ## Enables zstd compression inside library and binaries
-zstd = ["dep:zstd"]
+zstd = ["dep:zstd", "dep:zstd-safe"]
 
 [dev-dependencies]
 test-log = { version = "0.2.15", features = ["trace"] }

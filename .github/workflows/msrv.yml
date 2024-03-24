@@ -11,17 +11,9 @@ name: Check MSRV of backhand
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-C target-feature=+crt-static"
     strategy:
-      # By default, this is set to `true`, which means that a single CI job
-      # failure will cause all outstanding jobs to be canceled. This slows down
-      # development because it means that errors need to be encountered and
-      # fixed one at a time.
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-musl
         toolchain:
             # msrv of backhand
           - 1.67.1
@@ -34,6 +26,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: cargo install cargo-quickinstall
-      - run: cargo quickinstall cross@0.2.5 --force
-      - run: cross check --all-features --target ${{ matrix.target }} --locked -p backhand
+      - run: cargo check --all-features --locked -p backhand

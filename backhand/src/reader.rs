@@ -1,6 +1,5 @@
 //! Reader traits
 
-use std::cmp::min;
 use std::collections::HashMap;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 
@@ -120,8 +119,8 @@ pub trait SquashFsReader: BufReadSeek {
         )?;
 
         let mut rest = bytes.view_bits::<deku::bitvec::Msb0>();
-        let mut inodes = HashMap::default();
-        inodes.try_reserve(min(superblock.inode_count as usize, 10000))?;
+        let mut inodes = FxHashMap::default();
+        inodes.try_reserve(superblock.inode_count as usize)?;
         while !rest.is_empty() {
             let (new_rest, i) = Inode::read(
                 rest,

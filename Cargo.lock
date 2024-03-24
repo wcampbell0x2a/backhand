@@ -113,6 +113,7 @@ dependencies = [
  "tracing",
  "xz2",
  "zstd",
+ "zstd-safe",
  "zune-inflate",
 ]
 

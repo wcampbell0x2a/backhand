@@ -1,5 +1,8 @@
 #!/bin/bash
 
+LAST_RELEASE="v0.14.2"
+
+BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
@@ -7,7 +10,9 @@ UNSQUASHFS="/usr/bin/unsquashfs"
 bench () {
     echo ""
     file $1
-    hyperfine --runs 50 --warmup 10 \
+    hyperfine --sort command --runs 50 --warmup 10 \
+        --command-name backhand-dist-${LAST_RELEASE}-$(basename $1) \
+        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name backhand-dist-musl-$(basename $1) \
         "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name backhand-dist-$(basename $1) \
@@ -18,8 +23,9 @@ bench () {
 }
 
 # Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
-cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate
-cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate
+cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
+cargo +stable install backhand-cli --git https://github.com/wcampbell0x2a/backhand.git --root last-release --tag "$LAST_RELEASE" --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
+cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
 mkdir -p bench-results
 
 # xz
@@ -36,5 +42,7 @@ bench "backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootf
 bench "backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs" 0x0 4_er605
 # gzip
 bench "backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage" 0x2dfe8 5_plexamp
+# zstd
+bench "backhand-test/test-assets/crates_io_zstd/crates-io.squashfs" 0x0 6_crates_zstd
 
 rm -rf /tmp/BH*

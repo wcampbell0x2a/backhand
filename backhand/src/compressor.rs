@@ -328,7 +328,8 @@ impl CompressionAction for DefaultCompressor {
                     Some(_) => unreachable!(),
                 };
                 let mut encoder = zstd::bulk::Compressor::new(compression_level as i32)?;
-                let mut buf = vec![];
+                let buffer_len = zstd_safe::compress_bound(bytes.len());
+                let mut buf = Vec::with_capacity(buffer_len);
                 encoder.compress_to_buffer(bytes, &mut buf)?;
                 Ok(buf)
             }

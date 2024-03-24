@@ -1,5 +1,5 @@
 use std::io::{Read, SeekFrom};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
@@ -90,7 +90,7 @@ pub struct FilesystemReader<'b> {
     // File reader
     pub(crate) reader: Mutex<Box<dyn BufReadSeek + 'b>>,
     // Cache used in the decompression
-    pub(crate) cache: Mutex<Cache>,
+    pub(crate) cache: RwLock<Cache>,
 }
 
 impl<'b> FilesystemReader<'b> {
@@ -298,33 +298,59 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
-                let cache = self.file.system.cache.lock().unwrap();
-                if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
-                    //if in cache, just return the cache, don't read it
-                    let cache_size = cache_bytes.len();
-                    data.resize(cache_size, 0);
-                    data[..cache_size].copy_from_slice(cache_bytes);
-                    //cache is store uncompressed
-                    Ok(RawDataBlock { fragment: true, uncompressed: true })
-                } else {
-                    //otherwise read and return it
-                    let frag_size = fragment.size.size() as usize;
-                    data.resize(frag_size, 0);
-                    {
-                        let mut reader = self.file.system.reader.lock().unwrap();
-                        reader.seek(SeekFrom::Start(fragment.start))?;
-                        reader.read_exact(data)?;
+                // if in the cache, just read from the cache bytes and return the fragment bytes
+                {
+                    let cache = self.file.system.cache.read().unwrap();
+                    if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
+                        //if in cache, just return the cache, don't read it
+                        let range = self.fragment_range();
+                        tracing::trace!("fragment in cache: {:02x}:{range:02x?}", fragment.start);
+                        data.resize(range.end - range.start, 0);
+                        data.copy_from_slice(&cache_bytes[range]);
+
+                        //cache is store uncompressed
+                        return Ok(RawDataBlock { fragment: true, uncompressed: true });
                     }
-                    Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
                 }
+
+                // if not in the cache, read the entire fragment bytes to store into
+                // the cache. Once that is done, if uncompressed just return the bytes
+                // that were read that are for the file
+                tracing::trace!("fragment: reading from data");
+                let frag_size = fragment.size.size() as usize;
+                data.resize(frag_size, 0);
+                {
+                    let mut reader = self.file.system.reader.lock().unwrap();
+                    reader.seek(SeekFrom::Start(fragment.start))?;
+                    reader.read_exact(data)?;
+                }
+
+                // if already decompressed, store
+                if fragment.size.uncompressed() {
+                    self.file
+                        .system
+                        .cache
+                        .write()
+                        .unwrap()
+                        .fragment_cache
+                        .insert(self.file.fragment().unwrap().start, data.clone());
+
+                    //apply the fragment offset
+                    let range = self.fragment_range();
+                    data.drain(range.end..);
+                    data.drain(..range.start);
+                }
+                Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
             }
         }
     }
 
+    #[inline]
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
         self.current_block.next().map(|next| self.read_raw_data(buf, &next))
     }
 
+    #[inline]
     fn fragment_range(&self) -> std::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
         let block_num = self.file.basic.block_sizes.len();
@@ -359,21 +385,21 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 self.file
                     .system
                     .cache
-                    .lock()
+                    .write()
                     .unwrap()
                     .fragment_cache
                     .insert(self.file.fragment().unwrap().start, output_buf.clone());
+
+                //apply the fragment offset
+                let range = self.fragment_range();
+                output_buf.drain(range.end..);
+                output_buf.drain(..range.start);
             }
-        }
-        //apply the fragment offset
-        if data.fragment {
-            let range = self.fragment_range();
-            output_buf.drain(range.end..);
-            output_buf.drain(..range.start);
         }
         Ok(())
     }
 
+    #[inline]
     pub fn into_reader(
         self,
         buf_read: &'a mut Vec<u8>,
@@ -394,10 +420,12 @@ pub struct SquashfsReadFile<'a, 'b> {
 }
 
 impl<'a, 'b> SquashfsReadFile<'a, 'b> {
+    #[inline]
     fn available(&self) -> &[u8] {
         &self.buf_decompress[self.last_read..]
     }
 
+    #[inline]
     fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available();
         let read_len = buf.len().min(available.len()).min(self.bytes_available);
@@ -407,6 +435,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         read_len
     }
 
+    #[inline]
     fn read_next_block(&mut self) -> Result<(), BackhandError> {
         let block = match self.raw_data.next_block(self.buf_read) {
             Some(block) => block?,
@@ -420,6 +449,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
 }
 
 impl<'a, 'b> Read for SquashfsReadFile<'a, 'b> {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // file was fully consumed
         if self.bytes_available == 0 {

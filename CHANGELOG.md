@@ -11,11 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for `Socket` and `NamedFIFO` Inodes in library and extraction binaries. Thanks ([@tnias](https://github.com/tnias)) ([#472](https://github.com/wcampbell0x2a/backhand/pull/472), [#470](https://github.com/wcampbell0x2a/backhand/pull/470))
   - Add `FilesytemWriter::push_fifo` and  `FilesystemWriter::push_socket`
 - Fix panic found with fuzz testing in `NodeHeader::from_inode` ([#494](https://github.com/wcampbell0x2a/backhand/pull/494))
+- Add tests for zstd compression support. Fix bug with zstd writer and added `zstd-safe` dependency ([#504](https://github.com/wcampbell0x2a/backhand/pull/504))
+- Added `inline`s to small public functions ([#504](https://github.com/wcampbell0x2a/backhand/pull/504))
+- Changed `FilesystemReader.cache` to `RwLock` to reduce blocking time during fragment reading ([#504](https://github.com/wcampbell0x2a/backhand/pull/504))
+- Increase performance of reading uncompressed fragments (small files) heavy images by removing unnecessary clones of data ([#504](https://github.com/wcampbell0x2a/backhand/pull/504)). Found by ([@bryangarza](https://github.com/bryangarza)) in ([!503](https://github.com/wcampbell0x2a/backhand/issues/503)).
+- Increased performance of reading inodes ([#453](https://github.com/wcampbell0x2a/backhand/pull/453))
+- Reduce allocations within `Squashfs.dir_blocks` ([#447](https://github.com/wcampbell0x2a/backhand/pull/447))
+- Add pre-allocate before reading `inodes` ([#437](https://github.com/wcampbell0x2a/backhand/pull/437))
+- Prevent several bounds check failures found by fuzz testing ([#499](https://github.com/wcampbell0x2a/backhand/pull/499/files))
+
 ### `backhand-cli`
 - Bump MSRV to `1.74` for `clap-4.5.1` update ([#483](https://github.com/wcampbell0x2a/backhand/pull/483))
+### `backhand-test`
+- Reduced maximum allocation during testing by free'ing right after full usage ([#504](https://github.com/wcampbell0x2a/backhand/pull/504))
 #### unsquashfs 
 - Performance: Remove progress bar Mutex lock when `--quiet` ([#430](https://github.com/wcampbell0x2a/backhand/pull/430))
-
 ### Dependencies
 - Bump `actions/upload-artifact` from 4.1.0 to 4.3.1 ([#435](https://github.com/wcampbell0x2a/backhand/pull/435), [#446](https://github.com/wcampbell0x2a/backhand/pull/446), [#465](https://github.com/wcampbell0x2a/backhand/pull/465))
 - Bump `env_logger` from 0.10.1 to 0.10.2 ([#432](https://github.com/wcampbell0x2a/backhand/pull/432))

@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: "-C target-feature=+crt-static"
+      BUILD_CMD: cargo
     strategy:
       # By default, this is set to `true`, which means that a single CI job
       # failure will cause all outstanding jobs to be canceled. This slows down
@@ -22,11 +23,12 @@ jobs:
       # fixed one at a time.
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
-          - arm-unknown-linux-musleabi
-          - armv7-unknown-linux-musleabi
+        job:
+          - { target: x86_64-unknown-linux-musl,    os: ubutnu-latest, use-cross: true }
+          - { target: aarch64-unknown-linux-musl,   os: ubuntu-latest, use-cross: true }
+          - { target: arm-unknown-linux-musleabi,   os: ubuntu-latest, use-cross: true }
+          - { target: armv7-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-apple-darwin,          os: macos-12                       }
         toolchain:
           - stable
             # msrv of backhand-cli
@@ -36,6 +38,13 @@ jobs:
           -
 
     steps:
+      - name: Overwrite build command env variable
+        if: matrix.job.use-cross
+        shell: bash
+        run: |
+          echo "BUILD_CMD=cross" >> $GITHUB_ENV
+          RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
+
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
       - name: Populate cache
         uses: ./.github/workflows/cache
@@ -43,12 +52,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      # install cross
-      - run: RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
       # build lib and bins with cross
-      - run: cross build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
+      - run: $BUILD_CMD build ${{ matrix.features }} --target ${{ matrix.target }} --release --locked --workspace
       # test with cross, skipping slow test and tests that use more then qemu default memory
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info cross test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow --skip no_qemu
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info $BUILD_CMD test --workspace --release ${{ matrix.features }} --target ${{ matrix.target }} --locked -- --skip slow --skip no_qemu
 
   # build/test all supported on native x86_64 arch for library and bins (all tests)
   build-test-native:

@@ -42,52 +42,52 @@ $ ./bench.bash
 ## Wall time: `backhand/unsquashfs-master` vs `squashfs-tools/unsquashfs-4.6.1`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 177.3 ± 10.0 | 165.3 | 219.7 | 1.06 ± 0.08 |
-| `backhand-dist-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 195.8 ± 10.6 | 182.9 | 236.5 | 1.17 ± 0.08 |
-| `backhand-dist-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 175.2 ± 16.5 | 163.7 | 264.5 | 1.05 ± 0.11 |
-| `squashfs-tools-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 166.8 ± 7.5 | 153.7 | 188.3 | 1.00 |
+| `backhand-dist-v0.14.2-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 173.9 ± 4.4 | 165.5 | 192.6 | 1.05 ± 0.04 |
+| `backhand-dist-musl-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 190.6 ± 5.0 | 180.8 | 203.1 | 1.15 ± 0.05 |
+| `backhand-dist-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 168.0 ± 4.5 | 162.3 | 185.3 | 1.01 ± 0.04 |
+| `squashfs-tools-openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin` | 165.9 ± 5.7 | 157.2 | 179.9 | 1.00 |
 
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2--openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 177.4 ± 5.4 | 170.1 | 190.5 | 1.12 ± 0.07 |
-| `backhand-dist-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 193.9 ± 6.9 | 187.7 | 232.1 | 1.22 ± 0.08 |
-| `backhand-dist-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 170.1 ± 5.4 | 163.9 | 189.2 | 1.07 ± 0.06 |
-| `squashfs-tools-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 159.0 ± 8.1 | 149.5 | 179.2 | 1.00 |
+| `backhand-dist-v0.14.2-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 175.3 ± 5.5 | 166.7 | 196.8 | 1.09 ± 0.06 |
+| `backhand-dist-musl-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 192.2 ± 3.9 | 187.6 | 205.5 | 1.19 ± 0.06 |
+| `backhand-dist-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 170.3 ± 5.0 | 154.7 | 182.1 | 1.06 ± 0.06 |
+| `squashfs-tools-openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img` | 161.0 ± 7.0 | 148.8 | 179.1 | 1.00 |
 
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2-870D97.squashfs` | 841.3 ± 20.1 | 793.6 | 868.3 | 1.26 ± 0.03 |
-| `backhand-dist-870D97.squashfs` | 963.6 ± 24.0 | 921.0 | 1019.6 | 1.44 ± 0.04 |
-| `backhand-dist-870D97.squashfs` | 833.1 ± 24.7 | 791.7 | 883.8 | 1.25 ± 0.04 |
-| `squashfs-tools-870D97.squashfs` | 667.1 ± 4.8 | 660.4 | 675.2 | 1.00 |
+| `backhand-dist-v0.14.2-870D97.squashfs` | 837.4 ± 22.2 | 795.5 | 868.1 | 1.25 ± 0.03 |
+| `backhand-dist-musl-870D97.squashfs` | 970.6 ± 26.0 | 927.2 | 1022.3 | 1.45 ± 0.04 |
+| `backhand-dist-870D97.squashfs` | 835.1 ± 24.8 | 790.3 | 883.6 | 1.25 ± 0.04 |
+| `squashfs-tools-870D97.squashfs` | 668.6 ± 4.1 | 663.1 | 675.4 | 1.00 |
 
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2-img-1571203182_vol-ubi_rootfs.ubifs` | 905.3 ± 15.7 | 891.8 | 995.9 | 1.01 ± 0.03 |
-| `backhand-dist-img-1571203182_vol-ubi_rootfs.ubifs` | 1014.2 ± 12.0 | 995.1 | 1048.1 | 1.13 ± 0.04 |
-| `backhand-dist-img-1571203182_vol-ubi_rootfs.ubifs` | 895.2 ± 26.2 | 870.3 | 1006.7 | 1.00 |
-| `squashfs-tools-img-1571203182_vol-ubi_rootfs.ubifs` | 929.4 ± 12.3 | 910.3 | 965.6 | 1.04 ± 0.03 |
+| `backhand-dist-v0.14.2-img-1571203182_vol-ubi_rootfs.ubifs` | 911.9 ± 30.4 | 887.1 | 1053.4 | 1.02 ± 0.04 |
+| `backhand-dist-musl-img-1571203182_vol-ubi_rootfs.ubifs` | 1016.6 ± 16.2 | 994.2 | 1066.0 | 1.14 ± 0.03 |
+| `backhand-dist-img-1571203182_vol-ubi_rootfs.ubifs` | 891.5 ± 20.1 | 868.4 | 1013.3 | 1.00 |
+| `squashfs-tools-img-1571203182_vol-ubi_rootfs.ubifs` | 928.6 ± 13.0 | 900.9 | 958.0 | 1.04 ± 0.03 |
 
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2-2611E3.squashfs` | 422.5 ± 15.1 | 398.4 | 466.1 | 1.05 ± 0.06 |
-| `backhand-dist-2611E3.squashfs` | 461.3 ± 26.6 | 429.5 | 508.8 | 1.15 ± 0.09 |
-| `backhand-dist-2611E3.squashfs` | 402.0 ± 19.7 | 376.2 | 447.8 | 1.00 |
-| `squashfs-tools-2611E3.squashfs` | 447.2 ± 12.2 | 416.8 | 469.5 | 1.11 ± 0.06 |
+| `backhand-dist-v0.14.2-2611E3.squashfs` | 425.6 ± 12.8 | 403.5 | 455.3 | 1.07 ± 0.06 |
+| `backhand-dist-musl-2611E3.squashfs` | 462.9 ± 25.4 | 432.7 | 509.2 | 1.16 ± 0.08 |
+| `backhand-dist-2611E3.squashfs` | 399.1 ± 19.1 | 378.3 | 448.5 | 1.00 |
+| `squashfs-tools-2611E3.squashfs` | 447.8 ± 15.7 | 416.4 | 479.7 | 1.12 ± 0.07 |
 
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2-Plexamp-4.6.1.AppImage` | 726.9 ± 10.0 | 705.8 | 750.8 | 1.41 ± 0.02 |
-| `backhand-dist-Plexamp-4.6.1.AppImage` | 1345.6 ± 12.3 | 1318.9 | 1372.9 | 2.60 ± 0.03 |
-| `backhand-dist-Plexamp-4.6.1.AppImage` | 761.9 ± 9.6 | 735.7 | 780.4 | 1.47 ± 0.02 |
-| `squashfs-tools-Plexamp-4.6.1.AppImage` | 516.7 ± 4.3 | 509.6 | 527.9 | 1.00 |
+| `backhand-dist-v0.14.2-Plexamp-4.6.1.AppImage` | 724.5 ± 11.1 | 697.6 | 753.0 | 1.40 ± 0.03 |
+| `backhand-dist-musl-Plexamp-4.6.1.AppImage` | 1344.0 ± 17.4 | 1310.8 | 1375.2 | 2.60 ± 0.04 |
+| `backhand-dist-Plexamp-4.6.1.AppImage` | 760.9 ± 13.0 | 733.5 | 788.9 | 1.47 ± 0.03 |
+| `squashfs-tools-Plexamp-4.6.1.AppImage` | 516.6 ± 4.8 | 505.1 | 526.6 | 1.00 |
 
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.14.2-crates-io.squashfs` | 67.632 ± 0.266 | 66.927 | 68.240 | 27.68 ± 0.35 |
-| `backhand-dist-crates-io.squashfs` | 2.444 ± 0.030 | 2.398 | 2.540 | 1.00 |
-| `backhand-dist-crates-io.squashfs` | 2.519 ± 0.013 | 2.488 | 2.555 | 1.03 ± 0.01 |
-| `squashfs-tools-crates-io.squashfs` | 2.519 ± 0.060 | 2.393 | 2.639 | 1.03 ± 0.03 |
+| `backhand-dist-v0.14.2-crates-io.squashfs` | 69.386 ± 0.968 | 67.132 | 71.444 | 28.22 ± 0.47 |
+| `backhand-dist-musl-crates-io.squashfs` | 2.458 ± 0.023 | 2.432 | 2.526 | 1.00 |
+| `backhand-dist-crates-io.squashfs` | 2.539 ± 0.018 | 2.507 | 2.620 | 1.03 ± 0.01 |
+| `squashfs-tools-crates-io.squashfs` | 2.521 ± 0.057 | 2.386 | 2.668 | 1.03 ± 0.03 |
 
 ## Heap Usage: `backhand/unsquashfs-master` vs `squashfs-tools/unsquashfs-4.6.1`
 ```

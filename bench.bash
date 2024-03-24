@@ -10,10 +10,10 @@ UNSQUASHFS="/usr/bin/unsquashfs"
 bench () {
     echo ""
     file $1
-    hyperfine --runs 50 --warmup 10 \
+    hyperfine --sort command --runs 50 --warmup 10 \
         --command-name backhand-dist-${LAST_RELEASE}-$(basename $1) \
         "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        --command-name backhand-dist-$(basename $1) \
+        --command-name backhand-dist-musl-$(basename $1) \
         "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name backhand-dist-$(basename $1) \
         "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \

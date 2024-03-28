@@ -24,7 +24,7 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.PAT }}
 
-      - uses: dangoslen/dependabot-changelog-helper@3e4e9ccb99f4a3214f6ae9fe3339917d8f836ba7 # v3.8.1
+      - uses: dangoslen/dependabot-changelog-helper@392b22478d34ddd54f2c51919bf40ad5590db395 # v3.9.0
         with:
           version: 'Unreleased'
           activationLabels: 'C-dependencies,dependabot-reviewed'

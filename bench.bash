@@ -1,31 +1,36 @@
 #!/bin/bash
+set -ex
 
-LAST_RELEASE="v0.14.2"
+LAST_RELEASE="v0.15.0"
 
 BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
+# Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
+FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd"
+
 bench () {
     echo ""
     file $1
     hyperfine --sort command --runs 50 --warmup 10 \
-        --command-name backhand-dist-${LAST_RELEASE}-$(basename $1) \
-        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        --command-name backhand-dist-musl-$(basename $1) \
+        --command-name backhand-dist-${LAST_RELEASE} \
         "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        --command-name backhand-dist-$(basename $1) \
+        --command-name backhand-dist \
+        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        --command-name backhand-dist-musl \
         "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
-        --command-name squashfs-tools-$(basename $1) \
+        --command-name squashfs-tools \
         "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1" \
         --export-markdown bench-results/$3.md -i
+    (echo "### \`$(basename $1)\`"; cat bench-results/$3.md) > bench-results/$3_final.md
 }
 
-# Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
-cross +stable build -p backhand-cli --bins --locked --target x86_64-unknown-linux-musl --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
-cargo +stable install backhand-cli --git https://github.com/wcampbell0x2a/backhand.git --root last-release --tag "$LAST_RELEASE" --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
-cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd
+rm -rf bench-results
+cross +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
+cargo +stable install backhand-cli --git https://github.com/wcampbell0x2a/backhand.git --root last-release --tag "$LAST_RELEASE" $FLAGS
+cargo +stable build -p backhand-cli $FLAGS
 mkdir -p bench-results
 
 # xz
@@ -46,3 +51,5 @@ bench "backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage" 0
 bench "backhand-test/test-assets/crates_io_zstd/crates-io.squashfs" 0x0 6_crates_zstd
 
 rm -rf /tmp/BH*
+cat bench-results/*_final.md > results.md
+echo "Cool, now add results.md to BENCHMARK.md"

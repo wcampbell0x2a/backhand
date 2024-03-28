@@ -52,7 +52,7 @@ jobs:
           # disable static build for this job
           RUSTFLAGS: ""
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        uses: obi1kenobi/cargo-semver-checks-action@48f4ef7da6d907d69d18249e0ba79aa98c61b9db # v2.3
+        uses: obi1kenobi/cargo-semver-checks-action@c7306483f698c511eaf7416d1bf2e1958c90140f # v2.4
         with:
           package: backhand
 

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dependencies
 - Bump `zstd` from 0.13.0 to 0.13.1 ([#518](https://github.com/wcampbell0x2a/backhand/pull/518))
 - Bump `rayon` from 1.9.0 to 1.10.0 ([#512](https://github.com/wcampbell0x2a/backhand/pull/512))
+- Bump `codecov/codecov-action` from 4.1.0 to 4.1.1 ([#514](https://github.com/wcampbell0x2a/backhand/pull/514))
 
 ## [v0.15.0] - 2024-03-24
 ### `backhand`

@@ -6,8 +6,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use deku::bitvec::BitVec;
-use deku::DekuWrite;
+use deku::prelude::*;
 use tracing::{error, info, trace};
 
 use super::node::{InnerNode, Nodes};
@@ -437,8 +436,8 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     where
         W: Write + Seek,
     {
-        let writer = WriterWithOffset::new(w, offset)?;
-        self.write(writer)
+        let mut writer = WriterWithOffset::new(w, offset)?;
+        self.write(&mut writer)
     }
 
     fn write_data<W>(
@@ -606,12 +605,11 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         trace!("WRITING DIR: {block_offset:#02x?}");
         let mut total_size: usize = 3;
         for dir in Entry::into_dir(entries) {
-            let mut bv = BitVec::new();
-            dir.write(&mut bv, kind.inner.type_endian)?;
-            let bytes = bv.as_raw_slice();
-            dir_writer.write_all(bv.as_raw_slice())?;
-
+            let mut bytes = vec![];
+            let mut writer = Writer::new(&mut bytes);
+            dir.to_writer(&mut writer, kind.inner.type_endian)?;
             total_size += bytes.len();
+            dir_writer.write_all(&bytes)?;
         }
         let entry = Entry::path(
             filename,
@@ -635,10 +633,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write<W>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError>
-    where
-        W: Write + Seek,
-    {
+    pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
@@ -650,17 +645,24 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         // Write compression options, if any
         if let Some(options) = &self.fs_compressor.options {
             superblock.flags |= Flags::CompressorOptionsArePresent as u16;
-            let mut buf = BitVec::new();
+            let mut compression_opt_buf_out = vec![];
+            let mut writer = Writer::new(&mut compression_opt_buf_out);
             match options {
                 CompressionOptions::Gzip(gzip) => {
-                    gzip.write(&mut buf, self.kind.inner.type_endian)?
+                    gzip.to_writer(&mut writer, self.kind.inner.type_endian)?
                 }
-                CompressionOptions::Lz4(lz4) => lz4.write(&mut buf, self.kind.inner.type_endian)?,
+                CompressionOptions::Lz4(lz4) => {
+                    lz4.to_writer(&mut writer, self.kind.inner.type_endian)?
+                }
                 CompressionOptions::Zstd(zstd) => {
-                    zstd.write(&mut buf, self.kind.inner.type_endian)?
+                    zstd.to_writer(&mut writer, self.kind.inner.type_endian)?
                 }
-                CompressionOptions::Xz(xz) => xz.write(&mut buf, self.kind.inner.type_endian)?,
-                CompressionOptions::Lzo(lzo) => lzo.write(&mut buf, self.kind.inner.type_endian)?,
+                CompressionOptions::Xz(xz) => {
+                    xz.to_writer(&mut writer, self.kind.inner.type_endian)?
+                }
+                CompressionOptions::Lzo(lzo) => {
+                    lzo.to_writer(&mut writer, self.kind.inner.type_endian)?
+                }
                 CompressionOptions::Lzma => {}
             }
             let mut metadata = MetadataWriter::new(
@@ -668,7 +670,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                 self.block_size,
                 Kind { inner: self.kind.inner.clone() },
             );
-            metadata.write_all(buf.as_raw_slice())?;
+            metadata.write_all(&compression_opt_buf_out)?;
             metadata.finalize(&mut w)?;
         }
 
@@ -730,7 +732,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         superblock.id_count = count.try_into().unwrap();
 
         info!("Finalize Superblock and End Bytes");
-        let bytes_written = self.finalize(&mut w, &mut superblock)?;
+        let bytes_written = self.finalize(w, &mut superblock)?;
 
         info!("Success");
         Ok((superblock, bytes_written))
@@ -772,9 +774,9 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         // Seek back the beginning and write the superblock
         info!("Writing Superblock");
         w.rewind()?;
-        let mut bv = BitVec::new();
-        superblock.write(
-            &mut bv,
+        let mut writer = Writer::new(&mut w);
+        superblock.to_writer(
+            &mut writer,
             (
                 self.kind.inner.magic,
                 self.kind.inner.version_major,
@@ -782,8 +784,6 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                 self.kind.inner.type_endian,
             ),
         )?;
-        w.write_all(bv.as_raw_slice())?;
-
         info!("Writing Finished");
 
         //clean any cache, make sure the output is on disk
@@ -825,7 +825,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         element_size: usize,
     ) -> Result<(u64, u32), BackhandError>
     where
-        D: DekuWrite<deku::ctx::Endian>,
+        D: DekuWriter<deku::ctx::Endian>,
         W: Write + Seek,
     {
         let mut ptrs: Vec<u64> = vec![];
@@ -833,19 +833,17 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let mut iter = table.iter().peekable();
         while let Some(t) = iter.next() {
             // convert fragment ptr to bytes
-            let mut bv = BitVec::new();
-            t.write(&mut bv, self.kind.inner.type_endian)?;
-            table_bytes.write_all(bv.as_raw_slice())?;
+            let mut table_writer = Writer::new(&mut table_bytes);
+            t.to_writer(&mut table_writer, self.kind.inner.type_endian)?;
 
             // once table_bytes + next is over the maximum size of a metadata block, write
             if ((table_bytes.len() + element_size) > METADATA_MAXSIZE) || iter.peek().is_none() {
                 ptrs.push(w.stream_position()?);
 
-                let mut bv = BitVec::new();
                 // write metadata len
                 let len = metadata::set_if_uncompressed(table_bytes.len() as u16);
-                len.write(&mut bv, self.kind.inner.data_endian)?;
-                w.write_all(bv.as_raw_slice())?;
+                let mut writer = Writer::new(&mut w);
+                len.to_writer(&mut writer, self.kind.inner.data_endian)?;
                 // write metadata bytes
                 w.write_all(&table_bytes)?;
 
@@ -858,9 +856,8 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         // write ptr
         for ptr in ptrs {
-            let mut bv = BitVec::new();
-            ptr.write(&mut bv, self.kind.inner.type_endian)?;
-            w.write_all(bv.as_raw_slice())?;
+            let mut writer = Writer::new(&mut w);
+            ptr.to_writer(&mut writer, self.kind.inner.type_endian)?;
         }
 
         Ok((table_position, count))

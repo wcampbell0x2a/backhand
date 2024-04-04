@@ -10,7 +10,7 @@ backhand
 Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
-- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs 4.0 images, 
+- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs 4.0 images,
 including the extraction and modification of images.
 - **Feature Flags** — Supported compression and decompression are feature flagged, so your final binary (or `unsquashfs`)
 only needs to include code to extract one type of image.

@@ -1,9 +1,8 @@
 //! Reader traits
 
 use std::collections::HashMap;
-use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, Cursor, Read, Seek, SeekFrom, Write};
 
-use deku::bitvec::{BitView, Msb0};
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, trace};
@@ -79,7 +78,7 @@ impl<T: Write + Seek> WriteSeek for T {}
 impl<T: BufReadSeek> SquashFsReader for T {}
 
 /// Squashfs data extraction methods implemented over [`Read`] and [`Seek`]
-pub trait SquashFsReader: BufReadSeek {
+pub trait SquashFsReader: BufReadSeek + Sized {
     /// Cache Inode Table
     /// # Returns
     /// - `(RootInode, HashMap<inode_number, Inode>)``
@@ -95,12 +94,15 @@ pub trait SquashFsReader: BufReadSeek {
             kind,
         )?;
 
-        let mut rest = bytes.view_bits::<deku::bitvec::Msb0>();
         let mut inodes = FxHashMap::default();
         inodes.try_reserve(superblock.inode_count as usize)?;
-        while !rest.is_empty() {
-            let (new_rest, i) = Inode::read(
-                rest,
+
+        let byte_len = bytes.len();
+        let mut cursor = Cursor::new(bytes);
+        let mut reader = Reader::new(&mut cursor);
+        while reader.bits_read != byte_len * 8 {
+            let inode = Inode::from_reader_with_ctx(
+                &mut reader,
                 (
                     superblock.bytes_used,
                     superblock.block_size,
@@ -108,8 +110,7 @@ pub trait SquashFsReader: BufReadSeek {
                     kind.inner.type_endian,
                 ),
             )?;
-            rest = new_rest;
-            inodes.insert(i.header.inode_number, i);
+            inodes.insert(inode.header.inode_number, inode);
         }
 
         if inodes.len() != superblock.inode_count as usize {
@@ -124,16 +125,12 @@ pub trait SquashFsReader: BufReadSeek {
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         };
 
-        let Some(rest) = bytes.get(*root_offset as usize..) else {
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        };
+        let mut cursor = reader.into_inner();
+        cursor.seek(SeekFrom::Start(root_offset + root_inode_offset as u64))?;
 
-        let Some(rest) = rest.get(root_inode_offset..) else {
-            return Err(BackhandError::CorruptedOrInvalidSquashfs);
-        };
-        let rest = rest.view_bits::<deku::bitvec::Msb0>();
-        let (_, root_inode) = Inode::read(
-            rest,
+        let mut reader = Reader::new(&mut cursor);
+        let root_inode = Inode::from_reader_with_ctx(
+            &mut reader,
             (
                 superblock.bytes_used,
                 superblock.block_size,
@@ -225,17 +222,18 @@ pub trait SquashFsReader: BufReadSeek {
         kind: &Kind,
     ) -> Result<(u64, Vec<T>), BackhandError>
     where
-        T: for<'a> DekuRead<'a, deku::ctx::Endian>,
+        T: for<'a> DekuReader<'a, deku::ctx::Endian>,
     {
         // find the pointer at the initial offset
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
-        let mut buf = [0u8; 8];
-        self.read_exact(&mut buf)?;
+        let buf: &mut [u8] = &mut [0u8; 8];
+        self.read_exact(buf)?;
         trace!("{:02x?}", buf);
 
-        let bv = buf.view_bits::<deku::bitvec::Msb0>();
-        let (_, ptr) = u64::read(bv, kind.inner.type_endian)?;
+        let mut cursor = Cursor::new(buf);
+        let mut deku_reader = Reader::new(&mut cursor);
+        let ptr = u64::from_reader_with_ctx(&mut deku_reader, kind.inner.type_endian)?;
 
         let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
 
@@ -254,7 +252,7 @@ pub trait SquashFsReader: BufReadSeek {
         kind: &Kind,
     ) -> Result<Vec<T>, BackhandError>
     where
-        T: for<'a> DekuRead<'a, deku::ctx::Endian>,
+        T: for<'a> DekuReader<'a, deku::ctx::Endian>,
     {
         trace!("seek: {:02x?}", seek);
         self.seek(SeekFrom::Start(seek))?;
@@ -266,11 +264,11 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         let mut ret_vec = vec![];
-        let mut all_bytes = all_bytes.view_bits::<Msb0>();
         // Read until we fail to turn bytes into `T`
-        while let Ok((rest, t)) = T::read(all_bytes, kind.inner.type_endian) {
+        let mut cursor = Cursor::new(all_bytes);
+        let mut container = Reader::new(&mut cursor);
+        while let Ok(t) = T::from_reader_with_ctx(&mut container, kind.inner.type_endian) {
             ret_vec.push(t);
-            all_bytes = rest;
         }
 
         Ok(ret_vec)

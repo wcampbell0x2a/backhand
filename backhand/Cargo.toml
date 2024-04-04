@@ -16,7 +16,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-deku = "0.16.0"
+deku = "0.17.0"
 tracing = { version = "0.1.40" }
 thiserror = "1.0.59"
 flate2 = { version = "1.0.30", optional = true }

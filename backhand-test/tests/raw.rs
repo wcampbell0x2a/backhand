@@ -1,5 +1,8 @@
 mod common;
 
+use std::fs::File;
+use std::io::{BufWriter, Cursor};
+
 use backhand::compression::Compressor;
 use backhand::{
     kind, CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, NodeHeader,
@@ -9,9 +12,11 @@ use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use test_assets::TestAssetDef;
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(all(feature = "xz", feature = "gzip"))]
 fn test_raw_00() {
-    use backhand::kind::Kind;
+    use std::io::BufReader;
+
+    use backhand::{kind::Kind, FilesystemReader};
 
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),
@@ -48,12 +53,12 @@ fn test_raw_00() {
 
     //don't do anything if the directory exists
     fs.push_dir_all("usr/bin", o_header).unwrap();
-    fs.push_file(std::io::Cursor::new(vec![0x00, 0x01]), "usr/bin/heyo", header).unwrap();
+    fs.push_file(Cursor::new(vec![0x00, 0x01]), "usr/bin/heyo", header).unwrap();
     fs.push_dir_all("this/is/a", o_header).unwrap();
-    fs.push_file(std::io::Cursor::new(vec![0x0f; 0xff]), "this/is/a/file", header).unwrap();
+    fs.push_file(Cursor::new(vec![0x0f; 0xff]), "this/is/a/file", header).unwrap();
 
     // create the modified squashfs
-    let mut output = std::io::BufWriter::new(std::fs::File::create(&new_path).unwrap());
+    let mut output = BufWriter::new(File::create(&new_path).unwrap());
     let (superblock, bytes_written) = fs.write(&mut output).unwrap();
 
     // 8KiB
@@ -82,6 +87,69 @@ fn test_raw_00() {
             export_table: 0xffffffffffffffff,
         }
     );
+
+    // compare
+    #[cfg(feature = "__test_unsquashfs")]
+    {
+        let control_new_path = format!("{TEST_PATH}/control.squashfs");
+        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
+        test_bin_unsquashfs(&new_path, None, true, true);
+    }
+
+    // Test downing the compression level
+    let file = BufReader::new(File::open(&new_path).unwrap());
+    let fs = FilesystemReader::from_reader(file).unwrap();
+    let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
+    let mut xz_extra = ExtraXz::default();
+    xz_extra.level(1).unwrap();
+    let extra = CompressionExtra::Xz(xz_extra);
+    let mut compressor = FilesystemCompressor::new(Compressor::Xz, None).unwrap();
+    compressor.extra(extra).unwrap();
+    fs.set_compressor(compressor);
+
+    // create the modified squashfs
+    let new_path = format!("{TEST_PATH}/bytes_less_xz.squashfs");
+    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
+
+    // compare
+    #[cfg(feature = "__test_unsquashfs")]
+    {
+        let control_new_path = format!("{TEST_PATH}/control.squashfs");
+        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
+        test_bin_unsquashfs(&new_path, None, true, true);
+    }
+
+    // Test picking a different compression
+    let file = BufReader::new(File::open(&new_path).unwrap());
+    let fs = FilesystemReader::from_reader(file).unwrap();
+    let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
+    let compressor = FilesystemCompressor::new(Compressor::Gzip, None).unwrap();
+    fs.set_compressor(compressor);
+
+    // create the modified squashfs
+    let new_path = format!("{TEST_PATH}/bytes_gzip.squashfs");
+    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
+
+    // compare
+    #[cfg(feature = "__test_unsquashfs")]
+    {
+        let control_new_path = format!("{TEST_PATH}/control.squashfs");
+        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
+        test_bin_unsquashfs(&new_path, None, true, true);
+    }
+
+    // Test changing block size
+    let file = BufReader::new(File::open(&new_path).unwrap());
+    let fs = FilesystemReader::from_reader(file).unwrap();
+    let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
+    fs.set_block_size(DEFAULT_BLOCK_SIZE * 2);
+
+    // create the modified squashfs
+    let new_path = format!("{TEST_PATH}/bytes_bigger_blocks.squashfs");
+    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]

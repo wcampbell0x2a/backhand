@@ -563,11 +563,12 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
             }
             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
                 if root_process {
+                    #[allow(clippy::unnecessary_fallible_conversions)]
                     match mknod(
                         &filepath,
                         SFlag::S_IFCHR,
                         Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                        dev_t::from(*device_number),
+                        dev_t::try_from(*device_number).unwrap(),
                     ) {
                         Ok(_) => {
                             if args.info && !args.quiet {
@@ -603,11 +604,12 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 }
             }
             InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
+                #[allow(clippy::unnecessary_fallible_conversions)]
                 match mknod(
                     &filepath,
                     SFlag::S_IFBLK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                    dev_t::from(*device_number),
+                    dev_t::try_from(*device_number).unwrap(),
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {
@@ -649,11 +651,12 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 }
             }
             InnerNode::Socket => {
+                #[allow(clippy::unnecessary_fallible_conversions)]
                 match mknod(
                     &filepath,
                     SFlag::S_IFSOCK,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
-                    dev_t::from(0_u64),
+                    dev_t::try_from(0_u64).unwrap(),
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {

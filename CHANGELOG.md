@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `codecov/codecov-action` from 4.1.0 to 4.1.1 ([#514](https://github.com/wcampbell0x2a/backhand/pull/514))
 - Bump `obi1kenobi/cargo-semver-checks-action` from 2.3 to 2.4 ([#507](https://github.com/wcampbell0x2a/backhand/pull/507))
 - Bump `clap` from 4.5.2 to 4.5.4 ([#513](https://github.com/wcampbell0x2a/backhand/pull/513))
+- Bump `libdeflater` from 1.19.3 to 1.20.0 ([#523](https://github.com/wcampbell0x2a/backhand/pull/523))
 
 ## [v0.15.0] - 2024-03-24
 ### `backhand`

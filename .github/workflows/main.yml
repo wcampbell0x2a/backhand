@@ -74,7 +74,7 @@ jobs:
     steps:
       - run: sudo apt-get install -y squashfs-tools
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
-      - uses: dtolnay/rust-toolchain@dc6353516c68da0f06325f42ad880f76a5e77ec9 # master
+      - uses: dtolnay/rust-toolchain@7164405e8653277d57afd42ba081b5aa02a70396 # master
         with:
           toolchain: ${{ matrix.toolchain }}
       # build bins
@@ -88,7 +88,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
-      - uses: dtolnay/rust-toolchain@dc6353516c68da0f06325f42ad880f76a5e77ec9 # master
+      - uses: dtolnay/rust-toolchain@7164405e8653277d57afd42ba081b5aa02a70396 # master
         with:
           toolchain: stable
           components: rustfmt, clippy

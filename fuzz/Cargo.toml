@@ -10,6 +10,7 @@ cargo-fuzz = true
 [dependencies]
 # libfuzzer-sys = "0.4"
 libfuzzer-sys = { git = "https://github.com/AFLplusplus/LibAFL.git", branch = "libfuzzer-best", package = "libafl_libfuzzer" }
+mimalloc = { version = "*", default-features = false }
 
 [dependencies.backhand]
 path = "../backhand"

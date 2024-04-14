@@ -1,5 +1,10 @@
 #![no_main]
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 use backhand::FilesystemReader;
 use libfuzzer_sys::fuzz_target;
 

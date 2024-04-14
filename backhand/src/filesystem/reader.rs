@@ -105,14 +105,6 @@ impl<'b> FilesystemReader<'b> {
         squashfs.into_filesystem_reader()
     }
 
-    /// Allocate two properly sized buffers for [`FilesystemReaderFile::reader`]
-    pub fn alloc_read_buffers(&self) -> (Vec<u8>, Vec<u8>) {
-        let buf_read = Vec::with_capacity(self.block_size as usize);
-        let buf_decompress = vec![];
-
-        (buf_read, buf_decompress)
-    }
-
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before reading
     pub fn from_reader_with_offset<R>(reader: R, offset: u64) -> Result<Self, BackhandError>
     where
@@ -155,16 +147,13 @@ impl<'b> FilesystemReader<'b> {
     /// # let filesystem = FilesystemReader::from_reader(file).unwrap();
     /// // [snip: creating FilesystemReader]
     ///
-    /// // alloc required space for file data readers
-    /// let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
-    ///
     /// for node in filesystem.files() {
     ///     // extract
     ///     match &node.inner {
     ///         InnerNode::File(file) => {
     ///             let mut reader = filesystem
     ///                 .file(&file.basic)
-    ///                 .reader(&mut buf_read, &mut buf_decompress);
+    ///                 .reader();
     ///             // Then, do something with the reader
     ///         },
     ///         _ => (),
@@ -202,12 +191,8 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     /// [alloc_read_buffers]: FilesystemReader::alloc_read_buffers
     /// [Read::read]: std::io::Read::read
     /// [Vec::clear]: Vec::clear
-    pub fn reader(
-        &self,
-        buf_read: &'a mut Vec<u8>,
-        buf_decompress: &'a mut Vec<u8>,
-    ) -> SquashfsReadFile<'a, 'b> {
-        self.raw_data_reader().into_reader(buf_read, buf_decompress)
+    pub fn reader(&self) -> SquashfsReadFile<'a, 'b> {
+        self.raw_data_reader().into_reader()
     }
 
     pub fn fragment(&self) -> Option<&'a Fragment> {
@@ -400,26 +385,38 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     }
 
     #[inline]
-    pub fn into_reader(
-        self,
-        buf_read: &'a mut Vec<u8>,
-        buf_decompress: &'a mut Vec<u8>,
-    ) -> SquashfsReadFile<'a, 'b> {
+    pub fn into_reader(self) -> SquashfsReadFile<'a, 'b> {
+        let block_size = self.file.system.block_size as usize;
         let bytes_available = self.file.basic.file_size as usize;
-        SquashfsReadFile { raw_data: self, buf_read, buf_decompress, last_read: 0, bytes_available }
+        SquashfsReadFile::new(block_size, self, 0, bytes_available)
     }
 }
 
 pub struct SquashfsReadFile<'a, 'b> {
     raw_data: SquashfsRawData<'a, 'b>,
-    buf_read: &'a mut Vec<u8>,
-    buf_decompress: &'a mut Vec<u8>,
+    buf_read: Vec<u8>,
+    buf_decompress: Vec<u8>,
     //offset of buf_decompress to start reading
     last_read: usize,
     bytes_available: usize,
 }
 
 impl<'a, 'b> SquashfsReadFile<'a, 'b> {
+    fn new(
+        block_size: usize,
+        raw_data: SquashfsRawData<'a, 'b>,
+        last_read: usize,
+        bytes_available: usize,
+    ) -> Self {
+        Self {
+            raw_data,
+            buf_read: Vec::with_capacity(block_size),
+            buf_decompress: vec![],
+            last_read,
+            bytes_available,
+        }
+    }
+
     #[inline]
     fn available(&self) -> &[u8] {
         &self.buf_decompress[self.last_read..]
@@ -437,12 +434,12 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
 
     #[inline]
     fn read_next_block(&mut self) -> Result<(), BackhandError> {
-        let block = match self.raw_data.next_block(self.buf_read) {
+        let block = match self.raw_data.next_block(&mut self.buf_read) {
             Some(block) => block?,
             None => return Ok(()),
         };
         self.buf_decompress.clear();
-        self.raw_data.decompress(block, self.buf_read, self.buf_decompress)?;
+        self.raw_data.decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
         self.last_read = 0;
         Ok(())
     }

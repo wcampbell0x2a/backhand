@@ -14,7 +14,7 @@ use test_assets::TestAssetDef;
 #[test]
 #[cfg(all(feature = "xz", feature = "gzip"))]
 fn test_raw_00() {
-    use std::io::BufReader;
+    use std::{io::BufReader, process::Command};
 
     use backhand::{kind::Kind, FilesystemReader};
 
@@ -27,7 +27,7 @@ fn test_raw_00() {
     let new_path = format!("{TEST_PATH}/bytes.squashfs");
     test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
 
-    let header = NodeHeader { permissions: 0o755, uid: 0, gid: 0, mtime: 0 };
+    let header = NodeHeader { permissions: 0o755, uid: 1000, gid: 1000, mtime: 0 };
 
     let o_header = NodeHeader { permissions: 0o766, ..header };
 
@@ -45,8 +45,9 @@ fn test_raw_00() {
     let mut fs: FilesystemWriter = FilesystemWriter::default();
     fs.set_time(time);
     fs.set_block_size(DEFAULT_BLOCK_SIZE);
-    fs.set_only_root_id();
     fs.set_root_mode(0o777);
+    fs.set_root_uid(1000);
+    fs.set_root_gid(1000);
     fs.set_compressor(compressor);
     fs.set_kind(Kind::from_const(kind::LE_V4_0).unwrap());
     fs.set_kib_padding(8);
@@ -74,16 +75,16 @@ fn test_raw_00() {
             compressor: Compressor::Xz,
             block_log: 0x11,
             flags: 0x0,
-            id_count: 0x1,
+            id_count: 0x2,
             version_major: 0x4,
             version_minor: 0x0,
             root_inode: 0xe0,
-            bytes_used: 0x1ec,
-            id_table: 0x1e4,
+            bytes_used: 0x1f4,
+            id_table: 0x1ec,
             xattr_table: 0xffffffffffffffff,
             inode_table: 0xac,
-            dir_table: 0x136,
-            frag_table: 0x1d6,
+            dir_table: 0x13a,
+            frag_table: 0x1da,
             export_table: 0xffffffffffffffff,
         }
     );
@@ -91,6 +92,20 @@ fn test_raw_00() {
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
+        let output = Command::new("unsquashfs").args(["-lln", "-UTC", &new_path]).output().unwrap();
+        let expected = r#"drwxrwxrwx 1000/1000                38 1970-01-01 00:00 squashfs-root
+drwxrw-rw- 1000/1000                25 1970-01-01 00:00 squashfs-root/this
+drwxrw-rw- 1000/1000                24 1970-01-01 00:00 squashfs-root/this/is
+drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/this/is/a
+-rwxr-xr-x 1000/1000               255 1970-01-01 00:00 squashfs-root/this/is/a/file
+drwxrw-rw- 1000/1000                26 1970-01-01 00:00 squashfs-root/usr
+drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
+-rwxr-xr-x 1000/1000                 2 1970-01-01 00:00 squashfs-root/usr/bin/heyo
+"#;
+
+        // using contains here, the output of squashfs varies between versions
+        assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), expected);
+
         let control_new_path = format!("{TEST_PATH}/control.squashfs");
         test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
         test_bin_unsquashfs(&new_path, None, true, true);

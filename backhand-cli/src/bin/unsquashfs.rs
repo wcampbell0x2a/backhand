@@ -457,8 +457,6 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         match &node.inner {
             InnerNode::File(file) => {
                 // alloc required space for file data readers
-                let (mut buf_read, mut buf_decompress) = filesystem.alloc_read_buffers();
-
                 // check if file exists
                 if !args.force && filepath.exists() {
                     if !args.quiet {
@@ -473,7 +471,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 let fd = File::create(&filepath).unwrap();
                 let mut writer = BufWriter::with_capacity(file.basic.file_size as usize, &fd);
                 let file = filesystem.file(&file.basic);
-                let mut reader = file.reader(&mut buf_read, &mut buf_decompress);
+                let mut reader = file.reader();
 
                 match io::copy(&mut reader, &mut writer) {
                     Ok(_) => {

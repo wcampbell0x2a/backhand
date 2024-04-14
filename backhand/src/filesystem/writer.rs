@@ -472,12 +472,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     {
                         data_writer.just_copy_it(file.raw_data_reader(), &mut writer)?
                     } else {
-                        let mut buf_read = Vec::with_capacity(file.system.block_size as usize);
-                        let mut buf_decompress = vec![];
-                        data_writer.add_bytes(
-                            file.reader(&mut buf_read, &mut buf_decompress),
-                            &mut writer,
-                        )?
+                        data_writer.add_bytes(file.reader(), &mut writer)?
                     }
                 }
                 SquashfsFileWriter::Consumed(_, _) => unreachable!(),

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `clap` from 4.5.2 to 4.5.4 ([#513](https://github.com/wcampbell0x2a/backhand/pull/513))
 - Bump `libdeflater` from 1.19.3 to 1.20.0 ([#523](https://github.com/wcampbell0x2a/backhand/pull/523))
 - Bump `dangoslen/dependabot-changelog-helper` from 3.8.1 to 3.9.0 ([#516](https://github.com/wcampbell0x2a/backhand/pull/516))
+- Bump `thiserror` from 1.0.58 to 1.0.59 ([#534](https://github.com/wcampbell0x2a/backhand/pull/534))
 
 ## [v0.15.0] - 2024-03-24
 ### `backhand`

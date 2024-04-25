@@ -52,6 +52,9 @@
 //! # Features
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 
+#[cfg(all(feature = "gzip", feature = "gzip-zune-inflate"))]
+compile_error!("gzip and gzip-zune-inflate are mutually exclusive and cannot be enabled together");
+
 #[cfg(doctest)]
 #[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();

@@ -26,4 +26,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: cargo check --all-features --locked -p backhand
+      - run: cargo check --locked -p backhand

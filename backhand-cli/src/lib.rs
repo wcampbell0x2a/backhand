@@ -19,7 +19,7 @@ pub fn after_help(rayon_env: bool) -> String {
     let header = color_print::cstr!("<green, bold>Decompressors available:</>\n");
     s.push_str(header);
 
-    #[cfg(feature = "gzip")]
+    #[cfg(feature = "any-gzip")]
     s.push_str(color_print::cstr!("  <cyan, bold>gzip\n"));
 
     #[cfg(feature = "xz")]

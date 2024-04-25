@@ -191,12 +191,12 @@ impl CompressionAction for DefaultCompressor {
     ) -> Result<(), BackhandError> {
         match compressor {
             Compressor::None => out.extend_from_slice(bytes),
-            #[cfg(all(feature = "gzip", not(feature = "gzip-zune-inflate")))]
+            #[cfg(feature = "gzip")]
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
                 decoder.read_to_end(out)?;
             }
-            #[cfg(all(feature = "gzip-zune-inflate", not(feature = "gzip")))]
+            #[cfg(feature = "gzip-zune-inflate")]
             Compressor::Gzip => {
                 use std::io::Write;
                 let mut decoder = zune_inflate::DeflateDecoder::new(&bytes);

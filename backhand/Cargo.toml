@@ -30,11 +30,14 @@ default = ["xz", "gzip", "zstd"]
 xz = ["dep:xz2"]
 ## Enables xz compression and forces static build inside library and binaries
 xz-static = ["dep:xz2", "xz2?/static"]
-## Enables gzip compression inside library and binaries
-gzip = ["dep:flate2"]
-## Enables faster gzip (de-compression only) inside library and binaries
+## Internal only
+any-gzip = []
+## Enables gzip compression inside library and binaries using flate2 library
+## Cannot be used with the `gzip-zune-inflate` feature
+gzip = ["any-gzip", "dep:flate2"]
+## Enables faster gzip (de-compression only) inside library and binaries using zune-inflate
 ## Cannot be used with the `gzip` feature
-gzip-zune-inflate = ["dep:zune-inflate"]
+gzip-zune-inflate = ["any-gzip", "dep:zune-inflate"]
 ## This library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
 ## Enables zstd compression inside library and binaries

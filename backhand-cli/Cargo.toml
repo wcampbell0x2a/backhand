@@ -36,7 +36,7 @@ default = ["xz", "gzip", "zstd"]
 ## Enables xz compression inside library and binaries
 xz = ["backhand/xz"]
 ## Enables xz compression and forces static build inside library and binaries
-xz-static = ["backhand/xz-static"]
+xz-static = ["xz", "backhand/xz-static"]
 ## Internal only
 any-gzip = ["backhand/any-gzip"]
 ## Enables gzip compression inside library and binaries

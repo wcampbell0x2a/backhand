@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `libdeflater` from 1.19.3 to 1.20.0 ([#523](https://github.com/wcampbell0x2a/backhand/pull/523))
 - Bump `dangoslen/dependabot-changelog-helper` from 3.8.1 to 3.9.0 ([#516](https://github.com/wcampbell0x2a/backhand/pull/516))
 - Bump `thiserror` from 1.0.58 to 1.0.59 ([#534](https://github.com/wcampbell0x2a/backhand/pull/534))
+- Bump `color-print` from 0.3.5 to 0.3.6 ([#537](https://github.com/wcampbell0x2a/backhand/pull/537))
 
 ## [v0.15.0] - 2024-03-24
 ### `backhand`

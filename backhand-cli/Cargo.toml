@@ -20,7 +20,7 @@ clap_complete = "4.5.2"
 indicatif = "0.17.8"
 console = "0.15.8"
 rayon = "1.10.0"
-backhand = { path = "../backhand", default-features = false, version = "0.15.0" }
+backhand = { path = "../backhand", default-features = false, version = "0.16.0" }
 tracing = "0.1.40"
 color-print = "0.3.6"
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.16.0] - 2024-04-25
+### `backhand`
+- Simplify API by removing `FilesystemReader::alloc_read_buffers()`. This is now handled internally by `FilesystemReader::reader()` ([#530](https://github.com/wcampbell0x2a/backhand/pull/530))
+### `backhand-cli`
+- Add `x86_64-apple-darwin` support and release binary ([#511](https://github.com/wcampbell0x2a/backhand/pull/511))
+- Fix `--help` and correctly show `gzip` support when using `gzip-zune-inflate` ([#538](https://github.com/wcampbell0x2a/backhand/pull/538))
+- Fix `--help` and correctly show `xz` support when using `xz-static` ([#541](https://github.com/wcampbell0x2a/backhand/pull/541))
+
 ### Dependencies
 - Bump `zstd` from 0.13.0 to 0.13.1 ([#518](https://github.com/wcampbell0x2a/backhand/pull/518))
 - Bump `rayon` from 1.9.0 to 1.10.0 ([#512](https://github.com/wcampbell0x2a/backhand/pull/512))

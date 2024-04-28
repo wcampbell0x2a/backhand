@@ -25,7 +25,6 @@ jobs:
           - { target: aarch64-unknown-linux-musl,   os: ubuntu-latest, use-cross: true }
           - { target: arm-unknown-linux-musleabi,   os: ubuntu-latest, use-cross: true }
           - { target: armv7-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-linux-musl,   os: ubuntu-latest, use-cross: true }
           - { target: x86_64-apple-darwin,          os: macos-12                       }
 
     steps:

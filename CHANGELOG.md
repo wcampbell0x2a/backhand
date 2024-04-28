@@ -27,6 +27,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `color-print` from 0.3.5 to 0.3.6 ([#537](https://github.com/wcampbell0x2a/backhand/pull/537))
 - Bump `clap_complete` from 4.5.1 to 4.5.2 ([#525](https://github.com/wcampbell0x2a/backhand/pull/525))
 
+#### Complete API Updates
+<details>
+<summary>Click to expand</summary>
+
+```diff
+Removed items from the public API
+=================================
+-pub fn backhand::FilesystemReader<'b>::alloc_read_buffers(&self) -> (alloc::vec::Vec<u8>, alloc::vec::Vec<u8>)
+
+Changed items in the public API
+===============================
+-pub fn backhand::FilesystemReaderFile<'a, 'b>::reader(&self, buf_read: &'a mut alloc::vec::Vec<u8>, buf_decompress: &'a mut alloc::vec::Vec<u8>) -> backhand::SquashfsReadFile<'a, 'b>
++pub fn backhand::FilesystemReaderFile<'a, 'b>::reader(&self) -> backhand::SquashfsReadFile<'a, 'b>
+
+Added items to the public API
+=============================
+(none)
+```
+
+</details>
+
+**Full Diff**: https://github.com/wcampbell0x2a/backhand/compare/v0.15.0...v0.16.0
+
 ## [v0.15.0] - 2024-03-24
 ### `backhand`
 - Add support for `Socket` and `NamedFIFO` Inodes in library and extraction binaries. Thanks ([@tnias](https://github.com/tnias)) ([#472](https://github.com/wcampbell0x2a/backhand/pull/472), [#470](https://github.com/wcampbell0x2a/backhand/pull/470))
@@ -66,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `tempfile` from 3.9.0 to 3.10.1 ([#491](https://github.com/wcampbell0x2a/backhand/pull/491))
 - Bump `actions/checkout` from 4.1.1 to 4.1.2 ([#501](https://github.com/wcampbell0x2a/backhand/pull/501))
 
+**Full Diff**: https://github.com/wcampbell0x2a/backhand/compare/v0.14.2...v0.15.0
+
 ## [v0.14.2] - 2024-01-16
 ### `backhand`
 - Enable overflow-checks ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
@@ -88,10 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `assert_cmd` from 2.0.12 to 2.0.13 ([#422](https://github.com/wcampbell0x2a/backhand/pull/422))
 - Bump `console` from 0.15.7 to 0.15.8 ([#413](https://github.com/wcampbell0x2a/backhand/pull/413))
 
+**Full Diff**: https://github.com/wcampbell0x2a/backhand/compare/v0.14.1...v0.14.2
+
 ## [v0.14.1] - 2024-01-13
 ### `backhand`
 #### Changes
 - Fix path to project `README.md` for `crates.io` ([#420](https://github.com/wcampbell0x2a/backhand/pull/420))
+
+**Full Diff**: https://github.com/wcampbell0x2a/backhand/compare/v0.14.0...v0.14.1
 
 ## [v0.14.0] - 2024-01-13
 Major changes were made to the organization of this repo, with the library `backhand` now being separated from
@@ -172,6 +201,8 @@ For example, the following is now allowed:
 - Bump `tempfile` from 3.8.1 to 3.9.0 ([#398](https://github.com/wcampbell0x2a/backhand/pull/398))
 - Bump `document-features` from 0.2.7 to 0.2.8 ([#400](https://github.com/wcampbell0x2a/backhand/pull/400))
 
+**Full Diff**: https://github.com/wcampbell0x2a/backhand/compare/v0.13.0...v0.14.0
+
 ## [v0.13.0] - 2023-06-18
 ### backhand
 #### Changes
@@ -239,6 +270,8 @@ Added items to the public API
 - Add `--auto-offset` for automatic finding of initial SquashFS offset in image ([#241](https://github.com/wcampbell0x2a/backhand/pull/241))
 - Add possible `kind` values to `--help` output ([#236](https://github.com/wcampbell0x2a/backhand/pull/236))
 - Add `--path-filter` to limit file extraction to a path ([#237](https://github.com/wcampbell0x2a/backhand/pull/237))
+
+**Full Diff**: https://github.com/wcampbell0x2a/backhand/compare/v0.12.0...v0.13.0
 
 ## [v0.12.0] - 2023-05-07
 Thanks [@rbran](https://github.com/rbran/) for the contributions!

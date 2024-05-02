@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+- Bump `flate2` from 1.0.28 to 1.0.30 ([#547](https://github.com/wcampbell0x2a/backhand/pull/547))
+
 ## [v0.16.0] - 2024-04-25
 ### `backhand`
 - Simplify API by removing `FilesystemReader::alloc_read_buffers()`. This is now handled internally by `FilesystemReader::reader()` ([#530](https://github.com/wcampbell0x2a/backhand/pull/530))

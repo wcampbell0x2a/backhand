@@ -51,8 +51,10 @@
 //!
 //! # Features
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[cfg(all(feature = "gzip", feature = "gzip-zune-inflate"))]
+// Allow docs.rs to run with --all-features, everything else is compile_error
+#[cfg(all(not(docsrs), feature = "gzip", feature = "gzip-zune-inflate"))]
 compile_error!("gzip and gzip-zune-inflate are mutually exclusive and cannot be enabled together");
 
 #[cfg(doctest)]

@@ -62,7 +62,3 @@ bench = false
 name = "replace-backhand"
 path = "src/bin/replace.rs"
 bench = false
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]

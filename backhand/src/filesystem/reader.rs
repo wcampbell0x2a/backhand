@@ -181,14 +181,6 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     /// This can be used to then call functions from [`std::io::Read`]
     /// to de-compress and read the data from this file.
     ///
-    /// # Arguments
-    ///
-    /// * `buf_read` - Pre-allocated buffer of `block_size`, from [alloc_read_buffers].
-    ///     Calls [Vec::clear] after final [Read::read] call.
-    /// * `buf_decompress` - Pre-allocated buffer from [alloc_read_buffers].
-    ///     Calls [Vec::clear] after final [Read::read] call.
-    ///
-    /// [alloc_read_buffers]: FilesystemReader::alloc_read_buffers
     /// [Read::read]: std::io::Read::read
     /// [Vec::clear]: Vec::clear
     pub fn reader(&self) -> SquashfsReadFile<'a, 'b> {

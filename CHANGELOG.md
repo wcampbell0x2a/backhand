@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.17.0] - 2024-05-06
+- Remove unused `BufSeekRewind` and `SeekRewind` traits ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))
+- Fix docs.rs build ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))
+
 ### Dependencies
 - Bump `flate2` from 1.0.28 to 1.0.30 ([#547](https://github.com/wcampbell0x2a/backhand/pull/547))
 

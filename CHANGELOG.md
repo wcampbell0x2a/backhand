@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+- Bump `libc` from 0.2.153 to 0.2.154 ([#546](https://github.com/wcampbell0x2a/backhand/pull/546))
+
 ## [v0.17.0] - 2024-05-06
 - Remove unused `BufSeekRewind` and `SeekRewind` traits ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))
 - Fix docs.rs build ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))

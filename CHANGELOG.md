@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+- Bump `thiserror` from 1.0.59 to 1.0.60 ([#552](https://github.com/wcampbell0x2a/backhand/pull/552))
+
 ## [v0.17.0] - 2024-05-06
 - Remove unused `BufSeekRewind` and `SeekRewind` traits ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))
 - Fix docs.rs build ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))

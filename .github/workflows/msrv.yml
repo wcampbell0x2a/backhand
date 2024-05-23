@@ -9,14 +9,14 @@ on:
 
 name: Check MSRV of backhand
 jobs:
-  build-test:
+  build-test-backhand:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         toolchain:
             # msrv of backhand
-          - 1.67.1
+          - 1.72.1
 
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -27,3 +27,22 @@ jobs:
         with:
           toolchain: ${{ matrix.toolchain }}
       - run: cargo check --locked -p backhand
+
+  build-test-backhand-cli:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+            # msrv of backhand-cli
+          - 1.74
+
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - name: Populate cache
+        uses: ./.github/workflows/cache
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo check --locked -p backhand-cli

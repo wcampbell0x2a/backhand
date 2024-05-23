@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### `backhand`
+- Update MSRV to 1.72.1 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))
+
+### Dependencies
+- Bump `deku` from 0.16.0 to 0.17.0 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))
 
 ## [v0.17.0] - 2024-05-06
 - Remove unused `BufSeekRewind` and `SeekRewind` traits ([#550](https://github.com/wcampbell0x2a/backhand/pull/550))

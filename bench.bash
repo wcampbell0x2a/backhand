@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-LAST_RELEASE="v0.15.0"
+LAST_RELEASE="v0.17.0"
 
 BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"

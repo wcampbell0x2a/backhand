@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### `backhand`
+- Update MSRV to 1.72.1 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))
+
+### Dependencies
+- Bump `deku` from 0.16.0 to 0.17.0 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))
 
 ### Dependencies
 - Bump `libc` from 0.2.153 to 0.2.154 ([#546](https://github.com/wcampbell0x2a/backhand/pull/546))
@@ -78,7 +83,7 @@ Added items to the public API
 - Bump MSRV to `1.74` for `clap-4.5.1` update ([#483](https://github.com/wcampbell0x2a/backhand/pull/483))
 ### `backhand-test`
 - Reduced maximum allocation during testing by free'ing right after full usage ([#504](https://github.com/wcampbell0x2a/backhand/pull/504))
-#### unsquashfs 
+#### unsquashfs
 - Performance: Remove progress bar Mutex lock when `--quiet` ([#430](https://github.com/wcampbell0x2a/backhand/pull/430))
 ### Dependencies
 - Bump `actions/upload-artifact` from 4.1.0 to 4.3.1 ([#435](https://github.com/wcampbell0x2a/backhand/pull/435), [#446](https://github.com/wcampbell0x2a/backhand/pull/446), [#465](https://github.com/wcampbell0x2a/backhand/pull/465))
@@ -110,7 +115,7 @@ Added items to the public API
 ### `backhand-cli`
 - Enable overflow-checks for dist builds ([#421](https://github.com/wcampbell0x2a/backhand/pull/421))
 
-#### unsquashfs 
+#### unsquashfs
 - Use feature `gzip-zune-inflate` for dist build and speed improvements ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))
 - Updated benchmarks to show improvement ([#419](https://github.com/wcampbell0x2a/backhand/pull/419))
 
@@ -173,7 +178,7 @@ For example, the following is now allowed:
 - Bump MSRV to `1.73.0` to use now stabilized `std::os::unix::fs::lchown`
 - Add color styling to help output ([#387](https://github.com/wcampbell0x2a/backhand/pull/387))
 
-#### unsquashfs 
+#### unsquashfs
 - Changed name to `unsquashfs-backhand` ([#356](https://github.com/wcampbell0x2a/backhand/pull/356))
 - Add progress bar for a cleaner output when extracting files ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
 - Add `--quiet` for not displaying progress bar and RUST_LOG output ([#272](https://github.com/wcampbell0x2a/backhand/pull/272))
@@ -608,7 +613,7 @@ See https://github.com/wcampbell0x2a/backhand/discussions/145 for more details.
 These are benchmarked against the SquashFS image from `TP-Link AXE5400 Mesh Wi-Fi 6E Range Extender`.
 
 ##### Speed
-For single threaded mode `squashfs-tools/unsquashfs-v4.6.1`, testing on my machine lets me know that 
+For single threaded mode `squashfs-tools/unsquashfs-v4.6.1`, testing on my machine lets me know that
 our `backhand/unsquashfs` is around the same speed performance with a single thread.
 
 ##### Allocations
@@ -644,7 +649,7 @@ is 74.8MB, while our `backhand/unsquashfs` only uses 18.1MB.
 
 ## [v0.10.1] - 2023-02-22
 ### Added
-- Zstd compression support 
+- Zstd compression support
 
 ### Fixed
 - `FilesystemWriter` Debug impl now works
@@ -715,7 +720,7 @@ is 74.8MB, while our `backhand/unsquashfs` only uses 18.1MB.
   ```
 
 ### Performance
-This releases allows massive performance improvements by only reading files from disk when required 
+This releases allows massive performance improvements by only reading files from disk when required
 and reducing the amount of memory required to read and write an image.
 
 Thanks [@rbran](https://github.com/rbran/) for the incredible work on the performance of the library.
@@ -736,7 +741,7 @@ write_read/tplink_ax1800
                         time:   [6.7506 s 6.8287 s 6.9349 s]
 only_read/netgear_ax6100v2
                         time:   [5.1153 ms 5.1234 ms 5.1305 ms]
-only_read/tplink_ax1800 
+only_read/tplink_ax1800
                         time:   [22.383 ms 22.398 ms 22.415 ms]
 ```
 

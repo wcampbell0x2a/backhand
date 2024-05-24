@@ -1,13 +1,12 @@
 //! Read from on-disk image
 
 use std::ffi::OsString;
-use std::io::{Seek, SeekFrom};
+use std::io::{Cursor, Seek, SeekFrom};
 use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::{Arc, RwLock};
 
-use deku::bitvec::{BitVec, BitView, Msb0};
 use deku::prelude::*;
 use rustc_hash::FxHashMap;
 use tracing::{error, info, trace};
@@ -220,19 +219,15 @@ impl<'b> Squashfs<'b> {
     /// Read Superblock and Compression Options at current `reader` offset without parsing inodes
     /// and dirs
     ///
-    /// Used for unsquashfs --stat
+    /// Used for unsquashfs (extraction and --stat)
     pub fn superblock_and_compression_options(
         reader: &mut Box<dyn BufReadSeek + 'b>,
         kind: &Kind,
     ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
-        // Size of metadata + optional compression options metadata block
-        let mut superblock = [0u8; 96];
-        reader.read_exact(&mut superblock)?;
-
         // Parse SuperBlock
-        let bs = superblock.view_bits::<deku::bitvec::Msb0>();
-        let (_, superblock) = SuperBlock::read(
-            bs,
+        let mut container = Reader::new(reader);
+        let superblock = SuperBlock::from_reader_with_ctx(
+            &mut container,
             (
                 kind.inner.magic,
                 kind.inner.version_major,
@@ -258,18 +253,24 @@ impl<'b> Squashfs<'b> {
         let compression_options = if superblock.compressor != Compressor::None
             && superblock.compressor_options_are_present()
         {
-            let bytes = metadata::read_block(reader, &superblock, kind)?;
+            let mut bytes = metadata::read_block(reader, &superblock, kind)?;
+            let mut cursor = Cursor::new(&mut bytes);
+            let mut reader = Reader::new(&mut cursor);
             // data -> compression options
-            let bv = BitVec::from_slice(&bytes);
-            match CompressionOptions::read(&bv, (kind.inner.type_endian, superblock.compressor)) {
+            match CompressionOptions::from_reader_with_ctx(
+                &mut reader,
+                (kind.inner.type_endian, superblock.compressor),
+            ) {
                 Ok(co) => {
-                    if !co.0.is_empty() {
-                        error!("invalid compression options, bytes left over, using");
+                    if !reader.end() {
+                        error!("invalid compression, not all bytes read");
+                        None
+                    } else {
+                        Some(co)
                     }
-                    Some(co.1)
                 }
                 Err(e) => {
-                    error!("invalid compression options: {e:?}[{bytes:02x?}], not using");
+                    error!("invalid compression options: {e:?}, not using");
                     None
                 }
             }
@@ -477,11 +478,11 @@ impl<'b> Squashfs<'b> {
 
         let bytes = &block[block_offset..][..file_size as usize - 3];
         let mut dirs = vec![];
-        let mut all_bytes = bytes.view_bits::<Msb0>();
         // Read until we fail to turn bytes into `T`
-        while let Ok((rest, t)) = Dir::read(all_bytes, self.kind.inner.type_endian) {
+        let mut cursor = Cursor::new(bytes);
+        let mut container = Reader::new(&mut cursor);
+        while let Ok(t) = Dir::from_reader_with_ctx(&mut container, self.kind.inner.type_endian) {
             dirs.push(t);
-            all_bytes = rest;
         }
 
         trace!("finish");

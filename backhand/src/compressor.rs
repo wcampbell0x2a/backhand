@@ -17,7 +17,7 @@ use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
-#[deku(type = "u16")]
+#[deku(id_type = "u16")]
 #[rustfmt::skip]
 pub enum Compressor {
     None = 0,
@@ -83,9 +83,9 @@ pub struct Xz {
     // TODO: in openwrt, git-hash:f97ad870e11ebe5f3dcf833dda6c83b9165b37cb shows that before
     // official squashfs-tools had xz support they had the dictionary_size field as the last field
     // in this struct. If we get test images, I guess we can support this in the future.
-    #[deku(cond = "!deku::rest.is_empty()")]
+    #[deku(cond = "!deku::reader.end()")]
     pub bit_opts: Option<u16>,
-    #[deku(cond = "!deku::rest.is_empty()")]
+    #[deku(cond = "!deku::reader.end()")]
     pub fb: Option<u16>,
 }
 

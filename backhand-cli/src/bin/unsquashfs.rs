@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom};
-use std::iter::Iterator;
 use std::os::unix::fs::lchown;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Component, Path, PathBuf};

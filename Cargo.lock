@@ -95,7 +95,7 @@ checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
 
 [[package]]
 name = "backhand"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "assert_cmd",
  "criterion",
@@ -119,7 +119,7 @@ dependencies = [
 
 [[package]]
 name = "backhand-cli"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "backhand",
  "clap",

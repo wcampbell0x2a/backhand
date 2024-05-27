@@ -3,7 +3,8 @@ set -ex
 
 LAST_RELEASE="v0.18.0"
 
-BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
+BACKHAND_LAST_RELEASE_MUSL_DIR="./last-release-musl/"
+BACKHAND_LAST_RELEASE_MUSL="./last-release-musl/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
@@ -13,12 +14,12 @@ FLAGS="--bins --locked --profile=dist --no-default-features --features xz --feat
 
 bench () {
     echo ""
-    file $1
+    binwalk $1 --include squashfs
     hyperfine --sort command --runs 50 --warmup 10 \
-        --command-name backhand-dist-${LAST_RELEASE} \
-        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name backhand-dist \
         "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        --command-name backhand-dist-musl-${LAST_RELEASE} \
+        "$BACKHAND_LAST_RELEASE_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name backhand-dist-musl \
         "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
         --command-name squashfs-tools \
@@ -28,8 +29,10 @@ bench () {
 }
 
 rm -rf bench-results
-cross +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
-cargo +stable install backhand-cli --git https://github.com/wcampbell0x2a/backhand.git --root last-release --tag "$LAST_RELEASE" $FLAGS
+mkdir -vp $BACKHAND_LAST_RELEASE_MUSL_DIR
+curl -L https://github.com/wcampbell0x2a/backhand/releases/download/$LAST_RELEASE/backhand-$LAST_RELEASE-x86_64-unknown-linux-musl.tar.gz --output backhand-$LAST_RELEASE-x86_64-unknown-linux-musl.tar.gz
+tar -xvf backhand-$LAST_RELEASE-x86_64-unknown-linux-musl.tar.gz  -C $BACKHAND_LAST_RELEASE_MUSL_DIR
+cargo +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
 cargo +stable build -p backhand-cli $FLAGS
 mkdir -p bench-results
 

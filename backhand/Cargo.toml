@@ -16,7 +16,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-deku = "0.17.0"
+# deku = "0.17.0"
+deku = { git = "https://github.com/sharksforarms/deku", branch = "add-bits-feature", default-features = false, features = ["std"] }
 tracing = { version = "0.1.40" }
 thiserror = "1.0.61"
 flate2 = { version = "1.0.30", optional = true }

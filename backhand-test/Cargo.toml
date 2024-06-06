@@ -10,7 +10,7 @@ assert_cmd = { version = "2.0.14", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.10.1"
 test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
-test-log = { version = "0.2.15", features = ["trace"] }
+test-log = { version = "0.2.16", features = ["trace"] }
 tracing = "0.1.40"
 libdeflater = "1.20.0"
 env_logger = "0.11.3"

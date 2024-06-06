@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.18.0] - 2024-05-24
 ### `backhand`
 - Update MSRV to 1.72.1 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))
+- Enable `zlib-ng` for `flate2` by default, bringing performance improvements to `gzip` compression ([#562](https://github.com/wcampbell0x2a/backhand/pull/562))
+
+### `backhand-cli`
+- Enable `flate2` for gzip in release binaries due to performance improvements ([#562](https://github.com/wcampbell0x2a/backhand/pull/562))
 
 ### Dependencies
 - Bump `deku` from 0.16.0 to 0.17.0 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Bump `deku` from 0.16.0 to 0.17.0 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))
+- Bump `env_logger` from 0.10.2 to 0.11.3 ([#559](https://github.com/wcampbell0x2a/backhand/pull/559))
 
 ### Dependencies
 - Bump `libc` from 0.2.153 to 0.2.154 ([#546](https://github.com/wcampbell0x2a/backhand/pull/546))

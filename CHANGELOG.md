@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 - Bump `thiserror` from 1.0.59 to 1.0.61 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564))
+- Bump `libc` from 0.2.154 to 0.2.155 ([#557](https://github.com/wcampbell0x2a/backhand/pull/557))
 
 ## [v0.18.0] - 2024-05-24
 ### `backhand`

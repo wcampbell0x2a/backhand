@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `libc` from 0.2.154 to 0.2.155 ([#557](https://github.com/wcampbell0x2a/backhand/pull/557))
 - Bump `clap` from 4.5.4 to 4.5.7 ([#569](https://github.com/wcampbell0x2a/backhand/pull/569))
 - Bump `rustc-hash` from 1.1.0 to 2.0.0 ([#570](https://github.com/wcampbell0x2a/backhand/pull/570))
+- Bump `clap_complete` from 4.5.2 to 4.5.8 ([#575](https://github.com/wcampbell0x2a/backhand/pull/575))
 
 ## [v0.18.0] - 2024-05-24
 ### `backhand`

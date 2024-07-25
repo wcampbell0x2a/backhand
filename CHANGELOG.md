@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `rustc-hash` from 1.1.0 to 2.0.0 ([#570](https://github.com/wcampbell0x2a/backhand/pull/570))
 - Bump `clap_complete` from 4.5.2 to 4.5.8 ([#575](https://github.com/wcampbell0x2a/backhand/pull/575))
 - Bump `document-features` from 0.2.8 to 0.2.10 ([#576](https://github.com/wcampbell0x2a/backhand/pull/576))
+- Bump `zstd-safe` from 7.1.0 to 7.2.0 ([#577](https://github.com/wcampbell0x2a/backhand/pull/577))
 
 ## [v0.18.0] - 2024-05-24
 ### `backhand`

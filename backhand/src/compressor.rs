@@ -149,9 +149,9 @@ pub trait CompressionAction {
     ///
     /// * `bytes` - Input compressed bytes
     /// * `out` - Output uncompressed bytes. You will need to call `out.resize(out.capacity(), 0)`
-    /// if your compressor relies on having a max sized buffer to write into.
+    ///           if your compressor relies on having a max sized buffer to write into.
     /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
-    /// compressor doesn't follow the normal values of the Compressor Id.
+    ///                  compressor doesn't follow the normal values of the Compressor Id.
     ///
     /// [SuperBlock]: [`crate::SuperBlock`]
     fn decompress(

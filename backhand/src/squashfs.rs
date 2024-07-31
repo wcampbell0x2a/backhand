@@ -552,7 +552,7 @@ impl<'b> Squashfs<'b> {
                         }
                         // Basic Symlink
                         InodeId::BasicSymlink => {
-                            let link = self.symlink(found_inode)?;
+                            let link = self.symlink_target_path(found_inode)?;
                             InnerNode::Symlink(SquashfsSymlink { link })
                         }
                         // Basic CharacterDevice
@@ -585,11 +585,11 @@ impl<'b> Squashfs<'b> {
         Ok(())
     }
 
-    /// Symlink Details
+    /// Symlink target path
     ///
     /// # Returns
-    /// `Ok(original, link)
-    fn symlink(&self, inode: &Inode) -> Result<PathBuf, BackhandError> {
+    /// `Ok(target_path)`
+    fn symlink_target_path(&self, inode: &Inode) -> Result<PathBuf, BackhandError> {
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
             let path = OsString::from_vec(basic_sym.target_path.clone());
             return Ok(PathBuf::from(path));

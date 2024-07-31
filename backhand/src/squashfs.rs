@@ -562,7 +562,7 @@ impl<'b> Squashfs<'b> {
                         }
                         // Basic CharacterDevice
                         InodeId::BasicBlockDevice => {
-                            let device_number = self.block_device(found_inode)?;
+                            let device_number = Self::block_device_number(found_inode)?;
                             InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
                         }
                         InodeId::BasicNamedPipe => InnerNode::NamedPipe,
@@ -612,11 +612,11 @@ impl<'b> Squashfs<'b> {
         Err(BackhandError::FileNotFound)
     }
 
-    /// Block Device Details
+    /// Block Device Number
     ///
     /// # Returns
     /// `Ok(dev_num)`
-    fn block_device(&self, inode: &Inode) -> Result<u32, BackhandError> {
+    fn block_device_number(inode: &Inode) -> Result<u32, BackhandError> {
         if let InodeInner::BasicBlockDevice(spc_file) = &inode.inner {
             return Ok(spc_file.device_number);
         }

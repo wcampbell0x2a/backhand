@@ -140,6 +140,8 @@ impl<'a> DataWriter<'a> {
             Some(Err(x)) => return Err(x),
             None => return Ok((0, Added::Data { blocks_start, block_sizes })),
         };
+
+        // write and early return if fragment
         if first_block.fragment {
             reader.decompress(first_block, &mut read_buf, &mut decompress_buf)?;
             // if this doesn't fit in the current fragment bytes
@@ -153,10 +155,10 @@ impl<'a> DataWriter<'a> {
             self.fragment_bytes.write_all(&decompress_buf)?;
 
             return Ok((decompress_buf.len(), Added::Fragment { frag_index, block_offset }));
-        } else {
-            //if is a block, just copy it
-            writer.write_all(&read_buf)?;
         }
+
+        //if is a block, just copy it
+        writer.write_all(&read_buf)?;
         while let Some(block) = reader.next_block(&mut read_buf) {
             let block = block?;
             if block.fragment {

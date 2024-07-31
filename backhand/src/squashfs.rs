@@ -557,7 +557,7 @@ impl<'b> Squashfs<'b> {
                         }
                         // Basic CharacterDevice
                         InodeId::BasicCharacterDevice => {
-                            let device_number = self.char_device(found_inode)?;
+                            let device_number = Self::char_device_number(found_inode)?;
                             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number })
                         }
                         // Basic CharacterDevice
@@ -599,11 +599,11 @@ impl<'b> Squashfs<'b> {
         Err(BackhandError::FileNotFound)
     }
 
-    /// Char Device Details
+    /// Char Device Number
     ///
     /// # Returns
     /// `Ok(dev_num)`
-    fn char_device(&self, inode: &Inode) -> Result<u32, BackhandError> {
+    fn char_device_number(inode: &Inode) -> Result<u32, BackhandError> {
         if let InodeInner::BasicCharacterDevice(spc_file) = &inode.inner {
             return Ok(spc_file.device_number);
         }

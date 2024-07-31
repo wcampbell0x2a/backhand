@@ -81,7 +81,7 @@ impl<T: BufReadSeek> SquashFsReader for T {}
 pub trait SquashFsReader: BufReadSeek + Sized {
     /// Cache Inode Table
     /// # Returns
-    /// - `(RootInode, HashMap<inode_number, Inode>)``
+    /// - `(RootInode, HashMap<inode_number, Inode>)`
     fn inodes(
         &mut self,
         superblock: &SuperBlock,

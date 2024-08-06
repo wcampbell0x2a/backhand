@@ -106,16 +106,17 @@ Arguments:
   <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
 
 Options:
-  -d, --dir                Create empty directory
-  -f, --file <FILE>        Path of file to read, to write into squashfs
-  -o, --out <OUT>          Squashfs output image [default: added.squashfs]
-      --mode <MODE>        Override mode read from <FILE>
-      --uid <UID>          Override uid read from <FILE>
-      --gid <GID>          Override gid read from <FILE>
-      --mtime <MTIME>      Override mtime read from <FILE>
-      --pad-len <PAD_LEN>  Custom KiB padding length
-  -h, --help               Print help
-  -V, --version            Print version
+  -d, --dir                     Create empty directory
+  -f, --file <FILE>             Path of file to read, to write into squashfs
+  -o, --out <OUT>               Squashfs output image [default: added.squashfs]
+      --mode <MODE>             Override mode read from <FILE>
+      --uid <UID>               Override uid read from <FILE>
+      --gid <GID>               Override gid read from <FILE>
+      --mtime <MTIME>           Override mtime read from <FILE>
+      --pad-len <PAD_LEN>       Custom KiB padding length
+      --no-compression-options  Don't emit compression options
+  -h, --help                    Print help
+  -V, --version                 Print version
 ```
 
 ### replace-backhand
@@ -130,10 +131,11 @@ Arguments:
   <FILE_PATH_IN_IMAGE>  Path of file replaced in image
 
 Options:
-  -o, --out <OUT>          Squashfs output image [default: replaced.squashfs]
-      --pad-len <PAD_LEN>  Custom KiB padding length
-  -h, --help               Print help
-  -V, --version            Print version
+  -o, --out <OUT>               Squashfs output image [default: replaced.squashfs]
+      --pad-len <PAD_LEN>       Custom KiB padding length
+      --no-compression-options  Don't emit compression options
+  -h, --help                    Print help
+  -V, --version                 Print version
 ```
 
 ## Performance

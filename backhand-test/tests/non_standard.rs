@@ -22,6 +22,7 @@ fn full_test(
     test_path: &str,
     offset: u64,
     kind: &Kind,
+    pad: Option<u32>,
 ) {
     test_assets::download_test_files(assets_defs, test_path, true).unwrap();
     let og_path = format!("{test_path}/{filepath}");
@@ -36,6 +37,9 @@ fn full_test(
         )
         .unwrap();
         let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
+        if let Some(pad) = pad {
+            new_filesystem.set_kib_padding(pad);
+        }
 
         // Test Debug is impl'ed properly on FilesystemWriter
         let _ = format!("{new_filesystem:#02x?}");
@@ -72,7 +76,14 @@ fn test_non_standard_be_v4_0() {
             .to_string(),
     }];
     const TEST_PATH: &str = "test-assets/non_standard_be_v4_0";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &Kind::from_const(kind::BE_V4_0).unwrap());
+    full_test(
+        &asset_defs,
+        FILE_NAME,
+        TEST_PATH,
+        0,
+        &Kind::from_const(kind::BE_V4_0).unwrap(),
+        None,
+    );
 
     // test custom kind "builder-lite"
     let _kind = Kind::new(&DefaultCompressor)
@@ -91,12 +102,21 @@ fn test_non_standard_be_v4_1() {
             .to_string(),
     }];
     const TEST_PATH: &str = "test-assets/non_standard_be_v4_1";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &Kind::from_const(kind::BE_V4_0).unwrap());
+    full_test(
+        &asset_defs,
+        FILE_NAME,
+        TEST_PATH,
+        0,
+        &Kind::from_const(kind::BE_V4_0).unwrap(),
+        None,
+    );
 }
 
 #[test]
 #[cfg(feature = "gzip")]
 fn test_custom_compressor() {
+    use backhand::SuperBlock;
+
     const FILE_NAME: &str = "squashfs_v4.nopad.unblob.bin";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -138,10 +158,19 @@ fn test_custom_compressor() {
         ) -> Result<Vec<u8>, BackhandError> {
             DefaultCompressor.compress(bytes, fc, block_size)
         }
+
+        fn compression_options(
+            &self,
+            _superblock: &mut SuperBlock,
+            _kind: &Kind,
+            _fs_compressor: FilesystemCompressor,
+        ) -> Result<Vec<u8>, BackhandError> {
+            DefaultCompressor.compression_options(_superblock, _kind, _fs_compressor)
+        }
     }
 
     let kind = Kind::new_with_const(&CustomCompressor, kind::BE_V4_0);
 
     const TEST_PATH: &str = "test-assets/custom_compressor";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &kind);
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &kind, Some(0));
 }

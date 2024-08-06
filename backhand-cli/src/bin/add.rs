@@ -62,6 +62,10 @@ struct Args {
     /// Custom KiB padding length
     #[clap(long)]
     pad_len: Option<u32>,
+
+    /// Don't emit compression options
+    #[clap(long)]
+    no_compression_options: bool,
 }
 
 fn main() -> ExitCode {
@@ -109,6 +113,10 @@ fn main() -> ExitCode {
 
     if let Some(pad_len) = args.pad_len {
         filesystem.set_kib_padding(pad_len)
+    }
+
+    if args.no_compression_options {
+        filesystem.set_emit_compression_options(false);
     }
 
     // write new file

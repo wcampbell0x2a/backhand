@@ -12,7 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Increase speed of internal `HashMap`s, by switching to `xxhash` and just using the `inode` as the key in other places.
 - Changed `SuperBlock::Flags` to be public.
 
+- Add non-standard CompressionOptions support ([#584](https://github.com/wcampbell0x2a/backhand/pull/584))
+  - Add `CompressionAction::compression_options` to override the default compression options emitted during writing.
+  - Add `FilesystemWriter::set_emit_compression_options`
+
 ### `backhand-cli`
+- Add `--no-compression-options` to `add` and `replace` to remove compression options from image after modification.
 - Add `--pad-len` to `replace` and `add` to control the length of end-of-image padding ([#604](https://github.com/wcampbell0x2a/backhand/pull/604))
 
 ### Dependencies

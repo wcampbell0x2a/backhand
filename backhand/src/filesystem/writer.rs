@@ -21,7 +21,7 @@ use crate::kind::Kind;
 use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
-use crate::squashfs::{Flags, SuperBlock};
+use crate::squashfs::SuperBlock;
 use crate::{
     fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
     SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
@@ -637,42 +637,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
+        superblock.inode_count = self.root.nodes.len().try_into().unwrap();
+        superblock.block_size = self.block_size;
+        superblock.block_log = self.block_log;
+        superblock.mod_time = self.mod_time;
+
         trace!("{:#02x?}", self.root);
 
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
-
-        // Write compression options, if any
-        if let Some(options) = &self.fs_compressor.options {
-            superblock.flags |= Flags::CompressorOptionsArePresent as u16;
-            let mut compression_opt_buf_out = vec![];
-            let mut writer = Writer::new(&mut compression_opt_buf_out);
-            match options {
-                CompressionOptions::Gzip(gzip) => {
-                    gzip.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lz4(lz4) => {
-                    lz4.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Zstd(zstd) => {
-                    zstd.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Xz(xz) => {
-                    xz.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lzo(lzo) => {
-                    lzo.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lzma => {}
-            }
-            let mut metadata = MetadataWriter::new(
-                self.fs_compressor,
-                self.block_size,
-                Kind { inner: self.kind.inner.clone() },
-            );
-            metadata.write_all(&compression_opt_buf_out)?;
-            metadata.finalize(&mut w)?;
-        }
 
         let mut data_writer =
             DataWriter::new(self.kind.inner.compressor, self.fs_compressor, self.block_size);
@@ -686,6 +659,13 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             self.block_size,
             Kind { inner: self.kind.inner.clone() },
         );
+
+        let options = self.kind.inner.compressor.compression_options(
+            &mut superblock,
+            &self.kind,
+            self.fs_compressor,
+        )?;
+        w.write_all(&options)?;
 
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", &self.root);
@@ -705,12 +685,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             &self.kind,
             &self.id_table,
         )?;
-
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
-        superblock.inode_count = self.root.nodes.len().try_into().unwrap();
-        superblock.block_size = self.block_size;
-        superblock.block_log = self.block_log;
-        superblock.mod_time = self.mod_time;
 
         info!("Writing Inodes");
         superblock.inode_table = w.stream_position()?;

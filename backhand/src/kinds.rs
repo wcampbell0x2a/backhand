@@ -78,6 +78,7 @@ impl Kind {
     /// # Example
     /// ```rust
     /// # use backhand::{compression::Compressor, kind, FilesystemCompressor, kind::Kind, compression::CompressionAction, compression::DefaultCompressor, BackhandError};
+    /// # use backhand::SuperBlock;
     /// # use std::io::Write;
     /// #[derive(Copy, Clone)]
     /// pub struct CustomCompressor;
@@ -112,6 +113,16 @@ impl Kind {
     ///     ) -> Result<Vec<u8>, BackhandError> {
     ///         DefaultCompressor.compress(bytes, fc, block_size)
     ///     }
+    ///
+    ///    // pass the default options
+    ///    fn compression_options(
+    ///        &self,
+    ///        _superblock: &mut SuperBlock,
+    ///        _kind: &Kind,
+    ///        _fs_compressor: FilesystemCompressor,
+    ///    ) -> Result<Vec<u8>, BackhandError> {
+    ///        DefaultCompressor.compression_options(_superblock, _kind, _fs_compressor)
+    ///    }
     /// }
     ///
     /// let kind = Kind::new(&CustomCompressor);

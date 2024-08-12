@@ -6,7 +6,7 @@ publish = false
 
 [dev-dependencies]
 backhand = { path = "../backhand", default-features = false }
-assert_cmd = { version = "2.0.14", features = ["color", "color-auto"] }
+assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.10.1"
 test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }

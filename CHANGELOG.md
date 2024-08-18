@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Dependencies
-- Bump `thiserror` from 1.0.59 to 1.0.61 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564))
+- Bump `thiserror` from 1.0.59 to 1.0.63 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564), [#578](https://github.com/wcampbell0x2a/backhand/pull/578))
 - Bump `libc` from 0.2.154 to 0.2.155 ([#557](https://github.com/wcampbell0x2a/backhand/pull/557))
 - Bump `clap` from 4.5.4 to 4.5.13 ([#569](https://github.com/wcampbell0x2a/backhand/pull/569), [#574](https://github.com/wcampbell0x2a/backhand/pull/574), [#582](https://github.com/wcampbell0x2a/backhand/pull/582))
 - Bump `rustc-hash` from 1.1.0 to 2.0.0 ([#570](https://github.com/wcampbell0x2a/backhand/pull/570))

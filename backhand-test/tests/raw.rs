@@ -74,7 +74,7 @@ fn test_raw_00() {
             frag_count: 0x1,
             compressor: Compressor::Xz,
             block_log: 0x11,
-            flags: 0x0,
+            flags: backhand::Flags::DataHasBeenDeduplicated as u16,
             id_count: 0x2,
             version_major: 0x4,
             version_minor: 0x0,

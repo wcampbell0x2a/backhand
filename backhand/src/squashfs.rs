@@ -170,7 +170,7 @@ impl SuperBlock {
 #[rustfmt::skip]
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum Flags {
+pub enum Flags {
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
     DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
     Unused                      = 0b0000_0000_0000_0100,

@@ -15,7 +15,7 @@ readme = "../README.md"
 nix = { version = "0.28.0", default-features = false, features = ["fs"] }
 clap = { version = "4.5.13", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
-libc = "0.2.155"
+libc = "0.2.158"
 clap_complete = "4.5.8"
 indicatif = "0.17.8"
 console = "0.15.8"

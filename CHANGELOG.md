@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `libc` from 0.2.154 to 0.2.158 ([#557](https://github.com/wcampbell0x2a/backhand/pull/557), [#592](https://github.com/wcampbell0x2a/backhand/pull/592))
 - Bump `clap` from 4.5.4 to 4.5.13 ([#569](https://github.com/wcampbell0x2a/backhand/pull/569), [#574](https://github.com/wcampbell0x2a/backhand/pull/574), [#582](https://github.com/wcampbell0x2a/backhand/pull/582))
 - Bump `rustc-hash` from 1.1.0 to 2.0.0 ([#570](https://github.com/wcampbell0x2a/backhand/pull/570))
-- Bump `clap_complete` from 4.5.2 to 4.5.8 ([#575](https://github.com/wcampbell0x2a/backhand/pull/575))
+- Bump `clap_complete` from 4.5.2 to 4.5.13 ([#575](https://github.com/wcampbell0x2a/backhand/pull/575), [#595](https://github.com/wcampbell0x2a/backhand/pull/595))
 - Bump `document-features` from 0.2.8 to 0.2.10 ([#576](https://github.com/wcampbell0x2a/backhand/pull/576))
 - Bump `zstd-safe` from 7.1.0 to 7.2.1 ([#585](https://github.com/wcampbell0x2a/backhand/pull/585))
 - Bump `flate2` from 1.0.30 to 1.0.32 ([#593](https://github.com/wcampbell0x2a/backhand/pull/593))

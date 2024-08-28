@@ -52,7 +52,7 @@ test-log = { version = "0.2.15", features = ["trace"] }
 test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
-tempfile = "3.10.1"
+tempfile = "3.12.0"
 criterion = "0.5"
 libdeflater = "1.21.0"
 

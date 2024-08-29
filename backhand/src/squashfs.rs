@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::sync::{Arc, RwLock};
 
 use deku::prelude::*;
-use rustc_hash::FxHashMap;
+use solana_nohash_hasher::IntMap;
 use tracing::{error, info, trace};
 
 use crate::compressor::{CompressionOptions, Compressor};
@@ -170,7 +170,7 @@ impl SuperBlock {
 #[rustfmt::skip]
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum Flags {
+pub enum Flags {
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
     DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
     Unused                      = 0b0000_0000_0000_0100,
@@ -188,7 +188,7 @@ pub(crate) enum Flags {
 pub(crate) struct Cache {
     /// The first time a fragment bytes is read, those bytes are added to this map with the key
     /// representing the start position
-    pub(crate) fragment_cache: FxHashMap<u64, Vec<u8>>,
+    pub(crate) fragment_cache: IntMap<u64, Vec<u8>>,
 }
 
 /// Squashfs Image initial read information
@@ -200,11 +200,11 @@ pub struct Squashfs<'b> {
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
     // Inode Cache `<InodeNumber, Inode>`
-    pub inodes: FxHashMap<u32, Inode>,
+    pub inodes: IntMap<u32, Inode>,
     /// Root Inode
     pub root_inode: Inode,
     /// Bytes containing Directory Table `(<OffsetFromImage, OffsetInData>, Data)`
-    pub dir_blocks: (FxHashMap<u64, u64>, Vec<u8>),
+    pub dir_blocks: (IntMap<u64, u64>, Vec<u8>),
     /// Fragments Lookup Table Cache
     pub fragments: Option<Vec<Fragment>>,
     /// Export Lookup Table Cache

@@ -1,8 +1,12 @@
 //! File Data
 
+use std::collections::HashMap;
 use std::io::{Read, Seek, Write};
 
 use deku::prelude::*;
+use solana_nohash_hasher::IntMap;
+use tracing::trace;
+use xxhash_rust::xxh64::xxh64;
 
 use crate::compressor::CompressionAction;
 use crate::error::BackhandError;
@@ -100,6 +104,9 @@ pub(crate) struct DataWriter<'a> {
     kind: &'a dyn CompressionAction,
     block_size: u32,
     fs_compressor: FilesystemCompressor,
+    /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
+    #[allow(clippy::type_complexity)]
+    dup_cache: Option<IntMap<u64, IntMap<u64, (usize, Added)>>>,
     /// Un-written fragment_bytes
     pub(crate) fragment_bytes: Vec<u8>,
     pub(crate) fragment_table: Vec<Fragment>,
@@ -110,11 +117,13 @@ impl<'a> DataWriter<'a> {
         kind: &'a dyn CompressionAction,
         fs_compressor: FilesystemCompressor,
         block_size: u32,
+        no_duplicate_files: bool,
     ) -> Self {
         Self {
             kind,
             block_size,
             fs_compressor,
+            dup_cache: no_duplicate_files.then_some(HashMap::default()),
             fragment_bytes: Vec::with_capacity(block_size as usize),
             fragment_table: vec![],
         }
@@ -186,6 +195,9 @@ impl<'a> DataWriter<'a> {
     }
 
     /// Add to data writer, either a Data or Fragment
+    ///
+    /// If `self.dup_cache` is on, return alrady added `(usize, Added)` if duplicate
+    /// is found
     // TODO: support tail-end fragments (off by default in squashfs-tools/mksquashfs)
     pub(crate) fn add_bytes<W: WriteSeek>(
         &mut self,
@@ -197,6 +209,8 @@ impl<'a> DataWriter<'a> {
             file_len: 0,
             reader,
         };
+
+        // read entire chunk (file)
         let mut chunk = chunk_reader.read_chunk()?;
 
         // chunk size not exactly the size of the block
@@ -212,29 +226,58 @@ impl<'a> DataWriter<'a> {
             let block_offset = self.fragment_bytes.len() as u32;
             self.fragment_bytes.write_all(chunk)?;
 
-            Ok((chunk_reader.file_len, Added::Fragment { frag_index, block_offset }))
-        } else {
-            // Add to data bytes
-            let blocks_start = writer.stream_position()? as u32;
-            let mut block_sizes = vec![];
-            while !chunk.is_empty() {
-                let cb = self.kind.compress(chunk, self.fs_compressor, self.block_size)?;
-
-                // compression didn't reduce size
-                if cb.len() > chunk.len() {
-                    // store uncompressed
-                    block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
-                    writer.write_all(chunk)?;
-                } else {
-                    // store compressed
-                    block_sizes.push(DataSize::new_compressed(cb.len() as u32));
-                    writer.write_all(&cb)?;
-                }
-                chunk = chunk_reader.read_chunk()?;
-            }
-
-            Ok((chunk_reader.file_len, Added::Data { blocks_start, block_sizes }))
+            return Ok((chunk_reader.file_len, Added::Fragment { frag_index, block_offset }));
         }
+
+        // Add to data bytes
+        let blocks_start = writer.stream_position()? as u32;
+        let mut block_sizes = vec![];
+
+        // If duplicate file checking is enabled, use the old data position as this file if it hashes the same
+        if let Some(dup_cache) = &self.dup_cache {
+            if let Some(c) = dup_cache.get(&(chunk.len() as u64)) {
+                let hash = xxh64(chunk, 0);
+                if let Some(res) = c.get(&hash) {
+                    trace!("duplicate file data found");
+                    return Ok(res.clone());
+                }
+            }
+        }
+
+        // Save information needed to add to duplicate_cache later
+        let chunk_len = chunk.len();
+        let hash = xxh64(chunk, 0);
+
+        while !chunk.is_empty() {
+            let cb = self.kind.compress(chunk, self.fs_compressor, self.block_size)?;
+
+            // compression didn't reduce size
+            if cb.len() > chunk.len() {
+                // store uncompressed
+                block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
+                writer.write_all(chunk)?;
+            } else {
+                // store compressed
+                block_sizes.push(DataSize::new_compressed(cb.len() as u32));
+                writer.write_all(&cb)?;
+            }
+            chunk = chunk_reader.read_chunk()?;
+        }
+
+        // Add to duplicate information cache
+        let added = (chunk_reader.file_len, Added::Data { blocks_start, block_sizes });
+
+        // If duplicate files checking is enbaled, then add this to it's memory
+        if let Some(dup_cache) = &mut self.dup_cache {
+            if let Some(entry) = dup_cache.get_mut(&(chunk_len as u64)) {
+                entry.insert(hash, added.clone());
+            } else {
+                let mut hashmap = IntMap::default();
+                hashmap.insert(hash, added.clone());
+                dup_cache.insert(chunk_len as u64, hashmap);
+            }
+        }
+        Ok(added)
     }
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear
@@ -256,5 +299,48 @@ impl<'a> DataWriter<'a> {
         self.fragment_table.push(Fragment::new(start, size, 0));
         self.fragment_bytes.clear();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+    use crate::{
+        compression::{Compressor, DefaultCompressor},
+        DEFAULT_BLOCK_SIZE,
+    };
+
+    #[test]
+    #[cfg(feature = "gzip")]
+    fn test_duplicate_check() {
+        let mut data_writer = DataWriter::new(
+            &DefaultCompressor,
+            FilesystemCompressor::new(Compressor::Gzip, None).unwrap(),
+            DEFAULT_BLOCK_SIZE,
+            true,
+        );
+        let bytes = [0xff_u8; DEFAULT_BLOCK_SIZE as usize * 2];
+        let mut writer = Cursor::new(vec![]);
+        let added_1 = data_writer.add_bytes(&bytes[..], &mut writer).unwrap();
+        let added_2 = data_writer.add_bytes(&bytes[..], &mut writer).unwrap();
+        assert_eq!(added_1, added_2);
+    }
+
+    #[test]
+    #[cfg(feature = "gzip")]
+    fn test_no_duplicate_check() {
+        let mut data_writer = DataWriter::new(
+            &DefaultCompressor,
+            FilesystemCompressor::new(Compressor::Gzip, None).unwrap(),
+            DEFAULT_BLOCK_SIZE,
+            false,
+        );
+        let bytes = [0xff_u8; DEFAULT_BLOCK_SIZE as usize * 2];
+        let mut writer = Cursor::new(vec![]);
+        let added_1 = data_writer.add_bytes(&bytes[..], &mut writer).unwrap();
+        let added_2 = data_writer.add_bytes(&bytes[..], &mut writer).unwrap();
+        assert_ne!(added_1, added_2);
     }
 }

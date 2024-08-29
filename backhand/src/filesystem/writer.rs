@@ -78,6 +78,7 @@ pub struct FilesystemWriter<'a, 'b, 'c> {
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
     pub(crate) pad_len: u32,
+    pub(crate) no_duplicate_files: bool,
 }
 
 impl Default for FilesystemWriter<'_, '_, '_> {
@@ -96,6 +97,7 @@ impl Default for FilesystemWriter<'_, '_, '_> {
             root: Nodes::new_root(NodeHeader::default()),
             block_log: (block_size as f32).log2() as u16,
             pad_len: DEFAULT_PAD_LEN,
+            no_duplicate_files: true,
         }
     }
 }
@@ -193,6 +195,11 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         self.pad_len = 0;
     }
 
+    /// Set if we perform duplicate file checking, on by default
+    pub fn set_no_duplicate_files(&mut self, value: bool) {
+        self.no_duplicate_files = value;
+    }
+
     /// Inherit filesystem structure and properties from `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<'b>) -> Result<Self, BackhandError> {
         let mut root: Vec<Node<_>> = reader
@@ -228,6 +235,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             id_table: reader.id_table.clone(),
             root: Nodes { nodes: root },
             pad_len: DEFAULT_PAD_LEN,
+            no_duplicate_files: true,
         })
     }
 
@@ -637,6 +645,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
+        if self.no_duplicate_files {
+            superblock.flags |= Flags::DataHasBeenDeduplicated as u16;
+        }
+
         trace!("{:#02x?}", self.root);
 
         // Empty Squashfs Superblock
@@ -674,8 +686,12 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             metadata.finalize(&mut w)?;
         }
 
-        let mut data_writer =
-            DataWriter::new(self.kind.inner.compressor, self.fs_compressor, self.block_size);
+        let mut data_writer = DataWriter::new(
+            self.kind.inner.compressor,
+            self.fs_compressor,
+            self.block_size,
+            self.no_duplicate_files,
+        );
         let mut inode_writer = MetadataWriter::new(
             self.fs_compressor,
             self.block_size,

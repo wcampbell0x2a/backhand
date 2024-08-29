@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::io::{BufRead, Cursor, Read, Seek, SeekFrom, Write};
 
 use deku::prelude::*;
-use rustc_hash::FxHashMap;
+use solana_nohash_hasher::IntMap;
 use tracing::{error, trace};
 
 use crate::error::BackhandError;
@@ -86,7 +86,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         &mut self,
         superblock: &SuperBlock,
         kind: &Kind,
-    ) -> Result<(Inode, FxHashMap<u32, Inode>), BackhandError> {
+    ) -> Result<(Inode, IntMap<u32, Inode>), BackhandError> {
         let (map, bytes) = self.uncompress_metadatas(
             superblock.inode_table,
             superblock,
@@ -94,7 +94,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
             kind,
         )?;
 
-        let mut inodes = FxHashMap::default();
+        let mut inodes = IntMap::default();
         inodes.try_reserve(superblock.inode_count as usize)?;
 
         let byte_len = bytes.len();
@@ -152,7 +152,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         superblock: &SuperBlock,
         end_ptr: u64,
         kind: &Kind,
-    ) -> Result<(FxHashMap<u64, u64>, Vec<u8>), BackhandError> {
+    ) -> Result<(IntMap<u64, u64>, Vec<u8>), BackhandError> {
         self.seek(SeekFrom::Start(seek))?;
         let mut map = HashMap::default();
         let mut all_bytes = vec![];

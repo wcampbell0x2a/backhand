@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use std::io::{Read, Seek, Write};
 
 use deku::prelude::*;
-use rustc_hash::FxHashMap;
+use solana_nohash_hasher::IntMap;
+use tracing::trace;
 use xxhash_rust::xxh64::xxh64;
 
 use crate::compressor::CompressionAction;
@@ -104,7 +105,8 @@ pub(crate) struct DataWriter<'a> {
     block_size: u32,
     fs_compressor: FilesystemCompressor,
     /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
-    dup_cache: Option<HashMap<u64, HashMap<u64, (usize, Added)>>>,
+    #[allow(clippy::type_complexity)]
+    dup_cache: Option<IntMap<u64, IntMap<u64, (usize, Added)>>>,
     /// Un-written fragment_bytes
     pub(crate) fragment_bytes: Vec<u8>,
     pub(crate) fragment_table: Vec<Fragment>,
@@ -270,7 +272,7 @@ impl<'a> DataWriter<'a> {
             if let Some(entry) = dup_cache.get_mut(&(chunk_len as u64)) {
                 entry.insert(hash, added.clone());
             } else {
-                let mut hashmap = HashMap::new();
+                let mut hashmap = IntMap::default();
                 hashmap.insert(hash, added.clone());
                 dup_cache.insert(chunk_len as u64, hashmap);
             }

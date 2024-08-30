@@ -98,7 +98,7 @@ fn test_unsquashfs_cli() {
     export_table: 0x1308574,
 }
 Compression Options: None
-flag: data has been duplicated
+flag: data has been deduplicated
 flag: nfs export table exists
 "#,
     );

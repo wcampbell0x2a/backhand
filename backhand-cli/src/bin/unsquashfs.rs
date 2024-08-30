@@ -336,8 +336,8 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
         println!("flag: fragments are always generated");
     }
 
-    if superblock.data_has_been_duplicated() {
-        println!("flag: data has been duplicated");
+    if superblock.data_has_been_deduplicated() {
+        println!("flag: data has been deduplicated");
     }
 
     if superblock.nfs_export_table_exists() {

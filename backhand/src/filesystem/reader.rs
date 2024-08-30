@@ -87,10 +87,12 @@ pub struct FilesystemReader<'b> {
     pub fragments: Option<Vec<Fragment>>,
     /// All files and directories in filesystem
     pub root: Nodes<SquashfsFileReader>,
-    // File reader
+    /// File reader
     pub(crate) reader: Mutex<Box<dyn BufReadSeek + 'b>>,
-    // Cache used in the decompression
+    /// Cache used in the decompression
     pub(crate) cache: RwLock<Cache>,
+    /// Superblock Flag to remove duplicate flags
+    pub(crate) no_duplicate_files: bool,
 }
 
 impl<'b> FilesystemReader<'b> {

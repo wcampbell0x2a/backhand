@@ -23,7 +23,7 @@ flate2 = { version = "1.0.33", optional = true }
 zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
-zstd = { version = "0.13.1", optional = true }
+zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
 xxhash-rust = { version = "0.8.12", features = ["xxh64"] }

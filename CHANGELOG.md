@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `document-features` from 0.2.8 to 0.2.10 ([#576](https://github.com/wcampbell0x2a/backhand/pull/576))
 - Bump `zstd-safe` from 7.1.0 to 7.2.1 ([#585](https://github.com/wcampbell0x2a/backhand/pull/585))
 - Bump `flate2` from 1.0.30 to 1.0.33 ([#593](https://github.com/wcampbell0x2a/backhand/pull/593), [#596](https://github.com/wcampbell0x2a/backhand/pull/596))
+- Bump `zstd` from 0.13.1 to 0.13.2 ([#601](https://github.com/wcampbell0x2a/backhand/pull/601))
 
 ## [v0.18.0] - 2024-05-24
 ### `backhand`

@@ -116,7 +116,7 @@ impl SuperBlock {
     }
 
     /// flag value
-    pub fn data_has_been_duplicated(&self) -> bool {
+    pub fn data_has_been_deduplicated(&self) -> bool {
         self.flags & Flags::DataHasBeenDeduplicated as u16 != 0
     }
 
@@ -429,7 +429,7 @@ impl<'b> Squashfs<'b> {
             info!("flag: fragments are always generated");
         }
 
-        if superblock.data_has_been_duplicated() {
+        if superblock.data_has_been_deduplicated() {
             info!("flag: data has been duplicated");
         }
 
@@ -646,6 +646,7 @@ impl<'b> Squashfs<'b> {
             root,
             reader: Mutex::new(Box::new(self.file)),
             cache: RwLock::new(Cache::default()),
+            no_duplicate_files: self.superblock.data_has_been_deduplicated(),
         };
         Ok(filesystem)
     }

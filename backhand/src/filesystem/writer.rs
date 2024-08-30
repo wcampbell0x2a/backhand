@@ -78,6 +78,7 @@ pub struct FilesystemWriter<'a, 'b, 'c> {
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
     pub(crate) pad_len: u32,
+    /// Superblock Flag to remove duplicate flags
     pub(crate) no_duplicate_files: bool,
 }
 
@@ -235,7 +236,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             id_table: reader.id_table.clone(),
             root: Nodes { nodes: root },
             pad_len: DEFAULT_PAD_LEN,
-            no_duplicate_files: true,
+            no_duplicate_files: reader.no_duplicate_files,
         })
     }
 

@@ -58,6 +58,10 @@ struct Args {
     /// Override mtime read from <FILE>
     #[clap(long, required_if_eq("dir", "true"))]
     mtime: Option<u32>,
+
+    /// Custom KiB padding length
+    #[clap(long)]
+    pad_len: Option<u32>,
 }
 
 fn main() -> ExitCode {
@@ -101,6 +105,10 @@ fn main() -> ExitCode {
             println!("[!] {e}");
             return ExitCode::FAILURE;
         }
+    }
+
+    if let Some(pad_len) = args.pad_len {
+        filesystem.set_kib_padding(pad_len)
     }
 
     // write new file

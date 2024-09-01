@@ -35,6 +35,10 @@ struct Args {
     /// Squashfs output image
     #[clap(short, long, default_value = "replaced.squashfs")]
     out: PathBuf,
+
+    /// Custom KiB padding length
+    #[clap(long)]
+    pad_len: Option<u32>,
 }
 
 fn main() -> ExitCode {
@@ -52,6 +56,10 @@ fn main() -> ExitCode {
     if let Err(e) = filesystem.replace_file(args.file_path, new_file) {
         println!("[!] {e}");
         return ExitCode::FAILURE;
+    }
+
+    if let Some(pad_len) = args.pad_len {
+        filesystem.set_kib_padding(pad_len)
     }
 
     // write new file

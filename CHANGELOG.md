@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### `backhand`
+- Remove duplicated data when addding new files to a `FilesystemWriter`. This also applies this behavior to the `add` and `replace` binaries. This is controllable with `FilesystemWriter::set_no_duplicate_files`. ([#603](https://github.com/wcampbell0x2a/backhand/pull/603)), ([#594](https://github.com/wcampbell0x2a/backhand/pull/594))
+- Increase speed of internal `HashMap`s, by switching to `xxhash` and just using the `inode` as the key in other places.
+- Changed `SuperBlock::Flags` to be public.
+
+### `backhand-cli`
+- Add `--pad-len` to `replace` and `add` to control the length of end-of-image padding ([#604](https://github.com/wcampbell0x2a/backhand/pull/604))
+
 ### Dependencies
 - Bump `thiserror` from 1.0.59 to 1.0.63 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564), [#578](https://github.com/wcampbell0x2a/backhand/pull/578))
 - Bump `libc` from 0.2.154 to 0.2.158 ([#557](https://github.com/wcampbell0x2a/backhand/pull/557), [#592](https://github.com/wcampbell0x2a/backhand/pull/592))

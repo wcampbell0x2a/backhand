@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-LAST_RELEASE="v0.17.0"
+LAST_RELEASE="v0.18.0"
 
 BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"
@@ -9,7 +9,7 @@ BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
 # Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
-FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate --features zstd"
+FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip"
 
 bench () {
     echo ""
@@ -42,7 +42,7 @@ bench "backhand-test/test-assets/test_re815_xev160/870D97.squashfs" 0x0 2_re815
 # xz
 bench "backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs" 0x0 3_ax18000
 # xz
-#bench "test-assets/test_archlinux_iso_rootfs/airootfs.sfs" 0x0
+bench "test-assets/test_archlinux_iso_rootfs/airootfs.sfs" 0x0
 # xz
 bench "backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs" 0x0 4_er605
 # gzip

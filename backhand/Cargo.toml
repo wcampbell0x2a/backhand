@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 deku = "0.17.0"
 tracing = { version = "0.1.40" }
 thiserror = "1.0.63"
-flate2 = { version = "1.0.33", optional = true }
+flate2 = { version = "1.0.33", optional = true, features = ["zlib-ng"] }
 zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
@@ -28,6 +28,8 @@ zstd-safe = { version = "7.2.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
 xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
+# Use the fastest implementation (libz-ng) for flate2 but remove dependence on CMake
+libz-sys = { version = "1.1.20", features = ["zlib-ng-no-cmake-experimental-community-maintained"], default-features = false }
 
 [features]
 default = ["xz", "gzip", "zstd"]

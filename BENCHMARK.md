@@ -59,68 +59,75 @@ NUMA:
 $ ./bench.bash
 ```
 
-## Wall time: `backhand/unsquashfs-3e25c7d` vs `squashfs-tools/unsquashfs-4.6.1`
+## Wall time: `backhand/unsquashfs` vs `squashfs-tools/unsquashfs-4.6.1`
 ### `openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 50.2 ± 3.1 | 43.7 | 58.3 | 1.02 ± 0.09 |
-| `backhand-dist` | 49.5 ± 3.2 | 44.2 | 57.8 | 1.00 |
-| `backhand-dist-musl` | 78.7 ± 5.1 | 66.0 | 90.2 | 1.59 ± 0.15 |
-| `squashfs-tools` | 111.8 ± 11.9 | 84.2 | 133.1 | 2.26 ± 0.28 |
+| `backhand-dist-v0.18.0` | 50.0 ± 2.7 | 46.4 | 56.3 | 1.02 ± 0.09 |
+| `backhand-dist` | 49.0 ± 3.4 | 42.4 | 56.6 | 1.00 |
+| `backhand-dist-musl` | 77.7 ± 4.7 | 66.7 | 87.9 | 1.59 ± 0.15 |
+| `squashfs-tools` | 108.8 ± 13.0 | 84.7 | 142.8 | 2.22 ± 0.31 |
 ### `openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 51.0 ± 3.3 | 44.1 | 58.8 | 1.01 ± 0.08 |
-| `backhand-dist` | 50.3 ± 2.6 | 45.1 | 58.9 | 1.00 |
-| `backhand-dist-musl` | 78.0 ± 4.3 | 71.3 | 89.8 | 1.55 ± 0.12 |
-| `squashfs-tools` | 112.9 ± 16.7 | 90.1 | 159.0 | 2.24 ± 0.35 |
+| `backhand-dist-v0.18.0` | 51.0 ± 2.9 | 45.1 | 57.3 | 1.02 ± 0.09 |
+| `backhand-dist` | 50.2 ± 3.1 | 45.9 | 60.7 | 1.00 |
+| `backhand-dist-musl` | 77.0 ± 4.4 | 69.6 | 85.8 | 1.54 ± 0.13 |
+| `squashfs-tools` | 112.2 ± 14.2 | 81.0 | 137.9 | 2.24 ± 0.31 |
 ### `870D97.squashfs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 258.9 ± 12.5 | 228.4 | 275.5 | 1.35 ± 0.11 |
-| `backhand-dist` | 252.8 ± 14.9 | 220.2 | 273.7 | 1.32 ± 0.12 |
-| `backhand-dist-musl` | 429.0 ± 27.9 | 367.4 | 462.5 | 2.24 ± 0.20 |
-| `squashfs-tools` | 191.7 ± 12.4 | 168.9 | 215.0 | 1.00 |
+| `backhand-dist-v0.18.0` | 252.7 ± 15.0 | 217.5 | 271.6 | 1.32 ± 0.10 |
+| `backhand-dist` | 253.3 ± 15.0 | 219.3 | 271.4 | 1.32 ± 0.10 |
+| `backhand-dist-musl` | 423.6 ± 25.7 | 370.5 | 456.1 | 2.21 ± 0.17 |
+| `squashfs-tools` | 191.6 ± 9.5 | 166.1 | 214.2 | 1.00 |
 ### `img-1571203182_vol-ubi_rootfs.ubifs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 226.1 ± 7.9 | 214.7 | 240.6 | 1.00 |
-| `backhand-dist` | 226.4 ± 6.4 | 216.6 | 240.0 | 1.00 ± 0.04 |
-| `backhand-dist-musl` | 360.7 ± 10.8 | 342.2 | 384.5 | 1.60 ± 0.07 |
-| `squashfs-tools` | 288.9 ± 11.9 | 269.6 | 320.4 | 1.28 ± 0.07 |
+| `backhand-dist-v0.18.0` | 225.4 ± 7.0 | 214.0 | 242.2 | 1.00 ± 0.04 |
+| `backhand-dist` | 224.3 ± 6.3 | 214.5 | 246.7 | 1.00 |
+| `backhand-dist-musl` | 360.1 ± 12.9 | 343.9 | 395.1 | 1.61 ± 0.07 |
+| `squashfs-tools` | 285.1 ± 10.3 | 259.5 | 305.5 | 1.27 ± 0.06 |
 ### `2611E3.squashfs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 106.4 ± 4.3 | 97.9 | 117.6 | 1.00 ± 0.06 |
-| `backhand-dist` | 106.0 ± 4.7 | 97.5 | 119.3 | 1.00 |
-| `backhand-dist-musl` | 171.5 ± 6.3 | 151.2 | 185.2 | 1.62 ± 0.09 |
-| `squashfs-tools` | 187.3 ± 15.6 | 160.7 | 223.4 | 1.77 ± 0.17 |
+| `backhand-dist-v0.18.0` | 104.9 ± 4.6 | 96.4 | 120.9 | 1.00 |
+| `backhand-dist` | 104.9 ± 4.0 | 98.1 | 119.2 | 1.00 ± 0.06 |
+| `backhand-dist-musl` | 172.2 ± 7.8 | 152.3 | 191.2 | 1.64 ± 0.10 |
+| `squashfs-tools` | 188.6 ± 14.1 | 159.1 | 217.2 | 1.80 ± 0.16 |
 ### `Plexamp-4.6.1.AppImage`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 490.1 ± 6.8 | 477.9 | 506.7 | 2.43 ± 0.10 |
-| `backhand-dist` | 511.3 ± 6.8 | 498.6 | 527.0 | 2.54 ± 0.10 |
-| `backhand-dist-musl` | 870.0 ± 8.2 | 856.6 | 890.6 | 4.32 ± 0.17 |
-| `squashfs-tools` | 201.4 ± 7.7 | 188.2 | 222.9 | 1.00 |
+| `backhand-dist-v0.18.0` | 689.8 ± 7.9 | 675.7 | 705.9 | 3.41 ± 0.15 |
+| `backhand-dist` | 438.0 ± 4.2 | 430.1 | 448.3 | 2.16 ± 0.10 |
+| `backhand-dist-musl` | 519.5 ± 3.2 | 511.8 | 526.1 | 2.57 ± 0.11 |
+| `squashfs-tools` | 202.4 ± 8.9 | 187.0 | 223.5 | 1.00 |
 ### `crates-io.squashfs`
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.17.0` | 1.423 ± 0.009 | 1.406 | 1.451 | 1.20 ± 0.01 |
-| `backhand-dist` | 1.392 ± 0.009 | 1.375 | 1.411 | 1.18 ± 0.01 |
-| `backhand-dist-musl` | 1.181 ± 0.004 | 1.174 | 1.190 | 1.00 |
-| `squashfs-tools` | 1.819 ± 0.042 | 1.706 | 1.908 | 1.54 ± 0.04 |
+| `backhand-dist-v0.18.0` | 1.395 ± 0.011 | 1.372 | 1.422 | 1.20 ± 0.01 |
+| `backhand-dist` | 1.372 ± 0.008 | 1.358 | 1.387 | 1.18 ± 0.01 |
+| `backhand-dist-musl` | 1.160 ± 0.005 | 1.151 | 1.176 | 1.00 |
+| `squashfs-tools` | 1.827 ± 0.046 | 1.745 | 1.990 | 1.57 ± 0.04 |
+### `airootfs.sfs`
+| Command | Mean [µs] | Min [µs] | Max [µs] | Relative |
+|:---|---:|---:|---:|---:|
+| `backhand-dist-v0.18.0` | 813.8 ± 62.2 | 720.6 | 948.4 | 1.27 ± 0.13 |
+| `backhand-dist` | 793.0 ± 92.2 | 708.4 | 1340.4 | 1.23 ± 0.17 |
+| `backhand-dist-musl` | 1110.4 ± 88.0 | 893.1 | 1381.3 | 1.73 ± 0.18 |
+| `squashfs-tools` | 643.0 ± 43.3 | 571.8 | 798.9 | 1.00 |
 
-## Heap Usage: `backhand/unsquashfs-master` vs `squashfs-tools/unsquashfs-4.6.1`
+## Heap Usage: `backhand/unsquashfs` vs `squashfs-tools/unsquashfs-4.6.1`
 ```
-$ cargo +stable build -p backhand-cli --bins --locked --profile=dist --no-default-features --features xz --features gzip-zune-inflate
+$ cargo +stable build -p backhand-cli --bins --locked --profile=dist
 ```
 
 | Command | Peak Heap Memory Consumption |
 | :------ | ---------------------------: |
-| `heaptrack ./target/dist/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 36.5MB |
-| `heaptrack unsquashfs -quiet -no-progress -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 75.7MB |
+| `heaptrack ./target/dist/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 34.4MB |
+| `heaptrack unsquashfs -quiet -no-progress -d $(mktemp -d) backhand-test/test-assets/test_re815_xev160/870D97.squashfs` | 76.8MB |
 
 | Command | Peak Heap Memory Consumption |
 | :------ | ---------------------------: |
-| `heaptrack ./target/dist/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 56.6MB |
-| `heaptrack unsquashfs -d $(mktemp -d) backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 114.4MB |
+| `heaptrack ./target/dist/unsquashfs-backhand --quiet -f -d $(mktemp -d) backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 52.3MB |
+| `heaptrack unsquashfs -d $(mktemp -d) backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs` | 103.4MB |

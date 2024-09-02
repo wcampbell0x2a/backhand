@@ -45,8 +45,7 @@ jobs:
           target: ${{ matrix.job.target }}
 
       - run: $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --features xz-static --locked --target ${{ matrix.job.target }} --profile=dist
-      # default features, but replace gzip with gzip-zune-inflate
-      - run: $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip-zune-inflate
+      - run: $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip
       - name: archive
         run: |
           tar -czvf backhand-${{ matrix.job.target }}.tar.gz \

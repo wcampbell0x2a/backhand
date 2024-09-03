@@ -21,11 +21,11 @@ use crate::kind::Kind;
 use crate::kinds::LE_V4_0;
 use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
 use crate::reader::WriteSeek;
-use crate::squashfs::{Flags, SuperBlock};
+use crate::squashfs::SuperBlock;
 use crate::{
-    fragment, FilesystemReader, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    fragment, FilesystemReader, Flags, Node, NodeHeader, SquashfsBlockDevice,
+    SquashfsCharacterDevice, SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
+    MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -80,6 +80,7 @@ pub struct FilesystemWriter<'a, 'b, 'c> {
     pub(crate) pad_len: u32,
     /// Superblock Flag to remove duplicate flags
     pub(crate) no_duplicate_files: bool,
+    pub(crate) emit_compression_options: bool,
 }
 
 impl Default for FilesystemWriter<'_, '_, '_> {
@@ -99,6 +100,7 @@ impl Default for FilesystemWriter<'_, '_, '_> {
             block_log: (block_size as f32).log2() as u16,
             pad_len: DEFAULT_PAD_LEN,
             no_duplicate_files: true,
+            emit_compression_options: true,
         }
     }
 }
@@ -201,6 +203,11 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         self.no_duplicate_files = value;
     }
 
+    /// Set if compression options are written
+    pub fn set_emit_compression_options(&mut self, value: bool) {
+        self.emit_compression_options = value;
+    }
+
     /// Inherit filesystem structure and properties from `reader`
     pub fn from_fs_reader(reader: &'a FilesystemReader<'b>) -> Result<Self, BackhandError> {
         let mut root: Vec<Node<_>> = reader
@@ -237,6 +244,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             root: Nodes { nodes: root },
             pad_len: DEFAULT_PAD_LEN,
             no_duplicate_files: reader.no_duplicate_files,
+            emit_compression_options: true,
         })
     }
 
@@ -655,36 +663,14 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
 
-        // Write compression options, if any
-        if let Some(options) = &self.fs_compressor.options {
-            superblock.flags |= Flags::CompressorOptionsArePresent as u16;
-            let mut compression_opt_buf_out = vec![];
-            let mut writer = Writer::new(&mut compression_opt_buf_out);
-            match options {
-                CompressionOptions::Gzip(gzip) => {
-                    gzip.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lz4(lz4) => {
-                    lz4.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Zstd(zstd) => {
-                    zstd.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Xz(xz) => {
-                    xz.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lzo(lzo) => {
-                    lzo.to_writer(&mut writer, self.kind.inner.type_endian)?
-                }
-                CompressionOptions::Lzma => {}
-            }
-            let mut metadata = MetadataWriter::new(
+        if self.emit_compression_options {
+            trace!("writing compression options, if exists");
+            let options = self.kind.inner.compressor.compression_options(
+                &mut superblock,
+                &self.kind,
                 self.fs_compressor,
-                self.block_size,
-                Kind { inner: self.kind.inner.clone() },
-            );
-            metadata.write_all(&compression_opt_buf_out)?;
-            metadata.finalize(&mut w)?;
+            )?;
+            w.write_all(&options)?;
         }
 
         let mut data_writer = DataWriter::new(
@@ -722,7 +708,6 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             &self.kind,
             &self.id_table,
         )?;
-
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
         superblock.inode_count = self.root.nodes.len().try_into().unwrap();
         superblock.block_size = self.block_size;

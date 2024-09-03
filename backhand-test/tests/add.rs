@@ -24,7 +24,7 @@ fn test_add() {
         hash: "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb".to_string(),
         url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
     }];
-    const TEST_PATH: &str = "test-assets/test_05";
+    const TEST_PATH: &str = "test-assets/test_01";
 
     test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
@@ -123,4 +123,76 @@ dr----x--t 2/4242                   42 1970-01-01 00:01 squashfs-root/test
         // using contains here, the output of squashfs varies between versions
         assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), expected);
     }
+}
+
+#[test]
+#[cfg(feature = "xz")]
+fn test_dont_emit_compression_options() {
+    use std::fs::File;
+    use std::io::Write;
+    use std::os::unix::prelude::PermissionsExt;
+
+    use backhand::DEFAULT_BLOCK_SIZE;
+    use nix::sys::stat::utimes;
+    use nix::sys::time::TimeVal;
+
+    const FILE_NAME: &str = "out.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "debe0986658b276be78c3836779d20464a03d9ba0a40903e6e8e947e434f4d67".to_string(),
+        url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_add_compression_options";
+
+    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    let tmp_dir = tempdir().unwrap();
+
+    let mut file = File::create(tmp_dir.path().join("file").to_str().unwrap()).unwrap();
+    file.write_all(b"nice").unwrap();
+
+    // with compression option
+    let out_image = tmp_dir.path().join("out-comp-options").display().to_string();
+    let cmd = common::get_base_command("add-backhand")
+        .env("RUST_LOG", "none")
+        .args([
+            &image_path,
+            "/new",
+            "--file",
+            tmp_dir.path().join("file").to_str().unwrap(),
+            "-o",
+            &out_image,
+            "--no-compression-options",
+        ])
+        .unwrap();
+    cmd.assert().code(0);
+
+    let cmd = common::get_base_command("unsquashfs-backhand")
+        .env("RUST_LOG", "none")
+        .args(["-s", "--quiet", &out_image])
+        .unwrap();
+    let stdout = std::str::from_utf8(&cmd.stdout).unwrap();
+    stdout.contains("Compression Options: None");
+
+    // with no compression option
+    let out_image = tmp_dir.path().join("out-comp-options").display().to_string();
+    let cmd = common::get_base_command("add-backhand")
+        .env("RUST_LOG", "none")
+        .args([
+            &image_path,
+            "/new",
+            "--file",
+            tmp_dir.path().join("file").to_str().unwrap(),
+            "-o",
+            &out_image,
+        ])
+        .unwrap();
+    cmd.assert().code(0);
+
+    let cmd = common::get_base_command("unsquashfs-backhand")
+        .env("RUST_LOG", "none")
+        .args(["-s", "--quiet", &out_image])
+        .unwrap();
+    let stdout = std::str::from_utf8(&cmd.stdout).unwrap();
+    stdout.contains("Compression Options: Some");
 }

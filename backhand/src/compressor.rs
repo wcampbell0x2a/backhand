@@ -1,12 +1,13 @@
 //! Types of supported compression algorithms
 
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Write};
 
 use deku::prelude::*;
 #[cfg(feature = "gzip")]
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "gzip")]
 use flate2::Compression;
+use tracing::trace;
 #[cfg(feature = "xz")]
 use xz2::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]
@@ -14,6 +15,10 @@ use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::BackhandError;
 use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
+use crate::kind::Kind;
+use crate::metadata::MetadataWriter;
+use crate::squashfs::Flags;
+use crate::SuperBlock;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
@@ -175,6 +180,25 @@ pub trait CompressionAction {
         fc: FilesystemCompressor,
         block_size: u32,
     ) -> Result<Vec<u8>, BackhandError>;
+
+    /// Compression Options for non-default compression specific options
+    ///
+    /// This function is called when calling [FilesystemWriter::write](crate::FilesystemWriter::write), and the returned bytes are the
+    ///  section right after the SuperBlock.
+    ///
+    /// # Arguments
+    /// * `superblock` - Mutatable squashfs superblock info that will be written to disk after
+    ///                  this function is called. The fields `inode_count`, `block_size`,
+    ///                  `block_log` and `mod_time` *will* be set to `FilesystemWriter` options and can be trusted
+    ///                  in this function.
+    /// * `kind` - Kind information
+    /// * `fs_compressor` - Compression Options
+    fn compression_options(
+        &self,
+        superblock: &mut SuperBlock,
+        kind: &Kind,
+        fs_compressor: FilesystemCompressor,
+    ) -> Result<Vec<u8>, BackhandError>;
 }
 
 /// Default compressor that handles the compression features that are enabled
@@ -228,6 +252,7 @@ impl CompressionAction for DefaultCompressor {
         Ok(())
     }
 
+    /// Using the current compressor from the superblock, compress bytes
     fn compress(
         &self,
         bytes: &[u8],
@@ -335,5 +360,48 @@ impl CompressionAction for DefaultCompressor {
             }
             _ => Err(BackhandError::UnsupportedCompression(fc.id)),
         }
+    }
+
+    /// Using the current compressor options, create compression options
+    fn compression_options(
+        &self,
+        superblock: &mut SuperBlock,
+        kind: &Kind,
+        fs_compressor: FilesystemCompressor,
+    ) -> Result<Vec<u8>, BackhandError> {
+        let mut w = Cursor::new(vec![]);
+
+        // Write compression options, if any
+        if let Some(options) = &fs_compressor.options {
+            trace!("writing compression options");
+            superblock.flags |= Flags::CompressorOptionsArePresent as u16;
+            let mut compression_opt_buf_out = vec![];
+            let mut writer = Writer::new(&mut compression_opt_buf_out);
+            match options {
+                CompressionOptions::Gzip(gzip) => {
+                    gzip.to_writer(&mut writer, kind.inner.type_endian)?
+                }
+                CompressionOptions::Lz4(lz4) => {
+                    lz4.to_writer(&mut writer, kind.inner.type_endian)?
+                }
+                CompressionOptions::Zstd(zstd) => {
+                    zstd.to_writer(&mut writer, kind.inner.type_endian)?
+                }
+                CompressionOptions::Xz(xz) => xz.to_writer(&mut writer, kind.inner.type_endian)?,
+                CompressionOptions::Lzo(lzo) => {
+                    lzo.to_writer(&mut writer, kind.inner.type_endian)?
+                }
+                CompressionOptions::Lzma => {}
+            }
+            let mut metadata = MetadataWriter::new(
+                fs_compressor,
+                superblock.block_size,
+                Kind { inner: kind.inner.clone() },
+            );
+            metadata.write_all(&compression_opt_buf_out)?;
+            metadata.finalize(&mut w)?;
+        }
+
+        Ok(w.into_inner())
     }
 }

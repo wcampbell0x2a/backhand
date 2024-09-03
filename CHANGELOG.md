@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### `backhand-cli`
 - Add `--no-compression-options` to `add` and `replace` to remove compression options from image after modification.
 - Add `--pad-len` to `replace` and `add` to control the length of end-of-image padding ([#604](https://github.com/wcampbell0x2a/backhand/pull/604))
+- Bump MSRV to `1.77`
 
 ### Dependencies
 - Bump `thiserror` from 1.0.59 to 1.0.63 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564), [#578](https://github.com/wcampbell0x2a/backhand/pull/578))

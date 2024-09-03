@@ -59,7 +59,7 @@ write_filesystem.write(&mut output).unwrap();
 ```
 
 ## Binaries
-*Compiler support: requires rustc 1.74+*
+*Compiler support: requires rustc 1.77+*
 
 These are currently under development and are missing features, MR's welcome!
 

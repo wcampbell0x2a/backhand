@@ -7,6 +7,8 @@ use std::process::ExitCode;
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 use backhand_cli::{after_help, styles};
 use clap::Parser;
+use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
 
 // -musl malloc is slow, use jemalloc
 #[cfg(all(target_env = "musl", target_pointer_width = "64"))]
@@ -24,7 +26,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 )]
 struct Args {
     /// Squashfs input image
-    image: PathBuf,
+    input_image: PathBuf,
 
     /// Create empty directory
     #[clap(short, long)]
@@ -39,9 +41,8 @@ struct Args {
     #[clap(name = "FILE_PATH_IN_IMAGE")]
     path: PathBuf,
 
-    /// Squashfs output image
-    #[clap(short, long, default_value = "added.squashfs")]
-    out: PathBuf,
+    /// Squashfs output image path
+    output_image: PathBuf,
 
     /// Override mode read from <FILE>
     #[clap(long, required_if_eq("dir", "true"))]
@@ -69,12 +70,15 @@ struct Args {
 }
 
 fn main() -> ExitCode {
-    tracing_subscriber::fmt::init();
+    // setup tracing to RUST_LOG or just info
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("add=info"));
+    tracing_subscriber::fmt().with_env_filter(env_filter).init();
 
     let args = Args::parse();
 
     // read of squashfs
-    let file = File::open(args.image).unwrap();
+    let file = File::open(args.input_image).unwrap();
     let file = BufReader::new(file);
 
     let filesystem = FilesystemReader::from_reader(file).unwrap();
@@ -94,7 +98,7 @@ fn main() -> ExitCode {
         let node = NodeHeader::new(mode, uid, gid, mtime);
 
         if let Err(e) = filesystem.push_file(new_file, args.path, node) {
-            println!("[!] {e}");
+            error!("{e}");
             return ExitCode::FAILURE;
         }
     } else if args.dir {
@@ -106,7 +110,7 @@ fn main() -> ExitCode {
             args.mtime.unwrap(),
         );
         if let Err(e) = filesystem.push_dir(args.path, node) {
-            println!("[!] {e}");
+            error!("{e}");
             return ExitCode::FAILURE;
         }
     }
@@ -120,11 +124,14 @@ fn main() -> ExitCode {
     }
 
     // write new file
-    let output = File::create(&args.out).unwrap();
+    let Ok(output) = File::create_new(&args.output_image) else {
+        error!("failed to open {}", args.output_image.display());
+        return ExitCode::FAILURE;
+    };
     if let Err(e) = filesystem.write(output) {
-        println!("[!] {e}");
+        error!("{e}");
     }
-    println!("[-] added file and wrote to {}", args.out.display());
+    info!("added file and wrote to {}", args.output_image.display());
 
     ExitCode::SUCCESS
 }

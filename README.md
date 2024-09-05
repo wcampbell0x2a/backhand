@@ -59,7 +59,7 @@ write_filesystem.write(&mut output).unwrap();
 ```
 
 ## Binaries
-*Compiler support: requires rustc 1.74+*
+*Compiler support: requires rustc 1.77+*
 
 These are currently under development and are missing features, MR's welcome!
 
@@ -99,16 +99,16 @@ Options:
 ```no_test
 tool to add a file or directory to squashfs filesystems
 
-Usage: add-backhand [OPTIONS] <IMAGE> <FILE_PATH_IN_IMAGE>
+Usage: add-backhand [OPTIONS] <INPUT_IMAGE> <FILE_PATH_IN_IMAGE> <OUTPUT_IMAGE>
 
 Arguments:
-  <IMAGE>               Squashfs input image
+  <INPUT_IMAGE>         Squashfs input image
   <FILE_PATH_IN_IMAGE>  Path of file once inserted into squashfs
+  <OUTPUT_IMAGE>        Squashfs output image path
 
 Options:
   -d, --dir                     Create empty directory
   -f, --file <FILE>             Path of file to read, to write into squashfs
-  -o, --out <OUT>               Squashfs output image [default: added.squashfs]
       --mode <MODE>             Override mode read from <FILE>
       --uid <UID>               Override uid read from <FILE>
       --gid <GID>               Override gid read from <FILE>
@@ -123,15 +123,15 @@ Options:
 ```no_test
 tool to replace files in squashfs filesystems
 
-Usage: replace-backhand [OPTIONS] <IMAGE> <FILE> <FILE_PATH_IN_IMAGE>
+Usage: replace-backhand [OPTIONS] <INPUT_IMAGE> <FILE> <FILE_PATH_IN_IMAGE> <OUTPUT_IMAGE>
 
 Arguments:
-  <IMAGE>               Squashfs input image
+  <INPUT_IMAGE>         Squashfs input image
   <FILE>                Path of file to read, to write into squashfs
   <FILE_PATH_IN_IMAGE>  Path of file replaced in image
+  <OUTPUT_IMAGE>        Squashfs output image
 
 Options:
-  -o, --out <OUT>               Squashfs output image [default: replaced.squashfs]
       --pad-len <PAD_LEN>       Custom KiB padding length
       --no-compression-options  Don't emit compression options
   -h, --help                    Print help

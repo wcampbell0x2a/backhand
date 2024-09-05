@@ -48,7 +48,6 @@ fn test_replace() {
             &image_path,
             tmp_dir.path().join("squashfs-root-rust/b/c/d").to_str().unwrap(),
             "/b/c/d",
-            "-o",
             tmp_dir.path().join("replaced").to_str().unwrap(),
         ])
         .unwrap();

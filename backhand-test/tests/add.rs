@@ -37,6 +37,7 @@ fn test_add() {
         .args([
             &image_path,
             "/test",
+            tmp_dir.path().join("out").to_str().unwrap(),
             "--dir",
             "--gid",
             "4242",
@@ -46,8 +47,6 @@ fn test_add() {
             "2",
             "--mode",
             "777",
-            "-o",
-            tmp_dir.path().join("out").to_str().unwrap(),
         ])
         .unwrap();
     cmd.assert().code(0);
@@ -71,6 +70,7 @@ fn test_add() {
         .args([
             tmp_dir.path().join("out").to_str().unwrap(),
             "/test/new",
+            tmp_dir.path().join("out1").to_str().unwrap(),
             "--file",
             tmp_dir.path().join("file").to_str().unwrap(),
             "--gid",
@@ -79,8 +79,6 @@ fn test_add() {
             "4242",
             //"--mtime",
             //"120",
-            "-o",
-            tmp_dir.path().join("out1").to_str().unwrap(),
         ])
         .unwrap();
     cmd.assert().code(0);
@@ -90,6 +88,7 @@ fn test_add() {
         .args([
             tmp_dir.path().join("out1").to_str().unwrap(),
             "/test/big_file",
+            tmp_dir.path().join("out2").to_str().unwrap(),
             "--file",
             tmp_dir.path().join("big_file").to_str().unwrap(),
             "--gid",
@@ -98,8 +97,6 @@ fn test_add() {
             "4242",
             "--mtime",
             "120",
-            "-o",
-            tmp_dir.path().join("out2").to_str().unwrap(),
         ])
         .unwrap();
     cmd.assert().code(0);
@@ -158,10 +155,9 @@ fn test_dont_emit_compression_options() {
         .args([
             &image_path,
             "/new",
+            &out_image,
             "--file",
             tmp_dir.path().join("file").to_str().unwrap(),
-            "-o",
-            &out_image,
             "--no-compression-options",
         ])
         .unwrap();
@@ -175,16 +171,15 @@ fn test_dont_emit_compression_options() {
     stdout.contains("Compression Options: None");
 
     // with no compression option
-    let out_image = tmp_dir.path().join("out-comp-options").display().to_string();
+    let out_image = tmp_dir.path().join("out-no-comp-options").display().to_string();
     let cmd = common::get_base_command("add-backhand")
         .env("RUST_LOG", "none")
         .args([
             &image_path,
             "/new",
+            &out_image,
             "--file",
             tmp_dir.path().join("file").to_str().unwrap(),
-            "-o",
-            &out_image,
         ])
         .unwrap();
     cmd.assert().code(0);

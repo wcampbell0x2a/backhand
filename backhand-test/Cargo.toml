@@ -13,7 +13,7 @@ test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = 
 test-log = { version = "0.2.15", features = ["trace"] }
 tracing = "0.1.40"
 libdeflater = "1.21.0"
-env_logger = "0.11.3"
+env_logger = "0.11.5"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 nix = { version = "0.28.0", default-features = false, features = ["fs"] }
 

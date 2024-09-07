@@ -217,7 +217,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             .map(|node| {
                 let inner = match &node.inner {
                     InnerNode::File(file) => {
-                        let reader = reader.file(&file.basic);
+                        let reader = reader.file(file);
                         InnerNode::File(SquashfsFileWriter::SquashfsFile(reader))
                     }
                     InnerNode::Symlink(x) => InnerNode::Symlink(x.clone()),

@@ -217,7 +217,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             .map(|node| {
                 let inner = match &node.inner {
                     InnerNode::File(file) => {
-                        let reader = reader.file(&file.basic);
+                        let reader = reader.file(file);
                         InnerNode::File(SquashfsFileWriter::SquashfsFile(reader))
                     }
                     InnerNode::Symlink(x) => InnerNode::Symlink(x.clone()),
@@ -835,7 +835,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let mut iter = table.iter().peekable();
         while let Some(t) = iter.next() {
             // convert fragment ptr to bytes
-            let mut table_writer = Writer::new(&mut table_bytes);
+            let mut table_writer = Writer::new(&mut cursor_table);
             t.to_writer(&mut table_writer, self.kind.inner.type_endian)?;
 
             // once table_bytes + next is over the maximum size of a metadata block, write

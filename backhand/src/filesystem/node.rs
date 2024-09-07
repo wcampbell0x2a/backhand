@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use super::normalize_squashfs_path;
 use crate::data::Added;
-use crate::inode::{BasicFile, InodeHeader};
-use crate::{BackhandError, FilesystemReaderFile, Id};
+use crate::inode::{BasicFile, ExtendedFile, InodeHeader};
+use crate::{BackhandError, DataSize, FilesystemReaderFile, Id};
 
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
@@ -91,8 +91,46 @@ pub enum InnerNode<T> {
 
 /// Unread file for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SquashfsFileReader {
-    pub basic: BasicFile,
+pub enum SquashfsFileReader {
+    Basic(BasicFile),
+    Extended(ExtendedFile),
+}
+
+impl SquashfsFileReader {
+    pub fn file_len(&self) -> usize {
+        match self {
+            SquashfsFileReader::Basic(basic) => basic.file_size as usize,
+            SquashfsFileReader::Extended(extended) => extended.file_size as usize,
+        }
+    }
+
+    pub fn frag_index(&self) -> usize {
+        match self {
+            SquashfsFileReader::Basic(basic) => basic.frag_index as usize,
+            SquashfsFileReader::Extended(extended) => extended.frag_index as usize,
+        }
+    }
+
+    pub fn block_sizes(&self) -> &[DataSize] {
+        match self {
+            SquashfsFileReader::Basic(basic) => &basic.block_sizes,
+            SquashfsFileReader::Extended(extended) => &extended.block_sizes,
+        }
+    }
+
+    pub fn blocks_start(&self) -> u64 {
+        match self {
+            SquashfsFileReader::Basic(basic) => basic.blocks_start as u64,
+            SquashfsFileReader::Extended(extended) => extended.blocks_start,
+        }
+    }
+
+    pub fn block_offset(&self) -> u32 {
+        match self {
+            SquashfsFileReader::Basic(basic) => basic.block_offset,
+            SquashfsFileReader::Extended(extended) => extended.block_offset,
+        }
+    }
 }
 
 /// Read file from other SquashfsFile or an user file

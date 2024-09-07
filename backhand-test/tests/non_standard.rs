@@ -30,12 +30,9 @@ fn full_test(
     {
         let file = BufReader::new(File::open(og_path).unwrap());
         info!("calling from_reader");
-        let og_filesystem = FilesystemReader::from_reader_with_offset_and_kind(
-            file,
-            offset,
-            Kind::from_kind(&kind),
-        )
-        .unwrap();
+        let og_filesystem =
+            FilesystemReader::from_reader_with_offset_and_kind(file, offset, Kind::from_kind(kind))
+                .unwrap();
         let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
         if let Some(pad) = pad {
             new_filesystem.set_kib_padding(pad);
@@ -57,7 +54,7 @@ fn full_test(
         let _new_filesystem = FilesystemReader::from_reader_with_offset_and_kind(
             created_file,
             offset,
-            Kind::from_kind(&kind),
+            Kind::from_kind(kind),
         )
         .unwrap();
     }
@@ -140,7 +137,7 @@ fn test_custom_compressor() {
             if let Compressor::Gzip = compressor {
                 out.resize(out.capacity(), 0);
                 let mut decompressor = libdeflater::Decompressor::new();
-                let amt = decompressor.zlib_decompress(&bytes, out).unwrap();
+                let amt = decompressor.zlib_decompress(bytes, out).unwrap();
                 out.truncate(amt);
             } else {
                 unimplemented!();

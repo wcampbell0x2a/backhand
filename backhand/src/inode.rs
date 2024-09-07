@@ -1,7 +1,7 @@
 //! Index Node for file or directory
 
 use core::fmt;
-use std::io::Write;
+use std::io::{Cursor, Write};
 
 use deku::prelude::*;
 
@@ -35,7 +35,7 @@ impl Inode {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Entry<'a> {
-        let mut inode_bytes = vec![];
+        let mut inode_bytes = Cursor::new(vec![]);
         let mut writer = Writer::new(&mut inode_bytes);
         self.to_writer(
             &mut writer,
@@ -49,7 +49,7 @@ impl Inode {
         .unwrap();
         let start = m_writer.metadata_start;
         let offset = m_writer.uncompressed_bytes.len() as u16;
-        m_writer.write_all(&inode_bytes).unwrap();
+        m_writer.write_all(&inode_bytes.into_inner()).unwrap();
 
         Entry {
             start,
@@ -179,18 +179,6 @@ pub struct BasicFile {
     pub file_size: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
-}
-
-impl From<&ExtendedFile> for BasicFile {
-    fn from(ex_file: &ExtendedFile) -> Self {
-        Self {
-            blocks_start: ex_file.blocks_start as u32,
-            frag_index: ex_file.frag_index,
-            block_offset: ex_file.block_offset,
-            file_size: ex_file.file_size as u32,
-            block_sizes: ex_file.block_sizes.clone(),
-        }
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

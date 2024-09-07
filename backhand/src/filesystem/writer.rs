@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -217,7 +217,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             .map(|node| {
                 let inner = match &node.inner {
                     InnerNode::File(file) => {
-                        let reader = reader.file(&file.basic);
+                        let reader = reader.file(file);
                         InnerNode::File(SquashfsFileWriter::SquashfsFile(reader))
                     }
                     InnerNode::Symlink(x) => InnerNode::Symlink(x.clone()),
@@ -622,9 +622,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         trace!("WRITING DIR: {block_offset:#02x?}");
         let mut total_size: usize = 3;
         for dir in Entry::into_dir(entries) {
-            let mut bytes = vec![];
-            let mut writer = Writer::new(&mut bytes);
+            let mut cursor = Cursor::new(vec![]);
+            let mut writer = Writer::new(&mut cursor);
             dir.to_writer(&mut writer, kind.inner.type_endian)?;
+            let bytes = cursor.into_inner();
             total_size += bytes.len();
             dir_writer.write_all(&bytes)?;
         }
@@ -831,25 +832,28 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         W: Write + Seek,
     {
         let mut ptrs: Vec<u64> = vec![];
-        let mut table_bytes = Vec::with_capacity(table.len() * element_size);
+        let table_bytes = Vec::with_capacity(table.len() * element_size);
+        let mut cursor_table = Cursor::new(table_bytes);
         let mut iter = table.iter().peekable();
         while let Some(t) = iter.next() {
             // convert fragment ptr to bytes
-            let mut table_writer = Writer::new(&mut table_bytes);
+            let mut table_writer = Writer::new(&mut cursor_table);
             t.to_writer(&mut table_writer, self.kind.inner.type_endian)?;
 
             // once table_bytes + next is over the maximum size of a metadata block, write
-            if ((table_bytes.len() + element_size) > METADATA_MAXSIZE) || iter.peek().is_none() {
+            if ((cursor_table.get_ref().len() + element_size) > METADATA_MAXSIZE)
+                || iter.peek().is_none()
+            {
                 ptrs.push(w.stream_position()?);
 
                 // write metadata len
-                let len = metadata::set_if_uncompressed(table_bytes.len() as u16);
+                let len = metadata::set_if_uncompressed(cursor_table.get_ref().len() as u16);
                 let mut writer = Writer::new(&mut w);
                 len.to_writer(&mut writer, self.kind.inner.data_endian)?;
                 // write metadata bytes
-                w.write_all(&table_bytes)?;
+                w.write_all(cursor_table.get_ref())?;
 
-                table_bytes.clear();
+                cursor_table.get_mut().clear();
             }
         }
 

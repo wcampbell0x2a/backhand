@@ -180,18 +180,6 @@ pub struct BasicFile {
     pub block_sizes: Vec<DataSize>,
 }
 
-impl From<&ExtendedFile> for BasicFile {
-    fn from(ex_file: &ExtendedFile) -> Self {
-        Self {
-            blocks_start: ex_file.blocks_start as u32,
-            frag_index: ex_file.frag_index,
-            block_offset: ex_file.block_offset,
-            file_size: ex_file.file_size as u32,
-            block_sizes: ex_file.block_sizes.clone(),
-        }
-    }
-}
-
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     endian = "endian",

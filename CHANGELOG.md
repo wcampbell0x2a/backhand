@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### `backhand`
 - Remove incorrect check for `ExtendedDirectory` index count ([#691](https://github.com/wcampbell0x2a/backhand/pull/691))
+- Correctly support `ExtendedFile` ([#691](https://github.com/wcampbell0x2a/backhand/pull/691))
 
 ## [v0.19.0] - 2024-11-12
 ### `backhand`

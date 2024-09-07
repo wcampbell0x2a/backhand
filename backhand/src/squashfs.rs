@@ -544,17 +544,20 @@ impl<'b> Squashfs<'b> {
                         }
                         // BasicFile
                         InodeId::BasicFile => {
-                            trace!("before_file: {:#02x?}", entry);
-                            let basic = match &found_inode.inner {
-                                InodeInner::BasicFile(file) => file.clone(),
-                                InodeInner::ExtendedFile(file) => file.into(),
+                            let inner = match &found_inode.inner {
+                                InodeInner::BasicFile(file) => {
+                                    SquashfsFileReader::Basic(file.clone())
+                                }
+                                InodeInner::ExtendedFile(file) => {
+                                    SquashfsFileReader::Extended(file.clone())
+                                }
                                 _ => {
                                     return Err(BackhandError::UnexpectedInode(
                                         found_inode.inner.clone(),
                                     ))
                                 }
                             };
-                            InnerNode::File(SquashfsFileReader { basic })
+                            InnerNode::File(inner)
                         }
                         // Basic Symlink
                         InodeId::BasicSymlink => {

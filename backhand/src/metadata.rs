@@ -112,7 +112,7 @@ impl Write for MetadataWriter {
     }
 }
 
-pub fn read_block<R: Read>(
+pub fn read_block<R: Read + Seek>(
     reader: &mut R,
     superblock: &SuperBlock,
     kind: &Kind,

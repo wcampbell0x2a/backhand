@@ -1,7 +1,7 @@
 //! Index Node for file or directory
 
 use core::fmt;
-use std::io::Write;
+use std::io::{Cursor, Write};
 
 use deku::prelude::*;
 
@@ -35,7 +35,7 @@ impl Inode {
         superblock: &SuperBlock,
         kind: &Kind,
     ) -> Entry<'a> {
-        let mut inode_bytes = vec![];
+        let mut inode_bytes = Cursor::new(vec![]);
         let mut writer = Writer::new(&mut inode_bytes);
         self.to_writer(
             &mut writer,
@@ -49,7 +49,7 @@ impl Inode {
         .unwrap();
         let start = m_writer.metadata_start;
         let offset = m_writer.uncompressed_bytes.len() as u16;
-        m_writer.write_all(&inode_bytes).unwrap();
+        m_writer.write_all(inode_bytes.get_ref()).unwrap();
 
         Entry {
             start,

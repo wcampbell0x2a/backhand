@@ -375,7 +375,7 @@ impl CompressionAction for DefaultCompressor {
         if let Some(options) = &fs_compressor.options {
             trace!("writing compression options");
             superblock.flags |= Flags::CompressorOptionsArePresent as u16;
-            let mut compression_opt_buf_out = vec![];
+            let mut compression_opt_buf_out = Cursor::new(vec![]);
             let mut writer = Writer::new(&mut compression_opt_buf_out);
             match options {
                 CompressionOptions::Gzip(gzip) => {
@@ -398,7 +398,7 @@ impl CompressionAction for DefaultCompressor {
                 superblock.block_size,
                 Kind { inner: kind.inner.clone() },
             );
-            metadata.write_all(&compression_opt_buf_out)?;
+            metadata.write_all(compression_opt_buf_out.get_ref())?;
             metadata.finalize(&mut w)?;
         }
 

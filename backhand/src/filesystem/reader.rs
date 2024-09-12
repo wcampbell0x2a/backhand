@@ -132,7 +132,8 @@ impl<'b> FilesystemReader<'b> {
 
     /// Return a file handler for this file
     pub fn file<'a>(&'a self, file: &'a SquashfsFileReader) -> FilesystemReaderFile<'a, 'b> {
-        trace!("returning handle for {file:02x?}");
+        // trace!("returning handle for {file:02x?}");
+        trace!("new file: {file:02x?}");
         FilesystemReaderFile::new(self, file)
     }
 
@@ -213,6 +214,7 @@ impl<'a, 'b> IntoIterator for FilesystemReaderFile<'a, 'b> {
     }
 }
 
+#[derive(Debug)]
 pub enum BlockFragment<'a> {
     Block(&'a DataSize),
     Fragment(&'a Fragment),
@@ -265,6 +267,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         data: &mut Vec<u8>,
         block: &BlockFragment<'a>,
     ) -> Result<RawDataBlock, BackhandError> {
+        trace!("{:02x?}", block);
         match block {
             BlockFragment::Block(block) => {
                 let mut sparse = false;
@@ -277,23 +280,16 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     reader.seek(SeekFrom::Start(self.pos))?;
                     reader.read_exact(data)?;
                     // Sparse file
-                    if block.uncompressed()
-                        && self.blocks_parsed != self.block_len
-                        && data.len() < self.file.system.block_size as usize
-                    {
-                        let sparse_len = self.file.system.block_size as usize - data.len();
-                        trace!("writing sparse: {sparse_len:02x?}");
-                        data.write_all(&vec![0x00; sparse_len])?;
-                        sparse = true;
-                    }
+                    trace!("are we compressed? {}", block.uncompressed());
 
                     self.pos = reader.stream_position()?;
                 }
-                Ok(RawDataBlock { fragment: false, uncompressed: sparse | block.uncompressed() })
+                Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
                 // if in the cache, just read from the cache bytes and return the fragment bytes
                 {
+                    trace!("fragment");
                     let cache = self.file.system.cache.read().unwrap();
                     if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                         //if in cache, just return the cache, don't read it
@@ -341,6 +337,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
 
     #[inline]
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
+        trace!("next_block");
         let res = self.current_block.next().map(|next| self.read_raw_data(buf, &next));
         self.blocks_parsed += 1;
         res
@@ -362,9 +359,12 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         data: RawDataBlock,
         input_buf: &mut Vec<u8>,
         output_buf: &mut Vec<u8>,
-    ) -> Result<(), BackhandError> {
+    ) -> Result<bool, BackhandError> {
+        let mut sparse = false;
+
         //append to the output_buf is not allowed, it need to be empty
         assert!(output_buf.is_empty());
+
         //input is already decompress, so just swap the input/output, so the
         //output_buf contains the final data.
         if data.uncompressed {
@@ -392,7 +392,17 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 output_buf.drain(..range.start);
             }
         }
-        Ok(())
+        // if self.blocks_parsed != self.block_len {
+        trace!("not last block");
+        if input_buf.len() < self.file.system.block_size as usize {
+            trace!("not == block_size");
+            let sparse_len = self.file.system.block_size as usize - input_buf.len();
+            trace!("writing sparse: {sparse_len:02x?}");
+            output_buf.write_all(&vec![0x00; sparse_len])?;
+            sparse = true;
+        }
+        // }
+        Ok(sparse)
     }
 
     #[inline]
@@ -410,6 +420,7 @@ pub struct SquashfsReadFile<'a, 'b> {
     //offset of buf_decompress to start reading
     last_read: usize,
     bytes_available: usize,
+    last_sparse: bool,
 }
 
 impl<'a, 'b> SquashfsReadFile<'a, 'b> {
@@ -425,21 +436,31 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
             buf_decompress: vec![],
             last_read,
             bytes_available,
+            last_sparse: false,
         }
     }
 
     #[inline]
     fn available(&self) -> &[u8] {
-        &self.buf_decompress[self.last_read..]
+        let res = &self.buf_decompress[self.last_read..];
+        trace!("{:02x?}", res.len());
+        res
     }
 
     #[inline]
     fn read_available(&mut self, buf: &mut [u8]) -> usize {
+        trace!("read available");
         let available = self.available();
         let read_len = buf.len().min(available.len()).min(self.bytes_available);
         buf[..read_len].copy_from_slice(&available[..read_len]);
-        self.bytes_available -= read_len;
         self.last_read += read_len;
+        // if !self.last_sparse {
+        self.bytes_available -= read_len;
+        // }
+        trace!(self.bytes_available);
+        trace!(self.last_read);
+
+        trace!(read_len);
         read_len
     }
 
@@ -450,7 +471,8 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
             None => return Ok(()),
         };
         self.buf_decompress.clear();
-        self.raw_data.decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
+        self.last_sparse =
+            self.raw_data.decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
         self.last_read = 0;
         Ok(())
     }
@@ -467,6 +489,7 @@ impl<'a, 'b> Read for SquashfsReadFile<'a, 'b> {
         }
         // no data available, read the next block
         if self.available().is_empty() {
+            trace!("reading next block");
             self.read_next_block()?;
         }
 

@@ -166,7 +166,6 @@ impl<'a> DataWriter<'a> {
             return Ok((decompress_buf.len(), Added::Fragment { frag_index, block_offset }));
         }
 
-        //if is a block, just copy it
         writer.write_all(&read_buf)?;
         while let Some(block) = reader.next_block(&mut read_buf) {
             let block = block?;

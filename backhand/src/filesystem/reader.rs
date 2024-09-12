@@ -1,5 +1,7 @@
-use std::io::{Read, SeekFrom};
+use std::io::{Read, SeekFrom, Write};
 use std::sync::{Mutex, RwLock};
+
+use tracing::trace;
 
 use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
@@ -130,6 +132,7 @@ impl<'b> FilesystemReader<'b> {
 
     /// Return a file handler for this file
     pub fn file<'a>(&'a self, file: &'a SquashfsFileReader) -> FilesystemReaderFile<'a, 'b> {
+        trace!("returning handle for {file:02x?}");
         FilesystemReaderFile::new(self, file)
     }
 
@@ -243,6 +246,8 @@ pub(crate) struct RawDataBlock {
 pub(crate) struct SquashfsRawData<'a, 'b> {
     pub(crate) file: FilesystemReaderFile<'a, 'b>,
     current_block: BlockIterator<'a>,
+    block_len: usize,
+    blocks_parsed: usize,
     pub(crate) pos: u64,
 }
 
@@ -250,7 +255,9 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     pub fn new(file: FilesystemReaderFile<'a, 'b>) -> Self {
         let pos = file.file.blocks_start();
         let current_block = file.into_iter();
-        Self { file, current_block, pos }
+        let block_len = file.into_iter().count();
+        let blocks_parsed = 0;
+        Self { file, current_block, block_len, blocks_parsed, pos }
     }
 
     fn read_raw_data(
@@ -260,6 +267,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     ) -> Result<RawDataBlock, BackhandError> {
         match block {
             BlockFragment::Block(block) => {
+                let mut sparse = false;
                 let block_size = block.size() as usize;
                 data.resize(block_size, 0);
                 //NOTE: storing/restoring the file-pos is not required at the
@@ -268,9 +276,20 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     let mut reader = self.file.system.reader.lock().unwrap();
                     reader.seek(SeekFrom::Start(self.pos))?;
                     reader.read_exact(data)?;
+                    // Sparse file
+                    if block.uncompressed()
+                        && self.blocks_parsed != self.block_len
+                        && data.len() < self.file.system.block_size as usize
+                    {
+                        let sparse_len = self.file.system.block_size as usize - data.len();
+                        trace!("writing sparse: {sparse_len:02x?}");
+                        data.write_all(&vec![0x00; sparse_len])?;
+                        sparse = true;
+                    }
+
                     self.pos = reader.stream_position()?;
                 }
-                Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
+                Ok(RawDataBlock { fragment: false, uncompressed: sparse | block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {
                 // if in the cache, just read from the cache bytes and return the fragment bytes
@@ -322,7 +341,9 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
 
     #[inline]
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
-        self.current_block.next().map(|next| self.read_raw_data(buf, &next))
+        let res = self.current_block.next().map(|next| self.read_raw_data(buf, &next));
+        self.blocks_parsed += 1;
+        res
     }
 
     #[inline]
@@ -444,12 +465,12 @@ impl<'a, 'b> Read for SquashfsReadFile<'a, 'b> {
             self.buf_decompress.clear();
             return Ok(0);
         }
-        //no data available, read the next block
+        // no data available, read the next block
         if self.available().is_empty() {
             self.read_next_block()?;
         }
 
-        //return data from the read block/fragment
+        // return data from the read block/fragment
         Ok(self.read_available(buf))
     }
 }

@@ -184,11 +184,11 @@ pub struct BasicFile {
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, bytes_used: u64, block_size: u32, block_log: u16"
+    ctx = "endian: deku::ctx::Endian, _bytes_used: u64, block_size: u32, block_log: u16"
 )]
 pub struct ExtendedFile {
     pub blocks_start: u64,
-    #[deku(assert = "((*file_size as u128) < TiB1) && (*file_size < bytes_used)")]
+    #[deku(assert = "((*file_size as u128) < TiB1)")]
     pub file_size: u64,
     pub sparse: u64,
     pub link_count: u32,

@@ -19,7 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 deku = { version = "0.18.1", default-features = false, features = ["std"] }
 tracing = { version = "0.1.40" }
 thiserror = "1.0.63"
-flate2 = { version = "1.0.33", optional = true, features = ["zlib-ng"] }
+flate2 = { version = "1.0.34", optional = true, features = ["zlib-ng"] }
 zune-inflate = { version = "0.2.54", optional = true, default-features = false, features = ["zlib"] }
 xz2 = { version = "0.1.7", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }

@@ -181,26 +181,14 @@ pub struct BasicFile {
     pub block_sizes: Vec<DataSize>,
 }
 
-impl From<&ExtendedFile> for BasicFile {
-    fn from(ex_file: &ExtendedFile) -> Self {
-        Self {
-            blocks_start: ex_file.blocks_start as u32,
-            frag_index: ex_file.frag_index,
-            block_offset: ex_file.block_offset,
-            file_size: ex_file.file_size as u32,
-            block_sizes: ex_file.block_sizes.clone(),
-        }
-    }
-}
-
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(
     endian = "endian",
-    ctx = "endian: deku::ctx::Endian, bytes_used: u64, block_size: u32, block_log: u16"
+    ctx = "endian: deku::ctx::Endian, _bytes_used: u64, block_size: u32, block_log: u16"
 )]
 pub struct ExtendedFile {
     pub blocks_start: u64,
-    #[deku(assert = "((*file_size as u128) < TiB1) && (*file_size < bytes_used)")]
+    #[deku(assert = "((*file_size as u128) < TiB1)")]
     pub file_size: u64,
     pub sparse: u64,
     pub link_count: u32,

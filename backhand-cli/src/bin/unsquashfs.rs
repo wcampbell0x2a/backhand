@@ -468,8 +468,8 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
 
                 // write to file
                 let fd = File::create(&filepath).unwrap();
-                let mut writer = BufWriter::with_capacity(file.basic.file_size as usize, &fd);
-                let file = filesystem.file(&file.basic);
+                let mut writer = BufWriter::with_capacity(file.file_len(), &fd);
+                let file = filesystem.file(file);
                 let mut reader = file.reader();
 
                 match io::copy(&mut reader, &mut writer) {

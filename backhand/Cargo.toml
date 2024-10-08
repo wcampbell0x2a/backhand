@@ -57,7 +57,7 @@ assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.12.0"
 criterion = "0.5"
-libdeflater = "1.21.0"
+libdeflater = "1.22.0"
 
 [[bench]]
 name = "benchmark"

@@ -26,7 +26,7 @@ enum Verify {
 }
 
 fn only_read(assets_defs: &[TestAssetDef], filepath: &str, test_path: &str, offset: u64) {
-    test_assets::download_test_files(assets_defs, test_path, true).unwrap();
+    common::download_backoff(assets_defs, test_path);
 
     let og_path = format!("{test_path}/{filepath}");
     let file = BufReader::new(File::open(&og_path).unwrap());
@@ -63,7 +63,7 @@ fn full_test_inner(
     assert_success: bool,
     run_squashfs_tools_unsquashfs: bool,
 ) {
-    test_assets::download_test_files(assets_defs, test_path, true).unwrap();
+    common::download_backoff(assets_defs, test_path);
 
     let og_path = format!("{test_path}/{filepath}");
     let new_path = format!("{test_path}/bytes.squashfs");

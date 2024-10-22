@@ -18,7 +18,7 @@ fn test_replace() {
     }];
     const TEST_PATH: &str = "test-assets/test_05";
 
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
 
     // extract single file

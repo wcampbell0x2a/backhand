@@ -25,7 +25,7 @@ fn test_raw_00() {
     }];
     const TEST_PATH: &str = "test-assets/test_raw_00";
     let new_path = format!("{TEST_PATH}/bytes.squashfs");
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
 
     let header = NodeHeader { permissions: 0o755, uid: 1000, gid: 1000, mtime: 0 };
 

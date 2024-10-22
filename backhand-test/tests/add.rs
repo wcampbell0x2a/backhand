@@ -26,7 +26,7 @@ fn test_add() {
     }];
     const TEST_PATH: &str = "test-assets/test_01";
 
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
 
     // Add /test dir
@@ -141,7 +141,7 @@ fn test_dont_emit_compression_options() {
     }];
     const TEST_PATH: &str = "test-assets/test_add_compression_options";
 
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
     let tmp_dir = tempdir().unwrap();
 

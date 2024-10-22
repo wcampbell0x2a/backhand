@@ -15,7 +15,7 @@ fn test_unsquashfs_cli() {
     }];
     const TEST_PATH: &str = "test-assets/test_re815_xev160";
 
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
 
     // single file
@@ -119,7 +119,7 @@ fn test_unsquashfs_cli_auto_offset() {
         ),
     }];
     const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
     let image_path = format!("{TEST_PATH}/{FILE_NAME}");
 
     let tmp_dir = tempdir().unwrap();

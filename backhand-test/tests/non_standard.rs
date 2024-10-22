@@ -24,7 +24,7 @@ fn full_test(
     kind: &Kind,
     pad: Option<u32>,
 ) {
-    test_assets::download_test_files(assets_defs, test_path, true).unwrap();
+    common::download_backoff(&assets_defs, test_path);
     let og_path = format!("{test_path}/{filepath}");
     let new_path = format!("{test_path}/bytes.squashfs");
     {

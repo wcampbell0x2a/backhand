@@ -53,7 +53,7 @@ fn test_add_00() {
     let og_path = format!("{TEST_PATH}/out.squashfs");
     let new_path = format!("{TEST_PATH}/bytes.squashfs");
 
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    common::download_backoff(&asset_defs, TEST_PATH);
     let file = BufReader::new(File::open(&og_path).unwrap());
     let og_filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();

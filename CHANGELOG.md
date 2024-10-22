@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `flate2` from 1.0.30 to 1.0.34 ([#593](https://github.com/wcampbell0x2a/backhand/pull/593), [#596](https://github.com/wcampbell0x2a/backhand/pull/596), [#617](https://github.com/wcampbell0x2a/backhand/pull/617))
 - Bump `zstd` from 0.13.1 to 0.13.2 ([#601](https://github.com/wcampbell0x2a/backhand/pull/601))
 - Bump `env_logger` from 0.11.3 to 0.11.5 ([#602](https://github.com/wcampbell0x2a/backhand/pull/602))
+- Bump `libdeflater` from 1.21.0 to 1.22.0 ([#619](https://github.com/wcampbell0x2a/backhand/pull/619))
 
 ## [v0.18.0] - 2024-05-24
 ### `backhand`

@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `env_logger` from 0.11.3 to 0.11.5 ([#602](https://github.com/wcampbell0x2a/backhand/pull/602))
 - Bump `libdeflater` from 1.21.0 to 1.22.0 ([#619](https://github.com/wcampbell0x2a/backhand/pull/619))
 - Bump `tempfile` from 3.12.0 to 3.13.0 ([#618](https://github.com/wcampbell0x2a/backhand/pull/618))
+- Bump `nix` from 0.28.0 to 0.29.0 ([#566](https://github.com/wcampbell0x2a/backhand/pull/566))
 
 ## [v0.18.0] - 2024-05-24
 ### `backhand`

@@ -137,7 +137,7 @@ impl<'a> DataWriter<'a> {
         mut writer: W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
-        let mut block_sizes = reader.file.basic.block_sizes.clone();
+        let mut block_sizes = reader.file.file.block_sizes().to_vec();
         let mut read_buf = vec![];
         let mut decompress_buf = vec![];
 
@@ -166,7 +166,6 @@ impl<'a> DataWriter<'a> {
             return Ok((decompress_buf.len(), Added::Fragment { frag_index, block_offset }));
         }
 
-        //if is a block, just copy it
         writer.write_all(&read_buf)?;
         while let Some(block) = reader.next_block(&mut read_buf) {
             let block = block?;
@@ -190,7 +189,7 @@ impl<'a> DataWriter<'a> {
                 writer.write_all(&read_buf)?;
             }
         }
-        let file_size = reader.file.basic.file_size as usize;
+        let file_size = reader.file.file.file_len();
         Ok((file_size, Added::Data { blocks_start, block_sizes }))
     }
 

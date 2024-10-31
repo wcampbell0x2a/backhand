@@ -507,7 +507,6 @@ fn test_socket_fifo() {
 #[test]
 #[cfg(any(feature = "zstd"))]
 fn no_qemu_test_crates_zstd() {
-    tracing::trace!("nice");
     const FILE_NAME: &str = "crates-io.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -518,4 +517,18 @@ fn no_qemu_test_crates_zstd() {
     const TEST_PATH: &str = "test-assets/crates_io_zstd";
 
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
+}
+
+#[test]
+#[cfg(feature = "xz")]
+fn test_slow_sparse_data_issue_623() {
+    const FILE_NAME: &str = "aosc-os_buildkit_20240916_amd64.squashfs";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "02b0069d480df7c351b64e640025cb6b84890d8f9e377f15cc24fc70d5617905".to_string(),
+        url: "https://releases.aosc.io/os-amd64/buildkit/aosc-os_buildkit_20240916_amd64.squashfs"
+            .to_string(),
+    }];
+    const TEST_PATH: &str = "test-assets/test_sparse_data_issue_623";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }

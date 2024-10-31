@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add non-standard CompressionOptions support ([#584](https://github.com/wcampbell0x2a/backhand/pull/584))
   - Add `CompressionAction::compression_options` to override the default compression options emitted during writing.
   - Add `FilesystemWriter::set_emit_compression_options`
+- Support sparse file extraction ([#624](https://github.com/wcampbell0x2a/backhand/pull/624))
 
 ### `backhand-cli`
 - Add `--no-compression-options` to `add` and `replace` to remove compression options from image after modification.

@@ -265,6 +265,11 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         match block {
             BlockFragment::Block(block) => {
                 let block_size = block.size() as usize;
+                // sparse file, don't read from reader, just fill with superblock.block size of 0's
+                if block_size == 0 {
+                    *data = vec![0; self.file.system.block_size as usize];
+                    return Ok(RawDataBlock { fragment: false, uncompressed: true });
+                }
                 data.resize(block_size, 0);
                 //NOTE: storing/restoring the file-pos is not required at the
                 //moment of writing, but in the future, it may.
@@ -346,10 +351,10 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         input_buf: &mut Vec<u8>,
         output_buf: &mut Vec<u8>,
     ) -> Result<(), BackhandError> {
-        //append to the output_buf is not allowed, it need to be empty
+        // append to the output_buf is not allowed, it need to be empty
         assert!(output_buf.is_empty());
-        //input is already decompress, so just swap the input/output, so the
-        //output_buf contains the final data.
+        // input is already decompress, so just swap the input/output, so the
+        // output_buf contains the final data.
         if data.uncompressed {
             std::mem::swap(input_buf, output_buf);
         } else {

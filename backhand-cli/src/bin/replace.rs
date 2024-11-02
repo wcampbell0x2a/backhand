@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use backhand::{FilesystemReader, FilesystemWriter};
-use backhand_cli::{after_help, styles};
+use backhand_cli::after_help;
 use clap::Parser;
 use tracing::error;
 use tracing_subscriber::EnvFilter;
@@ -21,7 +21,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
           name = "replace-backhand",
           after_help = after_help(false),
           max_term_width = 98,
-          styles = styles(),
+          styles = clap_cargo::style::CLAP_STYLING,
 )]
 struct Args {
     /// Squashfs input image

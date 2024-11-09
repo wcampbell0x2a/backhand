@@ -5,7 +5,7 @@ use std::io::{BufReader, BufWriter, Write};
 use backhand::compression::{CompressionAction, Compressor, DefaultCompressor};
 use backhand::kind::{self, Kind};
 use backhand::{BackhandError, FilesystemCompressor, FilesystemReader, FilesystemWriter};
-use test_assets::TestAssetDef;
+use test_assets_ureq::TestAssetDef;
 use test_log::test;
 use tracing::info;
 

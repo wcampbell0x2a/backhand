@@ -7,7 +7,7 @@ use assert_cmd::Command;
 use backhand::{FilesystemReader, FilesystemWriter};
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use tempfile::tempdir;
-use test_assets::TestAssetDef;
+use test_assets_ureq::TestAssetDef;
 use test_log::test;
 use tracing::info;
 

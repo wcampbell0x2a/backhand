@@ -9,7 +9,7 @@ use backhand::{
     SuperBlock, DEFAULT_BLOCK_SIZE,
 };
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
-use test_assets::TestAssetDef;
+use test_assets_ureq::TestAssetDef;
 
 #[test]
 #[cfg(all(feature = "xz", feature = "gzip"))]

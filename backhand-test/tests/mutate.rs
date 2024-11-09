@@ -4,7 +4,7 @@ use std::io::{BufReader, BufWriter, Cursor};
 
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
-use test_assets::TestAssetDef;
+use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
 /// Before:

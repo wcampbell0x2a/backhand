@@ -135,6 +135,7 @@ version = "0.18.0"
 dependencies = [
  "backhand",
  "clap",
+ "clap-cargo",
  "clap_complete",
  "color-print",
  "console",
@@ -287,6 +288,16 @@ checksum = "0fbb260a053428790f3de475e304ff84cdbc4face759ea7a3e64c1edd938a7fc"
 dependencies = [
  "clap_builder",
  "clap_derive",
+]
+
+[[package]]
+name = "clap-cargo"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b2ea69cefa96b848b73ad516ad1d59a195cdf9263087d977f648a818c8b43e"
+dependencies = [
+ "anstyle",
+ "clap",
 ]
 
 [[package]]

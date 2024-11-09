@@ -1,12 +1,14 @@
 use std::fs::File;
 use std::io::{BufReader, Cursor};
 use std::process::Command;
+use std::time::Duration;
 
 use assert_cmd::prelude::*;
 use backhand::{FilesystemReader, FilesystemWriter};
 use criterion::*;
 use tempfile::tempdir;
-use test_assets::TestAssetDef;
+use test_assets_ureq::dl_test_files_backoff;
+use test_assets_ureq::TestAssetDef;
 
 fn read_write(file: File, offset: u64) {
     let file = BufReader::new(file);
@@ -38,7 +40,7 @@ pub fn bench_read_write(c: &mut Criterion) {
         ),
     }];
     const TEST_PATH_00: &str = "../backhand-cli/test-assets/test_openwrt_netgear_ex6100v2";
-    test_assets::download_test_files(&asset_defs, TEST_PATH_00, true).unwrap();
+    dl_test_files_backoff(&asset_defs, TEST_PATH_00, true, Duration::from_secs(1)).unwrap();
     let og_path = format!("{TEST_PATH_00}/{FILE_NAME_00}");
     group.bench_function("netgear_ax6100v2", |b| {
         b.iter(|| {
@@ -54,7 +56,7 @@ pub fn bench_read_write(c: &mut Criterion) {
         url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
     }];
     const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
-    test_assets::download_test_files(&asset_defs, TEST_PATH, true).unwrap();
+    dl_test_files_backoff(&asset_defs, TEST_PATH, true, Duration::from_secs(1)).unwrap();
     let og_path = format!("{TEST_PATH}/{FILE_NAME}");
     group.bench_function("tplink_ax1800", |b| {
         b.iter(|| {
@@ -81,7 +83,7 @@ pub fn bench_read(c: &mut Criterion) {
         ),
     }];
     const TEST_PATH_00: &str = "../backhand-cli/test-assets/test_openwrt_netgear_ex6100v2";
-    test_assets::download_test_files(&asset_defs, TEST_PATH_00, true).unwrap();
+    dl_test_files_backoff(&asset_defs, TEST_PATH_00, true, Duration::from_secs(1)).unwrap();
     let og_path = format!("{TEST_PATH_00}/{FILE_NAME_00}");
     group.bench_function("netgear_ax6100v2", |b| {
         b.iter(|| {
@@ -97,7 +99,7 @@ pub fn bench_read(c: &mut Criterion) {
         url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
     }];
     const TEST_PATH_01: &str = "test-assets/test_tplink_ax1800";
-    test_assets::download_test_files(&asset_defs, TEST_PATH_01, true).unwrap();
+    dl_test_files_backoff(&asset_defs, TEST_PATH_01, true, Duration::from_secs(1)).unwrap();
     let og_path = format!("{TEST_PATH_01}/{FILE_NAME_01}");
     group.bench_function("tplink_ax1800", |b| {
         b.iter(|| {
@@ -123,7 +125,7 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
     }];
     // Local, because we run unsquashfs
     const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
-    test_assets::download_test_files(asset_defs, TEST_PATH, true).unwrap();
+    dl_test_files_backoff(asset_defs, TEST_PATH, true, Duration::from_secs(1)).unwrap();
     let path = format!("{TEST_PATH}/{FILE_NAME}");
 
     let tmp_dir = tempdir().unwrap();

@@ -1,7 +1,7 @@
 mod common;
 
 use assert_cmd::prelude::*;
-use test_assets::TestAssetDef;
+use test_assets_ureq::TestAssetDef;
 
 #[test]
 #[cfg(feature = "xz")]

@@ -7,19 +7,11 @@ use backon::BlockingRetryable;
 use backon::ExponentialBuilder;
 use tempfile::tempdir;
 use tempfile::tempdir_in;
-use test_assets::TestAssetDef;
-
-fn download(assets_defs: &[TestAssetDef], test_path: &str) -> Result<(), Box<dyn Error>> {
-    if test_assets::download_test_files(assets_defs, test_path, true).is_err() {
-        return Err("falied to download".into());
-    }
-    Ok(())
-}
+use test_assets_ureq::TestAssetDef;
 
 pub fn download_backoff(assets_defs: &[TestAssetDef], test_path: &str) {
-    let strategy = ExponentialBuilder::default().with_max_delay(Duration::from_secs(60));
-
-    let _result = (|| download(assets_defs, test_path)).retry(strategy).call().unwrap();
+    test_assets_ureq::dl_test_files_backoff(assets_defs, test_path, true, Duration::from_secs(60))
+        .unwrap();
 }
 
 /// test the new squashfs vs the original squashfs with squashfs-tool/unsquashfs

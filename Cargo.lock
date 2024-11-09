@@ -118,7 +118,7 @@ dependencies = [
  "rust-lzo",
  "solana-nohash-hasher",
  "tempfile",
- "test-assets",
+ "test-assets-ureq",
  "test-log",
  "thiserror",
  "tracing",
@@ -1477,10 +1477,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 
 [[package]]
-name = "test-assets"
-version = "0.2.0"
-source = "git+https://github.com/wcampbell0x2a/test-assets?branch=replace-curl-ureq#ebe2e7d3049a12d2e9e66814f6148df8a8150329"
+name = "test-assets-ureq"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44fca2da79ad6439d233e4f726225e2b21ca80096735f48e0e3deca426797630"
 dependencies = [
+ "backon",
  "sha2",
  "ureq",
 ]
@@ -1519,7 +1521,7 @@ dependencies = [
  "libdeflater",
  "nix",
  "tempfile",
- "test-assets",
+ "test-assets-ureq",
  "test-log",
  "tracing",
  "tracing-subscriber",

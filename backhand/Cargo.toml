@@ -52,7 +52,7 @@ zstd = ["dep:zstd", "dep:zstd-safe"]
 
 [dev-dependencies]
 test-log = { version = "0.2.16", features = ["trace"] }
-test-assets = { git  = "https://github.com/wcampbell0x2a/test-assets", branch = "replace-curl-ureq" }
+test-assets-ureq = "0.3.0"
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.13.0"

@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::os::unix::prelude::OsStrExt;
+use crate::os_traits::OsStrExt;
 
 use crate::data::Added;
 use crate::dir::{Dir, DirEntry};

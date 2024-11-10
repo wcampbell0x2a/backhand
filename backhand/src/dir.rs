@@ -4,7 +4,7 @@
 //! with references back to the inodes that describe those entries.
 
 use std::ffi::OsStr;
-use std::os::unix::prelude::OsStrExt;
+use crate::os_traits::OsStrExt;
 use std::path::{Component, Path};
 
 use deku::prelude::*;

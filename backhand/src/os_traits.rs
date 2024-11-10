@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use std::ffi::OsString;
 
 pub trait OsStrExt {
     fn as_bytes(&self) -> &[u8];
@@ -23,6 +24,24 @@ impl OsStrExt for OsStr {
     }
 
     fn from_bytes(slice: &[u8]) -> &Self {
+        todo!()
+    }
+}
+
+pub trait OsStringExt {
+    fn from_vec(vec: Vec<u8>) -> Self;
+}
+
+#[cfg(unix)]
+impl OsStringExt for OsString {
+    fn from_vec(vec: Vec<u8>) -> Self {
+        std::os::unix::ffi::OsStringExt::from_vec(vec)
+    }
+}
+
+#[cfg(windows)]
+impl OsStringExt for OsString {
+    fn from_vec(vec: Vec<u8>) -> Self {
         todo!()
     }
 }

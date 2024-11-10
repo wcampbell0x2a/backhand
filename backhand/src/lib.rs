@@ -75,6 +75,7 @@ mod kinds;
 mod metadata;
 mod reader;
 mod squashfs;
+mod os_traits;
 
 pub use crate::data::DataSize;
 pub use crate::error::BackhandError;

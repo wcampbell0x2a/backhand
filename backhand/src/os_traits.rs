@@ -1,3 +1,4 @@
+use core::str;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 
@@ -18,8 +19,8 @@ impl OsStrExt for OsStr {
         OsStrExtUnix::as_bytes(self)
     }
 
-    fn from_bytes(slice: &[u8]) -> &Self {
-        OsStrExtUnix::from_bytes(slice)
+    fn from_bytes(bytes: &[u8]) -> &Self {
+        OsStrExtUnix::from_bytes(bytes)
     }
 }
 
@@ -30,7 +31,8 @@ impl OsStrExt for OsStr {
     }
 
     fn from_bytes(slice: &[u8]) -> &Self {
-        todo!()
+        let string = std::str::from_utf8(bytes).unwrap();
+        OsStr::new(string)
     }
 }
 

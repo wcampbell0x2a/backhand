@@ -8,7 +8,7 @@ use std::path::{Component, Path};
 
 use deku::prelude::*;
 
-use crate::os_traits::OsStrExt;
+use crate::unix_string::OsStrExt;
 use crate::inode::InodeId;
 use crate::BackhandError;
 

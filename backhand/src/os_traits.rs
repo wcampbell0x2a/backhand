@@ -18,8 +18,8 @@ impl OsStrExt for OsStr {
         OsStrExtUnix::as_bytes(self)
     }
 
-    fn from_bytes(bytes: &[u8]) -> &Self {
-        OsStrExtUnix::from_bytes(bytes)
+    fn from_bytes(slice: &[u8]) -> &Self {
+        OsStrExtUnix::from_bytes(slice)
     }
 }
 

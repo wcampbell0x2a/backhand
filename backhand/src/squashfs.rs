@@ -10,7 +10,7 @@ use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
 use tracing::{error, info, trace};
 
-use crate::os_traits::OsStrExt;
+use crate::os_traits::OsStringExt;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::Dir;
 use crate::error::BackhandError;

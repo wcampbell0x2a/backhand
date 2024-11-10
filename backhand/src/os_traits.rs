@@ -42,6 +42,6 @@ impl OsStringExt for OsString {
 #[cfg(windows)]
 impl OsStringExt for OsString {
     fn from_vec(vec: Vec<u8>) -> Self {
-        todo!()
+        OsStr::from_bytes(vec.as_slice()).into()
     }
 }

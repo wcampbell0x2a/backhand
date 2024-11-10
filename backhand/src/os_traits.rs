@@ -26,7 +26,7 @@ impl OsStrExt for OsStr {
 #[cfg(windows)]
 impl OsStrExt for OsStr {
     fn as_bytes(&self) -> &[u8] {
-        self.to_string_lossy().as_bytes()
+        self.to_str().unwrap().as_bytes()
     }
 
     fn from_bytes(slice: &[u8]) -> &Self {

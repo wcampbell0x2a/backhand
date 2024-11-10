@@ -30,7 +30,7 @@ impl OsStrExt for OsStr {
     }
 
     fn from_bytes(slice: &[u8]) -> &Self {
-        let string = std::str::from_utf8(bytes).unwrap();
+        let string = std::str::from_utf8(slice).unwrap();
         OsStr::new(string)
     }
 }

@@ -2,7 +2,6 @@
 
 use std::ffi::OsString;
 use std::io::{Cursor, Seek, SeekFrom};
-use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::{Arc, RwLock};
@@ -11,6 +10,7 @@ use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
 use tracing::{error, info, trace};
 
+use crate::os_traits::OsStrExt;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::Dir;
 use crate::error::BackhandError;

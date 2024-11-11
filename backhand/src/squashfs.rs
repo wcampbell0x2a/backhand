@@ -10,7 +10,6 @@ use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
 use tracing::{error, info, trace};
 
-use crate::unix_string::OsStringExt;
 use crate::compressor::{CompressionOptions, Compressor};
 use crate::dir::Dir;
 use crate::error::BackhandError;
@@ -19,6 +18,7 @@ use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::unix_string::OsStringExt;
 use crate::{
     metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,

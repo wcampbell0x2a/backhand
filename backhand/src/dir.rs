@@ -8,8 +8,8 @@ use std::path::{Component, Path};
 
 use deku::prelude::*;
 
-use crate::unix_string::OsStrExt;
 use crate::inode::InodeId;
+use crate::unix_string::OsStrExt;
 use crate::BackhandError;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

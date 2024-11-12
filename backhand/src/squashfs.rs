@@ -2,7 +2,6 @@
 
 use std::ffi::OsString;
 use std::io::{Cursor, Seek, SeekFrom};
-use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::{Arc, RwLock};
@@ -19,6 +18,7 @@ use crate::fragment::Fragment;
 use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::unix_string::OsStringExt;
 use crate::{
     metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
     SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,

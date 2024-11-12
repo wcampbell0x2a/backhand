@@ -1,6 +1,5 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::os::unix::prelude::OsStrExt;
 
 use crate::data::Added;
 use crate::dir::{Dir, DirEntry};
@@ -11,6 +10,7 @@ use crate::inode::{
 use crate::kinds::Kind;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::SuperBlock;
+use crate::unix_string::OsStrExt;
 use crate::{Id, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
 
 #[derive(Clone)]

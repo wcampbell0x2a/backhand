@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.19.0] - 2024-11-12
 ### `backhand`
 - Use feature `zlib-ng` for `flate2`, which is enabled when compression option `Gzip` is used. This enables the backend to use [zlib-ng](https://github.com/zlib-ng/zlib-ng), which is faster by default! ([#562](https://github.com/wcampbell0x2a/backhand/pull/562))
 - Remove duplicated data when addding new files to a `FilesystemWriter`. This also applies this behavior to the `add` and `replace` binaries. This is controllable with `FilesystemWriter::set_no_duplicate_files`. ([#603](https://github.com/wcampbell0x2a/backhand/pull/603)), ([#594](https://github.com/wcampbell0x2a/backhand/pull/594))

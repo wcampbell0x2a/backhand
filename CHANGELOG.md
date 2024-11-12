@@ -12,11 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove duplicated data when addding new files to a `FilesystemWriter`. This also applies this behavior to the `add` and `replace` binaries. This is controllable with `FilesystemWriter::set_no_duplicate_files`. ([#603](https://github.com/wcampbell0x2a/backhand/pull/603)), ([#594](https://github.com/wcampbell0x2a/backhand/pull/594))
 - Increase speed of internal `HashMap`s, by switching to `xxhash` and just using the `inode` as the key in other places.
 - Changed `SuperBlock::Flags` to be public.
-
 - Add non-standard CompressionOptions support ([#584](https://github.com/wcampbell0x2a/backhand/pull/584))
   - Add `CompressionAction::compression_options` to override the default compression options emitted during writing.
   - Add `FilesystemWriter::set_emit_compression_options`
 - Support sparse file extraction ([#624](https://github.com/wcampbell0x2a/backhand/pull/624))
+- Add `x86_64-pc-windows-gnu` support ([@Wolfyxon](https://github.com/Wolfyxon)) ([#634](https://github.com/wcampbell0x2a/backhand/pull/634))
 
 ### `backhand-cli`
 - Add `--no-compression-options` to `add` and `replace` to remove compression options from image after modification.

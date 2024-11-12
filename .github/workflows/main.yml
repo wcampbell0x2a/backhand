@@ -10,6 +10,47 @@ on:
 name: ci
 
 jobs:
+  # build on backhand only supported target
+  cross-build:
+    runs-on: ${{ matrix.job.os }}
+    env:
+      BUILD_CMD: cargo
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { target: x86_64-pc-windows-gnu,        os: ubuntu-latest, use-cross: true }
+        toolchain:
+          - stable
+            # msrv of backhand-cli
+          - 1.77.0
+        features:
+          - --no-default-features --features xz
+          - --no-default-features --features gzip
+          - --no-default-features --features gzip,xz
+          - --no-default-features --features xz-static
+          - --no-default-features --features gzip-zune-inflate
+          # default features
+          -
+
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - name: Populate cache
+        uses: ./.github/workflows/cache
+
+      - name: Overwrite build command env variable
+        if: matrix.job.use-cross
+        shell: bash
+        run: |
+          echo "BUILD_CMD=cross" >> $GITHUB_ENV
+          RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      # build lib with cross
+      - run: $BUILD_CMD build ${{ matrix.features }} --target ${{ matrix.job.target }} --release --locked --workspace --lib
+
   # build/test all supported targets for library and bins (skipping slow and squashfs-tools tests)
   cross-test:
     runs-on: ${{ matrix.job.os }}

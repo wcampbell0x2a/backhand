@@ -27,6 +27,20 @@ Add the following to your `Cargo.toml` file:
 [dependencies]
 backhand = "0.18.0"
 ```
+
+#### Target Support
+Although additional targets may be supported, only the following have been fully tested or confirmed to build successfully.
+
+| Target                                 | `build` | `test` |
+|----------------------------------------|--------:|:------:|
+| `x86_64-unknown-linux-musl`            | ✓       | ✓      |
+| `aarch64-unknown-linux-musl`           | ✓       | ✓      |
+| `arm-unknown-linux-musleabi`           | ✓       | ✓      |
+| `armv7-unknown-linux-musleabi`         | ✓       | ✓      |
+| `aarch64-unknown-linux-musl`           | ✓       | ✓      |
+| `x86_64-apple-darwin`                  | ✓       | ✓      |
+| `x86_64-pc-windows-gnu`                | ✓       |        |
+
 ### Reading/Writing/Modifying Firmware
 ```rust,no_run
 use std::fs::File;
@@ -67,6 +81,18 @@ To install, run `cargo install backhand-cli --locked`, or download from the
 [latest github release](https://github.com/wcampbell0x2a/backhand/releases/latest).
 
 See ``--help`` for more information.
+
+#### Target Support
+Although additional targets may be supported, only the following have been tested and included in our GitHub releases.
+
+| Target                                 | `test`    | `release` |
+|----------------------------------------|----------:|:---------:|
+| `x86_64-unknown-linux-musl`            | ✓         | ✓         |
+| `aarch64-unknown-linux-musl`           | ✓         | ✓         |
+| `arm-unknown-linux-musleabi`           | ✓         | ✓         |
+| `armv7-unknown-linux-musleabi`         | ✓         | ✓         |
+| `aarch64-unknown-linux-musl`           | ✓         | ✓         |
+| `x86_64-apple-darwin`                  | ✓         | ✓         |
 
 ### unsquashfs-backhand
 ```no_test

@@ -38,6 +38,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `tempfile` from 3.12.0 to 3.13.0 ([#618](https://github.com/wcampbell0x2a/backhand/pull/618))
 - Bump `nix` from 0.28.0 to 0.29.0 ([#566](https://github.com/wcampbell0x2a/backhand/pull/566))
 
+### Complete API Updates
+<details>
+<summary>Click to expand</summary>
+
+```diff
+Removed items from the public API
+=================================
+-pub fn backhand::SuperBlock::data_has_been_duplicated(&self) -> bool
+
+Changed items in the public API
+===============================
+-pub fn backhand::compression::CompressionOptions::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, (endian, compressor): (deku::ctx::Endian, backhand::compression::Compressor)) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::CompressionOptions::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, (endian, compressor): (deku::ctx::Endian, backhand::compression::Compressor)) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::CompressionOptions::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, (endian, compressor): (deku::ctx::Endian, backhand::compression::Compressor)) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::CompressionOptions::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, (endian, compressor): (deku::ctx::Endian, backhand::compression::Compressor)) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::compression::Compressor::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::Compressor::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::Compressor::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::Compressor::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::compression::Gzip::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::Gzip::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::Gzip::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::Gzip::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::compression::Lz4::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::Lz4::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::Lz4::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::Lz4::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::compression::Lzo::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::Lzo::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::Lzo::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::Lzo::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::compression::Xz::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::Xz::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::Xz::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::Xz::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::compression::Zstd::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::compression::Zstd::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::compression::Zstd::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::compression::Zstd::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::BasicFile::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, (endian, block_size, block_log): (deku::ctx::Endian, u32, u16)) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::BasicFile::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, (endian, block_size, block_log): (deku::ctx::Endian, u32, u16)) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::BasicFile::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, (endian, block_size, block_log): (deku::ctx::Endian, u32, u16)) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::BasicFile::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, (endian, block_size, block_log): (deku::ctx::Endian, u32, u16)) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::DataSize::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::DataSize::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::DataSize::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::DataSize::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::Export::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, type_endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::Export::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, type_endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::Export::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::Export::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::Fragment::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, type_endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::Fragment::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, type_endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::Fragment::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::Fragment::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::Id::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, type_endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::Id::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, type_endian: deku::ctx::Endian) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::Id::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::Id::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, type_endian: deku::ctx::Endian) -> core::result::Result<(), deku::error::DekuError>
+-pub fn backhand::Inode::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, (bytes_used, block_size, block_log, type_endian): (u64, u32, u16, deku::ctx::Endian)) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::Inode::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, (bytes_used, block_size, block_log, type_endian): (u64, u32, u16, deku::ctx::Endian)) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::Inode::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, (bytes_used, block_size, block_log, type_endian): (u64, u32, u16, deku::ctx::Endian)) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::Inode::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, (bytes_used, block_size, block_log, type_endian): (u64, u32, u16, deku::ctx::Endian)) -> core::result::Result<(), deku::error::DekuError>
+-pub backhand::Squashfs::dir_blocks: (rustc_hash::FxHashMap<u64, u64>, alloc::vec::Vec<u8>)
++pub backhand::Squashfs::dir_blocks: (solana_nohash_hasher::IntMap<u64, u64>, alloc::vec::Vec<u8>)
+-pub backhand::Squashfs::inodes: rustc_hash::FxHashMap<u32, backhand::Inode>
++pub backhand::Squashfs::inodes: solana_nohash_hasher::IntMap<u32, backhand::Inode>
+-pub fn backhand::SuperBlock::from_reader_with_ctx<R: std::io::Read>(__deku_reader: &mut deku::reader::Reader<'_, R>, (ctx_magic, ctx_version_major, ctx_version_minor, ctx_type_endian): ([u8; 4], u16, u16, deku::ctx::Endian)) -> core::result::Result<Self, deku::error::DekuError>
++pub fn backhand::SuperBlock::from_reader_with_ctx<R: std::io::Read + std::io::Seek>(__deku_reader: &mut deku::reader::Reader<'_, R>, (ctx_magic, ctx_version_major, ctx_version_minor, ctx_type_endian): ([u8; 4], u16, u16, deku::ctx::Endian)) -> core::result::Result<Self, deku::error::DekuError>
+-pub fn backhand::SuperBlock::to_writer<W: std::io::Write>(&self, __deku_writer: &mut deku::writer::Writer<W>, (ctx_magic, ctx_version_major, ctx_version_minor, ctx_type_endian): ([u8; 4], u16, u16, deku::ctx::Endian)) -> core::result::Result<(), deku::error::DekuError>
++pub fn backhand::SuperBlock::to_writer<W: std::io::Write + std::io::Seek>(&self, __deku_writer: &mut deku::writer::Writer<W>, (ctx_magic, ctx_version_major, ctx_version_minor, ctx_type_endian): ([u8; 4], u16, u16, deku::ctx::Endian)) -> core::result::Result<(), deku::error::DekuError>
+
+Added items to the public API
+=============================
++pub fn backhand::compression::DefaultCompressor::compression_options(&self, superblock: &mut backhand::SuperBlock, kind: &backhand::kind::Kind, fs_compressor: backhand::FilesystemCompressor) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
++pub fn backhand::compression::DefaultCompressor::compression_options(&self, superblock: &mut backhand::SuperBlock, kind: &backhand::kind::Kind, fs_compressor: backhand::FilesystemCompressor) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
++pub fn backhand::compression::CompressionAction::compression_options(&self, superblock: &mut backhand::SuperBlock, kind: &backhand::kind::Kind, fs_compressor: backhand::FilesystemCompressor) -> core::result::Result<alloc::vec::Vec<u8>, backhand::BackhandError>
++pub enum backhand::Flags
++pub backhand::Flags::CompressorOptionsArePresent = 1024
++pub backhand::Flags::DataBlockStoredUncompressed = 2
++pub backhand::Flags::DataHasBeenDeduplicated = 64
++pub backhand::Flags::FragmentsAreAlwaysGenerated = 32
++pub backhand::Flags::FragmentsAreNotUsed = 16
++pub backhand::Flags::FragmentsStoredUncompressed = 8
++pub backhand::Flags::InodesStoredUncompressed = 1
++pub backhand::Flags::NFSExportTableExists = 128
++pub backhand::Flags::NoXattrsInArchive = 512
++pub backhand::Flags::Unused = 4
++pub backhand::Flags::XattrsAreStoredUncompressed = 256
++impl core::clone::Clone for backhand::Flags
++pub fn backhand::Flags::clone(&self) -> backhand::Flags
++impl core::fmt::Debug for backhand::Flags
++pub fn backhand::Flags::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
++impl core::marker::Copy for backhand::Flags
++pub fn backhand::FilesystemWriter<'a, 'b, 'c>::set_emit_compression_options(&mut self, value: bool)
++pub fn backhand::FilesystemWriter<'a, 'b, 'c>::set_no_duplicate_files(&mut self, value: bool)
++pub fn backhand::SuperBlock::data_has_been_deduplicated(&self) -> bool
+```
+
+</details>
+
 ## [v0.18.0] - 2024-05-24
 ### `backhand`
 - Update MSRV to 1.72.1 ([#524](https://github.com/wcampbell0x2a/backhand/pull/524))

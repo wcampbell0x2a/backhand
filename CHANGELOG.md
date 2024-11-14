@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `FilesystemWriter::set_emit_compression_options`
 - Support sparse file extraction ([#624](https://github.com/wcampbell0x2a/backhand/pull/624))
 - Add `x86_64-pc-windows-gnu` support ([@Wolfyxon](https://github.com/Wolfyxon)) ([#634](https://github.com/wcampbell0x2a/backhand/pull/634))
+- Add [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs) support through `--feature gzip-zlib-rs`.
 
 ### `backhand-cli`
 - Add `--no-compression-options` to `add` and `replace` to remove compression options from image after modification.
@@ -31,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `clap_complete` from 4.5.2 to 4.5.13 ([#575](https://github.com/wcampbell0x2a/backhand/pull/575), [#595](https://github.com/wcampbell0x2a/backhand/pull/595))
 - Bump `document-features` from 0.2.8 to 0.2.10 ([#576](https://github.com/wcampbell0x2a/backhand/pull/576))
 - Bump `zstd-safe` from 7.1.0 to 7.2.1 ([#585](https://github.com/wcampbell0x2a/backhand/pull/585))
-- Bump `flate2` from 1.0.30 to 1.0.34 ([#593](https://github.com/wcampbell0x2a/backhand/pull/593), [#596](https://github.com/wcampbell0x2a/backhand/pull/596), [#617](https://github.com/wcampbell0x2a/backhand/pull/617))
+- Bump `flate2` from 1.0.30 to 1.0.35 ([#593](https://github.com/wcampbell0x2a/backhand/pull/593), [#596](https://github.com/wcampbell0x2a/backhand/pull/596), [#617](https://github.com/wcampbell0x2a/backhand/pull/617), [#641](https://github.com/wcampbell0x2a/backhand/pull/641))
 - Bump `zstd` from 0.13.1 to 0.13.2 ([#601](https://github.com/wcampbell0x2a/backhand/pull/601))
 - Bump `env_logger` from 0.11.3 to 0.11.5 ([#602](https://github.com/wcampbell0x2a/backhand/pull/602))
 - Bump `libdeflater` from 1.21.0 to 1.22.0 ([#619](https://github.com/wcampbell0x2a/backhand/pull/619))

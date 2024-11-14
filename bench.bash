@@ -16,13 +16,13 @@ bench () {
     file $1
     hyperfine --sort command --runs 50 --warmup 10 \
         --command-name backhand-dist-${LAST_RELEASE} \
-        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
         --command-name backhand-dist \
-        "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
         --command-name backhand-dist-musl \
-        "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(rz-ax $2) $1" \
+        "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
         --command-name squashfs-tools \
-        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(rz-ax $2) -ignore-errors $1" \
+        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
         --export-markdown bench-results/$3.md -i
     (echo "### \`$(basename $1)\`"; cat bench-results/$3.md) > bench-results/$3_final.md
 }

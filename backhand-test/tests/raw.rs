@@ -12,7 +12,7 @@ use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use test_assets_ureq::TestAssetDef;
 
 #[test]
-#[cfg(all(feature = "xz", feature = "gzip"))]
+#[cfg(all(feature = "xz", feature = "any-gzip"))]
 fn test_raw_00() {
     use std::{io::BufReader, process::Command};
 

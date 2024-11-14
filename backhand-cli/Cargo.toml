@@ -38,12 +38,12 @@ default = ["xz", "gzip", "zstd"]
 xz = ["backhand/xz"]
 ## Enables xz compression and forces static build inside library and binaries
 xz-static = ["xz", "backhand/xz-static"]
-## Internal only
-any-gzip = ["backhand/any-gzip"]
 ## Enables gzip compression inside library and binaries
-gzip = ["any-gzip","backhand/gzip"]
+any-gzip = []
+gzip = ["any-gzip", "backhand/gzip"]
+gzip-zlib-rs = ["any-gzip", "backhand/gzip-zlib-rs"]
 ## Enables faster gzip de-compression only inside library and binaries
-gzip-zune-inflate = ["any-gzip","backhand/gzip-zune-inflate"]
+gzip-zune-inflate = ["any-gzip", "backhand/gzip-zune-inflate"]
 ## This library is licensed GPL and thus disabled by default
 lzo = ["backhand/lzo"]
 ## Enables zstd compression inside library and binaries

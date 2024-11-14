@@ -54,8 +54,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 // Allow docs.rs to run with --all-features, everything else is compile_error
-#[cfg(all(not(docsrs), feature = "gzip", feature = "gzip-zune-inflate"))]
-compile_error!("gzip and gzip-zune-inflate are mutually exclusive and cannot be enabled together");
+#[cfg(all(not(docsrs), feature = "any-flate2", feature = "gzip-zune-inflate"))]
+compile_error!(
+    "gzip:flate2 and gzip-zune-inflate are mutually exclusive and cannot be enabled together"
+);
 
 #[cfg(doctest)]
 #[doc = include_str!("../../README.md")]

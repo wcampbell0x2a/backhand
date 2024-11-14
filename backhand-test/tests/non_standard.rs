@@ -64,7 +64,7 @@ fn full_test(
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(feature = "any-gzip")]
 fn test_non_standard_be_v4_0() {
     use backhand::compression::DefaultCompressor;
 
@@ -92,7 +92,7 @@ fn test_non_standard_be_v4_0() {
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(feature = "any-gzip")]
 fn test_non_standard_be_v4_1() {
     const FILE_NAME: &str = "squashfs_v4.nopad.unblob.bin";
     let asset_defs = [TestAssetDef {
@@ -113,7 +113,7 @@ fn test_non_standard_be_v4_1() {
 }
 
 #[test]
-#[cfg(feature = "gzip")]
+#[cfg(feature = "any-gzip")]
 fn test_custom_compressor() {
     use backhand::SuperBlock;
 

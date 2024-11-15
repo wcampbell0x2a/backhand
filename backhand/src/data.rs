@@ -313,7 +313,7 @@ mod tests {
     };
 
     #[test]
-    #[cfg(feature = "gzip")]
+    #[cfg(feature = "any-gzip")]
     fn test_duplicate_check() {
         let mut data_writer = DataWriter::new(
             &DefaultCompressor,
@@ -329,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "gzip")]
+    #[cfg(feature = "any-gzip")]
     fn test_no_duplicate_check() {
         let mut data_writer = DataWriter::new(
             &DefaultCompressor,

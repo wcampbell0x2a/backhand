@@ -9,6 +9,15 @@ use tempfile::tempdir;
 use tempfile::tempdir_in;
 use test_assets_ureq::TestAssetDef;
 
+const ASSETS: &str = include_str!("../../../test_assets.toml");
+
+pub fn read_asset(key: &str) -> (String, TestAssetDef) {
+    let test_path = format!("test-assets/{key}");
+    let config: test_assets_ureq::TestAsset = toml::de::from_str(ASSETS).unwrap();
+    let asset_def = config.assets[key].clone();
+    (test_path, asset_def)
+}
+
 pub fn download_backoff(assets_defs: &[TestAssetDef], test_path: &str) {
     test_assets_ureq::dl_test_files_backoff(assets_defs, test_path, true, Duration::from_secs(60))
         .unwrap();

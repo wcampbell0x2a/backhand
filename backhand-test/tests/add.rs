@@ -7,6 +7,8 @@ use tempfile::tempdir;
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
+use crate::common::read_asset;
+
 #[test]
 #[cfg(feature = "xz")]
 fn test_add() {
@@ -18,16 +20,12 @@ fn test_add() {
     use nix::sys::stat::utimes;
     use nix::sys::time::TimeVal;
 
-    const FILE_NAME: &str = "out.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_01";
+    let (test_path, asset_def) = read_asset("test_01");
+    let asset_defs = &[asset_def];
+    let file_name = &asset_defs[0].filename;
 
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_backoff(asset_defs, &test_path);
+    let image_path = format!("{test_path}/{file_name}");
 
     // Add /test dir
     // ./target/release/add test-assets/test_05/out.squashfs /test --dir --gid 4242 --mtime 1 --uid 2 --mode 511 -o $tmp/out
@@ -133,16 +131,12 @@ fn test_dont_emit_compression_options() {
     use nix::sys::stat::utimes;
     use nix::sys::time::TimeVal;
 
-    const FILE_NAME: &str = "out.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "debe0986658b276be78c3836779d20464a03d9ba0a40903e6e8e947e434f4d67".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_add_compression_options";
+    let (test_path, asset_def) = read_asset("test_add_compression_options");
+    let asset_defs = &[asset_def];
+    let file_name = &asset_defs[0].filename;
 
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_backoff(asset_defs, &test_path);
+    let image_path = format!("{test_path}/{file_name}");
     let tmp_dir = tempdir().unwrap();
 
     let mut file = File::create(tmp_dir.path().join("file").to_str().unwrap()).unwrap();

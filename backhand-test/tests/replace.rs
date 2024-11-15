@@ -7,19 +7,17 @@ use tempfile::tempdir;
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
+use crate::common::read_asset;
+
 #[test]
 #[cfg(feature = "xz")]
 fn test_replace() {
-    const FILE_NAME: &str = "out.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_05";
+    let (test_path, asset_def) = read_asset("test_05");
+    let asset_defs = &[asset_def];
+    let file_name = &asset_defs[0].filename;
 
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_backoff(asset_defs, &test_path);
+    let image_path = format!("{test_path}/{file_name}");
 
     // extract single file
     let tmp_dir = tempdir().unwrap();

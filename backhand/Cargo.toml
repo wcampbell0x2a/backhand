@@ -52,7 +52,7 @@ any-flate2 = []
 
 [dev-dependencies]
 test-log = { version = "0.2.16", features = ["trace"] }
-test-assets-ureq = "0.3.0"
+test-assets-ureq = { git = "https://github.com/wcampbell0x2a/test-assets-ureq", branch = "add-assets-from-file" }
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"

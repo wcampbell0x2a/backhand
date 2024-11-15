@@ -95,7 +95,8 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         )?;
 
         let mut inodes = IntMap::default();
-        inodes.try_reserve(superblock.inode_count as usize)?;
+        // Be nice the allocator, and only allocate a max of u16::MAX count of Indoes
+        inodes.try_reserve(superblock.inode_count.min(u16::MAX as u32) as usize)?;
 
         let byte_len = bytes.len();
         let mut cursor = Cursor::new(bytes);

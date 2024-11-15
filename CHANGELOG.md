@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump MSRV to `1.77`
 
 ### Dependencies
-- Bump `thiserror` from 1.0.59 to 2.0.1 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564), [#578](https://github.com/wcampbell0x2a/backhand/pull/578), [#615](https://github.com/wcampbell0x2a/backhand/pull/615), [#633](https://github.com/wcampbell0x2a/backhand/pull/633))
+- Bump `thiserror` from 1.0.59 to 2.0.3 ([#564](https://github.com/wcampbell0x2a/backhand/pull/564), [#578](https://github.com/wcampbell0x2a/backhand/pull/578), [#615](https://github.com/wcampbell0x2a/backhand/pull/615), [#633](https://github.com/wcampbell0x2a/backhand/pull/633), [#636](https://github.com/wcampbell0x2a/backhand/pull/636))
 - Bump `libc` from 0.2.154 to 0.2.162 ([#557](https://github.com/wcampbell0x2a/backhand/pull/557), [#592](https://github.com/wcampbell0x2a/backhand/pull/592), [#616](https://github.com/wcampbell0x2a/backhand/pull/616), [#630](https://github.com/wcampbell0x2a/backhand/pull/630))
 - Bump `clap` from 4.5.4 to 4.5.13 ([#569](https://github.com/wcampbell0x2a/backhand/pull/569), [#574](https://github.com/wcampbell0x2a/backhand/pull/574), [#582](https://github.com/wcampbell0x2a/backhand/pull/582))
 - Bump `rustc-hash` from 1.1.0 to 2.0.0 ([#570](https://github.com/wcampbell0x2a/backhand/pull/570))

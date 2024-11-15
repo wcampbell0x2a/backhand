@@ -3,9 +3,9 @@
 use std::io::{Cursor, Read, Write};
 
 use deku::prelude::*;
-#[cfg(feature = "gzip")]
+#[cfg(feature = "any-flate2")]
 use flate2::read::ZlibEncoder;
-#[cfg(feature = "gzip")]
+#[cfg(feature = "any-flate2")]
 use flate2::Compression;
 use tracing::trace;
 #[cfg(feature = "xz")]
@@ -215,7 +215,7 @@ impl CompressionAction for DefaultCompressor {
     ) -> Result<(), BackhandError> {
         match compressor {
             Compressor::None => out.extend_from_slice(bytes),
-            #[cfg(feature = "gzip")]
+            #[cfg(feature = "any-flate2")]
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
                 decoder.read_to_end(out)?;
@@ -318,7 +318,7 @@ impl CompressionAction for DefaultCompressor {
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)
             }
-            #[cfg(feature = "gzip")]
+            #[cfg(feature = "any-flate2")]
             (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
                 let compression_level = match option {
                     None => Compression::best(), // 9

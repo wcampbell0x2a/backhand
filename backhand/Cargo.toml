@@ -37,23 +37,20 @@ default = ["xz", "gzip", "zstd"]
 xz = ["dep:xz2"]
 ## Enables xz compression and forces static build inside library and binaries
 xz-static = ["dep:xz2", "xz2?/static"]
+## Enables gzip compression inside library and binaries using flate2 library with zlib-ng. Cannot be used with the `gzip-zune-inflate` feature.
+gzip = ["any-flate2", "any-gzip", "dep:flate2", "flate2?/zlib-ng"]
+## Enables gzip compression inside library and binaries using flate2 library with zlib-rs. Cannot be used with the `gzip-zune-inflate` feature.
+gzip-zlib-rs = ["any-flate2", "any-gzip", "dep:flate2", "flate2?/zlib-rs"]
+## Enables faster gzip (de-compression only) inside library and binaries using zune-inflate. Cannot be used with the `gzip` feature.
+gzip-zune-inflate = ["any-gzip", "dep:zune-inflate"]
+## This library is licensed GPL and thus disabled by default.
+lzo = ["dep:rust-lzo"]
+## Enables zstd compression inside library and binaries.
+zstd = ["dep:zstd", "dep:zstd-safe"]
 ## Internal only
 any-gzip = []
 ## Internal only
 any-flate2 = []
-## Enables gzip compression inside library and binaries using flate2 library with zlib-ng
-## Cannot be used with the `gzip-zune-inflate` feature
-gzip = ["any-flate2", "any-gzip", "dep:flate2", "flate2?/zlib-ng"]
-## Enables gzip compression inside library and binaries using flate2 library with zlib-rs
-## Cannot be used with the `gzip-zune-inflate` feature
-gzip-zlib-rs = ["any-flate2", "any-gzip", "dep:flate2", "flate2?/zlib-rs"]
-## Enables faster gzip (de-compression only) inside library and binaries using zune-inflate
-## Cannot be used with the `gzip` feature
-gzip-zune-inflate = ["any-gzip", "dep:zune-inflate"]
-## This library is licensed GPL and thus disabled by default
-lzo = ["dep:rust-lzo"]
-## Enables zstd compression inside library and binaries
-zstd = ["dep:zstd", "dep:zstd-safe"]
 
 [dev-dependencies]
 test-log = { version = "0.2.16", features = ["trace"] }

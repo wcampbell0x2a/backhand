@@ -533,6 +533,12 @@ impl<'b> Squashfs<'b> {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             // its a dir, extract all children inodes
+                            if *found_inode == dir_inode {
+                                error!("self referential dir to already read inode");
+                                return Err(BackhandError::UnexpectedInode(
+                                    dir_inode.inner.clone(),
+                                ));
+                            }
                             self.extract_dir(fullpath, root, found_inode, &self.id)?;
                             InnerNode::Dir(SquashfsDir::default())
                         }

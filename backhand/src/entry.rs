@@ -295,7 +295,7 @@ impl<'a> Entry<'a> {
     }
 }
 
-impl<'a> fmt::Debug for Entry<'a> {
+impl fmt::Debug for Entry<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Entry")
             .field("start", &self.start)
@@ -308,7 +308,7 @@ impl<'a> fmt::Debug for Entry<'a> {
     }
 }
 
-impl<'a> Entry<'a> {
+impl Entry<'_> {
     fn create_dir(creating_dir: &Vec<&Self>, start: u32, lowest_inode: u32) -> Dir {
         let mut dir = Dir::new(lowest_inode);
 

@@ -205,7 +205,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 }
 
-impl<'a, 'b> IntoIterator for FilesystemReaderFile<'a, 'b> {
+impl<'a> IntoIterator for FilesystemReaderFile<'a, '_> {
     type IntoIter = BlockIterator<'a>;
     type Item = <BlockIterator<'a> as Iterator>::Item;
 
@@ -444,7 +444,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Read for SquashfsReadFile<'a, 'b> {
+impl Read for SquashfsReadFile<'_, '_> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // file was fully consumed

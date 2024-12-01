@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `x86_64-pc-windows-gnu` support ([@Wolfyxon](https://github.com/Wolfyxon)) ([#634](https://github.com/wcampbell0x2a/backhand/pull/634))
 - Add [zlib-rs](https://github.com/trifectatechfoundation/zlib-rs) support through `--feature gzip-zlib-rs`.
 
+#### Security
+- Prevent self referential dirs, which could cause a stack overflow ([#624](https://github.com/wcampbell0x2a/backhand/pull/495))
+- Avoid high allocations for high inode count ([#624](https://github.com/wcampbell0x2a/backhand/pull/495))
+
 ### `backhand-cli`
 - Add `--no-compression-options` to `add` and `replace` to remove compression options from image after modification.
 - Add `--pad-len` to `replace` and `add` to control the length of end-of-image padding ([#604](https://github.com/wcampbell0x2a/backhand/pull/604))

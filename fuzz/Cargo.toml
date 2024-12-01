@@ -8,7 +8,7 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
+libfuzzer-sys = { version = "0.4", features = ["arbitrary-derive"] }
 
 [dependencies.backhand]
 path = "../backhand"
@@ -37,6 +37,13 @@ name = "raw"
 path = "fuzz_targets/raw.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "write_read_write"
+path = "fuzz_targets/write_read_write.rs"
+test = false
+doc = false
+
 
 [features]
 xz-static = ["backhand/xz-static"]

@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          - { target: x86_64-pc-windows-gnu,        os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-pc-windows-gnu,        os: ubuntu-24.04, use-cross: true }
         toolchain:
           - stable
             # msrv of backhand-cli
@@ -62,12 +62,12 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          - { target: x86_64-unknown-linux-musl,    os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-linux-musl,   os: ubuntu-latest, use-cross: true }
-          - { target: arm-unknown-linux-musleabi,   os: ubuntu-latest, use-cross: true }
-          - { target: armv7-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-linux-musl,   os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-apple-darwin,          os: macos-12                       }
+          - { target: x86_64-unknown-linux-musl,    os: ubuntu-24.04, use-cross: true }
+          - { target: aarch64-unknown-linux-musl,   os: ubuntu-24.04, use-cross: true }
+          - { target: arm-unknown-linux-musleabi,   os: ubuntu-24.04, use-cross: true }
+          - { target: armv7-unknown-linux-musleabi, os: ubuntu-24.04, use-cross: true }
+          - { target: aarch64-unknown-linux-musl,   os: ubuntu-24.04, use-cross: true }
+          - { target: x86_64-apple-darwin,          os: macos-14                       }
         toolchain:
           - stable
             # msrv of backhand-cli
@@ -97,7 +97,7 @@ jobs:
       - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info $BUILD_CMD test --workspace --release ${{ matrix.features }} --target ${{ matrix.job.target }} --features xz-static --locked -- --skip slow --skip no_qemu
   # build/test all supported on native x86_64 arch for library and bins (all tests)
   build-test-native:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -128,7 +128,7 @@ jobs:
 
   # fmt and clippy on stable
   fmt-clippy-stable:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6

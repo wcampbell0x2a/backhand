@@ -21,11 +21,11 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          - { target: x86_64-unknown-linux-musl,    os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-linux-musl,   os: ubuntu-latest, use-cross: true }
-          - { target: arm-unknown-linux-musleabi,   os: ubuntu-latest, use-cross: true }
-          - { target: armv7-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-apple-darwin,          os: macos-12                       }
+          - { target: x86_64-unknown-linux-musl,    os: ubuntu-24.04, use-cross: true }
+          - { target: aarch64-unknown-linux-musl,   os: ubuntu-24.04, use-cross: true }
+          - { target: arm-unknown-linux-musleabi,   os: ubuntu-24.04, use-cross: true }
+          - { target: armv7-unknown-linux-musleabi, os: ubuntu-24.04, use-cross: true }
+          - { target: x86_64-apple-darwin,          os: macos-14                       }
 
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6

@@ -32,13 +32,14 @@ backhand = "0.19.0"
 Although additional targets may be supported, only the following have been fully tested or confirmed to build successfully.
 
 | Target                                 | `build` | `test` |
-|----------------------------------------|--------:|:------:|
+|----------------------------------------|:-------:|:------:|
 | `x86_64-unknown-linux-musl`            | ✓       | ✓      |
 | `aarch64-unknown-linux-musl`           | ✓       | ✓      |
 | `arm-unknown-linux-musleabi`           | ✓       | ✓      |
 | `armv7-unknown-linux-musleabi`         | ✓       | ✓      |
 | `aarch64-unknown-linux-musl`           | ✓       | ✓      |
 | `x86_64-apple-darwin`                  | ✓       | ✓      |
+| `aarch64-apple-darwin`                  | ✓       | ✓      |
 | `x86_64-pc-windows-gnu`                | ✓       |        |
 
 ### Reading/Writing/Modifying Firmware
@@ -86,13 +87,14 @@ See ``--help`` for more information.
 Although additional targets may be supported, only the following have been tested and included in our GitHub releases.
 
 | Target                                 | `test`    | `release` |
-|----------------------------------------|----------:|:---------:|
+|----------------------------------------|:---------:|:---------:|
 | `x86_64-unknown-linux-musl`            | ✓         | ✓         |
 | `aarch64-unknown-linux-musl`           | ✓         | ✓         |
 | `arm-unknown-linux-musleabi`           | ✓         | ✓         |
 | `armv7-unknown-linux-musleabi`         | ✓         | ✓         |
 | `aarch64-unknown-linux-musl`           | ✓         | ✓         |
 | `x86_64-apple-darwin`                  | ✓         | ✓         |
+| `aarch64-apple-darwin`                 | ✓         | ✓         |
 
 ### unsquashfs-backhand
 ```no_test

@@ -10,7 +10,7 @@ on:
 name: Check MSRV of backhand
 jobs:
   build-test-backhand:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -26,10 +26,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: cargo check --locked -p backhand
+      - run: cargo +${{ matrix.toolchain }} check --locked -p backhand
 
   build-test-backhand-cli:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -45,4 +45,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-      - run: cargo check --locked -p backhand-cli
+      - run: cargo +${{ matrix.toolchain }} check --locked -p backhand-cli

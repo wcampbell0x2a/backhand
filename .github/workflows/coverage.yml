@@ -16,7 +16,7 @@ jobs:
           - stable
 
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Populate cache
         uses: ./.github/workflows/cache
 
@@ -39,7 +39,7 @@ jobs:
       - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean -- --skip slow
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4.4.1
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: codecov.json

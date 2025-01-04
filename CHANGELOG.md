@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+Notable updates:
+```
+    Updating cc v1.0.98 -> v1.2.7
+    Updating clap v4.5.13 -> v4.5.23
+    Updating libdeflater v1.22.0 -> v1.23.0
+    Updating libz-ng-sys v1.1.16 -> v1.1.20
+    Updating libz-rs-sys v0.4.0 -> v0.4.1
+    Updating miniz_oxide v0.8.0 -> v0.8.2
+    Updating no_std_io2 v0.8.0 -> v0.8.1
+    Updating zlib-rs v0.4.0 -> v0.4.1
+    Updating zstd-sys v2.0.10+zstd.1.5.6 -> v2.0.13+zstd.1.5.6
+```
+
 ## [v0.19.0] - 2024-11-12
 ### `backhand`
 - Use feature `zlib-ng` for `flate2`, which is enabled when compression option `Gzip` is used. This enables the backend to use [zlib-ng](https://github.com/zlib-ng/zlib-ng), which is faster by default! ([#562](https://github.com/wcampbell0x2a/backhand/pull/562))

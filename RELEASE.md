@@ -1,5 +1,17 @@
 # Release
 
+## Update breaking depends
+Note these in the changelog.
+```
+$ cargo +nightly -Z unstable-options update --breaking
+```
+
+## Update recursive depends
+Some of these could end up in the changelog.
+```
+$ cargo update --recursive
+```
+
 ## Bump Versions
 ```
 $ cargo release version [LEVEL] -p backhand -p backhand-cli --execute

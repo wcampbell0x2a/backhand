@@ -15,5 +15,9 @@
         "patch"
       ]
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+   "enabled": true,
+   "schedule":["after 11am on sunday"]
+ }
 }

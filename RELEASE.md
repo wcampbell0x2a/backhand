@@ -1,15 +1,13 @@
 # Release
 
-## Update breaking depends
-Note these in the changelog.
-```
-$ cargo +nightly -Z unstable-options update --breaking
-```
+## Update dependencies in `CHANGELOG.md`
+This project uses renovate in order to keep our own dependencies up to date, and downstreak "lock" only
+dependencies to test what most likely the end user will use.
+For this library mostly just note compression library changes.
 
-## Update recursive depends
-Some of these could end up in the changelog.
+## Update benchmarks
 ```
-$ cargo update --recursive
+$ ./bench.bash
 ```
 
 ## Bump Versions

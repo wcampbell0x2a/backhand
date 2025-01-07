@@ -39,6 +39,7 @@ Although additional targets may be supported, only the following have been fully
 | `armv7-unknown-linux-musleabi`         | ✓       | ✓      |
 | `aarch64-unknown-linux-musl`           | ✓       | ✓      |
 | `x86_64-apple-darwin`                  | ✓       | ✓      |
+| `aarch64-apple-darwin`                  | ✓       | ✓      |
 | `x86_64-pc-windows-gnu`                | ✓       |        |
 
 ### Reading/Writing/Modifying Firmware
@@ -93,6 +94,7 @@ Although additional targets may be supported, only the following have been teste
 | `armv7-unknown-linux-musleabi`         | ✓         | ✓         |
 | `aarch64-unknown-linux-musl`           | ✓         | ✓         |
 | `x86_64-apple-darwin`                  | ✓         | ✓         |
+| `aarch64-apple-darwin`                 | ✓         | ✓         |
 
 ### unsquashfs-backhand
 ```no_test

@@ -158,7 +158,6 @@ pub struct ExtendedDirectory {
     pub file_size: u32,
     pub block_index: u32,
     pub parent_inode: u32,
-    #[deku(assert = "*index_count < 256")]
     pub index_count: u16,
     pub block_offset: u16,
     pub xattr_index: u32,

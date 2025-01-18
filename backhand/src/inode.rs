@@ -158,7 +158,6 @@ pub struct ExtendedDirectory {
     pub file_size: u32,
     pub block_index: u32,
     pub parent_inode: u32,
-    #[deku(assert = "*index_count < 256")]
     pub index_count: u16,
     pub block_offset: u16,
     pub xattr_index: u32,
@@ -179,18 +178,6 @@ pub struct BasicFile {
     pub file_size: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
-}
-
-impl From<&ExtendedFile> for BasicFile {
-    fn from(ex_file: &ExtendedFile) -> Self {
-        Self {
-            blocks_start: ex_file.blocks_start as u32,
-            frag_index: ex_file.frag_index,
-            block_offset: ex_file.block_offset,
-            file_size: ex_file.file_size as u32,
-            block_sizes: ex_file.block_sizes.clone(),
-        }
-    }
 }
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]

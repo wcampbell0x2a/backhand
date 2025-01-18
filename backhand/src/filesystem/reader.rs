@@ -7,7 +7,6 @@ use crate::data::DataSize;
 use crate::error::BackhandError;
 use crate::fragment::Fragment;
 use crate::id::Id;
-use crate::inode::BasicFile;
 use crate::kinds::Kind;
 use crate::reader::BufReadSeek;
 use crate::squashfs::Cache;
@@ -130,8 +129,8 @@ impl<'b> FilesystemReader<'b> {
     }
 
     /// Return a file handler for this file
-    pub fn file<'a>(&'a self, basic_file: &'a BasicFile) -> FilesystemReaderFile<'a, 'b> {
-        FilesystemReaderFile::new(self, basic_file)
+    pub fn file<'a>(&'a self, file: &'a SquashfsFileReader) -> FilesystemReaderFile<'a, 'b> {
+        FilesystemReaderFile::new(self, file)
     }
 
     /// Iterator of all files, including the root
@@ -154,7 +153,7 @@ impl<'b> FilesystemReader<'b> {
     ///     match &node.inner {
     ///         InnerNode::File(file) => {
     ///             let mut reader = filesystem
-    ///                 .file(&file.basic)
+    ///                 .file(&file)
     ///                 .reader();
     ///             // Then, do something with the reader
     ///         },
@@ -171,12 +170,12 @@ impl<'b> FilesystemReader<'b> {
 #[derive(Copy, Clone)]
 pub struct FilesystemReaderFile<'a, 'b> {
     pub(crate) system: &'a FilesystemReader<'b>,
-    pub(crate) basic: &'a BasicFile,
+    pub(crate) file: &'a SquashfsFileReader,
 }
 
 impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
-    pub fn new(system: &'a FilesystemReader<'b>, basic: &'a BasicFile) -> Self {
-        Self { system, basic }
+    pub fn new(system: &'a FilesystemReader<'b>, file: &'a SquashfsFileReader) -> Self {
+        Self { system, file }
     }
 
     /// Create [`SquashfsReadFile`] that impls [`std::io::Read`] from [`FilesystemReaderFile`].
@@ -190,18 +189,15 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 
     pub fn fragment(&self) -> Option<&'a Fragment> {
-        if self.basic.frag_index == 0xffffffff {
+        if self.file.frag_index() == 0xffffffff {
             None
         } else {
-            self.system
-                .fragments
-                .as_ref()
-                .map(|fragments| &fragments[self.basic.frag_index as usize])
+            self.system.fragments.as_ref().map(|fragments| &fragments[self.file.frag_index()])
         }
     }
 
     pub(crate) fn raw_data_reader(&self) -> SquashfsRawData<'a, 'b> {
-        SquashfsRawData::new(Self { system: self.system, basic: self.basic })
+        SquashfsRawData::new(Self { system: self.system, file: self.file })
     }
 }
 
@@ -210,7 +206,7 @@ impl<'a> IntoIterator for FilesystemReaderFile<'a, '_> {
     type Item = <BlockIterator<'a> as Iterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
-        BlockIterator { blocks: &self.basic.block_sizes, fragment: self.fragment() }
+        BlockIterator { blocks: self.file.block_sizes(), fragment: self.fragment() }
     }
 }
 
@@ -252,7 +248,7 @@ pub(crate) struct SquashfsRawData<'a, 'b> {
 
 impl<'a, 'b> SquashfsRawData<'a, 'b> {
     pub fn new(file: FilesystemReaderFile<'a, 'b>) -> Self {
-        let pos = file.basic.blocks_start.into();
+        let pos = file.file.blocks_start();
         let current_block = file.into_iter();
         Self { file, current_block, pos }
     }
@@ -337,10 +333,10 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     #[inline]
     fn fragment_range(&self) -> std::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
-        let block_num = self.file.basic.block_sizes.len();
-        let file_size = self.file.basic.file_size as usize;
+        let block_num = self.file.file.block_sizes().len();
+        let file_size = self.file.file.file_len();
         let frag_len = file_size - (block_num * block_len);
-        let frag_start = self.file.basic.block_offset as usize;
+        let frag_start = self.file.file.block_offset() as usize;
         let frag_end = frag_start + frag_len;
         frag_start..frag_end
     }
@@ -386,7 +382,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     #[inline]
     pub fn into_reader(self) -> SquashfsReadFile<'a, 'b> {
         let block_size = self.file.system.block_size as usize;
-        let bytes_available = self.file.basic.file_size as usize;
+        let bytes_available = self.file.file.file_len();
         SquashfsReadFile::new(block_size, self, 0, bytes_available)
     }
 }

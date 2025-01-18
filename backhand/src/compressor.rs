@@ -220,13 +220,6 @@ impl CompressionAction for DefaultCompressor {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
                 decoder.read_to_end(out)?;
             }
-            #[cfg(feature = "gzip-zune-inflate")]
-            Compressor::Gzip => {
-                use std::io::Write;
-                let mut decoder = zune_inflate::DeflateDecoder::new(&bytes);
-                let mut decompressed = decoder.decode_zlib().unwrap();
-                out.write_all(&mut decompressed)?;
-            }
             #[cfg(feature = "xz")]
             Compressor::Xz => {
                 let mut decoder = XzDecoder::new(bytes);

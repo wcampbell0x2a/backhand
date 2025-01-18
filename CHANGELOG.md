@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### `backhand`
+- Use `zlib-rs` as the default implementation for `flate2`, added feature `gzip-zlib-ng` to access previous behavior ([#697](https://github.com/wcampbell0x2a/backhand/pull/697))
+- Remove `gzip-zune-inflate`, as this had minimal usage ([#697](https://github.com/wcampbell0x2a/backhand/pull/697))
 
 ## [v0.20.0] - 2025-01-17
 ### `backhand`

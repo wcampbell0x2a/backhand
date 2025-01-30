@@ -31,7 +31,7 @@ solana-nohash-hasher = "0.2.1"
 # Use the fastest implementation (libz-ng) for flate2 but remove dependence on CMake
 libz-sys = { version = "1.1.20", features = ["zlib-ng-no-cmake-experimental-community-maintained"], default-features = false }
 # Temporary workaround for https://github.com/rust-lang/libz-sys/issues/225
-libz-ng-sys = { version = "<1.1.20", optional = true }
+libz-ng-sys = { version = "<1.1.22", optional = true }
 
 [features]
 default = ["xz", "gzip", "zstd"]
@@ -54,7 +54,7 @@ any-flate2 = []
 
 [dev-dependencies]
 test-log = { version = "0.2.16", features = ["trace"] }
-test-assets-ureq = "0.3.0"
+test-assets-ureq = "0.5.0"
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"

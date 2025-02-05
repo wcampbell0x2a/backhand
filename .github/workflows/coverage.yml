@@ -27,7 +27,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@08d473f7b2bf2e092f4c5bd3812b23ed7253f2c9 # cargo-llvm-cov
+        uses: taiki-e/install-action@8fe89aa3e099450a7bc9c2d5cbb1a9b94bdae682 # cargo-llvm-cov
 
       # generate release builds of the testable binaries
       # this is meant to actually run the binary, so this will fail but the binary will be built

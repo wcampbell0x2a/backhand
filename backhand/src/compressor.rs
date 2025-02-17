@@ -240,6 +240,12 @@ impl CompressionAction for DefaultCompressor {
                 let mut decoder = zstd::bulk::Decompressor::new().unwrap();
                 decoder.decompress_to_buffer(bytes, out)?;
             }
+            #[cfg(feature = "lz4")]
+            Compressor::Lz4 => {
+                out.resize(out.capacity(), 0u8);
+                let out_size = lz4_flex::decompress_into(bytes, out.as_mut_slice()).unwrap();
+                out.truncate(out_size);
+            }
             _ => return Err(BackhandError::UnsupportedCompression(compressor)),
         }
         Ok(())
@@ -351,6 +357,8 @@ impl CompressionAction for DefaultCompressor {
                 encoder.compress_to_buffer(bytes, &mut buf)?;
                 Ok(buf)
             }
+            #[cfg(feature = "lz4")]
+            (Compressor::Lz4, _option, _) => Ok(lz4_flex::compress(bytes)),
             _ => Err(BackhandError::UnsupportedCompression(fc.id)),
         }
     }

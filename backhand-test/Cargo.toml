@@ -29,7 +29,6 @@ xz = ["backhand/xz"]
 xz-static = ["backhand/xz-static"]
 any-gzip = []
 gzip = ["any-gzip", "backhand/gzip"]
-gzip-zlib-ng = ["any-gzip", "backhand/gzip-zlib-ng"]
 # this library is licensed GPL and thus disabled by default
 lzo = ["backhand/lzo"]
 zstd = ["backhand/zstd"]

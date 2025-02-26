@@ -1,9 +1,11 @@
 #!/bin/bash
 set -ex
 
-LAST_RELEASE="v0.18.0"
+LAST_RELEASE="v0.20.0"
 
-BACKHAND_LAST_RELEASE="./last-release/bin/unsquashfs-backhand"
+BACKHAND_LAST_RELEASE="./last-release/unsquashfs-backhand"
+BACKHAND_NATIVE_GNU="./native-gnu/dist/unsquashfs-backhand"
+BACKHAND_NATIVE_MUSL="./native-musl/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 BACKHAND="./target/dist/unsquashfs-backhand"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
@@ -15,24 +17,26 @@ bench () {
     echo ""
     file $1
     hyperfine --sort command --runs 50 --warmup 10 \
-        --command-name backhand-dist-${LAST_RELEASE} \
-        "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name backhand-dist \
-        "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name backhand-dist-musl \
-        "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name squashfs-tools \
-        "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
+        --command-name backhand-dist-${LAST_RELEASE}-musl "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+        --command-name backhand-dist-musl "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+        --command-name backhand-dist-musl-native "$BACKHAND_NATIVE_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+        --command-name backhand-dist-gnu "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+        --command-name backhand-dist-gnu-native "$BACKHAND_NATIVE_GNU  --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+        --command-name squashfs-tools "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
         --export-markdown bench-results/$3.md -i
     (echo "### \`$(basename $1)\`"; cat bench-results/$3.md) > bench-results/$3_final.md
 }
 
 rm -rf bench-results
-cross +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
-cargo +stable install backhand-cli --git https://github.com/wcampbell0x2a/backhand.git --root last-release --tag "$LAST_RELEASE" $FLAGS
+rm -rf last-release 
+mkdir -p  last-release
+curl -sL https://github.com/wcampbell0x2a/backhand/releases/download/$LAST_RELEASE/backhand-$LAST_RELEASE-x86_64-unknown-linux-musl.tar.gz | tar xz -C last-release
+cargo +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
 cargo +stable build -p backhand-cli $FLAGS
-mkdir -p bench-results
+RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli $FLAGS --target-dir native-gnu
+RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli --target x86_64-unknown-linux-musl $FLAGS --target-dir native-musl
 
+mkdir -p bench-results
 # xz
 bench "backhand-test/test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin" 0x225fd0 0_openwrt1
 # xz

@@ -127,7 +127,7 @@ fn full_test_inner(
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_00() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -146,7 +146,7 @@ fn test_00() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_01() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -218,7 +218,7 @@ fn test_05() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_06() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -236,7 +236,7 @@ fn test_06() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_07() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -326,7 +326,7 @@ fn test_openwrt_netgear_ex6100v2() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_appimage_plexamp() {
     const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
     let asset_defs = [TestAssetDef {
@@ -344,7 +344,7 @@ fn test_appimage_plexamp() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
@@ -431,7 +431,7 @@ fn test_slow_archlinux_iso_rootfs() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_many_files() {
     const FILE_NAME: &str = "many_files.squashfs";
     let asset_defs = [TestAssetDef {
@@ -449,7 +449,7 @@ fn test_many_files() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_many_dirs() {
     const FILE_NAME: &str = "many_dirs.squashfs";
     let asset_defs = [TestAssetDef {
@@ -467,7 +467,7 @@ fn test_many_dirs() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_few_dirs_many_files() {
     const FILE_NAME: &str = "few_dirs_many_files.squashfs";
     let asset_defs = [TestAssetDef {
@@ -486,7 +486,7 @@ fn test_few_dirs_many_files() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip", feature = "gzip-zune-inflate"))]
+#[cfg(any(feature = "gzip"))]
 fn test_socket_fifo() {
     const FILE_NAME: &str = "squashfs_v4.specfile.bin";
     let asset_defs = [TestAssetDef {

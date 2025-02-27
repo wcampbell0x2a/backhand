@@ -532,3 +532,16 @@ fn test_slow_sparse_data_issue_623() {
     const TEST_PATH: &str = "test-assets/test_sparse_data_issue_623";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
 }
+
+#[test]
+#[cfg(feature = "lz4")]
+fn test_lz4_write_read() {
+    const FILE_NAME: &str = "testing.lz4.squash";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "5ea80b6aa0da73ef30fc3fe405b1700758819f85e7140be2278f5db3f9123a21".to_string(),
+        url: format!("https://wcampbell.dev/squashfs/testing/lz4/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_lz4_write_read";
+    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, true);
+}

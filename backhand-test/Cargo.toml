@@ -32,6 +32,7 @@ gzip = ["any-gzip", "backhand/gzip"]
 # this library is licensed GPL and thus disabled by default
 lzo = ["backhand/lzo"]
 zstd = ["backhand/zstd"]
+lz4 = ["backhand/lz4"]
 
 [[test]]
 name = "add"

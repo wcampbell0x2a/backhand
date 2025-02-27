@@ -27,10 +27,6 @@ zstd-safe = { version = "7.2.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
 xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
-# Use the fastest implementation (libz-ng) for flate2 but remove dependence on CMake
-libz-sys = { version = "1.1.20", features = ["zlib-ng-no-cmake-experimental-community-maintained"], default-features = false }
-# Temporary workaround for https://github.com/rust-lang/libz-sys/issues/225
-libz-ng-sys = { version = "<1.1.20", optional = true }
 
 [features]
 default = ["xz", "gzip", "zstd"]

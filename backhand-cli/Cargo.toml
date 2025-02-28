@@ -45,6 +45,7 @@ gzip = ["any-gzip", "backhand/gzip"]
 lzo = ["backhand/lzo"]
 ## Enables zstd compression inside library and binaries
 zstd = ["backhand/zstd"]
+lz4 = ["backhand/lz4"]
 
 [[bin]]
 name = "unsquashfs-backhand"

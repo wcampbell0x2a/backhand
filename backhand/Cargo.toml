@@ -27,9 +27,10 @@ zstd-safe = { version = "7.2.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
 xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
+lz4_flex = { version = "0.11.3", optional = true, default-features = false }
 
 [features]
-default = ["xz", "gzip", "zstd"]
+default = ["xz", "gzip", "zstd", "lz4"]
 ## Enables xz compression inside library and binaries
 xz = ["dep:xz2"]
 ## Enables xz compression and forces static build inside library and binaries
@@ -40,6 +41,8 @@ gzip = ["any-flate2", "any-gzip", "dep:flate2"]
 lzo = ["dep:rust-lzo"]
 ## Enables zstd compression inside library and binaries
 zstd = ["dep:zstd", "dep:zstd-safe"]
+## Enables Lz4 compression
+lz4 = ["dep:lz4_flex"]
 ## Internal only
 any-gzip = []
 ## Internal only

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### `backhand`
 - Use `zlib-rs` as the default implementation for `flate2`, added feature `gzip-zlib-ng` to access previous behavior ([#697](https://github.com/wcampbell0x2a/backhand/pull/697))
 - Remove `gzip-zune-inflate`, as this had minimal usage ([#697](https://github.com/wcampbell0x2a/backhand/pull/697))
+- Bump MSRV to `1.81` ([#693](https://github.com/wcampbell0x2a/backhand/pull/693))
 
 ## [v0.20.0] - 2025-01-17
 ### `backhand`

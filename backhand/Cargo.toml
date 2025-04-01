@@ -16,7 +16,7 @@ features = ["xz", "gzip", "zstd", "document-features"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-deku = { version = "0.18.1", default-features = false, features = ["std"] }
+deku = { git = "https://github.com/sharksforarms/deku", branch = "master", default-features = false, features = ["std"] }
 tracing = { version = "0.1.40" }
 thiserror = "2.0.1"
 flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }

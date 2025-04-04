@@ -188,9 +188,9 @@ pub trait CompressionAction {
     ///
     /// # Arguments
     /// * `superblock` - Mutatable squashfs superblock info that will be written to disk after
-    ///                  this function is called. The fields `inode_count`, `block_size`,
-    ///                  `block_log` and `mod_time` *will* be set to `FilesystemWriter` options and can be trusted
-    ///                  in this function.
+    ///   this function is called. The fields `inode_count`, `block_size`,
+    ///   `block_log` and `mod_time` *will* be set to `FilesystemWriter` options and can be trusted
+    ///   in this function.
     /// * `kind` - Kind information
     /// * `fs_compressor` - Compression Options
     fn compression_options(

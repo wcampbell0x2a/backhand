@@ -154,9 +154,9 @@ pub trait CompressionAction {
     ///
     /// * `bytes` - Input compressed bytes
     /// * `out` - Output uncompressed bytes. You will need to call `out.resize(out.capacity(), 0)`
-    ///           if your compressor relies on having a max sized buffer to write into.
+    ///   if your compressor relies on having a max sized buffer to write into.
     /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
-    ///                  compressor doesn't follow the normal values of the Compressor Id.
+    ///   compressor doesn't follow the normal values of the Compressor Id.
     ///
     /// [SuperBlock]: [`crate::SuperBlock`]
     fn decompress(
@@ -188,9 +188,9 @@ pub trait CompressionAction {
     ///
     /// # Arguments
     /// * `superblock` - Mutatable squashfs superblock info that will be written to disk after
-    ///                  this function is called. The fields `inode_count`, `block_size`,
-    ///                  `block_log` and `mod_time` *will* be set to `FilesystemWriter` options and can be trusted
-    ///                  in this function.
+    ///   this function is called. The fields `inode_count`, `block_size`,
+    ///   `block_log` and `mod_time` *will* be set to `FilesystemWriter` options and can be trusted
+    ///   in this function.
     /// * `kind` - Kind information
     /// * `fs_compressor` - Compression Options
     fn compression_options(

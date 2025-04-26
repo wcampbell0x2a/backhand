@@ -20,7 +20,7 @@ This allows changing the magic bytes, custom compression algorithms, and the End
 
 
 ## Library
-*Compiler support: requires rustc 1.75+*
+*Compiler support: requires rustc 1.84+*
 
 Add the following to your `Cargo.toml` file:
 ```toml
@@ -73,7 +73,7 @@ write_filesystem.write(&mut output).unwrap();
 ```
 
 ## Binaries
-*Compiler support: requires rustc 1.81+*
+*Compiler support: requires rustc 1.84+*
 
 These are currently under development and are missing features, MR's welcome!
 

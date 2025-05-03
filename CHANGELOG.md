@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [v0.22.0] - 2025-05-02
+### `backhand`
+- Update deku to v0.19.0 ([710](https://github.com/wcampbell0x2a/backhand/pull/710))
+- Update MSRV to 1.84
+### `backhand-cli`
+- Update MSRV to 1.84
+
 ## [v0.21.0] - 2025-03-08
 ### `backhand`
 - Use `zlib-rs` as the default implementation for `flate2`, added feature `gzip-zlib-ng` to access previous behavior ([#697](https://github.com/wcampbell0x2a/backhand/pull/697))

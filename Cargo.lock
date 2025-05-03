@@ -107,7 +107,7 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "backhand"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "assert_cmd",
  "criterion",
@@ -132,7 +132,7 @@ dependencies = [
 
 [[package]]
 name = "backhand-cli"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "backhand",
  "clap",
@@ -513,9 +513,9 @@ dependencies = [
 
 [[package]]
 name = "deku"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9711031e209dc1306d66985363b4397d4c7b911597580340b93c9729b55f6eb"
+checksum = "0884cacbbfed7294f52619ec9092550a78728ef7bef9ae644dd00750763a4022"
 dependencies = [
  "bitvec",
  "deku_derive",
@@ -525,9 +525,9 @@ dependencies = [
 
 [[package]]
 name = "deku_derive"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58cb0719583cbe4e81fb40434ace2f0d22ccc3e39a74bb3796c22b451b4f139d"
+checksum = "1752be5b3a3f7053230fe4e6c023b3f9fdbbe91bc0d87dc4ae92ffdfaa2afc90"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -1138,9 +1138,9 @@ dependencies = [
 
 [[package]]
 name = "no_std_io2"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a3564ce7035b1e4778d8cb6cacebb5d766b5e8fe5a75b9e441e33fb61a872c6"
+checksum = "3c2b9acd47481ab557a89a5665891be79e43cce8a29ad77aa9419d7be5a7c06a"
 dependencies = [
  "memchr",
 ]

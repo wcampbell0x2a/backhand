@@ -7,7 +7,7 @@ edition.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-rust-version = "1.75"
+rust-version = "1.84"
 description = "Library for the reading, creating, and modification of SquashFS file systems"
 readme = "../README.md"
 
@@ -16,7 +16,7 @@ features = ["xz", "gzip", "zstd", "document-features"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-deku = { version = "0.18.1", default-features = false, features = ["std"] }
+deku = { version = "0.19.0", default-features = false, features = ["std"] }
 tracing = { version = "0.1.40" }
 thiserror = "2.0.1"
 flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }

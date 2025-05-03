@@ -225,7 +225,7 @@ impl<'b> Squashfs<'b> {
         kind: &Kind,
     ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
         // Parse SuperBlock
-        let mut container = Reader::new(reader);
+        let mut container = Reader::new(&mut *reader);
         let superblock = SuperBlock::from_reader_with_ctx(
             &mut container,
             (

@@ -117,7 +117,7 @@ pub fn read_block<R: Read + Seek>(
     superblock: &SuperBlock,
     kind: &Kind,
 ) -> Result<Vec<u8>, BackhandError> {
-    let mut deku_reader = Reader::new(reader);
+    let mut deku_reader = Reader::new(&mut *reader);
     let metadata_len = u16::from_reader_with_ctx(&mut deku_reader, kind.inner.data_endian)?;
 
     let byte_len = len(metadata_len);

@@ -18,6 +18,7 @@ use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 use console::Term;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
+use nix::fcntl::AT_FDCWD;
 use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
@@ -546,8 +547,14 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
                 // Make sure this doesn't follow symlinks when changed to std library!
                 let timespec = TimeSpec::new(node.header.mtime as _, 0);
-                utimensat(None, &filepath, &timespec, &timespec, UtimensatFlags::NoFollowSymlink)
-                    .unwrap();
+                utimensat(
+                    AT_FDCWD,
+                    &filepath,
+                    &timespec,
+                    &timespec,
+                    UtimensatFlags::NoFollowSymlink,
+                )
+                .unwrap();
             }
             InnerNode::Dir(SquashfsDir { .. }) => {
                 // These permissions are corrected later (user default permissions for now)

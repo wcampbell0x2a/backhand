@@ -7,11 +7,11 @@ use deku::prelude::*;
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "any-flate2")]
 use flate2::Compression;
+#[cfg(feature = "xz")]
+use liblzma::read::{XzDecoder, XzEncoder};
+#[cfg(feature = "xz")]
+use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 use tracing::trace;
-#[cfg(feature = "xz")]
-use xz2::read::{XzDecoder, XzEncoder};
-#[cfg(feature = "xz")]
-use xz2::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::BackhandError;
 use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};

@@ -1,6 +1,7 @@
 #!/bin/bash
 set -ex
 
+QUICK_MODE=false
 LAST_RELEASE="v0.22.0"
 
 BACKHAND_LAST_RELEASE="./last-release/unsquashfs-backhand"
@@ -14,27 +15,46 @@ UNSQUASHFS="/usr/bin/unsquashfs"
 FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip --features backhand-parallel"
 
 bench () {
+    if $QUICK_MODE; then
+        cargo +stable build -p backhand-cli $FLAGS
+        hyperfine --sort command --runs 50 --warmup 10 \
+            --command-name backhand-dist-gnu "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+            --command-name squashfs-tools "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
+            --export-markdown bench-results/$3.md -i
+    else
+        curl -sL https://github.com/wcampbell0x2a/backhand/releases/download/$LAST_RELEASE/backhand-$LAST_RELEASE-x86_64-unknown-linux-musl.tar.gz | tar xz -C last-release
+        cargo +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
+        cargo +stable build -p backhand-cli $FLAGS
+        RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli $FLAGS --target-dir native-gnu
+        RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli --target x86_64-unknown-linux-musl $FLAGS --target-dir native-musl
+        hyperfine --sort command --runs 50 --warmup 10 \
+            --command-name backhand-dist-${LAST_RELEASE}-musl "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+            --command-name backhand-dist-musl "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+            --command-name backhand-dist-musl-native "$BACKHAND_NATIVE_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+            --command-name backhand-dist-gnu "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+            --command-name backhand-dist-gnu-native "$BACKHAND_NATIVE_GNU  --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
+            --command-name squashfs-tools "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
+            --export-markdown bench-results/$3.md -i
+    fi
     echo ""
     file $1
-    hyperfine --sort command --runs 50 --warmup 10 \
-        --command-name backhand-dist-${LAST_RELEASE}-musl "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name backhand-dist-musl "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name backhand-dist-musl-native "$BACKHAND_NATIVE_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name backhand-dist-gnu "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name backhand-dist-gnu-native "$BACKHAND_NATIVE_GNU  --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
-        --command-name squashfs-tools "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
-        --export-markdown bench-results/$3.md -i
     (echo "### \`$(basename $1)\`"; cat bench-results/$3.md) > bench-results/$3_final.md
 }
 
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --quick)
+            QUICK_MODE=true
+            shift
+            ;;
+    esac
+done
+
 rm -rf bench-results
-rm -rf last-release 
+rm -rf last-release
 mkdir -p  last-release
-curl -sL https://github.com/wcampbell0x2a/backhand/releases/download/$LAST_RELEASE/backhand-$LAST_RELEASE-x86_64-unknown-linux-musl.tar.gz | tar xz -C last-release
-cargo +stable build -p backhand-cli $FLAGS --target x86_64-unknown-linux-musl
-cargo +stable build -p backhand-cli $FLAGS
-RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli $FLAGS --target-dir native-gnu
-RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli --target x86_64-unknown-linux-musl $FLAGS --target-dir native-musl
 
 mkdir -p bench-results
 # xz

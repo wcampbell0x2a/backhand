@@ -12,11 +12,12 @@ of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
 - **Library** — Backhand provides an easy way for programmatic analysis of Squashfs 4.0 images,
 including the extraction and modification of images.
-- **Feature Flags** — Supported compression and decompression are feature flagged, so your final binary (or `unsquashfs`)
+- **Feature Flags** — Supported compression and decompression are [feature flagged](https://docs.rs/backhand/latest/backhand/#features), so your final binary (or `unsquashfs`)
 only needs to include code to extract one type of image.
 - **Unconventional Support** — As well as supporting normal linux kernel SquashFS 4.0, we also support
-the "wonderful world of vendor formats" with a `Kind` struct.
+the "wonderful world of vendor formats" with a [Kind](https://docs.rs/backhand/latest/backhand/kind/index.html) struct.
 This allows changing the magic bytes, custom compression algorithms, and the Endian-ness of either the Data or Metadata fields.
+This is controlled from `unsquashfs-backhand` through the use of the `--kind` option.
 
 
 ## Library

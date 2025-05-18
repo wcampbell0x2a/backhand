@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-LAST_RELEASE="v0.20.0"
+LAST_RELEASE="v0.22.0"
 
 BACKHAND_LAST_RELEASE="./last-release/unsquashfs-backhand"
 BACKHAND_NATIVE_GNU="./native-gnu/dist/unsquashfs-backhand"
@@ -11,7 +11,7 @@ BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
 # Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
-FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip"
+FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip --features backhand-parallel"
 
 bench () {
     echo ""

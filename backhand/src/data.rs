@@ -10,10 +10,14 @@ use xxhash_rust::xxh64::xxh64;
 
 use crate::compressor::CompressionAction;
 use crate::error::BackhandError;
-use crate::filesystem::reader::SquashfsRawData;
 use crate::filesystem::writer::FilesystemCompressor;
 use crate::fragment::Fragment;
 use crate::reader::WriteSeek;
+
+#[cfg(not(feature = "parallel"))]
+use crate::filesystem::reader_no_parallel::SquashfsRawData;
+#[cfg(feature = "parallel")]
+use crate::filesystem::reader_parallel::SquashfsRawData;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;

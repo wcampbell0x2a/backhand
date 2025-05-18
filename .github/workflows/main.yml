@@ -30,6 +30,7 @@ jobs:
           - --no-default-features --features gzip,xz
           - --no-default-features --features xz-static
           - --no-default-features --features lz4
+          - --no-default-features --features parallel
           # default features
           -
 

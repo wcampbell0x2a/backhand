@@ -354,10 +354,7 @@ impl Read for SquashfsReadFile<'_, '_> {
 
         // Ensure we have data to read
         if self.fill_decompressed_queue().is_err() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to decompress data",
-            ));
+            return Err(std::io::Error::other("Failed to decompress data"));
         }
 
         // If we have no more blocks, we're done

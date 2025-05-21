@@ -54,7 +54,7 @@ test-assets-ureq = "0.3.0"
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"
-criterion = "0.5"
+criterion = "0.6"
 libdeflater = "1.22.0"
 
 [[bench]]

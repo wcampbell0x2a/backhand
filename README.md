@@ -26,7 +26,7 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-backhand = "0.21.0"
+backhand = "0.22.0"
 ```
 
 #### Target Support

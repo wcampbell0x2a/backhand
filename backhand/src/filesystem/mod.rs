@@ -1,4 +1,9 @@
 //! In-memory representation of SquashFS filesystem tree used for writing to image
+#[cfg(not(feature = "parallel"))]
+pub mod reader_no_parallel;
+#[cfg(feature = "parallel")]
+pub mod reader_parallel;
+
 pub mod node;
 pub mod reader;
 pub mod writer;

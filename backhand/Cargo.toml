@@ -28,9 +28,10 @@ document-features = { version = "0.2.10", optional = true }
 xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
 lz4_flex = { version = "0.11.3", optional = true, default-features = false }
+rayon = { version = "1.10.0", optional = true, default-features = false }
 
 [features]
-default = ["xz", "gzip", "zstd", "lz4"]
+default = ["xz", "gzip", "zstd", "lz4", "parallel"]
 ## Enables xz compression inside library and binaries
 xz = ["dep:liblzma"]
 ## Enables xz compression and forces static build inside library and binaries
@@ -47,6 +48,8 @@ lz4 = ["dep:lz4_flex"]
 any-gzip = []
 ## Internal only
 any-flate2 = []
+## Enable parallel decompression
+parallel = ["dep:rayon"]
 
 [dev-dependencies]
 test-log = { version = "0.2.16", features = ["trace"] }

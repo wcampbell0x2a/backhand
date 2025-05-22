@@ -118,6 +118,7 @@ dependencies = [
  "libdeflater",
  "liblzma",
  "lz4_flex",
+ "rayon",
  "rust-lzo",
  "solana-nohash-hasher",
  "tempfile",

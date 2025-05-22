@@ -1,12 +1,6 @@
 [env]
 # 1. Always remove debug asserts
-#
-# 2. Enable decoder/endocder
-# TODO: This should be done upstream! See the following issues:
-# - https://github.com/wcampbell0x2a/backhand/issues/150
-# - https://github.com/alexcrichton/xz2-rs/issues/105
-# - https://github.com/alexcrichton/xz2-rs/pull/111
-CFLAGS = "-D NDEBUG=1 -D HAVE_DECODER_ARM=1 -D HAVE_ENCODER_ARM=1 -D HAVE_DECODER_ARM64=1 -D HAVE_ENCODER_ARM64=1 -D HAVE_DECODER_ARMTHUMB=1 -D HAVE_ENCODER_ARMTHUMB=1 -D HAVE_DECODER_IA64=1 -D HAVE_ENCODER_IA64=1"
+CFLAGS = "-D NDEBUG=1"
 
 [target."x86_64-unknown-linux-musl"]
 rustflags = ["-C", "target-feature=+crt-static"]

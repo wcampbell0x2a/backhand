@@ -15,10 +15,11 @@ UNSQUASHFS="/usr/bin/unsquashfs"
 FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip --features backhand-parallel"
 
 bench () {
+    echo "You might want to make sudo last longer...."
     sudo -v
     if $QUICK_MODE; then
         cargo +stable build -p backhand-cli $FLAGS
-        hyperfine --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' --sort command --runs 50 --warmup 10 \
+        hyperfine --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' --sort command --warmup 10 \
             --command-name backhand-dist-gnu "$BACKHAND --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
             --command-name squashfs-tools "$UNSQUASHFS -quiet -no-progress -d $(mktemp -d /tmp/BHXXX)      -f -o $(($2)) -ignore-errors $1" \
             --export-markdown bench-results/$3.md -i
@@ -28,7 +29,7 @@ bench () {
         cargo +stable build -p backhand-cli $FLAGS
         RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli $FLAGS --target-dir native-gnu
         RUSTFLAGS='-C target-cpu=native' cargo +stable build -p backhand-cli --target x86_64-unknown-linux-musl $FLAGS --target-dir native-musl
-        hyperfine --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' --sort command --runs 50 --warmup 10 \
+        hyperfine --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' --sort command --warmup 10 \
             --command-name backhand-dist-${LAST_RELEASE}-musl "$BACKHAND_LAST_RELEASE --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
             --command-name backhand-dist-musl "$BACKHAND_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
             --command-name backhand-dist-musl-native "$BACKHAND_NATIVE_MUSL --quiet -f -d $(mktemp -d /tmp/BHXXX) -o $(($2)) $1" \
@@ -40,6 +41,7 @@ bench () {
     echo ""
     file $1
     (echo "### \`$(basename $1)\`"; cat bench-results/$3.md) > bench-results/$3_final.md
+    rm -rf /tmp/BH*
 }
 
 
@@ -75,6 +77,5 @@ bench "backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage" 0
 # zstd
 bench "backhand-test/test-assets/crates_io_zstd/crates-io.squashfs" 0x0 6_crates_zstd
 
-rm -rf /tmp/BH*
 cat bench-results/*_final.md > results.md
 echo "Cool, now add results.md to BENCHMARK.md"

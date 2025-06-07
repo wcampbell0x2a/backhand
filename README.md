@@ -165,6 +165,10 @@ Options:
   -V, --version                 Print version
 ```
 
+## Development
+All patches/merge requests are welcome! See the development guide for more details.
+[DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Performance
 See [BENCHMARK.md](BENCHMARK.md).
 

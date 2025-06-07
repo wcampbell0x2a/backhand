@@ -32,9 +32,6 @@ jobs:
       - run: cargo llvm-cov run --bin add-backhand --no-clean --release || true
       - run: cargo llvm-cov run --bin unsquashfs-backhand --no-clean --release || true
 
-      # run coverage on tests
-      - run: cargo llvm-cov nextest --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean -- --skip slow
-
       - name: Collect coverage data (including doctests)
         run: |
           cargo llvm-cov --no-report nextest

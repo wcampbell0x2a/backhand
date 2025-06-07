@@ -522,11 +522,11 @@ fn no_qemu_test_crates_zstd() {
 #[test]
 #[cfg(feature = "xz")]
 fn test_slow_sparse_data_issue_623() {
-    const FILE_NAME: &str = "aosc-os_buildkit_20240916_amd64.squashfs";
+    const FILE_NAME: &str = "aosc-os_buildkit_20250606_amd64.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
-        hash: "02b0069d480df7c351b64e640025cb6b84890d8f9e377f15cc24fc70d5617905".to_string(),
-        url: "https://releases.aosc.io/os-amd64/buildkit/aosc-os_buildkit_20240916_amd64.squashfs"
+        hash: "4c0e4f9784c13e2b205b27cb3da566ea70299970403733e7253bb2fddc9efba1".to_string(),
+        url: "https://releases.aosc.io/os-amd64/buildkit/aosc-os_buildkit_20250606_amd64.squashfs"
             .to_string(),
     }];
     const TEST_PATH: &str = "test-assets/test_sparse_data_issue_623";

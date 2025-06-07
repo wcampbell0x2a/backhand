@@ -34,7 +34,7 @@ jobs:
 
       - name: Collect coverage data (including doctests)
         run: |
-          cargo llvm-cov --no-report nextest
+          cargo llvm-cov --no-report nextest --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean
           cargo llvm-cov --no-report --doc
           cargo llvm-cov report --doctests --lcov --output-path lcov.info
 

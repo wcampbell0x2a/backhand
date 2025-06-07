@@ -187,20 +187,20 @@ fn main() -> ExitCode {
             let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
             pb.set_message(line);
         }
-        if let Some(found_offset) = find_offset(&mut file, &kind) {
+        match find_offset(&mut file, &kind) { Some(found_offset) => {
             if !args.quiet {
                 let line =
                     format!("{:>14} 0x{:08x}", blue_bold.apply_to("Found magic"), found_offset,);
                 pb.finish_with_message(line);
             }
             args.offset = found_offset;
-        } else {
+        } _ => {
             if !args.quiet {
                 let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
                 pb.finish_with_message(line);
             }
             return ExitCode::FAILURE;
-        }
+        }}
     }
 
     if args.stat {
@@ -244,9 +244,9 @@ fn main() -> ExitCode {
         current.push("/");
         for part in args.path_filter.iter() {
             current.push(part);
-            if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {
+            match filesystem.files().find(|&a| a.fullpath == current) { Some(exact) => {
                 files.push(exact);
-            } else {
+            } _ => {
                 if !args.quiet {
                     let line = format!(
                         "{:>14}",
@@ -255,7 +255,7 @@ fn main() -> ExitCode {
                     pb.finish_with_message(line);
                 }
                 return ExitCode::FAILURE;
-            }
+            }}
         }
         // remove the final node, this is a file and will be caught in the following statement
         files.pop();

@@ -302,11 +302,11 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         S: AsRef<Path>,
     {
         self.mut_node(find_path).and_then(|node| {
-            if let InnerNode::File(file) = &mut node.inner {
+            match &mut node.inner { InnerNode::File(file) => {
                 Some(file)
-            } else {
+            } _ => {
                 None
-            }
+            }}
         })
     }
 

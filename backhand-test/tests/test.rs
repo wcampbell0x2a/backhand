@@ -2,8 +2,8 @@ mod common;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
-use assert_cmd::prelude::*;
 use assert_cmd::Command;
+use assert_cmd::prelude::*;
 use backhand::{FilesystemReader, FilesystemWriter};
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use tempfile::tempdir;

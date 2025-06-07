@@ -9,18 +9,18 @@ use std::sync::Mutex;
 
 use backhand::kind::Kind;
 use backhand::{
-    BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink, DEFAULT_BLOCK_SIZE,
+    BufReadSeek, DEFAULT_BLOCK_SIZE, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs,
+    SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 use backhand_cli::after_help;
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use console::Term;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use nix::fcntl::AT_FDCWD;
 use nix::libc::geteuid;
-use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
+use nix::sys::stat::{Mode, SFlag, UtimensatFlags, dev_t, mknod, mode_t, umask, utimensat, utimes};
 use nix::sys::time::{TimeSpec, TimeVal};
 use nix::unistd::mkfifo;
 use rayon::prelude::*;
@@ -34,11 +34,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 pub fn required_root(a: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(a);
 
-    if p.has_root() {
-        Ok(p)
-    } else {
-        Err("argument requires root \"/\"".to_string())
-    }
+    if p.has_root() { Ok(p) } else { Err("argument requires root \"/\"".to_string()) }
 }
 
 fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {
@@ -187,20 +183,26 @@ fn main() -> ExitCode {
             let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
             pb.set_message(line);
         }
-        match find_offset(&mut file, &kind) { Some(found_offset) => {
-            if !args.quiet {
-                let line =
-                    format!("{:>14} 0x{:08x}", blue_bold.apply_to("Found magic"), found_offset,);
-                pb.finish_with_message(line);
+        match find_offset(&mut file, &kind) {
+            Some(found_offset) => {
+                if !args.quiet {
+                    let line = format!(
+                        "{:>14} 0x{:08x}",
+                        blue_bold.apply_to("Found magic"),
+                        found_offset,
+                    );
+                    pb.finish_with_message(line);
+                }
+                args.offset = found_offset;
             }
-            args.offset = found_offset;
-        } _ => {
-            if !args.quiet {
-                let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
-                pb.finish_with_message(line);
+            _ => {
+                if !args.quiet {
+                    let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
+                    pb.finish_with_message(line);
+                }
+                return ExitCode::FAILURE;
             }
-            return ExitCode::FAILURE;
-        }}
+        }
     }
 
     if args.stat {
@@ -244,18 +246,21 @@ fn main() -> ExitCode {
         current.push("/");
         for part in args.path_filter.iter() {
             current.push(part);
-            match filesystem.files().find(|&a| a.fullpath == current) { Some(exact) => {
-                files.push(exact);
-            } _ => {
-                if !args.quiet {
-                    let line = format!(
-                        "{:>14}",
-                        red_bold.apply_to("Invalid --path-filter, path doesn't exist")
-                    );
-                    pb.finish_with_message(line);
+            match filesystem.files().find(|&a| a.fullpath == current) {
+                Some(exact) => {
+                    files.push(exact);
                 }
-                return ExitCode::FAILURE;
-            }}
+                _ => {
+                    if !args.quiet {
+                        let line = format!(
+                            "{:>14}",
+                            red_bold.apply_to("Invalid --path-filter, path doesn't exist")
+                        );
+                        pb.finish_with_message(line);
+                    }
+                    return ExitCode::FAILURE;
+                }
+            }
         }
         // remove the final node, this is a file and will be caught in the following statement
         files.pop();

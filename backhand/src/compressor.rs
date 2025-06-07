@@ -4,21 +4,21 @@ use std::io::{Cursor, Read, Write};
 
 use deku::prelude::*;
 #[cfg(feature = "any-flate2")]
-use flate2::read::ZlibEncoder;
-#[cfg(feature = "any-flate2")]
 use flate2::Compression;
+#[cfg(feature = "any-flate2")]
+use flate2::read::ZlibEncoder;
 #[cfg(feature = "xz")]
 use liblzma::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]
 use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 use tracing::trace;
 
+use crate::SuperBlock;
 use crate::error::BackhandError;
 use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 use crate::kind::Kind;
 use crate::metadata::MetadataWriter;
 use crate::squashfs::Flags;
-use crate::SuperBlock;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]

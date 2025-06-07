@@ -5,8 +5,8 @@ use std::io::{BufWriter, Cursor};
 
 use backhand::compression::Compressor;
 use backhand::{
-    kind, CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, NodeHeader,
-    SuperBlock, DEFAULT_BLOCK_SIZE,
+    CompressionExtra, DEFAULT_BLOCK_SIZE, ExtraXz, FilesystemCompressor, FilesystemWriter,
+    NodeHeader, SuperBlock, kind,
 };
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use test_assets_ureq::TestAssetDef;
@@ -16,7 +16,7 @@ use test_assets_ureq::TestAssetDef;
 fn test_raw_00() {
     use std::{io::BufReader, process::Command};
 
-    use backhand::{kind::Kind, FilesystemReader};
+    use backhand::{FilesystemReader, kind::Kind};
 
     let asset_defs = [TestAssetDef {
         filename: "control.squashfs".to_string(),

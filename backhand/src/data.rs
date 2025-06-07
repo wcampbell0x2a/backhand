@@ -312,8 +312,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        compression::{Compressor, DefaultCompressor},
         DEFAULT_BLOCK_SIZE,
+        compression::{Compressor, DefaultCompressor},
     };
 
     #[test]

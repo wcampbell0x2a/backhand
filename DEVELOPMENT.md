@@ -4,7 +4,7 @@ This project uses the rust compiler. Follow instructions from [Installing Rust](
 
 ## Justfile
 This project includes a [justfile](justfile) for ease of development. [Installing Just](github.com/casey/just?tab=readme-ov-file#installation).
-Hopefully this will eliminate errors before running running the CI once your patch/merge request submitted!
+Hopefully this will eliminate errors before running the CI once your patch/merge request submitted!
 
 ## Building
 ```console
@@ -22,5 +22,4 @@ $ just test
 $ just lint
 ```
 
-
-See the [justflie](justfile) for more recipes!
+See the [justfile](justfile) for more recipes!

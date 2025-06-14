@@ -93,13 +93,13 @@ pub use crate::id::Id;
 pub use crate::inode::{BasicFile, Inode};
 pub use crate::reader::BufReadSeek;
 pub use crate::squashfs::{
-    Flags, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, Flags, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE, Squashfs,
+    SuperBlock,
 };
 
 /// Support the wonderful world of vendor formats
 pub mod kind {
-    pub use crate::kinds::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
+    pub use crate::kinds::{AVM_BE_V4_0, BE_V4_0, Endian, Kind, LE_V4_0, Magic};
 }
 
 /// Compression Choice and Options

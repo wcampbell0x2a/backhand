@@ -167,7 +167,7 @@ pub struct ExtendedDirectory {
 }
 
 #[allow(non_upper_case_globals)]
-const TiB1: u128 = 0x100_0000_0000;
+const TiB2: u128 = 0x200_0000_0000;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian, block_size: u32, block_log: u16")]
@@ -175,7 +175,7 @@ pub struct BasicFile {
     pub blocks_start: u32,
     pub frag_index: u32,
     pub block_offset: u32,
-    #[deku(assert = "((*file_size as u128) < TiB1)")]
+    #[deku(assert = "((*file_size as u128) < TiB2)")]
     pub file_size: u32,
     #[deku(count = "block_count(block_size, block_log, *frag_index, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
@@ -188,7 +188,7 @@ pub struct BasicFile {
 )]
 pub struct ExtendedFile {
     pub blocks_start: u64,
-    #[deku(assert = "((*file_size as u128) < TiB1) && (*file_size < bytes_used)")]
+    #[deku(assert = "((*file_size as u128) < TiB2)")]
     pub file_size: u64,
     pub sparse: u64,
     pub link_count: u32,

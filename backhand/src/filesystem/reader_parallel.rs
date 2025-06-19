@@ -18,12 +18,11 @@ pub(crate) struct SquashfsRawData<'a, 'b> {
     pub(crate) file: FilesystemReaderFile<'a, 'b>,
     current_block: BlockIterator<'a>,
     pub(crate) pos: u64,
-    // Buffer pool for reusing memory across threads
+    /// Buffer pool for reusing memory across threads
     buffer_pool: Arc<Mutex<Vec<Vec<u8>>>>,
-    // Queue of blocks ready to be processed
+    /// Queue of blocks ready to be processed
     prefetched_blocks: VecDeque<(Vec<u8>, RawDataBlock)>,
-    // Maximum number of blocks to prefetch
-    max_prefetch: usize,
+    num_prefetch: usize,
 }
 
 impl<'a, 'b> SquashfsRawData<'a, 'b> {
@@ -36,33 +35,21 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             pos,
             buffer_pool: Arc::new(Mutex::new(Vec::new())),
             prefetched_blocks: VecDeque::new(),
-            // Amount of blocks to prefetch
-            max_prefetch: PREFETCH_COUNT,
+            num_prefetch: rayon::current_num_threads() / 2,
         }
     }
 
-    // Prefetch multiple blocks in parallel
+    /// Prefetch multiple blocks in parallel
     fn prefetch_blocks(&mut self) -> Result<(), BackhandError> {
-        // Collect blocks to process
-        let mut blocks_to_process = Vec::new();
-
-        // Get blocks from iterator until we reach our prefetch limit
-        while self.prefetched_blocks.len() < self.max_prefetch {
+        for _ in 0..self.num_prefetch {
             match self.current_block.next() {
                 Some(block_fragment) => {
                     let mut data = self.buffer_pool.lock().unwrap().pop().unwrap_or_default();
 
                     let block_info = self.read_raw_data(&mut data, &block_fragment)?;
-                    blocks_to_process.push((data, block_info));
+                    self.prefetched_blocks.push_back((data, block_info));
                 }
                 None => break, // No more blocks
-            }
-        }
-
-        // If we have blocks to process, add them to our queue
-        if !blocks_to_process.is_empty() {
-            for (data, block_info) in blocks_to_process {
-                self.prefetched_blocks.push_back((data, block_info));
             }
         }
 
@@ -173,7 +160,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         frag_start..frag_end
     }
 
-    // Decompress function that can be run in parallel
+    /// Decompress function that can be run in parallel
     pub fn decompress(
         &self,
         data: RawDataBlock,
@@ -242,7 +229,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         }
     }
 
-    // Fill the decompressed blocks queue with data
+    /// Fill the decompressed blocks queue with data
     fn fill_decompressed_queue(&mut self) -> Result<(), BackhandError> {
         // If we already have data, no need to fill
         if !self.decompressed_blocks.is_empty()
@@ -318,7 +305,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         Ok(())
     }
 
-    // Available bytes in the current block
+    /// Available bytes in the current block
     #[inline]
     fn available_in_current_block(&self) -> &[u8] {
         if self.decompressed_blocks.is_empty() {
@@ -328,7 +315,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         }
     }
 
-    // Read available bytes from the current block
+    /// Read available bytes from the current block
     #[inline]
     fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available_in_current_block();

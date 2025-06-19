@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
-use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::os::unix::fs::lchown;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
@@ -490,6 +490,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         return;
                     }
                 }
+                writer.flush().unwrap();
             }
             InnerNode::Symlink(SquashfsSymlink { link }) => {
                 // create symlink

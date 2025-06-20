@@ -6,11 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.23.0] - 2025-06-19
 ### `backhand`
 - Add feature `parallel`, which enables internal parallelization when de-compressing data. When `parallel` is not used, the old behavior of reading without parallelization is used. ([#716](https://github.com/wcampbell0x2a/backhand/pull/716))
+  - This substantially increases the speed of backhand-unsquashfs, removing about half of the wall time! See the new benchmarks for details.
 - Fix misaligned pointer loads when using Deku. thanks @bdash! ([#713](https://github.com/wcampbell0x2a/backhand/pull/713))
+- Fix incorrect assertion about file size ([#730](https://github.com/wcampbell0x2a/backhand/pull/730))
 - Use rust library `liblzma` instead of `xz2`. This bumps the version of XZ used to 5.8.1. ([#712](https://github.com/wcampbell0x2a/backhand/pull/712))
   - This also removes the need for `HAVE_DECODER` defines/CFLAGS when building xz, as `liblzma` enables them when building by default.
+
+### `backhand-cli`
+- unsquashfs: Properly flush the file writer
 
 ### `backhand-cli`
 - Use `backhand` features `parallel` by default (and in release builds). Exposed by using `backhand-parallel`.

@@ -165,7 +165,7 @@ impl<'b> FilesystemReader<'b> {
     ///     }
     /// }
     /// ```
-    pub fn files(&self) -> impl Iterator<Item = &Node<SquashfsFileReader>> {
+    pub fn files(&self) -> impl Iterator<Item = &Node<SquashfsFileReader>> + use<'_> {
         self.root.nodes.iter()
     }
 }

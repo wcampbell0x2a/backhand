@@ -20,8 +20,8 @@ use crate::kinds::{Kind, LE_V4_0};
 use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
 use crate::unix_string::OsStringExt;
 use crate::{
-    metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+    Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink, metadata,
 };
 
 /// 128KiB
@@ -554,7 +554,7 @@ impl<'b> Squashfs<'b> {
                                 _ => {
                                     return Err(BackhandError::UnexpectedInode(
                                         found_inode.inner.clone(),
-                                    ))
+                                    ));
                                 }
                             };
                             InnerNode::File(inner)
@@ -577,7 +577,7 @@ impl<'b> Squashfs<'b> {
                         InodeId::BasicNamedPipe => InnerNode::NamedPipe,
                         InodeId::BasicSocket => InnerNode::Socket,
                         InodeId::ExtendedFile => {
-                            return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
+                            return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()));
                         }
                     };
                     let node = Node::new(

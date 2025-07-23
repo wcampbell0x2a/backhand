@@ -1,7 +1,5 @@
 mod common;
 
-use std::process::Command;
-
 use assert_cmd::prelude::*;
 use tempfile::tempdir;
 use test_assets_ureq::TestAssetDef;
@@ -104,7 +102,7 @@ fn test_add() {
     #[cfg(feature = "__test_unsquashfs")]
     {
         let dir = tmp_dir.path().join("out2");
-        let output = Command::new("unsquashfs")
+        let output = std::process::Command::new("unsquashfs")
             .args(["-lln", "-UTC", dir.to_str().unwrap()])
             .output()
             .unwrap();
@@ -127,11 +125,6 @@ dr----x--t 2/4242                   42 1970-01-01 00:01 squashfs-root/test
 fn test_dont_emit_compression_options() {
     use std::fs::File;
     use std::io::Write;
-    use std::os::unix::prelude::PermissionsExt;
-
-    use backhand::DEFAULT_BLOCK_SIZE;
-    use nix::sys::stat::utimes;
-    use nix::sys::time::TimeVal;
 
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -167,7 +160,7 @@ fn test_dont_emit_compression_options() {
         .env("RUST_LOG", "none")
         .args(["-s", "--quiet", &out_image])
         .unwrap();
-    let stdout = std::str::from_utf8(&cmd.stdout).unwrap();
+    let stdout = core::str::from_utf8(&cmd.stdout).unwrap();
     stdout.contains("Compression Options: None");
 
     // with no compression option
@@ -188,6 +181,6 @@ fn test_dont_emit_compression_options() {
         .env("RUST_LOG", "none")
         .args(["-s", "--quiet", &out_image])
         .unwrap();
-    let stdout = std::str::from_utf8(&cmd.stdout).unwrap();
+    let stdout = core::str::from_utf8(&cmd.stdout).unwrap();
     stdout.contains("Compression Options: Some");
 }

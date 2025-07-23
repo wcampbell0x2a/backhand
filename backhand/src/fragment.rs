@@ -5,7 +5,7 @@ use deku::prelude::*;
 use crate::data::DataSize;
 
 pub(crate) const SIZE: usize =
-    std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();
+    core::mem::size_of::<u64>() + core::mem::size_of::<u32>() + core::mem::size_of::<u32>();
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "type_endian", ctx = "type_endian: deku::ctx::Endian")]

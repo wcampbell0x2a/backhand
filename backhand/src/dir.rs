@@ -96,7 +96,7 @@ pub struct DirectoryIndex {
 
 impl DirectoryIndex {
     pub fn name(&self) -> String {
-        std::str::from_utf8(&self.name).unwrap().to_string()
+        core::str::from_utf8(&self.name).unwrap().to_string()
     }
 }
 

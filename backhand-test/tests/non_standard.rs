@@ -1,6 +1,6 @@
 mod common;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, BufWriter};
 
 use backhand::compression::{CompressionAction, Compressor, DefaultCompressor};
 use backhand::kind::{self, Kind};
@@ -24,7 +24,7 @@ fn full_test(
     kind: &Kind,
     pad: Option<u32>,
 ) {
-    common::download_backoff(&assets_defs, test_path);
+    common::download_backoff(assets_defs, test_path);
     let og_path = format!("{test_path}/{filepath}");
     let new_path = format!("{test_path}/bytes.squashfs");
     {

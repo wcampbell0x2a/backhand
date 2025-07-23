@@ -1,7 +1,7 @@
+use core::time::Duration;
 use std::fs::File;
 use std::io::{BufReader, Cursor};
 use std::process::Command;
-use std::time::Duration;
 
 use assert_cmd::prelude::*;
 use backhand::{FilesystemReader, FilesystemWriter};

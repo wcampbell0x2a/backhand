@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Cursor};
 
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
-use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
@@ -90,8 +89,8 @@ fn test_add_00() {
     #[cfg(feature = "__test_unsquashfs")]
     {
         let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
-        test_bin_unsquashfs(&og_path, None, true, true);
-        test_bin_unsquashfs(&new_path, None, true, true);
+        crate::common::test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
+        crate::common::test_bin_unsquashfs(&og_path, None, true, true);
+        crate::common::test_bin_unsquashfs(&new_path, None, true, true);
     }
 }

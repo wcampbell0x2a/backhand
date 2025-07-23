@@ -8,13 +8,12 @@ use backhand::{
     kind, CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter, NodeHeader,
     SuperBlock, DEFAULT_BLOCK_SIZE,
 };
-use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use test_assets_ureq::TestAssetDef;
 
 #[test]
 #[cfg(all(feature = "xz", feature = "gzip"))]
 fn test_raw_00() {
-    use std::{io::BufReader, process::Command};
+    use std::io::BufReader;
 
     use backhand::{kind::Kind, FilesystemReader};
 

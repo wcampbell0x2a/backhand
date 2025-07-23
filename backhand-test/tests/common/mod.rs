@@ -1,11 +1,7 @@
-use std::error::Error;
+use core::time::Duration;
 use std::process::Command;
-use std::time::Duration;
 
 use assert_cmd::prelude::*;
-use backon::BlockingRetryable;
-use backon::ExponentialBuilder;
-use tempfile::tempdir;
 use tempfile::tempdir_in;
 use test_assets_ureq::TestAssetDef;
 

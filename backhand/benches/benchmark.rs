@@ -17,12 +17,12 @@ fn read_write(file: File, offset: u64) {
 
     // convert to bytes
     let mut output = Cursor::new(vec![]);
-    black_box(new_filesystem.write(&mut output).unwrap());
+    std::hint::black_box(new_filesystem.write(&mut output).unwrap());
 }
 
 fn read(file: File, offset: u64) {
     let file = BufReader::new(file);
-    black_box(FilesystemReader::from_reader_with_offset(file, offset).unwrap());
+    std::hint::black_box(FilesystemReader::from_reader_with_offset(file, offset).unwrap());
 }
 
 pub fn bench_read_write(c: &mut Criterion) {

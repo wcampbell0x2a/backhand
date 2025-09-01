@@ -18,5 +18,5 @@ runs:
           # contains package information of crates installed via `cargo install`.
           ~/.cargo/.crates.toml
           ~/.cargo/.crates2.json
-        key: ${{ runner.os }}-rsadsb-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: ${{ runner.os }}-rsadsb
+        key: ${{ runner.os }}-{{ runner.arch }}-0x2acache-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-{{ runner.arch }}-0x2acache

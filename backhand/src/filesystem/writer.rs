@@ -463,6 +463,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         block_size: u32,
         mut writer: W,
         data_writer: &mut DataWriter<'b>,
+        progress_callback: Option<impl Fn()>,
     ) -> Result<(), BackhandError>
     where
         W: WriteSeek,
@@ -494,6 +495,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                 SquashfsFileWriter::Consumed(_, _) => unreachable!(),
             };
             *file = SquashfsFileWriter::Consumed(filesize, added);
+            progress_callback.as_ref().inspect(|cb| cb());
         }
         Ok(())
     }
@@ -646,11 +648,20 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok(entry)
     }
 
-    /// Generate and write the resulting squashfs image to `w`
+    pub fn write<W: Write + Seek>(&mut self, w: W) -> Result<(SuperBlock, u64), BackhandError> {
+        self.write_callback(w, Option::<fn()>::None)
+    }
+    /// Generate and write the resulting squashfs image to `w`.
+    ///
+    /// `progress_callback` is called every time a new file is written.
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
+    pub fn write_callback<W: Write + Seek>(
+        &mut self,
+        mut w: W,
+        progress_callback: Option<impl Fn()>,
+    ) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
 
@@ -693,7 +704,13 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         info!("Creating Inodes and Dirs");
         //trace!("TREE: {:#02x?}", &self.root);
         info!("Writing Data");
-        self.write_data(self.fs_compressor, self.block_size, &mut w, &mut data_writer)?;
+        self.write_data(
+            self.fs_compressor,
+            self.block_size,
+            &mut w,
+            &mut data_writer,
+            progress_callback,
+        )?;
         info!("Writing Data Fragments");
         // Compress fragments and write
         data_writer.finalize(&mut w)?;

@@ -106,6 +106,6 @@ pub mod kind {
 pub mod compression {
     pub use crate::compressor::{
         CompressionAction, CompressionOptions, Compressor, DefaultCompressor, Gzip, Lz4, Lzo, Xz,
-        Zstd,
+        XzFilter, Zstd,
     };
 }

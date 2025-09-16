@@ -1,5 +1,18 @@
 // Compiled for every binary, as this is not a workspace
+
+pub mod parse;
+
+use std::sync::LazyLock;
+
 use clap::builder::styling::*;
+
+#[doc(hidden)]
+pub static RED_BOLD: LazyLock<console::Style> =
+    LazyLock::new(|| console::Style::new().red().bold());
+#[doc(hidden)]
+pub static BLUE_BOLD: LazyLock<console::Style> =
+    LazyLock::new(|| console::Style::new().blue().bold());
+
 #[doc(hidden)]
 pub fn styles() -> clap::builder::Styles {
     Styles::styled()
@@ -13,7 +26,7 @@ pub fn styles() -> clap::builder::Styles {
 }
 
 #[doc(hidden)]
-pub fn after_help(rayon_env: bool) -> String {
+pub fn after_help_unsquashfs(rayon_env: bool) -> String {
     let mut s = String::new();
 
     let header = color_print::cstr!("<green, bold>Decompressors available:</>\n");
@@ -30,6 +43,15 @@ pub fn after_help(rayon_env: bool) -> String {
 
     #[cfg(feature = "zstd")]
     s.push_str(color_print::cstr!("  <cyan, bold>zstd\n"));
+
+    s.push_str(&after_help_common(rayon_env));
+
+    s
+}
+
+#[doc(hidden)]
+pub fn after_help_common(rayon_env: bool) -> String {
+    let mut s = String::new();
 
     s.push_str(color_print::cstr!("<green, bold>Environment Variables:\n"));
     s.push_str(color_print::cstr!("  <cyan, bold>RUST_LOG:"));

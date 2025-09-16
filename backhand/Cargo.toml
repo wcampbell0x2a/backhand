@@ -19,8 +19,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 deku = { version = "0.19.1", default-features = false, features = ["std"] }
 tracing = { version = "0.1.40" }
 thiserror = "2.0.1"
-flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }
-liblzma = { version = "0.4.1", optional = true, default-features = false, features = ["static", "parallel"] }
+flate2 = { version = "1.1.0", optional = true, default-features = false, features = [
+    "zlib-rs",
+] }
+liblzma = { version = "0.4.1", optional = true, default-features = false, features = [
+    "static",
+    "parallel",
+] }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
@@ -55,7 +60,7 @@ parallel = ["dep:rayon"]
 test-log = { version = "0.2.16", features = ["trace"] }
 test-assets-ureq = "0.3.0"
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
-dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
+dir-diff = { git = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"
 criterion = "0.6"
 libdeflater = "1.22.0"

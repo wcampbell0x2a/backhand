@@ -2,7 +2,7 @@
 
 use deku::prelude::*;
 
-use crate::data::DataSize;
+use crate::v4::data::DataSize;
 
 pub(crate) const SIZE: usize =
     std::mem::size_of::<u64>() + std::mem::size_of::<u32>() + std::mem::size_of::<u32>();

@@ -4,6 +4,7 @@ use std::io::{BufReader, BufWriter, Write};
 
 use backhand::compression::{CompressionAction, Compressor, DefaultCompressor};
 use backhand::kind::{self, Kind};
+use backhand::traits::SimpleCompression;
 use backhand::{BackhandError, FilesystemCompressor, FilesystemReader, FilesystemWriter};
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
@@ -125,15 +126,21 @@ fn test_custom_compressor() {
     #[derive(Copy, Clone)]
     pub struct CustomCompressor;
 
+    // TODO: I'm confused about needing both CompressionAction and SimpleCompression...
     // Special decompress that only has support for the Rust version of gzip: lideflator for
     // decompression
     impl CompressionAction for CustomCompressor {
+        type Compressor = Compressor;
+        type FilesystemCompressor = FilesystemCompressor;
+        type SuperBlock = SuperBlock;
+        type Error = BackhandError;
+
         fn decompress(
             &self,
             bytes: &[u8],
             out: &mut Vec<u8>,
-            compressor: Compressor,
-        ) -> Result<(), BackhandError> {
+            compressor: Self::Compressor,
+        ) -> Result<(), Self::Error> {
             if let Compressor::Gzip = compressor {
                 out.resize(out.capacity(), 0);
                 let mut decompressor = libdeflater::Decompressor::new();
@@ -150,19 +157,60 @@ fn test_custom_compressor() {
         fn compress(
             &self,
             bytes: &[u8],
-            fc: FilesystemCompressor,
+            fc: Self::FilesystemCompressor,
             block_size: u32,
-        ) -> Result<Vec<u8>, BackhandError> {
-            DefaultCompressor.compress(bytes, fc, block_size)
+        ) -> Result<Vec<u8>, Self::Error> {
+            CompressionAction::compress(&DefaultCompressor, bytes, fc, block_size)
+                .map_err(|e| e.into())
         }
 
         fn compression_options(
             &self,
-            _superblock: &mut SuperBlock,
+            _superblock: &mut Self::SuperBlock,
             _kind: &Kind,
-            _fs_compressor: FilesystemCompressor,
-        ) -> Result<Vec<u8>, BackhandError> {
-            DefaultCompressor.compression_options(_superblock, _kind, _fs_compressor)
+            _fs_compressor: Self::FilesystemCompressor,
+        ) -> Result<Vec<u8>, Self::Error> {
+            CompressionAction::compression_options(
+                &DefaultCompressor,
+                _superblock,
+                _kind,
+                _fs_compressor,
+            )
+            .map_err(|e| e.into())
+        }
+    }
+
+    impl SimpleCompression for CustomCompressor {
+        fn decompress(
+            &self,
+            bytes: &[u8],
+            out: &mut Vec<u8>,
+            compressor: backhand::traits::Compressor,
+        ) -> Result<(), backhand::traits::BackhandError> {
+            let v4_compressor = match compressor {
+                backhand::traits::Compressor::None => Compressor::Gzip, // Fallback to gzip
+                backhand::traits::Compressor::Gzip => Compressor::Gzip,
+                _ => unimplemented!(),
+            };
+            CompressionAction::decompress(self, bytes, out, v4_compressor)
+        }
+
+        fn compress(
+            &self,
+            bytes: &[u8],
+            _compressor: backhand::traits::Compressor,
+            block_size: u32,
+        ) -> Result<Vec<u8>, backhand::traits::BackhandError> {
+            let fc = FilesystemCompressor::new(Compressor::Gzip, None).unwrap();
+            CompressionAction::compress(self, bytes, fc, block_size)
+        }
+
+        fn compression_options(
+            &self,
+            _compressor: backhand::traits::Compressor,
+            _kind: &Kind,
+        ) -> Result<Vec<u8>, backhand::traits::BackhandError> {
+            Ok(vec![])
         }
     }
 

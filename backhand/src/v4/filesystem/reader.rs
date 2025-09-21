@@ -1,20 +1,20 @@
 use std::sync::{Mutex, RwLock};
 
-use super::node::Nodes;
-use crate::compressor::{CompressionOptions, Compressor};
-use crate::data::DataSize;
 use crate::error::BackhandError;
-use crate::fragment::Fragment;
-use crate::id::Id;
 use crate::kinds::Kind;
-use crate::reader::BufReadSeek;
-use crate::squashfs::Cache;
+use crate::v4::compressor::{CompressionOptions, Compressor};
+use crate::v4::data::DataSize;
+use crate::v4::filesystem::node::Nodes;
+use crate::v4::fragment::Fragment;
+use crate::v4::id::Id;
+use crate::v4::reader::BufReadSeek;
+use crate::v4::squashfs::Cache;
 use crate::{Node, Squashfs, SquashfsFileReader};
 
 #[cfg(not(feature = "parallel"))]
-use crate::filesystem::reader_no_parallel::{SquashfsRawData, SquashfsReadFile};
+use crate::v4::filesystem::reader_no_parallel::{SquashfsRawData, SquashfsReadFile};
 #[cfg(feature = "parallel")]
-use crate::filesystem::reader_parallel::{SquashfsRawData, SquashfsReadFile};
+use crate::v4::filesystem::reader_parallel::{SquashfsRawData, SquashfsReadFile};
 
 /// Representation of SquashFS filesystem after read from image
 /// - Use [`Self::from_reader`] to read into `Self` from a `reader`

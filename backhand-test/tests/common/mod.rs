@@ -80,7 +80,7 @@ pub fn test_bin_unsquashfs(
     let tmp_dir = tempdir_in(".").unwrap();
     // Run "our" unsquashfs against the control
     let cmd = get_base_command("unsquashfs-backhand")
-        .env("RUST_LOG", "trace")
+        .env("RUST_LOG", "none")
         .args([
             "-d",
             tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),

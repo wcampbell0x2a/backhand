@@ -4,7 +4,7 @@ use std::io::{Read, SeekFrom};
 use std::sync::{Arc, Mutex};
 
 use crate::error::BackhandError;
-use crate::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
+use crate::v4::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
 
 const PREFETCH_COUNT: usize = 8;
 
@@ -178,7 +178,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             self.file.system.kind.inner.compressor.decompress(
                 input_buf,
                 output_buf,
-                self.file.system.compressor,
+                self.file.system.compressor.into(),
             )?;
             // store the cache, so decompression is not duplicated
             if data.fragment {

@@ -9,7 +9,7 @@ use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 use tempfile::tempdir;
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
-use tracing::info;
+use tracing::{info, trace};
 
 #[cfg(feature = "gzip")]
 fn has_gzip_feature() -> bool {
@@ -507,6 +507,7 @@ fn test_socket_fifo() {
 #[test]
 #[cfg(any(feature = "zstd"))]
 fn no_qemu_test_crates_zstd() {
+    trace!("downloaing test");
     const FILE_NAME: &str = "crates-io.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -516,6 +517,7 @@ fn no_qemu_test_crates_zstd() {
 
     const TEST_PATH: &str = "test-assets/crates_io_zstd";
 
+    trace!("starting test");
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }
 

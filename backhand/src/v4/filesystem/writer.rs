@@ -9,23 +9,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use deku::prelude::*;
 use tracing::{error, info, trace};
 
-use super::node::{InnerNode, Nodes};
-use super::normalize_squashfs_path;
-use crate::compressor::{CompressionOptions, Compressor};
-use crate::data::DataWriter;
-use crate::entry::Entry;
 use crate::error::BackhandError;
-use crate::filesystem::node::SquashfsSymlink;
-use crate::id::Id;
-use crate::kind::Kind;
+use crate::kinds::Kind;
 use crate::kinds::LE_V4_0;
-use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
-use crate::reader::WriteSeek;
-use crate::squashfs::SuperBlock;
+use crate::traits::CompressionAction;
+use crate::v4::compressor::{CompressionOptions, Compressor, DefaultCompressor};
+use crate::v4::data::DataWriter;
+use crate::v4::entry::Entry;
+use crate::v4::filesystem::node::SquashfsSymlink;
+use crate::v4::filesystem::node::{InnerNode, Nodes};
+use crate::v4::filesystem::normalize_squashfs_path;
+use crate::v4::fragment;
+use crate::v4::id::Id;
+use crate::v4::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
+use crate::v4::reader::WriteSeek;
+use crate::v4::squashfs::SuperBlock;
 use crate::{
-    fragment, FilesystemReader, Flags, Node, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
-    MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    FilesystemReader, Flags, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
+    MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -663,13 +665,14 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
 
-        if self.emit_compression_options {
-            trace!("writing compression options, if exists");
-            let options = self.kind.inner.compressor.compression_options(
-                &mut superblock,
-                &self.kind,
-                self.fs_compressor,
-            )?;
+        if self.emit_compression_options && self.fs_compressor.options.is_some() {
+            trace!("writing compression options");
+            // Use the full CompressionAction trait which properly handles the compression options
+            // Use a temporary superblock copy for compression_options call
+            let options = DefaultCompressor
+                .compression_options(&mut superblock, &self.kind, self.fs_compressor)
+                .map_err(|e: crate::error::BackhandError| -> crate::traits::BackhandError { e })?;
+
             w.write_all(&options)?;
         }
 

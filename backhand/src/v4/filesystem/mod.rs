@@ -10,7 +10,7 @@ pub mod writer;
 
 use std::path::{Component, Path, PathBuf};
 
-use crate::BackhandError;
+use crate::error::BackhandError;
 
 // normalize the path, always starts with root, solve relative paths and don't
 // allow prefix (windows stuff like "C:/")

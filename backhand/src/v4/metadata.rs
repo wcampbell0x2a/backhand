@@ -5,9 +5,9 @@ use deku::prelude::*;
 use tracing::trace;
 
 use crate::error::BackhandError;
-use crate::filesystem::writer::FilesystemCompressor;
 use crate::kinds::Kind;
-use crate::squashfs::SuperBlock;
+use crate::v4::filesystem::writer::FilesystemCompressor;
+use crate::v4::squashfs::SuperBlock;
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 
@@ -52,8 +52,11 @@ impl MetadataWriter {
 
         trace!("time to compress");
         // "Write" the to the saved metablock
-        let compressed =
-            self.kind.inner.compressor.compress(uncompressed, self.compressor, self.block_size)?;
+        let compressed = self.kind.inner.compressor.compress(
+            uncompressed,
+            self.compressor.id.into(),
+            self.block_size,
+        )?;
 
         // Remove the data consumed, if the uncompressed data is smalled, use it.
         let (compressed, metadata) = if compressed.len() > uncompressed_len {
@@ -128,7 +131,7 @@ pub fn read_block<R: Read + Seek>(
     let bytes = if is_compressed(metadata_len) {
         tracing::trace!("compressed");
         let mut out = Vec::with_capacity(8 * 1024);
-        kind.inner.compressor.decompress(&buf, &mut out, superblock.compressor)?;
+        kind.inner.compressor.decompress(&buf, &mut out, superblock.compressor.into())?;
         out
     } else {
         tracing::trace!("uncompressed");

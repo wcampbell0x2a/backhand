@@ -10,18 +10,19 @@ use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
 use tracing::{error, info, trace};
 
-use crate::compressor::{CompressionOptions, Compressor};
-use crate::dir::Dir;
 use crate::error::BackhandError;
-use crate::filesystem::node::{InnerNode, Nodes};
-use crate::fragment::Fragment;
-use crate::inode::{Inode, InodeId, InodeInner};
 use crate::kinds::{Kind, LE_V4_0};
-use crate::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
-use crate::unix_string::OsStringExt;
+use crate::v4::compressor::{CompressionOptions, Compressor};
+use crate::v4::dir::Dir;
+use crate::v4::filesystem::node::{InnerNode, Nodes};
+use crate::v4::fragment::Fragment;
+use crate::v4::inode::{Inode, InodeId, InodeInner};
+use crate::v4::metadata;
+use crate::v4::reader::{BufReadSeek, SquashFsReader, SquashfsReaderWithOffset};
+use crate::v4::unix_string::OsStringExt;
 use crate::{
-    metadata, Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink,
+    Export, FilesystemReader, Id, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsSymlink,
 };
 
 /// 128KiB
@@ -212,7 +213,7 @@ pub struct Squashfs<'b> {
     /// Id Lookup Table Cache
     pub id: Vec<Id>,
     //file reader
-    file: Box<dyn BufReadSeek + 'b>,
+    pub file: Box<dyn BufReadSeek + 'b>,
 }
 
 impl<'b> Squashfs<'b> {
@@ -513,7 +514,7 @@ impl<'b> Squashfs<'b> {
                     ext_dir.block_offset as usize,
                 )?
             }
-            _ => return Err(BackhandError::UnexpectedInode(dir_inode.inner.clone())),
+            _ => return Err(BackhandError::UnexpectedInode),
         };
         if let Some(dirs) = dirs {
             for d in &dirs {
@@ -535,9 +536,7 @@ impl<'b> Squashfs<'b> {
                             // its a dir, extract all children inodes
                             if *found_inode == dir_inode {
                                 error!("self referential dir to already read inode");
-                                return Err(BackhandError::UnexpectedInode(
-                                    dir_inode.inner.clone(),
-                                ));
+                                return Err(BackhandError::UnexpectedInode);
                             }
                             self.extract_dir(fullpath, root, found_inode, &self.id)?;
                             InnerNode::Dir(SquashfsDir::default())
@@ -551,11 +550,7 @@ impl<'b> Squashfs<'b> {
                                 InodeInner::ExtendedFile(file) => {
                                     SquashfsFileReader::Extended(file.clone())
                                 }
-                                _ => {
-                                    return Err(BackhandError::UnexpectedInode(
-                                        found_inode.inner.clone(),
-                                    ))
-                                }
+                                _ => return Err(BackhandError::UnexpectedInode),
                             };
                             InnerNode::File(inner)
                         }
@@ -576,9 +571,7 @@ impl<'b> Squashfs<'b> {
                         }
                         InodeId::BasicNamedPipe => InnerNode::NamedPipe,
                         InodeId::BasicSocket => InnerNode::Socket,
-                        InodeId::ExtendedFile => {
-                            return Err(BackhandError::UnsupportedInode(found_inode.inner.clone()))
-                        }
+                        InodeId::ExtendedFile => return Err(BackhandError::UnsupportedInode),
                     };
                     let node = Node::new(
                         fullpath.clone(),

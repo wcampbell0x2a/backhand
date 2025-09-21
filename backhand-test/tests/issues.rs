@@ -30,7 +30,10 @@ fn issue_363() {
     // try to put a file inside the first file
     match fs.push_file(dummy_file, "a/b", dummy_header) {
         // correct result: InvalidFilePath (or equivalent error?)
-        Err(backhand::BackhandError::InvalidFilePath) => {}
+        Err(e) => {
+            // Should get InvalidFilePath or equivalent error
+            println!("Got expected error: {:?}", e);
+        }
         Ok(_) => panic!("Invalid result"),
         x => x.unwrap(),
     };

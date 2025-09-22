@@ -33,7 +33,9 @@ version = "0.5.4"
 
 # These features mirror the backhand features
 [features]
-default = ["xz", "gzip", "zstd"]
+default = ["xz", "gzip", "zstd", "v3"]
+## Enables squashfs v3
+v3 = ["backhand/v3"]
 ## Enables xz compression inside library and binaries
 xz = ["backhand/xz"]
 ## Enables xz compression and forces static build inside library and binaries

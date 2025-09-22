@@ -9,6 +9,8 @@ use std::sync::Mutex;
 
 use backhand::kind::Kind;
 use backhand::traits::filesystem::{BackhandNode, BackhandNodeHeader, UnifiedInnerNode};
+#[cfg(feature = "v3")]
+use backhand::V3;
 use backhand::{
     create_squashfs_from_kind, BufReadSeek, FilesystemReaderTrait, SquashfsVersion,
     DEFAULT_BLOCK_SIZE, V4,
@@ -137,6 +139,7 @@ struct Args {
     stat: bool,
 
     /// Kind(type of image) to parse
+    // TODO: #[cfg(feature = "v3")]
     #[arg(short,
           long,
           default_value = "le_v4_0",
@@ -144,6 +147,8 @@ struct Args {
           [
               "be_v4_0",
               "le_v4_0",
+              "be_v3_0",
+              "le_v3_0",
               "avm_be_v4_0",
           ]
     ))]
@@ -210,6 +215,7 @@ fn main() -> ExitCode {
     }
 
     // Use the generic interface - automatically dispatches to correct version
+    tracing::trace!("wow");
     match create_squashfs_from_kind(file, args.offset, kind) {
         Ok(filesystem) => process_filesystem(filesystem.as_ref(), args, pb, red_bold, blue_bold),
         Err(e) => {
@@ -320,6 +326,8 @@ where
 fn stat(args: Args, file: BufReader<File>, kind: Kind) {
     match (kind.version_major(), kind.version_minor()) {
         (4, 0) => stat_generic::<V4>(args, file, kind),
+        #[cfg(feature = "v3")]
+        (3, 0) => stat_generic::<V3>(args, file, kind),
         _ => {
             eprintln!(
                 "Unsupported SquashFS version: {}.{}",

@@ -163,6 +163,8 @@ impl Kind {
             "avm_be_v4_0" => AVM_BE_V4_0,
             "be_v4_0" => BE_V4_0,
             "le_v4_0" => LE_V4_0,
+            "be_v3_0" => BE_V3_0,
+            "le_v3_0" => LE_V3_0,
             _ => return Err("not a valid kind".to_string()),
         };
 
@@ -294,4 +296,26 @@ pub const AVM_BE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKin
     version_minor: 0,
     compressor: &DefaultCompressor,
     bit_order: None,
+};
+
+/// Default `Kind` for SquashFS v3.0 Little-Endian
+pub const LE_V3_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 3,
+    version_minor: 0,
+    compressor: &DefaultCompressor,
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// Big-Endian SquashFS v3.0
+pub const BE_V3_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 3,
+    version_minor: 0,
+    compressor: &DefaultCompressor,
+    bit_order: Some(deku::ctx::Order::Msb0),
 };

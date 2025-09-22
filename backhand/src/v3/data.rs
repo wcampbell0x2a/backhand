@@ -12,7 +12,7 @@ use super::filesystem::writer::FilesystemCompressor;
 use super::fragment::Fragment;
 use super::reader::WriteSeek;
 use crate::error::BackhandError;
-use crate::traits::SimpleCompression;
+use crate::traits::UnifiedCompression;
 
 #[cfg(not(feature = "parallel"))]
 use super::filesystem::reader_no_parallel::SquashfsRawData;
@@ -109,7 +109,7 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
 }
 
 pub(crate) struct DataWriter<'a> {
-    kind: &'a (dyn SimpleCompression + Send + Sync),
+    kind: &'a (dyn UnifiedCompression + Send + Sync),
     block_size: u32,
     fs_compressor: FilesystemCompressor,
     /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
@@ -122,7 +122,7 @@ pub(crate) struct DataWriter<'a> {
 
 impl<'a> DataWriter<'a> {
     pub fn new(
-        kind: &'a (dyn SimpleCompression + Send + Sync),
+        kind: &'a (dyn UnifiedCompression + Send + Sync),
         fs_compressor: FilesystemCompressor,
         block_size: u32,
         no_duplicate_files: bool,

@@ -349,8 +349,8 @@ impl CompressionAction for DefaultCompressor {
     }
 }
 
-// Implementation of SimpleCompression for Kind system compatibility
-impl crate::traits::SimpleCompression for DefaultCompressor {
+// Implementation of UnifiedCompression for Kind system compatibility
+impl crate::traits::UnifiedCompression for DefaultCompressor {
     fn decompress(
         &self,
         bytes: &[u8],

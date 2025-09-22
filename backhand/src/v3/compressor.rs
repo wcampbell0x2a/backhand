@@ -380,38 +380,8 @@ impl From<crate::v4::compressor::Compressor> for Compressor {
     }
 }
 
-// Conversions to/from unified traits::types::Compressor
-impl From<crate::traits::types::Compressor> for Compressor {
-    fn from(unified_compressor: crate::traits::types::Compressor) -> Self {
-        match unified_compressor {
-            crate::traits::types::Compressor::None => Compressor::None,
-            crate::traits::types::Compressor::Gzip => Compressor::Gzip,
-            crate::traits::types::Compressor::Lzma => Compressor::Lzma,
-            crate::traits::types::Compressor::Lzo => Compressor::Lzo,
-            crate::traits::types::Compressor::Xz => Compressor::Xz,
-            crate::traits::types::Compressor::Lz4 => Compressor::Lz4,
-            crate::traits::types::Compressor::Zstd => Compressor::Zstd,
-        }
-    }
-}
-
-impl From<Compressor> for crate::traits::types::Compressor {
-    fn from(v3_compressor: Compressor) -> Self {
-        match v3_compressor {
-            Compressor::None => crate::traits::types::Compressor::None,
-            Compressor::Gzip => crate::traits::types::Compressor::Gzip,
-            Compressor::Lzma => crate::traits::types::Compressor::Lzma,
-            Compressor::Lzo => crate::traits::types::Compressor::Lzo,
-            Compressor::Xz => crate::traits::types::Compressor::Xz,
-            Compressor::Lz4 => crate::traits::types::Compressor::Lz4,
-            Compressor::Zstd => crate::traits::types::Compressor::Zstd,
-        }
-    }
-}
-
-// Implementation of SimpleCompression for Kind system compatibility
-impl crate::traits::SimpleCompression for DefaultCompressor {
-
+// Implementation of UnifiedCompression for Kind system compatibility
+impl crate::traits::UnifiedCompression for DefaultCompressor {
     fn decompress(
         &self,
         bytes: &[u8],

@@ -4,7 +4,7 @@ use std::io::{BufReader, BufWriter, Write};
 
 use backhand::compression::{CompressionAction, Compressor, DefaultCompressor};
 use backhand::kind::{self, Kind};
-use backhand::traits::SimpleCompression;
+use backhand::traits::UnifiedCompression;
 use backhand::{BackhandError, FilesystemCompressor, FilesystemReader, FilesystemWriter};
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
@@ -126,7 +126,7 @@ fn test_custom_compressor() {
     #[derive(Copy, Clone)]
     pub struct CustomCompressor;
 
-    // TODO: I'm confused about needing both CompressionAction and SimpleCompression...
+    // Using UnifiedCompression for compatibility with the Kind system
     // Special decompress that only has support for the Rust version of gzip: lideflator for
     // decompression
     impl CompressionAction for CustomCompressor {
@@ -180,7 +180,7 @@ fn test_custom_compressor() {
         }
     }
 
-    impl SimpleCompression for CustomCompressor {
+    impl UnifiedCompression for CustomCompressor {
         fn decompress(
             &self,
             bytes: &[u8],

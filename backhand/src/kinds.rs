@@ -3,7 +3,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::traits::{CompressionAction, SimpleCompression};
+use crate::traits::UnifiedCompression;
 use crate::v4::compressor::DefaultCompressor;
 
 /// Kind Magic - First 4 bytes of image
@@ -32,7 +32,7 @@ pub enum Endian {
     Big,
 }
 
-pub struct InnerKind<C: SimpleCompression + ?Sized + 'static + Send + Sync> {
+pub struct InnerKind<C: UnifiedCompression + ?Sized + 'static + Send + Sync> {
     /// Magic at the beginning of the image
     pub(crate) magic: [u8; 4],
     /// Endian used for all data types
@@ -57,7 +57,7 @@ pub struct InnerKind<C: SimpleCompression + ?Sized + 'static + Send + Sync> {
 #[derive(Clone)]
 pub struct Kind {
     /// "Easier for the eyes" type for the real Kind
-    pub(crate) inner: Arc<InnerKind<dyn SimpleCompression + Send + Sync>>,
+    pub(crate) inner: Arc<InnerKind<dyn UnifiedCompression + Send + Sync>>,
 }
 
 impl fmt::Debug for Kind {
@@ -133,15 +133,13 @@ impl Kind {
     ///
     /// let kind = Kind::new(&CustomCompressor);
     /// ```
-    pub fn new<C: CompressionAction + SimpleCompression + Send + Sync>(
-        compressor: &'static C,
-    ) -> Self {
+    pub fn new<C: UnifiedCompression + Send + Sync>(compressor: &'static C) -> Self {
         Self { inner: Arc::new(InnerKind { compressor, ..LE_V4_0 }) }
     }
 
-    pub fn new_with_const<C: CompressionAction + SimpleCompression + Send + Sync>(
+    pub fn new_with_const<C: UnifiedCompression + Send + Sync>(
         compressor: &'static C,
-        c: InnerKind<dyn SimpleCompression + Send + Sync>,
+        c: InnerKind<dyn UnifiedCompression + Send + Sync>,
     ) -> Self {
         Self { inner: Arc::new(InnerKind { compressor, ..c }) }
     }
@@ -181,7 +179,7 @@ impl Kind {
     /// let kind = Kind::from_const(kind::LE_V4_0).unwrap();
     /// ```
     pub fn from_const(
-        inner: InnerKind<dyn SimpleCompression + Send + Sync>,
+        inner: InnerKind<dyn UnifiedCompression + Send + Sync>,
     ) -> Result<Kind, String> {
         Ok(Kind { inner: Arc::new(inner) })
     }
@@ -266,7 +264,7 @@ impl Kind {
 }
 
 /// Default `Kind` for linux kernel and squashfs-tools/mksquashfs. Little-Endian v4.0
-pub const LE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+pub const LE_V4_0: InnerKind<dyn UnifiedCompression + Send + Sync> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
@@ -277,7 +275,7 @@ pub const LE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
 };
 
 /// Big-Endian Superblock v4.0
-pub const BE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+pub const BE_V4_0: InnerKind<dyn UnifiedCompression + Send + Sync> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,
@@ -288,7 +286,7 @@ pub const BE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
-pub const AVM_BE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+pub const AVM_BE_V4_0: InnerKind<dyn UnifiedCompression + Send + Sync> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Little,
@@ -299,7 +297,7 @@ pub const AVM_BE_V4_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKin
 };
 
 /// Default `Kind` for SquashFS v3.0 Little-Endian
-pub const LE_V3_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+pub const LE_V3_0: InnerKind<dyn UnifiedCompression + Send + Sync> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
@@ -310,7 +308,7 @@ pub const LE_V3_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
 };
 
 /// Big-Endian SquashFS v3.0
-pub const BE_V3_0: InnerKind<dyn SimpleCompression + Send + Sync> = InnerKind {
+pub const BE_V3_0: InnerKind<dyn UnifiedCompression + Send + Sync> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,

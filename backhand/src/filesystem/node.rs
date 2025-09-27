@@ -186,6 +186,12 @@ impl<T> Nodes<T> {
         &mut self.nodes[0]
     }
 
+    /// Get the index of the node at `path`, ig in exists
+    pub fn node_index<S: AsRef<Path>>(&mut self, path: S) -> Option<usize> {
+        let find_path = normalize_squashfs_path(path.as_ref()).ok()?;
+        self.nodes.binary_search_by(|node| node.fullpath.cmp(&find_path)).ok()
+    }
+
     pub fn node_mut<S: AsRef<Path>>(&mut self, path: S) -> Option<&mut Node<T>> {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
@@ -216,6 +222,22 @@ impl<T> Nodes<T> {
                 Ok(())
             }
         }
+    }
+
+    /// Removes the given node and all its children.
+    pub fn remove<S: AsRef<Path>>(&mut self, path: S) -> Result<(), BackhandError> {
+        let node_index = self.node_index(path).ok_or(BackhandError::FileNotFound)?;
+        let parent = &self.nodes[node_index];
+        let children_start = node_index + 1;
+        let unbounded_children = self.nodes.get(children_start..).unwrap_or(&[]);
+        let children_len = unbounded_children
+            .iter()
+            .enumerate()
+            .find(|(_, node)| !node.fullpath.starts_with(&parent.fullpath))
+            .map(|(index, _)| index)
+            .unwrap_or(unbounded_children.len());
+        self.nodes.drain(node_index..node_index + children_len + 1);
+        Ok(())
     }
 
     fn inner_children_of(&self, node_index: usize) -> Option<&[Node<T>]> {

@@ -7,7 +7,7 @@ publish = false
 [dev-dependencies]
 backhand = { path = "../backhand", default-features = false }
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
-dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
+dir-diff = { git = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"
 test-assets-ureq = "0.3.0"
 test-log = { version = "0.2.16", features = ["trace"] }
@@ -54,3 +54,6 @@ name = "replace"
 
 [[test]]
 name = "unsquashfs"
+
+[[test]]
+name = "remove"

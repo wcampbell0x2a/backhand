@@ -325,6 +325,14 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok(())
     }
 
+    /// Remove an existing entry. If `remove_path` is a directory, its children will be removed as well.
+    pub fn remove_entry<S: AsRef<Path>>(&mut self, remove_path: S) -> Result<(), BackhandError>
+    where
+        S: AsRef<Path>,
+    {
+        self.root.remove(remove_path)
+    }
+
     /// Insert symlink `path` -> `link`
     ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's

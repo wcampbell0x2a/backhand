@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use std::io::{Read, SeekFrom};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};
@@ -50,7 +50,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 //NOTE: storing/restoring the file-pos is not required at the
                 //moment of writing, but in the future, it may.
                 {
-                    let mut reader = self.file.system.reader.lock().unwrap();
+                    let mut reader = self.file.system.reader.lock();
                     reader.seek(SeekFrom::Start(self.pos))?;
                     reader.read_exact(data)?;
                     self.pos = reader.stream_position()?;
@@ -60,7 +60,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             BlockFragment::Fragment(fragment) => {
                 // if in the cache, just read from the cache bytes and return the fragment bytes
                 {
-                    let cache = self.file.system.cache.read().unwrap();
+                    let cache = self.file.system.cache.read();
                     if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                         //if in cache, just return the cache, don't read it
                         let range = self.fragment_range();
@@ -80,7 +80,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 let frag_size = fragment.size.size() as usize;
                 data.resize(frag_size, 0);
                 {
-                    let mut reader = self.file.system.reader.lock().unwrap();
+                    let mut reader = self.file.system.reader.lock();
                     reader.seek(SeekFrom::Start(fragment.start))?;
                     reader.read_exact(data)?;
                 }
@@ -91,7 +91,6 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                         .system
                         .cache
                         .write()
-                        .unwrap()
                         .fragment_cache
                         .insert(self.file.fragment().unwrap().start, data.clone());
 
@@ -146,7 +145,6 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     .system
                     .cache
                     .write()
-                    .unwrap()
                     .fragment_cache
                     .insert(self.file.fragment().unwrap().start, output_buf.clone());
 

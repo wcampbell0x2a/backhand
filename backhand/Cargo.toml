@@ -34,6 +34,7 @@ xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
 lz4_flex = { version = "0.11.3", optional = true, default-features = false }
 rayon = { version = "1.10.0", optional = true, default-features = false }
+parking_lot = "0.12.4"
 
 [features]
 default = ["xz", "gzip", "zstd", "lz4", "parallel"]

@@ -28,6 +28,7 @@ ignore = "0.4.23"
 bytesize = "2.1.0"
 dateparser = "0.2.1"
 pathdiff = "0.2.3"
+parking_lot = "0.12.4"
 
 [lib]
 bench = false

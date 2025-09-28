@@ -3,10 +3,10 @@ use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::prelude::*;
+use parking_lot::Mutex;
 use tracing::{error, info, trace};
 
 use super::node::{InnerNode, Nodes};
@@ -476,7 +476,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             let (filesize, added) = match file {
                 SquashfsFileWriter::UserDefined(file) => {
                     let file_ptr = Arc::clone(file);
-                    let mut file_lock = file_ptr.lock().unwrap();
+                    let mut file_lock = file_ptr.lock();
                     data_writer.add_bytes(&mut *file_lock, &mut writer)?
                 }
                 SquashfsFileWriter::SquashfsFile(file) => {

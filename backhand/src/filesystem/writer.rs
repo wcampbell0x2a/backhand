@@ -7,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use deku::prelude::*;
 use parking_lot::Mutex;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use tracing::{error, info, trace};
 
 use super::node::{InnerNode, Nodes};
@@ -283,7 +284,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P>(
         &mut self,
-        reader: impl Read + 'c,
+        reader: impl Read + Send + Sync + 'c,
         path: P,
         header: NodeHeader,
     ) -> Result<(), BackhandError>
@@ -314,7 +315,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     pub fn replace_file<S>(
         &mut self,
         find_path: S,
-        reader: impl Read + 'c,
+        reader: impl Read + Send + Sync + 'c,
     ) -> Result<(), BackhandError>
     where
         S: AsRef<Path>,
@@ -451,7 +452,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         offset: u64,
     ) -> Result<(SuperBlock, u64), BackhandError>
     where
-        W: Write + Seek,
+        W: Write + Seek + Send + Sync,
     {
         let mut writer = WriterWithOffset::new(w, offset)?;
         self.write(&mut writer)
@@ -461,23 +462,24 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         &mut self,
         compressor: FilesystemCompressor,
         block_size: u32,
-        mut writer: W,
+        writer: W,
         data_writer: &mut DataWriter<'b>,
-        progress_callback: Option<impl Fn()>,
+        progress_callback: Option<impl Fn() + Send + Sync>,
     ) -> Result<(), BackhandError>
     where
-        W: WriteSeek,
+        W: WriteSeek + Send + Sync,
     {
-        let files = self.root.nodes.iter_mut().filter_map(|node| match &mut node.inner {
+        let writer = Arc::new(Mutex::new(writer));
+        let files = self.root.nodes.par_iter_mut().filter_map(|node| match &mut node.inner {
             InnerNode::File(file) => Some(file),
             _ => None,
         });
-        for file in files {
+        files.try_for_each(move |file| -> Result<(), BackhandError> {
             let (filesize, added) = match file {
                 SquashfsFileWriter::UserDefined(file) => {
                     let file_ptr = Arc::clone(file);
                     let mut file_lock = file_ptr.lock();
-                    data_writer.add_bytes(&mut *file_lock, &mut writer)?
+                    data_writer.add_bytes(&mut *file_lock, writer.clone())?
                 }
                 SquashfsFileWriter::SquashfsFile(file) => {
                     // if the source file and the destination files are both
@@ -487,17 +489,17 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                         && file.system.compression_options == compressor.options
                         && file.system.block_size == block_size
                     {
-                        data_writer.just_copy_it(file.raw_data_reader(), &mut writer)?
+                        data_writer.just_copy_it(file.raw_data_reader(), writer.clone())?
                     } else {
-                        data_writer.add_bytes(file.reader(), &mut writer)?
+                        data_writer.add_bytes(file.reader(), writer.clone())?
                     }
                 }
                 SquashfsFileWriter::Consumed(_, _) => unreachable!(),
             };
             *file = SquashfsFileWriter::Consumed(filesize, added);
             progress_callback.as_ref().inspect(|cb| cb());
-        }
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Create SquashFS file system from each node of Tree
@@ -648,7 +650,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok(entry)
     }
 
-    pub fn write<W: Write + Seek>(&mut self, w: W) -> Result<(SuperBlock, u64), BackhandError> {
+    pub fn write<W: Write + Seek + Send + Sync>(
+        &mut self,
+        w: W,
+    ) -> Result<(SuperBlock, u64), BackhandError> {
         self.write_callback(w, Option::<fn()>::None)
     }
     /// Generate and write the resulting squashfs image to `w`.
@@ -657,10 +662,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
-    pub fn write_callback<W: Write + Seek>(
+    pub fn write_callback<W: Write + Seek + Send + Sync>(
         &mut self,
         mut w: W,
-        progress_callback: Option<impl Fn()>,
+        progress_callback: Option<impl Fn() + Send + Sync>,
     ) -> Result<(SuperBlock, u64), BackhandError> {
         let mut superblock =
             SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
@@ -741,7 +746,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         info!("Writing Frag Lookup Table");
         let (table_position, count) =
-            self.write_lookup_table(&mut w, &data_writer.fragment_table, fragment::SIZE)?;
+            self.write_lookup_table(&mut w, &data_writer.fragment_table.to_vec(), fragment::SIZE)?;
         superblock.frag_table = table_position;
         superblock.frag_count = count;
 
@@ -1013,5 +1018,54 @@ impl ExtraXz {
         self.level = Some(level);
 
         Ok(())
+    }
+}
+#[cfg(test)]
+mod test {
+    use tracing::level_filters::LevelFilter;
+
+    use super::*;
+
+    #[test]
+    fn can_write_squashfs() {
+        let bytes = [0xff_u8; DEFAULT_BLOCK_SIZE as usize * 2 + 1];
+        let mut writer = FilesystemWriter::default();
+        writer.set_time(123456);
+        writer.push_file(&bytes[..], "/test", NodeHeader::new(0, 1, 2, 3)).unwrap();
+        let mut out = Cursor::new(Vec::new());
+        let (superblock, len) = writer.write(&mut out).unwrap();
+        assert_eq!(out.get_ref().len() as u64, len);
+
+        assert_eq!(superblock.inode_count, 2);
+        assert_eq!(superblock.mod_time, 123456);
+        assert_eq!(superblock.block_size, DEFAULT_BLOCK_SIZE);
+        assert_eq!(superblock.frag_count, 1);
+        assert_eq!(superblock.compressor, Compressor::Xz);
+        assert_eq!(superblock.block_log, (DEFAULT_BLOCK_SIZE as f64).log2() as u16);
+        assert_eq!(superblock.id_count, 3); // 1, 2 and root
+    }
+
+    #[test]
+    fn squash_unsquash_equal() {
+        tracing_subscriber::fmt().with_max_level(LevelFilter::TRACE).init();
+        let bytes = [0xff_u8; DEFAULT_BLOCK_SIZE as usize * 2 + 1];
+        let mut writer = FilesystemWriter::default();
+        writer.push_file(&bytes[..], "/test", NodeHeader::new(0, 1, 2, 3)).unwrap();
+        let mut out = Cursor::new(Vec::new());
+        writer.write(&mut out).unwrap();
+        out.seek(SeekFrom::Start(0)).unwrap();
+
+        let reader = FilesystemReader::from_reader(out).unwrap();
+        let mut files = reader.files();
+        let mut bytes_again = files.next().unwrap();
+        if bytes_again.fullpath == Path::new("/") {
+            bytes_again = files.next().unwrap();
+        } else {
+            files.next().unwrap();
+        }
+        assert_eq!(files.next(), None);
+
+        assert_eq!(Path::new("/test"), &bytes_again.fullpath);
+        assert_eq!(NodeHeader::new(0, 1, 2, 3), bytes_again.header);
     }
 }

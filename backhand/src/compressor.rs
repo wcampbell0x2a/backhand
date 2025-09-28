@@ -172,7 +172,7 @@ pub struct Zstd {
 /// ideas of compression with custom tables and such! Thus, if the need arises you can implement
 /// your own [`CompressionAction`] to override the compression and de-compression used in this
 /// library by default.
-pub trait CompressionAction {
+pub trait CompressionAction: Send + Sync {
     /// Decompress function used for all decompression actions
     ///
     /// # Arguments

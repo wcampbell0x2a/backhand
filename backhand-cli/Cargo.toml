@@ -24,6 +24,7 @@ backhand = { path = "../backhand", default-features = false, version = "0.23.0" 
 tracing = "0.1.40"
 color-print = "0.3.6"
 clap-cargo = "0.15.0"
+parking_lot = "0.12.4"
 
 [lib]
 bench = false

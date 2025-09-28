@@ -2,12 +2,14 @@ use core::fmt;
 use std::io::Read;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use super::normalize_squashfs_path;
 use crate::data::Added;
 use crate::inode::{BasicFile, ExtendedFile, InodeHeader};
 use crate::{BackhandError, DataSize, FilesystemReaderFile, Id};
+
+use parking_lot::Mutex;
 
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]

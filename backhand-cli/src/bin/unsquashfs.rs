@@ -5,7 +5,6 @@ use std::os::unix::fs::lchown;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
-use std::sync::Mutex;
 
 use backhand::kind::Kind;
 use backhand::{
@@ -23,6 +22,7 @@ use nix::libc::geteuid;
 use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
 use nix::sys::time::{TimeSpec, TimeVal};
 use nix::unistd::mkfifo;
+use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -439,7 +439,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         let path = &node.fullpath;
         let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
         if !args.quiet {
-            let mut p = processing.lock().unwrap();
+            let mut p = processing.lock();
             p.insert(fullpath);
             pb.set_message(
                 p.iter()
@@ -461,7 +461,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 if !args.force && filepath.exists() {
                     if !args.quiet {
                         exists(&pb, filepath.to_str().unwrap());
-                        let mut p = processing.lock().unwrap();
+                        let mut p = processing.lock();
                         p.remove(fullpath);
                     }
                     return;
@@ -484,7 +484,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         if !args.quiet {
                             let line = format!("{} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
-                            let mut p = processing.lock().unwrap();
+                            let mut p = processing.lock();
                             p.remove(fullpath);
                         }
                         return;
@@ -498,7 +498,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 // check if file exists
                 if !args.force && filepath.exists() {
                     exists(&pb, filepath.to_str().unwrap());
-                    let mut p = processing.lock().unwrap();
+                    let mut p = processing.lock();
                     p.remove(fullpath);
                     return;
                 }
@@ -515,7 +515,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             let line =
                                 format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
-                            let mut p = processing.lock().unwrap();
+                            let mut p = processing.lock();
                             p.remove(fullpath);
                         }
                         return;
@@ -538,7 +538,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                 );
                                 failed(&pb, &line);
                             }
-                            let mut p = processing.lock().unwrap();
+                            let mut p = processing.lock();
                             p.remove(fullpath);
                             return;
                         }
@@ -589,7 +589,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                     filepath.to_str().unwrap()
                                 );
                                 failed(&pb, &line);
-                                let mut p = processing.lock().unwrap();
+                                let mut p = processing.lock();
                                 p.remove(fullpath);
                             }
                             return;
@@ -603,7 +603,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         );
                         failed(&pb, &line);
                     }
-                    let mut p = processing.lock().unwrap();
+                    let mut p = processing.lock();
                     p.remove(fullpath);
                     return;
                 }
@@ -626,7 +626,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     Err(_) => {
                         if args.info && !args.quiet {
                             created(&pb, filepath.to_str().unwrap());
-                            let mut p = processing.lock().unwrap();
+                            let mut p = processing.lock();
                             p.remove(fullpath);
                         }
                         return;
@@ -649,7 +649,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         if args.info && !args.quiet {
                             created(&pb, filepath.to_str().unwrap());
                         }
-                        let mut p = processing.lock().unwrap();
+                        let mut p = processing.lock();
                         p.remove(fullpath);
                         return;
                     }
@@ -673,7 +673,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     Err(_) => {
                         if args.info && !args.quiet {
                             created(&pb, filepath.to_str().unwrap());
-                            let mut p = processing.lock().unwrap();
+                            let mut p = processing.lock();
                             p.remove(fullpath);
                         }
                         return;
@@ -681,7 +681,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 }
             }
         }
-        let mut p = processing.lock().unwrap();
+        let mut p = processing.lock();
         p.remove(fullpath);
     });
 

@@ -95,33 +95,57 @@ pub struct Xz {
     pub fb: Option<u16>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, DekuRead, DekuWrite)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct XzFilter(u32);
 
 impl XzFilter {
-    fn x86(&self) -> bool {
+    pub fn x86(&self) -> bool {
         self.0 & 0x0001 == 0x0001
     }
 
-    fn powerpc(&self) -> bool {
+    pub fn with_x86(&mut self) {
+        self.0 &= 0x0001;
+    }
+
+    pub fn powerpc(&self) -> bool {
         self.0 & 0x0002 == 0x0002
     }
 
-    fn ia64(&self) -> bool {
+    pub fn with_powerpc(&mut self) {
+        self.0 &= 0x0002;
+    }
+
+    pub fn ia64(&self) -> bool {
         self.0 & 0x0004 == 0x0004
     }
 
-    fn arm(&self) -> bool {
+    pub fn with_ia64(&mut self) {
+        self.0 &= 0x0004;
+    }
+
+    pub fn arm(&self) -> bool {
         self.0 & 0x0008 == 0x0008
     }
 
-    fn armthumb(&self) -> bool {
+    pub fn with_arm(&mut self) {
+        self.0 &= 0x0008;
+    }
+
+    pub fn armthumb(&self) -> bool {
         self.0 & 0x0010 == 0x0010
     }
 
-    fn sparc(&self) -> bool {
+    pub fn with_armthumb(&mut self) {
+        self.0 &= 0x0010;
+    }
+
+    pub fn sparc(&self) -> bool {
         self.0 & 0x0020 == 0x0020
+    }
+
+    pub fn with_sparc(&mut self) {
+        self.0 &= 0x0020;
     }
 }
 
@@ -148,7 +172,7 @@ pub struct Zstd {
 /// ideas of compression with custom tables and such! Thus, if the need arises you can implement
 /// your own [`CompressionAction`] to override the compression and de-compression used in this
 /// library by default.
-pub trait CompressionAction {
+pub trait CompressionAction: Send + Sync {
     /// Decompress function used for all decompression actions
     ///
     /// # Arguments

@@ -19,8 +19,13 @@ rustdoc-args = ["--cfg", "docsrs"]
 deku = { version = "0.19.1", default-features = false, features = ["std"] }
 tracing = { version = "0.1.40" }
 thiserror = "2.0.1"
-flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }
-liblzma = { version = "0.4.1", optional = true, default-features = false, features = ["static", "parallel"] }
+flate2 = { version = "1.1.0", optional = true, default-features = false, features = [
+    "zlib-rs",
+] }
+liblzma = { version = "0.4.1", optional = true, default-features = false, features = [
+    "static",
+    "parallel",
+] }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
@@ -29,6 +34,10 @@ xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
 lz4_flex = { version = "0.11.3", optional = true, default-features = false }
 rayon = { version = "1.10.0", optional = true, default-features = false }
+parking_lot = "0.12.4"
+orx-concurrent-vec = "3.9.0"
+arc-swap = "1.7.1"
+bytesize = "2.1.0"
 
 [features]
 default = ["xz", "gzip", "zstd", "lz4", "parallel"]
@@ -55,10 +64,11 @@ parallel = ["dep:rayon"]
 test-log = { version = "0.2.16", features = ["trace"] }
 test-assets-ureq = "0.3.0"
 assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
-dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
+dir-diff = { git = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"
 criterion = "0.6"
 libdeflater = "1.22.0"
+tracing-subscriber = "0.3.20"
 
 [[bench]]
 name = "benchmark"

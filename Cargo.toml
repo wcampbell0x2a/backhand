@@ -27,3 +27,7 @@ codegen-units = 1
 lto = true
 strip = true
 overflow-checks = true
+
+[profile.perf]
+inherits = "release"
+debug = true

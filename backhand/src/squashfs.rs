@@ -3,10 +3,10 @@
 use std::ffi::OsString;
 use std::io::{Cursor, Seek, SeekFrom};
 use std::path::PathBuf;
-use std::sync::Mutex;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use deku::prelude::*;
+use parking_lot::{Mutex, RwLock};
 use solana_nohash_hasher::IntMap;
 use tracing::{error, info, trace};
 

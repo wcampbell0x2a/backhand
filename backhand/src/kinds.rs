@@ -51,7 +51,7 @@ pub struct InnerKind<C: CompressionAction + ?Sized + 'static + Send + Sync> {
 /// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
 pub struct Kind {
     /// "Easier for the eyes" type for the real Kind
-    pub(crate) inner: Arc<InnerKind<dyn CompressionAction + Send + Sync>>,
+    pub(crate) inner: Arc<InnerKind<dyn CompressionAction>>,
 }
 
 impl fmt::Debug for Kind {
@@ -127,13 +127,13 @@ impl Kind {
     ///
     /// let kind = Kind::new(&CustomCompressor);
     /// ```
-    pub fn new<C: CompressionAction + Send + Sync>(compressor: &'static C) -> Self {
+    pub fn new<C: CompressionAction>(compressor: &'static C) -> Self {
         Self { inner: Arc::new(InnerKind { compressor, ..LE_V4_0 }) }
     }
 
-    pub fn new_with_const<C: CompressionAction + Send + Sync>(
+    pub fn new_with_const<C: CompressionAction>(
         compressor: &'static C,
-        c: InnerKind<dyn CompressionAction + Send + Sync>,
+        c: InnerKind<dyn CompressionAction>,
     ) -> Self {
         Self { inner: Arc::new(InnerKind { compressor, ..c }) }
     }
@@ -170,9 +170,7 @@ impl Kind {
     /// # use backhand::{kind, kind::Kind};
     /// let kind = Kind::from_const(kind::LE_V4_0).unwrap();
     /// ```
-    pub fn from_const(
-        inner: InnerKind<dyn CompressionAction + Send + Sync>,
-    ) -> Result<Kind, String> {
+    pub fn from_const(inner: InnerKind<dyn CompressionAction>) -> Result<Kind, String> {
         Ok(Kind { inner: Arc::new(inner) })
     }
 
@@ -246,7 +244,7 @@ impl Kind {
 }
 
 /// Default `Kind` for linux kernel and squashfs-tools/mksquashfs. Little-Endian v4.0
-pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+pub const LE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
@@ -256,7 +254,7 @@ pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
 };
 
 /// Big-Endian Superblock v4.0
-pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+pub const BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,
@@ -266,7 +264,7 @@ pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
-pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction> = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Little,

@@ -24,6 +24,11 @@ backhand = { path = "../backhand", default-features = false, version = "0.23.0" 
 tracing = "0.1.40"
 color-print = "0.3.6"
 clap-cargo = "0.15.0"
+ignore = "0.4.23"
+bytesize = "2.1.0"
+dateparser = "0.2.1"
+pathdiff = "0.2.3"
+parking_lot = "0.12.4"
 
 [lib]
 bench = false
@@ -62,4 +67,9 @@ bench = false
 [[bin]]
 name = "replace-backhand"
 path = "src/bin/replace.rs"
+bench = false
+
+[[bin]]
+name = "mksquashfs-backhand"
+path = "src/bin/mksquashfs.rs"
 bench = false

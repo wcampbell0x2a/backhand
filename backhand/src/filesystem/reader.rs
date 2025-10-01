@@ -1,4 +1,4 @@
-use std::sync::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
 
 use super::node::Nodes;
 use crate::compressor::{CompressionOptions, Compressor};

@@ -1,7 +1,9 @@
-use rayon::prelude::*;
 use std::collections::VecDeque;
 use std::io::{Read, SeekFrom};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+use rayon::prelude::*;
 
 use crate::error::BackhandError;
 use crate::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
@@ -44,7 +46,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         for _ in 0..self.num_prefetch {
             match self.current_block.next() {
                 Some(block_fragment) => {
-                    let mut data = self.buffer_pool.lock().unwrap().pop().unwrap_or_default();
+                    let mut data = self.buffer_pool.lock().pop().unwrap_or_default();
 
                     let block_info = self.read_raw_data(&mut data, &block_fragment)?;
                     self.prefetched_blocks.push_back((data, block_info));
@@ -73,7 +75,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 //NOTE: storing/restoring the file-pos is not required at the
                 //moment of writing, but in the future, it may.
                 {
-                    let mut reader = self.file.system.reader.lock().unwrap();
+                    let mut reader = self.file.system.reader.lock();
                     reader.seek(SeekFrom::Start(self.pos))?;
                     reader.read_exact(data)?;
                     self.pos = reader.stream_position()?;
@@ -83,7 +85,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             BlockFragment::Fragment(fragment) => {
                 // if in the cache, just read from the cache bytes and return the fragment bytes
                 {
-                    let cache = self.file.system.cache.read().unwrap();
+                    let cache = self.file.system.cache.read();
                     if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                         //if in cache, just return the cache, don't read it
                         let range = self.fragment_range();
@@ -103,7 +105,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 let frag_size = fragment.size.size() as usize;
                 data.resize(frag_size, 0);
                 {
-                    let mut reader = self.file.system.reader.lock().unwrap();
+                    let mut reader = self.file.system.reader.lock();
                     reader.seek(SeekFrom::Start(fragment.start))?;
                     reader.read_exact(data)?;
                 }
@@ -114,7 +116,6 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                         .system
                         .cache
                         .write()
-                        .unwrap()
                         .fragment_cache
                         .insert(self.file.fragment().unwrap().start, data.clone());
 
@@ -141,7 +142,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         if let Some((mut data, block_info)) = self.prefetched_blocks.pop_front() {
             std::mem::swap(buf, &mut data);
             // return buffer to our pool
-            self.buffer_pool.lock().unwrap().push(data);
+            self.buffer_pool.lock().push(data);
             Some(Ok(block_info))
         } else {
             // No more blocks
@@ -186,7 +187,6 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     .system
                     .cache
                     .write()
-                    .unwrap()
                     .fragment_cache
                     .insert(self.file.fragment().unwrap().start, output_buf.clone());
 
@@ -252,7 +252,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         // We need to decompress more blocks
         // Collect blocks to decompress
         let mut read_blocks = Vec::new();
-        let mut buf_pool = self.buffer_pool.lock().unwrap();
+        let mut buf_pool = self.buffer_pool.lock();
 
         for _ in 0..self.prefetch_count {
             let mut input_buf = buf_pool.pop().unwrap_or_default();
@@ -287,7 +287,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
                 let result = raw_data.decompress(block_info, &mut input_buf, &mut output_buf);
 
                 // Return input buffer to the pool
-                buffer_pool.lock().unwrap().push(input_buf);
+                buffer_pool.lock().push(input_buf);
 
                 result.map(|_| output_buf)
             })

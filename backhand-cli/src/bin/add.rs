@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
-use backhand_cli::after_help;
+use backhand_cli::after_help_unsquashfs;
 use clap::Parser;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
@@ -20,7 +20,7 @@ static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 #[command(author,
           version,
           name = "add-backhand",
-          after_help = after_help(false),
+          after_help = after_help_unsquashfs(false),
           max_term_width = 98,
           styles = clap_cargo::style::CLAP_STYLING,
 )]

@@ -2,14 +2,11 @@ mod common;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
-use assert_cmd::prelude::*;
-use assert_cmd::Command;
 use backhand::{FilesystemReader, FilesystemWriter};
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
-use tempfile::tempdir;
 use test_assets_ureq::TestAssetDef;
 use test_log::test;
-use tracing::info;
+use tracing::{info, trace};
 
 #[cfg(feature = "gzip")]
 fn has_gzip_feature() -> bool {
@@ -127,7 +124,7 @@ fn full_test_inner(
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2 -always-use-fragments
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_00() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -146,7 +143,7 @@ fn test_00() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -Xcompression-level 2
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_01() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -218,7 +215,7 @@ fn test_05() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip -always-use-fragments
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_06() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -236,7 +233,7 @@ fn test_06() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp gzip
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_07() {
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {
@@ -326,7 +323,7 @@ fn test_openwrt_netgear_ex6100v2() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_appimage_plexamp() {
     const FILE_NAME: &str = "Plexamp-4.6.1.AppImage";
     let asset_defs = [TestAssetDef {
@@ -344,7 +341,7 @@ fn test_appimage_plexamp() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_appimage_firefox() {
     const FILE_NAME: &str = "firefox-108.0.r20221215175817-x86_64.AppImage";
     let asset_defs = [TestAssetDef {
@@ -431,7 +428,7 @@ fn test_slow_archlinux_iso_rootfs() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_many_files() {
     const FILE_NAME: &str = "many_files.squashfs";
     let asset_defs = [TestAssetDef {
@@ -449,7 +446,7 @@ fn test_many_files() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_many_dirs() {
     const FILE_NAME: &str = "many_dirs.squashfs";
     let asset_defs = [TestAssetDef {
@@ -467,7 +464,7 @@ fn test_many_dirs() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_few_dirs_many_files() {
     const FILE_NAME: &str = "few_dirs_many_files.squashfs";
     let asset_defs = [TestAssetDef {
@@ -486,7 +483,7 @@ fn test_few_dirs_many_files() {
 }
 
 #[test]
-#[cfg(any(feature = "gzip"))]
+#[cfg(feature = "gzip")]
 fn test_socket_fifo() {
     const FILE_NAME: &str = "squashfs_v4.specfile.bin";
     let asset_defs = [TestAssetDef {
@@ -505,8 +502,9 @@ fn test_socket_fifo() {
 }
 
 #[test]
-#[cfg(any(feature = "zstd"))]
+#[cfg(feature = "zstd")]
 fn no_qemu_test_crates_zstd() {
+    trace!("downloaing test");
     const FILE_NAME: &str = "crates-io.squashfs";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -516,6 +514,7 @@ fn no_qemu_test_crates_zstd() {
 
     const TEST_PATH: &str = "test-assets/crates_io_zstd";
 
+    trace!("starting test");
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, Verify::Extract, false);
 }
 

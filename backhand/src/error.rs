@@ -1,14 +1,8 @@
-//! Errors
-
 use std::collections::TryReserveError;
 use std::{io, string};
 
 use thiserror::Error;
 
-use crate::compressor::Compressor;
-use crate::inode::InodeInner;
-
-/// Errors generated from library
 #[derive(Error, Debug)]
 pub enum BackhandError {
     #[error("std io error: {0}")]
@@ -24,7 +18,7 @@ pub enum BackhandError {
     StrUtf8(#[from] std::str::Utf8Error),
 
     #[error("unsupported compression: {0:?}")]
-    UnsupportedCompression(Compressor),
+    UnsupportedCompression(String),
 
     #[error("file not found")]
     FileNotFound,
@@ -32,11 +26,11 @@ pub enum BackhandError {
     #[error("branch was thought to be unreachable")]
     Unreachable,
 
-    #[error("inode {0:?} was unexpected in this position")]
-    UnexpectedInode(InodeInner),
+    #[error("inode was unexpected in this position")]
+    UnexpectedInode,
 
-    #[error("unsupported inode: {0:?}, please fill github issue to add support")]
-    UnsupportedInode(InodeInner),
+    #[error("unsupported inode, please fill github issue to add support")]
+    UnsupportedInode,
 
     #[error("corrupted or invalid squashfs image")]
     CorruptedOrInvalidSquashfs,
@@ -58,6 +52,9 @@ pub enum BackhandError {
 
     #[error("invalid id_table for node")]
     InvalidIdTable,
+
+    #[error("unsupported squashfs version {0}.{1}")]
+    UnsupportedSquashfsVersion(u16, u16),
 }
 
 impl From<BackhandError> for io::Error {
@@ -71,14 +68,15 @@ impl From<BackhandError> for io::Error {
             FileNotFound => Self::from(io::ErrorKind::NotFound),
             Unreachable
             | Deku(_)
-            | UnexpectedInode(_)
-            | UnsupportedInode(_)
+            | UnexpectedInode
+            | UnsupportedInode
             | CorruptedOrInvalidSquashfs
             | InvalidCompressionOption
             | InvalidFilePath
             | UndefineFileName
             | DuplicatedFileName
             | InvalidIdTable
+            | UnsupportedSquashfsVersion(_, _)
             | TryReserveError(_) => Self::from(io::ErrorKind::InvalidData),
         }
     }

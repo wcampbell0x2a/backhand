@@ -3,7 +3,8 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::compressor::{CompressionAction, DefaultCompressor};
+use crate::traits::CompressionAction;
+use crate::v4::compressor::DefaultCompressor as V4DefaultCompressor;
 
 /// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -31,7 +32,44 @@ pub enum Endian {
     Big,
 }
 
-pub struct InnerKind<C: CompressionAction + ?Sized + 'static + Send + Sync> {
+/// Version-specific compressor types
+#[derive(Clone)]
+pub enum VersionedCompressor {
+    V4(&'static V4DefaultCompressor),
+    /// Custom v4 compressor
+    CustomV4(
+        &'static (dyn crate::traits::CompressionAction<
+            Error = crate::BackhandError,
+            Compressor = crate::v4::compressor::Compressor,
+            FilesystemCompressor = crate::v4::filesystem::writer::FilesystemCompressor,
+            SuperBlock = crate::v4::squashfs::SuperBlock,
+        > + Send
+                      + Sync),
+    ),
+}
+
+impl VersionedCompressor {
+    /// Decompress data using the version-specific compressor
+    pub fn decompress(
+        &self,
+        bytes: &[u8],
+        out: &mut Vec<u8>,
+        compressor: crate::traits::types::Compressor,
+    ) -> Result<(), crate::BackhandError> {
+        match self {
+            VersionedCompressor::V4(comp) => {
+                let v4_compressor = compressor.into();
+                comp.decompress(bytes, out, v4_compressor)
+            }
+            VersionedCompressor::CustomV4(comp) => {
+                let v4_compressor = compressor.into();
+                comp.decompress(bytes, out, v4_compressor)
+            }
+        }
+    }
+}
+
+pub struct InnerKind {
     /// Magic at the beginning of the image
     pub(crate) magic: [u8; 4],
     /// Endian used for all data types
@@ -42,16 +80,21 @@ pub struct InnerKind<C: CompressionAction + ?Sized + 'static + Send + Sync> {
     pub(crate) version_major: u16,
     /// Minor version
     pub(crate) version_minor: u16,
-    /// Compression impl
-    pub(crate) compressor: &'static C,
+    /// Version-specific compression impl
+    pub(crate) compressor: VersionedCompressor,
+    /// v3 needs the bit-order for reading with little endian
+    /// v4 does not need this field
+    #[allow(dead_code)]
+    pub(crate) bit_order: Option<deku::ctx::Order>,
 }
 
 /// Version of SquashFS, also supporting custom changes to SquashFS seen in 3rd-party firmware
 ///
 /// See [Kind Constants](`crate::kind#constants`) for a list of custom Kinds
+#[derive(Clone)]
 pub struct Kind {
     /// "Easier for the eyes" type for the real Kind
-    pub(crate) inner: Arc<InnerKind<dyn CompressionAction + Send + Sync>>,
+    pub(crate) inner: Arc<InnerKind>,
 }
 
 impl fmt::Debug for Kind {
@@ -67,75 +110,74 @@ impl fmt::Debug for Kind {
 }
 
 impl Kind {
-    /// Create [`LE_V4_0`] with custom `compressor`.
-    ///
-    /// Use other [`Kind`] functions such as [`Kind::with_magic`] to change other settings other than
-    /// `compressor`.
-    ///
-    /// Use [`Kind::new_with_const`] when using a custom compressor with something other than
-    /// [`LE_V4_0`].
+    /// Create a new Kind with a custom v4 compressor (defaults to LE_V4_0)
     ///
     /// # Example
-    /// ```rust
-    /// # use backhand::{compression::Compressor, kind, FilesystemCompressor, kind::Kind, compression::CompressionAction, compression::DefaultCompressor, BackhandError};
-    /// # use backhand::SuperBlock;
-    /// # use std::io::Write;
-    /// #[derive(Copy, Clone)]
-    /// pub struct CustomCompressor;
-    ///
-    /// // Special decompress that only has support for the Rust version of gzip: zune-inflate for
-    /// // decompression.
-    /// impl CompressionAction for CustomCompressor {
-    ///     fn decompress(
-    ///         &self,
-    ///         bytes: &[u8],
-    ///         out: &mut Vec<u8>,
-    ///         compressor: Compressor,
-    ///     ) -> Result<(), BackhandError> {
-    ///         if let Compressor::Gzip = compressor {
-    ///             out.resize(out.capacity(), 0);
-    ///             let mut decompressor = libdeflater::Decompressor::new();
-    ///             let amt = decompressor.zlib_decompress(&bytes, out).unwrap();
-    ///             out.truncate(amt);
-    ///         } else {
-    ///             unimplemented!();
-    ///         }
-    ///
-    ///         Ok(())
-    ///     }
-    ///
-    ///     // Just pass to default compressor
-    ///     fn compress(
-    ///         &self,
-    ///         bytes: &[u8],
-    ///         fc: FilesystemCompressor,
-    ///         block_size: u32,
-    ///     ) -> Result<Vec<u8>, BackhandError> {
-    ///         DefaultCompressor.compress(bytes, fc, block_size)
-    ///     }
-    ///
-    ///    // pass the default options
-    ///    fn compression_options(
-    ///        &self,
-    ///        _superblock: &mut SuperBlock,
-    ///        _kind: &Kind,
-    ///        _fs_compressor: FilesystemCompressor,
-    ///    ) -> Result<Vec<u8>, BackhandError> {
-    ///        DefaultCompressor.compression_options(_superblock, _kind, _fs_compressor)
-    ///    }
+    /// ```rust,ignore
+    /// # use backhand::{kind::Kind, compression::CompressionAction};
+    /// struct MyCompressor;
+    /// impl CompressionAction for MyCompressor {
+    ///     // ... implementation
     /// }
-    ///
-    /// let kind = Kind::new(&CustomCompressor);
+    /// static MY_COMPRESSOR: MyCompressor = MyCompressor;
+    /// let kind = Kind::new_v4(&MY_COMPRESSOR);
     /// ```
-    pub fn new<C: CompressionAction + Send + Sync>(compressor: &'static C) -> Self {
-        Self { inner: Arc::new(InnerKind { compressor, ..LE_V4_0 }) }
+    pub fn new_v4<C>(compression: &'static C) -> Self
+    where
+        C: crate::traits::CompressionAction<
+                Error = crate::BackhandError,
+                Compressor = crate::v4::compressor::Compressor,
+                FilesystemCompressor = crate::v4::filesystem::writer::FilesystemCompressor,
+                SuperBlock = crate::v4::squashfs::SuperBlock,
+            > + Send
+            + Sync,
+    {
+        Kind {
+            inner: Arc::new(InnerKind {
+                magic: LE_V4_0.magic,
+                type_endian: LE_V4_0.type_endian,
+                data_endian: LE_V4_0.data_endian,
+                version_major: LE_V4_0.version_major,
+                version_minor: LE_V4_0.version_minor,
+                compressor: VersionedCompressor::CustomV4(compression),
+                bit_order: LE_V4_0.bit_order,
+            }),
+        }
     }
 
-    pub fn new_with_const<C: CompressionAction + Send + Sync>(
-        compressor: &'static C,
-        c: InnerKind<dyn CompressionAction + Send + Sync>,
-    ) -> Self {
-        Self { inner: Arc::new(InnerKind { compressor, ..c }) }
+    /// Create a Kind from a const with a custom v4 compressor
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// # use backhand::{kind::{self, Kind}, compression::CompressionAction};
+    /// struct MyCompressor;
+    /// impl CompressionAction for MyCompressor {
+    ///     // ... implementation
+    /// }
+    /// static MY_COMPRESSOR: MyCompressor = MyCompressor;
+    /// let kind = Kind::new_v4_with_const(&MY_COMPRESSOR, kind::BE_V4_0);
+    /// ```
+    pub fn new_v4_with_const<C>(compression: &'static C, inner: InnerKind) -> Self
+    where
+        C: crate::traits::CompressionAction<
+                Error = crate::BackhandError,
+                Compressor = crate::v4::compressor::Compressor,
+                FilesystemCompressor = crate::v4::filesystem::writer::FilesystemCompressor,
+                SuperBlock = crate::v4::squashfs::SuperBlock,
+            > + Send
+            + Sync,
+    {
+        Kind {
+            inner: Arc::new(InnerKind {
+                magic: inner.magic,
+                type_endian: inner.type_endian,
+                data_endian: inner.data_endian,
+                version_major: inner.version_major,
+                version_minor: inner.version_minor,
+                compressor: VersionedCompressor::CustomV4(compression),
+                bit_order: inner.bit_order,
+            }),
+        }
     }
 
     /// From a string, return a kind
@@ -146,13 +188,8 @@ impl Kind {
     /// # use backhand::{kind, kind::Kind};
     /// let kind = Kind::from_target("le_v4_0").unwrap();
     /// ```
-    /// # Returns
-    /// - `"le_v4_0"`: [`LE_V4_0`]
-    /// - `"be_v4_0"`: [`BE_V4_0`]
-    /// - `"avm_be_v4_0"`: [`AVM_BE_V4_0`]
     pub fn from_target(s: &str) -> Result<Kind, String> {
         let kind = match s {
-            "avm_be_v4_0" => AVM_BE_V4_0,
             "be_v4_0" => BE_V4_0,
             "le_v4_0" => LE_V4_0,
             _ => return Err("not a valid kind".to_string()),
@@ -170,9 +207,7 @@ impl Kind {
     /// # use backhand::{kind, kind::Kind};
     /// let kind = Kind::from_const(kind::LE_V4_0).unwrap();
     /// ```
-    pub fn from_const(
-        inner: InnerKind<dyn CompressionAction + Send + Sync>,
-    ) -> Result<Kind, String> {
+    pub fn from_const(inner: InnerKind) -> Result<Kind, String> {
         Ok(Kind { inner: Arc::new(inner) })
     }
 
@@ -190,6 +225,16 @@ impl Kind {
 
     pub fn magic(&self) -> [u8; 4] {
         self.inner.magic
+    }
+
+    /// Get major version
+    pub fn version_major(&self) -> u16 {
+        self.inner.version_major
+    }
+
+    /// Get minor version
+    pub fn version_minor(&self) -> u16 {
+        self.inner.version_minor
     }
 
     /// Set endian used for data types
@@ -246,31 +291,34 @@ impl Kind {
 }
 
 /// Default `Kind` for linux kernel and squashfs-tools/mksquashfs. Little-Endian v4.0
-pub const LE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+pub const LE_V4_0: InnerKind = InnerKind {
     magic: *b"hsqs",
     type_endian: deku::ctx::Endian::Little,
     data_endian: deku::ctx::Endian::Little,
     version_major: 4,
     version_minor: 0,
-    compressor: &DefaultCompressor,
+    compressor: VersionedCompressor::V4(&V4DefaultCompressor),
+    bit_order: None,
 };
 
 /// Big-Endian Superblock v4.0
-pub const BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+pub const BE_V4_0: InnerKind = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Big,
     version_major: 4,
     version_minor: 0,
-    compressor: &DefaultCompressor,
+    compressor: VersionedCompressor::V4(&V4DefaultCompressor),
+    bit_order: None,
 };
 
 /// AVM Fritz!OS firmware support. Tested with: <https://github.com/dnicolodi/squashfs-avm-tools>
-pub const AVM_BE_V4_0: InnerKind<dyn CompressionAction + Send + Sync> = InnerKind {
+pub const AVM_BE_V4_0: InnerKind = InnerKind {
     magic: *b"sqsh",
     type_endian: deku::ctx::Endian::Big,
     data_endian: deku::ctx::Endian::Little,
     version_major: 4,
     version_minor: 0,
-    compressor: &DefaultCompressor,
+    compressor: VersionedCompressor::V4(&V4DefaultCompressor),
+    bit_order: None,
 };

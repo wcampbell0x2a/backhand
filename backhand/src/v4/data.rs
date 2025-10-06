@@ -8,16 +8,15 @@ use solana_nohash_hasher::IntMap;
 use tracing::trace;
 use xxhash_rust::xxh64::xxh64;
 
-use crate::compressor::CompressionAction;
 use crate::error::BackhandError;
-use crate::filesystem::writer::FilesystemCompressor;
-use crate::fragment::Fragment;
-use crate::reader::WriteSeek;
+use crate::v4::filesystem::writer::FilesystemCompressor;
+use crate::v4::fragment::Fragment;
+use crate::v4::reader::WriteSeek;
 
 #[cfg(not(feature = "parallel"))]
-use crate::filesystem::reader_no_parallel::SquashfsRawData;
+use crate::v4::filesystem::reader_no_parallel::SquashfsRawData;
 #[cfg(feature = "parallel")]
-use crate::filesystem::reader_parallel::SquashfsRawData;
+use crate::v4::filesystem::reader_parallel::SquashfsRawData;
 
 // bitflag for data size field in inode for signifying that the data is uncompressed
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
@@ -105,7 +104,13 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
 }
 
 pub(crate) struct DataWriter<'a> {
-    kind: &'a dyn CompressionAction,
+    compressor: &'a (dyn crate::traits::CompressionAction<
+        Compressor = super::compressor::Compressor,
+        FilesystemCompressor = FilesystemCompressor,
+        SuperBlock = super::squashfs::SuperBlock,
+        Error = crate::BackhandError,
+    > + Send
+             + Sync),
     block_size: u32,
     fs_compressor: FilesystemCompressor,
     /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
@@ -118,13 +123,19 @@ pub(crate) struct DataWriter<'a> {
 
 impl<'a> DataWriter<'a> {
     pub fn new(
-        kind: &'a dyn CompressionAction,
+        compressor: &'a (dyn crate::traits::CompressionAction<
+            Compressor = super::compressor::Compressor,
+            FilesystemCompressor = FilesystemCompressor,
+            SuperBlock = super::squashfs::SuperBlock,
+            Error = crate::BackhandError,
+        > + Send
+                 + Sync),
         fs_compressor: FilesystemCompressor,
         block_size: u32,
         no_duplicate_files: bool,
     ) -> Self {
         Self {
-            kind,
+            compressor,
             block_size,
             fs_compressor,
             dup_cache: no_duplicate_files.then_some(HashMap::default()),
@@ -177,8 +188,11 @@ impl<'a> DataWriter<'a> {
             if block.fragment {
                 reader.decompress(block, &mut read_buf, &mut decompress_buf)?;
                 // TODO: support tail-end fragments, for now just treat it like a block
-                let cb =
-                    self.kind.compress(&decompress_buf, self.fs_compressor, self.block_size)?;
+                let cb = self.compressor.compress(
+                    &decompress_buf,
+                    self.fs_compressor,
+                    self.block_size,
+                )?;
                 // compression didn't reduce size
                 if cb.len() > decompress_buf.len() {
                     // store uncompressed
@@ -253,7 +267,7 @@ impl<'a> DataWriter<'a> {
         let hash = xxh64(chunk, 0);
 
         while !chunk.is_empty() {
-            let cb = self.kind.compress(chunk, self.fs_compressor, self.block_size)?;
+            let cb = self.compressor.compress(chunk, self.fs_compressor, self.block_size)?;
 
             // compression didn't reduce size
             if cb.len() > chunk.len() {
@@ -288,7 +302,8 @@ impl<'a> DataWriter<'a> {
     /// current fragment_bytes
     pub fn finalize<W: Write + Seek>(&mut self, mut writer: W) -> Result<(), BackhandError> {
         let start = writer.stream_position()?;
-        let cb = self.kind.compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
+        let cb =
+            self.compressor.compress(&self.fragment_bytes, self.fs_compressor, self.block_size)?;
 
         // compression didn't reduce size
         let size = if cb.len() > self.fragment_bytes.len() {

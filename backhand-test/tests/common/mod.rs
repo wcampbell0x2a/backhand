@@ -1,11 +1,7 @@
-use std::error::Error;
 use std::process::Command;
 use std::time::Duration;
 
 use assert_cmd::prelude::*;
-use backon::BlockingRetryable;
-use backon::ExponentialBuilder;
-use tempfile::tempdir;
 use tempfile::tempdir_in;
 use test_assets_ureq::TestAssetDef;
 
@@ -80,7 +76,7 @@ pub fn test_bin_unsquashfs(
     let tmp_dir = tempdir_in(".").unwrap();
     // Run "our" unsquashfs against the control
     let cmd = get_base_command("unsquashfs-backhand")
-        .env("RUST_LOG", "trace")
+        .env("RUST_LOG", "none")
         .args([
             "-d",
             tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),

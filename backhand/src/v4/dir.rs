@@ -8,9 +8,9 @@ use std::path::{Component, Path};
 
 use deku::prelude::*;
 
-use crate::inode::InodeId;
-use crate::unix_string::OsStrExt;
-use crate::BackhandError;
+use crate::error::BackhandError;
+use crate::v4::inode::InodeId;
+use crate::v4::unix_string::OsStrExt;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "type_endian: deku::ctx::Endian")]

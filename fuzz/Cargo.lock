@@ -21,6 +21,7 @@ dependencies = [
  "deku",
  "flate2",
  "liblzma",
+ "log",
  "lz4_flex",
  "rayon",
  "solana-nohash-hasher",
@@ -140,11 +141,11 @@ dependencies = [
 [[package]]
 name = "deku"
 version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f476a022dcfbb013d1365734a42e05b6aca967ebe0d3bb38170086abd9ea3324"
+source = "git+https://github.com/sharksforarms/deku#0902ae06bd9612a70a4859dc75f007a5754ec54a"
 dependencies = [
  "bitvec",
  "deku_derive",
+ "log",
  "no_std_io2",
  "rustversion",
 ]
@@ -152,8 +153,7 @@ dependencies = [
 [[package]]
 name = "deku_derive"
 version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb216d425bdf810c165a8ae1649523033e88b5f795480ccec63926295541b084"
+source = "git+https://github.com/sharksforarms/deku#0902ae06bd9612a70a4859dc75f007a5754ec54a"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -291,6 +291,12 @@ checksum = "902bc563b5d65ad9bba616b490842ef0651066a1a1dc3ce1087113ffcb873c8d"
 dependencies = [
  "zlib-rs",
 ]
+
+[[package]]
+name = "log"
+version = "0.4.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "lz4_flex"

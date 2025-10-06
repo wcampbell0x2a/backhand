@@ -1,16 +1,16 @@
 use std::ffi::OsStr;
 use std::fmt;
 
-use crate::data::Added;
-use crate::dir::{Dir, DirEntry};
-use crate::inode::{
+use crate::kinds::Kind;
+use crate::v4::data::Added;
+use crate::v4::dir::{Dir, DirEntry};
+use crate::v4::inode::{
     BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory, IPCNode,
     Inode, InodeHeader, InodeId, InodeInner,
 };
-use crate::kinds::Kind;
-use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
-use crate::unix_string::OsStrExt;
+use crate::v4::metadata::MetadataWriter;
+use crate::v4::squashfs::SuperBlock;
+use crate::v4::unix_string::OsStrExt;
 use crate::{Id, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
 
 #[derive(Clone)]

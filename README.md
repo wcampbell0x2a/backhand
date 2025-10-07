@@ -10,14 +10,25 @@ backhand
 Library and binaries for the reading, creating, and modification
 of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 
-- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs 4.0 images,
+- **Library** — Backhand provides an easy way for programmatic analysis of Squashfs images,
 including the extraction and modification of images.
 - **Feature Flags** — Supported compression and decompression are [feature flagged](https://docs.rs/backhand/latest/backhand/#features), so your final binary (or `unsquashfs`)
 only needs to include code to extract one type of image.
-- **Unconventional Support** — As well as supporting normal linux kernel SquashFS 4.0, we also support
+- **Unconventional Support** — As well as supporting normal linux kernel SquashFS 4.0 and 3.0, we also support
 the "wonderful world of vendor formats" with a [Kind](https://docs.rs/backhand/latest/backhand/kind/index.html) struct.
 This allows changing the magic bytes, custom compression algorithms, and the Endian-ness of either the Data or Metadata fields.
 This is controlled from `unsquashfs-backhand` through the use of the `--kind` option.
+
+#### Squashfs Support
+| Kind                                   | `read` | `write` | Feature    |
+|----------------------------------------|:-------:|:------:|:----------:|
+| `be_v4_0`                              | ✓       | ✓      | `default`  |
+| `le_v4_0`                              | ✓       | ✓      | `default`  |
+| `avm_be_v4_0`                          | ✓       | ✓      | `default`  |
+| `be_v3_0`                              | ✓       |        | `v3`       |
+| `le_v3_0`                              | ✓       |        | `v3`       |
+| `be_v3_0_lzma`                         | ✓       |        | `v3_lzma`  |
+| `le_v3_0_lzma`                         | ✓       |        | `v3_lzma`  |
 
 
 ## Library

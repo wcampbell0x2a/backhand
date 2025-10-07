@@ -56,7 +56,7 @@ fn test_v3_le() {
 }
 
 #[test]
-#[cfg(feature = "v3")]
+#[cfg(feature = "v3_lzma")]
 fn test_v3_be_lzma() {
     use backhand::kind::BE_V3_0_LZMA;
 
@@ -78,7 +78,7 @@ fn test_v3_be_lzma() {
 }
 
 #[test]
-#[cfg(feature = "v3")]
+#[cfg(feature = "v3_lzma")]
 fn test_v3_le_lzma() {
     use backhand::kind::LE_V3_0_LZMA;
 

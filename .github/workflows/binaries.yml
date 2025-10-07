@@ -44,7 +44,7 @@ jobs:
           toolchain: stable
           target: ${{ matrix.job.target }}
 
-      - name: Build unsquashfs-backhand (Linux with v3, Mac/Windows without)
+      - name: Build {add,replace}-backhand (Linux with v3, Mac/Windows without)
         shell: bash
         run: |
           if [[ "${{ matrix.job.target }}" == *"darwin"* || "${{ matrix.job.target }}" == *"windows"* ]]; then

@@ -150,8 +150,8 @@ struct Args {
               "le_v3_0",
               "be_v3_0_lzma",
               "le_v3_0_lzma",
-              "netgear_be_v3_0_lzma",
-              "netgear_be_v3_0_lzma_standard",
+              // "netgear_be_v3_0_lzma",
+              // "netgear_be_v3_0_lzma_standard",
               "avm_be_v4_0",
           ]
     ))]

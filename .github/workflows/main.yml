@@ -32,6 +32,8 @@ jobs:
           - --no-default-features --features xz-static
           - --no-default-features --features lz4
           - --no-default-features --features parallel
+          - --no-default-features --features v3
+          - --no-default-features --features v3_lzma
           # default features
           -
 
@@ -116,6 +118,8 @@ jobs:
           - --no-default-features --features gzip,xz
           - --no-default-features --features xz-static
           - --no-default-features --features lz4
+          - --no-default-features --features v3
+          - --no-default-features --features v3_lzma
           # default features
           -
 

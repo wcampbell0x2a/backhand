@@ -35,8 +35,8 @@ jobs:
           - --no-default-features --features v3
           # LZMA does not build on windows
           # - --no-default-features --features v3_lzma
-          # default features
-          -
+          # NO using default features
+          # -
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

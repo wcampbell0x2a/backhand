@@ -307,28 +307,72 @@ fn list(nodes: impl Iterator<Item = BackhandNode>) {
     }
 }
 
-fn stat_generic<V: SquashfsVersion<'static>>(args: Args, mut file: BufReader<File>, kind: Kind)
-where
-    V::SuperBlock: std::fmt::Debug,
-    V::CompressionOptions: std::fmt::Debug,
-{
+fn stat_v4(args: Args, mut file: BufReader<File>, kind: Kind) {
     file.seek(SeekFrom::Start(args.offset)).unwrap();
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, compression_options) =
-        V::superblock_and_compression_options(&mut reader, &kind).unwrap();
+        V4::superblock_and_compression_options(&mut reader, &kind).unwrap();
 
     // show info about flags
     println!("{superblock:#08x?}");
 
     // show info about compression options
     println!("Compression Options: {compression_options:#x?}");
+
+    // show info about flags
+    if superblock.inodes_uncompressed() {
+        println!("flag: inodes uncompressed");
+    }
+
+    if superblock.data_block_stored_uncompressed() {
+        println!("flag: data blocks stored uncompressed");
+    }
+
+    if superblock.fragments_stored_uncompressed() {
+        println!("flag: fragments stored uncompressed");
+    }
+
+    if superblock.fragments_are_not_used() {
+        println!("flag: fragments are not used");
+    }
+
+    if superblock.fragments_are_always_generated() {
+        println!("flag: fragments are always generated");
+    }
+
+    if superblock.data_has_been_deduplicated() {
+        println!("flag: data has been deduplicated");
+    }
+
+    if superblock.nfs_export_table_exists() {
+        println!("flag: nfs export table exists");
+    }
+
+    if superblock.xattrs_are_stored_uncompressed() {
+        println!("flag: xattrs are stored uncompressed");
+    }
+
+    if superblock.compressor_options_are_present() {
+        println!("flag: compressor options are present");
+    }
+}
+
+#[cfg(feature = "v3")]
+fn stat_v3(args: Args, mut file: BufReader<File>, kind: Kind) {
+    file.seek(SeekFrom::Start(args.offset)).unwrap();
+    let mut reader: Box<dyn BufReadSeek> = Box::new(file);
+    let (superblock, _compression_options) =
+        V3::superblock_and_compression_options(&mut reader, &kind).unwrap();
+
+    // show info about flags
+    println!("{superblock:#08x?}");
 }
 
 fn stat(args: Args, file: BufReader<File>, kind: Kind) {
     match (kind.version_major(), kind.version_minor()) {
-        (4, 0) => stat_generic::<V4>(args, file, kind),
+        (4, 0) => stat_v4(args, file, kind),
         #[cfg(feature = "v3")]
-        (3, 0) => stat_generic::<V3>(args, file, kind),
+        (3, 0) => stat_v3(args, file, kind),
         _ => {
             eprintln!(
                 "Unsupported SquashFS version: {}.{}",

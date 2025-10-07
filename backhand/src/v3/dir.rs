@@ -5,11 +5,11 @@
 
 use core::fmt;
 use std::ffi::OsStr;
-use std::os::unix::prelude::OsStrExt;
 use std::path::{Component, Path};
 
 use deku::prelude::*;
 
+use crate::v3::unix_string::OsStrExt;
 use crate::BackhandError;
 
 /// `squashfs_dir_header`

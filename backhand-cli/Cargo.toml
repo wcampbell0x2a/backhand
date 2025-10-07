@@ -51,7 +51,7 @@ lzo = ["backhand/lzo"]
 zstd = ["backhand/zstd"]
 lz4 = ["backhand/lz4"]
 ## Enable backhand parallel decompression
-backhand-parallel = ["backhand/parallel"]
+parallel = ["backhand/parallel"]
 
 [[bin]]
 name = "unsquashfs-backhand"

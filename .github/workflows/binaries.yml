@@ -58,9 +58,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.job.target }}" == *"darwin"* || "${{ matrix.job.target }}" == *"windows"* ]]; then
-            $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip,backhand-parallel,v3
+            $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip,parallel,v3
           else
-            $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip,backhand-parallel,v3,v3_lzma
+            $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip,parallel,v3,v3_lzma
           fi
       - name: archive
         run: |

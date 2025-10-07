@@ -71,38 +71,14 @@ pub trait CompressionAction {
     }
 }
 
-/// Simple compression trait for use in the Kind system
-/// This avoids version-specific associated types
-pub trait SimpleCompression {
-    type Error;
+#[cfg(feature = "v3")]
+pub type CompressionActionV3 = dyn CompressionAction<
+    Error = crate::error::BackhandError,
+    Compressor = crate::v3::compressor::Compressor,
+    FilesystemCompressor = crate::v3::compressor::FilesystemCompressor,
+    SuperBlock = crate::v3::squashfs::SuperBlock,
+>;
 
-    /// Decompress using unified compressor type
-    fn decompress(
-        &self,
-        bytes: &[u8],
-        out: &mut Vec<u8>,
-        compressor: super::types::Compressor,
-    ) -> Result<(), Self::Error>;
-
-    /// Compress using unified compressor type (simplified version)
-    fn compress(
-        &self,
-        bytes: &[u8],
-        compressor: super::types::Compressor,
-        block_size: u32,
-    ) -> Result<Vec<u8>, Self::Error>;
-
-    /// Compression options (simplified version)
-    fn compression_options(
-        &self,
-        compressor: super::types::Compressor,
-        kind: &crate::kinds::Kind,
-    ) -> Result<Vec<u8>, Self::Error>;
-}
-
-/// Type alias for v4 CompressionAction trait objects  
-///
-/// This allows using CompressionAction as a trait object with concrete v4 types
 pub type CompressionActionV4 = dyn CompressionAction<
     Error = crate::error::BackhandError,
     Compressor = crate::v4::compressor::Compressor,

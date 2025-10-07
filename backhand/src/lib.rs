@@ -60,7 +60,14 @@ type _ReadmeTest = ();
 pub mod error;
 mod kinds;
 pub mod traits;
+#[cfg(feature = "v3")]
+pub mod v3;
+#[cfg(feature = "v3_lzma")]
+pub mod v3_lzma;
 pub mod v4;
+
+#[cfg(feature = "v3")]
+pub use crate::v3::V3;
 pub use crate::v4::data::DataSize;
 pub use crate::v4::export::Export;
 pub use crate::v4::filesystem::node::{
@@ -92,6 +99,12 @@ pub use crate::traits::{FilesystemReaderTrait, GenericSquashfs, SquashfsVersion}
 /// Support the wonderful world of vendor formats
 pub mod kind {
     pub use crate::kinds::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
+    #[cfg(feature = "v3")]
+    pub use crate::kinds::{BE_V3_0, LE_V3_0};
+    #[cfg(feature = "v3_lzma")]
+    pub use crate::kinds::{
+        BE_V3_0_LZMA, LE_V3_0_LZMA, NETGEAR_BE_V3_0_LZMA, NETGEAR_BE_V3_0_LZMA_STANDARD,
+    };
 }
 
 /// Compression Choice and Options

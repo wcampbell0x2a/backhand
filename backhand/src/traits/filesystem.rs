@@ -19,6 +19,18 @@ impl From<crate::v4::filesystem::node::NodeHeader> for BackhandNodeHeader {
     }
 }
 
+#[cfg(feature = "v3")]
+impl From<crate::v3::filesystem::node::NodeHeader> for BackhandNodeHeader {
+    fn from(header: crate::v3::filesystem::node::NodeHeader) -> Self {
+        Self {
+            permissions: header.permissions,
+            uid: header.uid,
+            gid: header.gid,
+            mtime: header.mtime,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct BackhandDataSize {
     pub size: u32,
@@ -31,9 +43,21 @@ impl From<crate::v4::data::DataSize> for BackhandDataSize {
     }
 }
 
+#[cfg(feature = "v3")]
+impl From<crate::v3::data::DataSize> for BackhandDataSize {
+    fn from(ds: crate::v3::data::DataSize) -> Self {
+        Self { size: ds.size(), uncompressed: ds.uncompressed() }
+    }
+}
+
 impl BackhandDataSize {
     pub fn to_v4_datasize(self) -> crate::v4::data::DataSize {
         crate::v4::data::DataSize::new(self.size, self.uncompressed)
+    }
+
+    #[cfg(feature = "v3")]
+    pub fn to_v3_datasize(self) -> crate::v3::data::DataSize {
+        crate::v3::data::DataSize::new(self.size, self.uncompressed)
     }
 }
 
@@ -119,6 +143,31 @@ impl From<&crate::v4::filesystem::node::SquashfsFileReader> for BackhandSquashfs
     }
 }
 
+#[cfg(feature = "v3")]
+impl From<&crate::v3::filesystem::node::SquashfsFileReader> for BackhandSquashfsFileReader {
+    fn from(v3_file: &crate::v3::filesystem::node::SquashfsFileReader) -> Self {
+        match v3_file {
+            crate::v3::filesystem::node::SquashfsFileReader::Basic(basic) => Self::Basic {
+                blocks_start: basic.blocks_start,
+                frag_index: basic.frag,
+                block_offset: basic.block_offset,
+                file_size: basic.file_size,
+                block_sizes: basic.block_sizes.iter().map(|&ds| ds.into()).collect(),
+            },
+            crate::v3::filesystem::node::SquashfsFileReader::Extended(extended) => Self::Extended {
+                blocks_start: extended.blocks_start,
+                frag_index: extended.frag_index,
+                block_offset: extended.block_offset,
+                file_size: extended.file_size,
+                sparse: 0, // v3 doesn't support sparse files
+                link_count: extended.link_count,
+                xattr_index: 0, // v3 doesn't support xattr
+                block_sizes: extended.block_sizes.iter().map(|&ds| ds.into()).collect(),
+            },
+        }
+    }
+}
+
 impl From<&crate::v4::filesystem::node::Node<crate::v4::filesystem::node::SquashfsFileReader>>
     for BackhandNode
 {
@@ -145,6 +194,36 @@ impl From<&crate::v4::filesystem::node::Node<crate::v4::filesystem::node::Squash
             crate::v4::filesystem::node::InnerNode::Socket => BackhandInnerNode::Socket,
         };
         Self { fullpath: v4_node.fullpath.clone(), header: v4_node.header.into(), inner }
+    }
+}
+
+#[cfg(feature = "v3")]
+impl From<&crate::v3::filesystem::node::Node<crate::v3::filesystem::node::SquashfsFileReader>>
+    for BackhandNode
+{
+    fn from(
+        v3_node: &crate::v3::filesystem::node::Node<
+            crate::v3::filesystem::node::SquashfsFileReader,
+        >,
+    ) -> Self {
+        let inner = match &v3_node.inner {
+            crate::v3::filesystem::node::InnerNode::File(file) => {
+                BackhandInnerNode::File(file.into())
+            }
+            crate::v3::filesystem::node::InnerNode::Symlink(symlink) => {
+                BackhandInnerNode::Symlink { link: symlink.link.clone() }
+            }
+            crate::v3::filesystem::node::InnerNode::Dir(_) => BackhandInnerNode::Dir,
+            crate::v3::filesystem::node::InnerNode::CharacterDevice(dev) => {
+                BackhandInnerNode::CharacterDevice { device_number: dev.device_number }
+            }
+            crate::v3::filesystem::node::InnerNode::BlockDevice(dev) => {
+                BackhandInnerNode::BlockDevice { device_number: dev.device_number }
+            }
+            crate::v3::filesystem::node::InnerNode::NamedPipe => BackhandInnerNode::NamedPipe,
+            crate::v3::filesystem::node::InnerNode::Socket => BackhandInnerNode::Socket,
+        };
+        Self { fullpath: v3_node.fullpath.clone(), header: v3_node.header.into(), inner }
     }
 }
 
@@ -180,7 +259,6 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
     }
 
     fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8> {
-        // Convert back to v4 format temporarily for the call
         let v4_file = match file {
             BackhandSquashfsFileReader::Basic {
                 blocks_start,
@@ -221,6 +299,60 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
         };
 
         let file_handle = self.file(&v4_file);
+        let mut reader = file_handle.reader();
+        let mut data = Vec::new();
+        if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
+            // sparse
+            return Vec::new();
+        }
+        data
+    }
+}
+
+#[cfg(feature = "v3")]
+impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemReader<'b> {
+    fn files(&self) -> Vec<BackhandNode> {
+        self.files().map(|node| node.into()).collect()
+    }
+
+    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8> {
+        let v3_file = match file {
+            BackhandSquashfsFileReader::Basic {
+                blocks_start,
+                frag_index,
+                block_offset,
+                file_size,
+                block_sizes,
+            } => crate::v3::filesystem::node::SquashfsFileReader::Basic(
+                crate::v3::inode::BasicFile {
+                    blocks_start: *blocks_start,
+                    frag: *frag_index,
+                    block_offset: *block_offset,
+                    file_size: *file_size,
+                    block_sizes: block_sizes.iter().map(|&ds| ds.to_v3_datasize()).collect(),
+                },
+            ),
+            BackhandSquashfsFileReader::Extended {
+                blocks_start,
+                frag_index,
+                block_offset,
+                file_size,
+                link_count,
+                block_sizes,
+                ..
+            } => crate::v3::filesystem::node::SquashfsFileReader::Extended(
+                crate::v3::inode::ExtendedFile {
+                    blocks_start: *blocks_start,
+                    frag_index: *frag_index,
+                    block_offset: *block_offset,
+                    file_size: *file_size,
+                    link_count: *link_count,
+                    block_sizes: block_sizes.iter().map(|&ds| ds.to_v3_datasize()).collect(),
+                },
+            ),
+        };
+
+        let file_handle = self.file(&v3_file);
         let mut reader = file_handle.reader();
         let mut data = Vec::new();
         if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {

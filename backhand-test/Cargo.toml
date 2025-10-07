@@ -24,7 +24,9 @@ bench = false
 [features]
 # testing only feature for testing vs squashfs-tools/unsquashfs
 __test_unsquashfs = []
-default = ["xz", "gzip", "zstd"]
+default = ["xz", "gzip", "zstd", "v3", "v3_lzma"]
+v3 = ["backhand/v3"]
+v3_lzma = ["backhand/v3_lzma"]
 xz = ["backhand/xz"]
 xz-static = ["backhand/xz-static"]
 any-gzip = []

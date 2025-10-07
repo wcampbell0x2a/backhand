@@ -1,5 +1,6 @@
 use solana_nohash_hasher::IntMap;
 
+use super::filesystem::FilesystemReaderTrait;
 use super::types::Compressor;
 use crate::kinds::Kind;
 use crate::v4::reader::BufReadSeek;
@@ -120,6 +121,18 @@ pub fn create_squashfs_from_kind<'b>(
 ) -> Result<Box<dyn FilesystemReaderTrait + 'b>, crate::error::BackhandError> {
     let (major, minor) = (kind.version_major(), kind.version_minor());
     match (major, minor) {
+        #[cfg(feature = "v3")]
+        (3, 0) => {
+            let squashfs = crate::v3::squashfs::Squashfs::from_reader_with_offset_and_kind(
+                reader, offset, kind,
+            )
+            .map_err(crate::error::BackhandError::from)?;
+            let filesystem =
+                squashfs.into_filesystem_reader().map_err(crate::error::BackhandError::from)?;
+            Ok(Box::new(filesystem) as Box<dyn FilesystemReaderTrait + 'b>)
+        }
+        #[cfg(not(feature = "v3"))]
+        (3, 0) => Err(crate::error::BackhandError::UnsupportedSquashfsVersion(3, 0)),
         (4, 0) => {
             let squashfs = crate::v4::squashfs::Squashfs::from_reader_with_offset_and_kind(
                 reader, offset, kind,

@@ -44,7 +44,16 @@ jobs:
           toolchain: stable
           target: ${{ matrix.job.target }}
 
-      - run: $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --features xz-static --locked --target ${{ matrix.job.target }} --profile=dist
+      - name: Build unsquashfs-backhand (Linux with v3, Mac/Windows without)
+        shell: bash
+        run: |
+          if [[ "${{ matrix.job.target }}" == *"darwin"* || "${{ matrix.job.target }}" == *"windows"* ]]; then
+            # without v3_lzma
+            $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --no-default-features --features xz-static,gzip,zstd,lz4,parallel,v3 --locked --target ${{ matrix.job.target }} --profile=dist
+          else
+            $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --features xz-static --locked --target ${{ matrix.job.target }} --profile=dist
+          fi
+
       - name: Build unsquashfs-backhand (Linux with v3, Mac/Windows without)
         shell: bash
         run: |

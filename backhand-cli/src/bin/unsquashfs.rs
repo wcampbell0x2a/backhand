@@ -146,9 +146,13 @@ struct Args {
           [
               "be_v4_0",
               "le_v4_0",
+              #[cfg(feature = "v3")]
               "be_v3_0",
+              #[cfg(feature = "v3")]
               "le_v3_0",
+              #[cfg(feature = "v3_lzma")]
               "be_v3_0_lzma",
+              #[cfg(feature = "v3_lzma")]
               "le_v3_0_lzma",
               // "netgear_be_v3_0_lzma",
               // "netgear_be_v3_0_lzma_standard",

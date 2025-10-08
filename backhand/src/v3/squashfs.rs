@@ -2,7 +2,6 @@
 
 use std::ffi::OsString;
 use std::io::{Cursor, Seek, SeekFrom};
-use std::os::unix::prelude::OsStringExt;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -10,8 +9,6 @@ use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
 use tracing::{error, info, instrument, trace, warn};
 
-use crate::traits::types::Compressor;
-// use super::dir::Dir;
 use super::export::Export;
 use super::filesystem::node::{
     InnerNode, Node, NodeHeader, Nodes, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
@@ -21,10 +18,12 @@ use super::filesystem::reader::FilesystemReader;
 use super::id::Id;
 use crate::error::BackhandError;
 use crate::kinds::{Kind, LE_V4_0};
+use crate::traits::types::Compressor;
 use crate::v3::dir::{Dir, DirInodeId};
 use crate::v3::fragment::Fragment;
 use crate::v3::inode::{Inode, InodeInner};
 use crate::v3::reader::{SquashFsReader, SquashfsReaderWithOffset};
+use crate::v3::unix_string::OsStringExt;
 use crate::v4::reader::BufReadSeek;
 use crate::Flags;
 

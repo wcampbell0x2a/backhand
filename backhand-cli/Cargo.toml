@@ -37,7 +37,7 @@ default = ["xz", "gzip", "zstd", "v3", "v3_lzma"]
 ## Enables squashfs v3
 v3 = ["backhand/v3"]
 ## Enables squashfs v3 with LZMA compression
-v3_lzma = ["backhand/v3_lzma"]
+v3_lzma = ["backhand/v3", "backhand/v3_lzma"]
 ## Enables xz compression inside library and binaries
 xz = ["backhand/xz"]
 ## Enables xz compression and forces static build inside library and binaries

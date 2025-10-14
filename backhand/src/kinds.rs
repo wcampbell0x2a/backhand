@@ -70,21 +70,23 @@ impl VersionedCompressor {
         &self,
         bytes: &[u8],
         out: &mut Vec<u8>,
-        compressor: crate::traits::types::Compressor,
+        compressor: Option<crate::traits::types::Compressor>,
     ) -> Result<(), crate::BackhandError> {
         match self {
             #[cfg(feature = "v3")]
-            VersionedCompressor::V3(comp) => comp.decompress(bytes, out, compressor),
+            VersionedCompressor::V3(comp) => comp.decompress(bytes, out, None),
             #[cfg(feature = "v3_lzma")]
-            VersionedCompressor::V3Lzma(comp) => comp.decompress(bytes, out, compressor),
+            VersionedCompressor::V3Lzma(comp) => comp.decompress(bytes, out, None),
             #[cfg(feature = "v3_lzma")]
-            VersionedCompressor::V3LzmaStandard(comp) => comp.decompress(bytes, out, compressor),
+            VersionedCompressor::V3LzmaStandard(comp) => comp.decompress(bytes, out, None),
             VersionedCompressor::V4(comp) => {
-                let v4_compressor = compressor.into();
+                let v4_compressor =
+                    compressor.ok_or(crate::BackhandError::MissingCompressor)?.into();
                 comp.decompress(bytes, out, v4_compressor)
             }
             VersionedCompressor::CustomV4(comp) => {
-                let v4_compressor = compressor.into();
+                let v4_compressor =
+                    compressor.ok_or(crate::BackhandError::MissingCompressor)?.into();
                 comp.decompress(bytes, out, v4_compressor)
             }
         }

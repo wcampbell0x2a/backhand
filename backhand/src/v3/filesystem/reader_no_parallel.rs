@@ -127,7 +127,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             self.file.system.kind.inner.compressor.decompress(
                 input_buf,
                 output_buf,
-                self.file.system.compressor.into(),
+                self.file.system.compressor,
             )?;
             // store the cache, so decompression is not duplicated
             if data.fragment {

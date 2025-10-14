@@ -25,7 +25,7 @@ use crate::v4::squashfs::Flags;
 #[repr(u16)]
 #[rustfmt::skip]
 pub enum Compressor {
-    None = 0,
+    Uncompressed = 0,
     Gzip = 1,
     Lzma = 2,
     Lzo =  3,
@@ -155,7 +155,7 @@ impl CompressionAction for DefaultCompressor {
         compressor: Self::Compressor,
     ) -> Result<(), Self::Error> {
         match compressor {
-            Compressor::None => out.extend_from_slice(bytes),
+            Compressor::Uncompressed => out.extend_from_slice(bytes),
             #[cfg(feature = "any-flate2")]
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
@@ -200,7 +200,7 @@ impl CompressionAction for DefaultCompressor {
         block_size: u32,
     ) -> Result<Vec<u8>, Self::Error> {
         match (fc.id, fc.options, fc.extra) {
-            (Compressor::None, None, _) => Ok(bytes.to_vec()),
+            (Compressor::Uncompressed, None, _) => Ok(bytes.to_vec()),
             #[cfg(feature = "xz")]
             (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
                 let dict_size = match option {

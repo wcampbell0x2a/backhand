@@ -251,7 +251,7 @@ impl<'b> Squashfs<'b> {
 
         // Parse Compression Options, if any
         info!("Reading Compression options");
-        let compression_options = if superblock.compressor != Compressor::None
+        let compression_options = if superblock.compressor != Compressor::Uncompressed
             && superblock.compressor_options_are_present()
         {
             let mut bytes = metadata::read_block(reader, &superblock, kind)?;

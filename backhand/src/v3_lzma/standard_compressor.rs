@@ -8,7 +8,7 @@ pub struct LzmaStandardCompressor;
 
 impl CompressionAction for LzmaStandardCompressor {
     type Error = crate::error::BackhandError;
-    type Compressor = Compressor;
+    type Compressor = Option<Compressor>;
     type FilesystemCompressor = crate::v3::compressor::FilesystemCompressor;
     type SuperBlock = crate::v3::squashfs::SuperBlock;
 

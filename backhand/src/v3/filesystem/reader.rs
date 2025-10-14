@@ -78,8 +78,8 @@ pub struct FilesystemReader<'b> {
     pub block_size: u32,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub block_log: u16,
-    /// Compressor used for data (always Gzip for v3)
-    pub compressor: Compressor,
+    /// Compressor used for data (Always None for v3.)
+    pub compressor: Option<Compressor>,
     /// Last modification time of the archive. Count seconds since 00:00, Jan 1st 1970 UTC (not counting leap seconds).
     /// This is unsigned, so it expires in the year 2106 (as opposed to 2038).
     pub mod_time: u32,

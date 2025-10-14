@@ -26,7 +26,7 @@ pub struct LzmaAdaptiveCompressor;
 
 impl CompressionAction for LzmaAdaptiveCompressor {
     type Error = crate::error::BackhandError;
-    type Compressor = Compressor;
+    type Compressor = Option<Compressor>;
     type FilesystemCompressor = crate::v3::compressor::FilesystemCompressor;
     type SuperBlock = crate::v3::squashfs::SuperBlock;
 
@@ -34,40 +34,36 @@ impl CompressionAction for LzmaAdaptiveCompressor {
         &self,
         bytes: &[u8],
         out: &mut Vec<u8>,
-        compressor: Self::Compressor,
+        _compressor: Self::Compressor,
     ) -> Result<(), Self::Error> {
         trace!("v3_lzma decompress");
-        match compressor {
-            _ => {
-                if bytes.is_empty() {
-                    return Ok(());
-                }
+        if bytes.is_empty() {
+            return Ok(());
+        }
 
-                // Check if we have cached parameters
-                if let Ok(cache) = LZMA_CACHE.lock() {
-                    if let Some(params) = *cache {
-                        drop(cache); // Release lock before attempting decompression
-                        if let Ok(result) = self.try_lzma_with_params(bytes, params) {
-                            tracing::trace!("LZMA decompression successful with cached parameters");
-                            out.extend_from_slice(&result);
-                            return Ok(());
-                        }
-                        tracing::trace!("Cached parameters failed, falling back to brute force");
-                    }
-                }
-
-                // Brute force parameter discovery
-                if let Ok(result) = self.brute_force_lzma_params(bytes) {
-                    tracing::trace!("LZMA decompression successful after brute force discovery");
+        // Check if we have cached parameters
+        if let Ok(cache) = LZMA_CACHE.lock() {
+            if let Some(params) = *cache {
+                drop(cache); // Release lock before attempting decompression
+                if let Ok(result) = self.try_lzma_with_params(bytes, params) {
+                    tracing::trace!("LZMA decompression successful with cached parameters");
                     out.extend_from_slice(&result);
                     return Ok(());
                 }
-
-                Err(crate::BackhandError::UnsupportedCompression(
-                    "Failed to decompress LZMA adaptive data".to_string(),
-                ))
+                tracing::trace!("Cached parameters failed, falling back to brute force");
             }
         }
+
+        // Brute force parameter discovery
+        if let Ok(result) = self.brute_force_lzma_params(bytes) {
+            tracing::trace!("LZMA decompression successful after brute force discovery");
+            out.extend_from_slice(&result);
+            return Ok(());
+        }
+
+        Err(crate::BackhandError::UnsupportedCompression(
+            "Failed to decompress LZMA adaptive data".to_string(),
+        ))
     }
 
     fn compress(

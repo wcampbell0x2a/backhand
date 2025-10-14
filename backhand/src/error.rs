@@ -20,6 +20,9 @@ pub enum BackhandError {
     #[error("unsupported compression: {0:?}")]
     UnsupportedCompression(String),
 
+    #[error("missing compressor for v4 filesystem")]
+    MissingCompressor,
+
     #[error("file not found")]
     FileNotFound,
 
@@ -65,6 +68,7 @@ impl From<BackhandError> for io::Error {
             StringUtf8(_) => Self::from(io::ErrorKind::InvalidData),
             StrUtf8(_) => Self::from(io::ErrorKind::InvalidData),
             UnsupportedCompression(_) => Self::from(io::ErrorKind::Unsupported),
+            MissingCompressor => Self::from(io::ErrorKind::InvalidData),
             FileNotFound => Self::from(io::ErrorKind::NotFound),
             Unreachable
             | Deku(_)

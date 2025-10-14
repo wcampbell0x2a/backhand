@@ -18,7 +18,6 @@ use super::filesystem::reader::FilesystemReader;
 use super::id::Id;
 use crate::error::BackhandError;
 use crate::kinds::{Kind, LE_V4_0};
-use crate::traits::types::Compressor;
 use crate::v3::dir::{Dir, DirInodeId};
 use crate::v3::fragment::Fragment;
 use crate::v3::inode::{Inode, InodeInner};
@@ -619,7 +618,7 @@ impl<'b> Squashfs<'b> {
             kind: self.kind,
             block_size: self.superblock.block_size_1 as u32,
             block_log: self.superblock.block_log,
-            compressor: Compressor::Gzip,
+            compressor: None,
             mod_time: self.superblock.mkfs_time,
             id_table: {
                 // Convert v3 uid table to unified id table format

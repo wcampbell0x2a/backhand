@@ -27,7 +27,7 @@ pub fn read_block<R: Read + Seek + ?Sized>(
     let is_superblock_uncompressed = superblock.inodes_uncompressed();
     let bytes = if is_block_compressed && !is_superblock_uncompressed {
         let mut out = Vec::with_capacity(8 * 1024);
-        kind.inner.compressor.decompress(&buf, &mut out, super::compressor::Compressor::Gzip)?;
+        kind.inner.compressor.decompress(&buf, &mut out, None)?;
         out
     } else {
         tracing::trace!("uncompressed (superblock flag or block flag)");

@@ -1070,7 +1070,8 @@ checksum = "08ab2867e3eeeca90e844d1940eab391c9dc5228783db2ed999acbc0a9ed375a"
 [[package]]
 name = "lzma-adaptive-sys"
 version = "0.1.0"
-source = "git+https://github.com/wcampbell0x2a/lzma-adaptive-sys#bad1981fb71c53617ac8537e00a61cae0dbe04b7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69c1d005f103a1e3e2cda011c4a08a2c84e66364deccd246a76eeb1e1ddb4764"
 dependencies = [
  "cc",
 ]

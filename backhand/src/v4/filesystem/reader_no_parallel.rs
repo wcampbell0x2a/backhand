@@ -1,18 +1,7 @@
-use std::collections::{HashMap, VecDeque};
 use std::io::{Read, SeekFrom};
-use std::sync::{Arc, Mutex};
 
-use super::node::Nodes;
-use crate::compressor::{CompressionOptions, Compressor};
-use crate::data::DataSize;
 use crate::error::BackhandError;
-use crate::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
-use crate::fragment::Fragment;
-use crate::id::Id;
-use crate::kinds::Kind;
-use crate::reader::BufReadSeek;
-use crate::squashfs::Cache;
-use crate::{Node, Squashfs, SquashfsFileReader};
+use crate::v4::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
 
 #[derive(Clone, Copy)]
 pub(crate) struct RawDataBlock {
@@ -138,7 +127,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             self.file.system.kind.inner.compressor.decompress(
                 input_buf,
                 output_buf,
-                self.file.system.compressor,
+                Some(self.file.system.compressor.into()),
             )?;
             // store the cache, so decompression is not duplicated
             if data.fragment {

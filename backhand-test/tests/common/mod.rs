@@ -1,11 +1,7 @@
-use std::error::Error;
 use std::process::Command;
 use std::time::Duration;
 
 use assert_cmd::prelude::*;
-use backon::BlockingRetryable;
-use backon::ExponentialBuilder;
-use tempfile::tempdir;
 use tempfile::tempdir_in;
 use test_assets_ureq::TestAssetDef;
 
@@ -77,15 +73,34 @@ pub fn test_bin_unsquashfs(
     assert_success: bool,
     run_squashfs_tools_unsquashfs: bool,
 ) {
+    test_bin_unsquashfs_with_kind(
+        file,
+        file_offset,
+        assert_success,
+        run_squashfs_tools_unsquashfs,
+        None,
+    )
+}
+
+pub fn test_bin_unsquashfs_with_kind(
+    file: &str,
+    file_offset: Option<u64>,
+    assert_success: bool,
+    run_squashfs_tools_unsquashfs: bool,
+    kind: Option<String>,
+) {
+    let kind = kind.unwrap_or("le_v4_0".to_string());
     let tmp_dir = tempdir_in(".").unwrap();
     // Run "our" unsquashfs against the control
     let cmd = get_base_command("unsquashfs-backhand")
-        .env("RUST_LOG", "trace")
+        .env("RUST_LOG", "none")
         .args([
             "-d",
             tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),
             "-o",
             &file_offset.unwrap_or(0).to_string(),
+            "--kind",
+            &kind,
             file,
         ])
         .unwrap();

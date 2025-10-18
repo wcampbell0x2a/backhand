@@ -127,11 +127,6 @@ dr----x--t 2/4242                   42 1970-01-01 00:01 squashfs-root/test
 fn test_dont_emit_compression_options() {
     use std::fs::File;
     use std::io::Write;
-    use std::os::unix::prelude::PermissionsExt;
-
-    use backhand::DEFAULT_BLOCK_SIZE;
-    use nix::sys::stat::utimes;
-    use nix::sys::time::TimeVal;
 
     const FILE_NAME: &str = "out.squashfs";
     let asset_defs = [TestAssetDef {

@@ -4,10 +4,13 @@ use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use super::super::data::Added;
+use super::super::data::DataSize;
+use super::super::id::Id;
+use super::super::inode::{BasicFile, ExtendedFile, InodeHeader};
 use super::normalize_squashfs_path;
-use crate::data::Added;
-use crate::inode::{BasicFile, ExtendedFile, InodeHeader};
-use crate::{BackhandError, DataSize, FilesystemReaderFile, Id};
+use super::reader::FilesystemReaderFile;
+use crate::error::BackhandError;
 
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
@@ -28,14 +31,20 @@ impl NodeHeader {
 
 impl NodeHeader {
     pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Result<Self, BackhandError> {
-        let uid = id_table.get(inode_header.uid as usize).ok_or(BackhandError::InvalidIdTable)?;
-        let gid = id_table.get(inode_header.gid as usize).ok_or(BackhandError::InvalidIdTable)?;
-        Ok(Self {
-            permissions: inode_header.permissions,
-            uid: uid.num,
-            gid: gid.num,
-            mtime: inode_header.mtime,
-        })
+        let uid = if (inode_header.uid as usize) < id_table.len() {
+            id_table[inode_header.uid as usize].num
+        } else {
+            // Fallback to root uid for out-of-bounds values
+            0
+        };
+        // Handle case where gid might be out of bounds (v3 quirk)
+        let gid = if (inode_header.gid as usize) < id_table.len() {
+            id_table[inode_header.gid as usize].num
+        } else {
+            // Fallback to root gid for out-of-bounds values
+            0
+        };
+        Ok(Self { permissions: inode_header.permissions, uid, gid, mtime: inode_header.mtime })
     }
 }
 
@@ -65,10 +74,6 @@ impl<T> Ord for Node<T> {
 }
 
 impl<T> Node<T> {
-    pub(crate) fn new(fullpath: PathBuf, header: NodeHeader, inner: InnerNode<T>) -> Self {
-        Self { fullpath, header, inner }
-    }
-
     pub fn new_root(header: NodeHeader) -> Self {
         let fullpath = PathBuf::from("/");
         let inner = InnerNode::Dir(SquashfsDir::default());
@@ -106,7 +111,7 @@ impl SquashfsFileReader {
 
     pub fn frag_index(&self) -> usize {
         match self {
-            SquashfsFileReader::Basic(basic) => basic.frag_index as usize,
+            SquashfsFileReader::Basic(basic) => basic.frag as usize,
             SquashfsFileReader::Extended(extended) => extended.frag_index as usize,
         }
     }
@@ -120,7 +125,7 @@ impl SquashfsFileReader {
 
     pub fn blocks_start(&self) -> u64 {
         match self {
-            SquashfsFileReader::Basic(basic) => basic.blocks_start as u64,
+            SquashfsFileReader::Basic(basic) => basic.blocks_start,
             SquashfsFileReader::Extended(extended) => extended.blocks_start,
         }
     }

@@ -9,23 +9,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use deku::prelude::*;
 use tracing::{error, info, trace};
 
-use super::node::{InnerNode, Nodes};
-use super::normalize_squashfs_path;
-use crate::compressor::{CompressionOptions, Compressor};
-use crate::data::DataWriter;
-use crate::entry::Entry;
 use crate::error::BackhandError;
-use crate::filesystem::node::SquashfsSymlink;
-use crate::id::Id;
-use crate::kind::Kind;
+use crate::kinds::Kind;
 use crate::kinds::LE_V4_0;
-use crate::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
-use crate::reader::WriteSeek;
-use crate::squashfs::SuperBlock;
+use crate::traits::CompressionAction;
+use crate::v4::compressor::{CompressionOptions, Compressor};
+use crate::v4::data::DataWriter;
+use crate::v4::entry::Entry;
+use crate::v4::filesystem::node::SquashfsSymlink;
+use crate::v4::filesystem::node::{InnerNode, Nodes};
+use crate::v4::filesystem::normalize_squashfs_path;
+use crate::v4::fragment;
+use crate::v4::id::Id;
+use crate::v4::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
+use crate::v4::reader::WriteSeek;
+use crate::v4::squashfs::SuperBlock;
 use crate::{
-    fragment, FilesystemReader, Flags, Node, NodeHeader, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN,
-    MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    FilesystemReader, Flags, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
+    MIN_BLOCK_SIZE,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -660,34 +662,47 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         trace!("{:#02x?}", self.root);
 
+        let v4_compressor = match &self.kind.inner.compressor {
+            crate::kinds::VersionedCompressor::V4(compressor) => *compressor,
+            crate::kinds::VersionedCompressor::CustomV4(compressor) => *compressor,
+            _ => panic!("v4 filesystem writer requires v4 compressor"),
+        };
+
         // Empty Squashfs Superblock
         w.write_all(&[0x00; 96])?;
 
-        if self.emit_compression_options {
-            trace!("writing compression options, if exists");
-            let options = self.kind.inner.compressor.compression_options(
+        if self.emit_compression_options && self.fs_compressor.options.is_some() {
+            trace!("writing compression options");
+            // Use the full CompressionAction trait which properly handles the compression options
+            // Use a temporary superblock copy for compression_options call
+            let options = v4_compressor.compression_options(
                 &mut superblock,
                 &self.kind,
                 self.fs_compressor,
             )?;
-            w.write_all(&options)?;
+
+            if let Some(options_bytes) = &options {
+                w.write_all(options_bytes)?;
+            }
         }
 
         let mut data_writer = DataWriter::new(
-            self.kind.inner.compressor,
+            v4_compressor,
             self.fs_compressor,
             self.block_size,
             self.no_duplicate_files,
         );
         let mut inode_writer = MetadataWriter::new(
+            v4_compressor,
             self.fs_compressor,
             self.block_size,
-            Kind { inner: self.kind.inner.clone() },
+            self.kind.inner.data_endian,
         );
         let mut dir_writer = MetadataWriter::new(
+            v4_compressor,
             self.fs_compressor,
             self.block_size,
-            Kind { inner: self.kind.inner.clone() },
+            self.kind.inner.data_endian,
         );
 
         info!("Creating Inodes and Dirs");

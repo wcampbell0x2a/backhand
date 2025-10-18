@@ -1,4 +1,4 @@
-//! In-memory representation of SquashFS filesystem tree used for writing to image
+//! In-memory representation of SquashFS filesystem tree
 #[cfg(not(feature = "parallel"))]
 pub mod reader_no_parallel;
 #[cfg(feature = "parallel")]
@@ -6,11 +6,10 @@ pub mod reader_parallel;
 
 pub mod node;
 pub mod reader;
-pub mod writer;
 
 use std::path::{Component, Path, PathBuf};
 
-use crate::BackhandError;
+use crate::error::BackhandError;
 
 // normalize the path, always starts with root, solve relative paths and don't
 // allow prefix (windows stuff like "C:/")

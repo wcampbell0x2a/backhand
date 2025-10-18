@@ -1,7 +1,5 @@
 mod common;
 
-use std::process::Command;
-
 use assert_cmd::prelude::*;
 use tempfile::tempdir;
 use test_assets_ureq::TestAssetDef;

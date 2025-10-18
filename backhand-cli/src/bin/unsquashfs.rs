@@ -8,9 +8,12 @@ use std::process::ExitCode;
 use std::sync::Mutex;
 
 use backhand::kind::Kind;
+use backhand::traits::filesystem::{BackhandInnerNode, BackhandNode, BackhandNodeHeader};
+#[cfg(feature = "v3")]
+use backhand::V3;
 use backhand::{
-    BufReadSeek, FilesystemReader, InnerNode, Node, NodeHeader, Squashfs, SquashfsBlockDevice,
-    SquashfsCharacterDevice, SquashfsDir, SquashfsFileReader, SquashfsSymlink, DEFAULT_BLOCK_SIZE,
+    create_squashfs_from_kind, BufReadSeek, FilesystemReaderTrait, SquashfsVersion,
+    DEFAULT_BLOCK_SIZE, V4,
 };
 use backhand_cli::after_help;
 use clap::builder::PossibleValuesParser;
@@ -143,6 +146,16 @@ struct Args {
           [
               "be_v4_0",
               "le_v4_0",
+              #[cfg(feature = "v3")]
+              "be_v3_0",
+              #[cfg(feature = "v3")]
+              "le_v3_0",
+              #[cfg(feature = "v3_lzma")]
+              "be_v3_0_lzma",
+              #[cfg(feature = "v3_lzma")]
+              "le_v3_0_lzma",
+              // "netgear_be_v3_0_lzma",
+              // "netgear_be_v3_0_lzma_standard",
               "avm_be_v4_0",
           ]
     ))]
@@ -208,21 +221,30 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let squashfs = match Squashfs::from_reader_with_offset_and_kind(file, args.offset, kind) {
-        Ok(s) => s,
-        Err(_e) => {
-            let line = format!("{:>14}", red_bold.apply_to(format!("Could not read image: {_e}")));
+    match create_squashfs_from_kind(file, args.offset, kind) {
+        Ok(filesystem) => process_filesystem(filesystem.as_ref(), args, pb, red_bold, blue_bold),
+        Err(e) => {
+            let line = format!("{:>14}", red_bold.apply_to(format!("Could not read image: {e}")));
             pb.finish_with_message(line);
-            return ExitCode::FAILURE;
+            eprintln!("Debug error: {e:?}");
+            ExitCode::FAILURE
         }
-    };
+    }
+}
+
+fn process_filesystem(
+    filesystem: &dyn FilesystemReaderTrait,
+    args: Args,
+    _pb: ProgressBar,
+    red_bold: console::Style,
+    blue_bold: console::Style,
+) -> ExitCode {
     let root_process = unsafe { geteuid() == 0 };
     if root_process {
         umask(Mode::from_bits(0).unwrap());
     }
 
     // Start new spinner as we extract all the inode and other information from the image
-    // This can be very time consuming
     let start = Instant::now();
     let pb = ProgressBar::new_spinner();
     if !args.quiet {
@@ -230,7 +252,7 @@ fn main() -> ExitCode {
         let line = format!("{:>14}", blue_bold.apply_to("Reading image"));
         pb.set_message(line);
     }
-    let filesystem = squashfs.into_filesystem_reader().unwrap();
+
     if !args.quiet {
         let line = format!("{:>14}", blue_bold.apply_to("Read image"));
         pb.finish_with_message(line);
@@ -238,13 +260,13 @@ fn main() -> ExitCode {
 
     // if we can find a parent, then a filter must be applied and the exact parent dirs must be
     // found above it
-    let mut files: Vec<&Node<SquashfsFileReader>> = vec![];
+    let mut files: Vec<BackhandNode> = vec![];
     if args.path_filter.parent().is_some() {
         let mut current = PathBuf::new();
         current.push("/");
         for part in args.path_filter.iter() {
             current.push(part);
-            if let Some(exact) = filesystem.files().find(|&a| a.fullpath == current) {
+            if let Some(exact) = filesystem.files().into_iter().find(|a| a.fullpath == current) {
                 files.push(exact);
             } else {
                 if !args.quiet {
@@ -263,52 +285,37 @@ fn main() -> ExitCode {
 
     // gather all files and dirs
     let files_len = files.len();
-    let nodes = files
-        .into_iter()
-        .chain(filesystem.files().filter(|a| a.fullpath.starts_with(&args.path_filter)));
+    let all_files: Vec<BackhandNode> = filesystem.files();
+    let filtered_files: Vec<BackhandNode> =
+        all_files.iter().filter(|a| a.fullpath.starts_with(&args.path_filter)).cloned().collect();
+    let nodes = files.into_iter().chain(filtered_files.iter().cloned());
 
     // extract or list
     if args.list {
         list(nodes);
     } else {
         // This could be expensive, only pass this in when not quiet
-        let n_nodes = if !args.quiet {
-            Some(
-                files_len
-                    + filesystem
-                        .files()
-                        .filter(|a| a.fullpath.starts_with(&args.path_filter))
-                        .count(),
-            )
-        } else {
-            None
-        };
+        let n_nodes = if !args.quiet { Some(files_len + filtered_files.len()) } else { None };
 
-        extract_all(
-            &args,
-            &filesystem,
-            root_process,
-            nodes.collect::<Vec<&Node<SquashfsFileReader>>>().into_par_iter(),
-            n_nodes,
-            start,
-        );
+        let all_nodes: Vec<BackhandNode> = nodes.collect();
+        extract_all(&args, filesystem, root_process, all_nodes, n_nodes, start);
     }
 
     ExitCode::SUCCESS
 }
 
-fn list<'a>(nodes: impl Iterator<Item = &'a Node<SquashfsFileReader>>) {
+fn list(nodes: impl Iterator<Item = BackhandNode>) {
     for node in nodes {
         let path = &node.fullpath;
         println!("{}", path.display());
     }
 }
 
-fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
+fn stat_v4(args: Args, mut file: BufReader<File>, kind: Kind) {
     file.seek(SeekFrom::Start(args.offset)).unwrap();
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, compression_options) =
-        Squashfs::superblock_and_compression_options(&mut reader, &kind).unwrap();
+        V4::superblock_and_compression_options(&mut reader, &kind).unwrap();
 
     // show info about flags
     println!("{superblock:#08x?}");
@@ -354,11 +361,37 @@ fn stat(args: Args, mut file: BufReader<File>, kind: Kind) {
     }
 }
 
+#[cfg(feature = "v3")]
+fn stat_v3(args: Args, mut file: BufReader<File>, kind: Kind) {
+    file.seek(SeekFrom::Start(args.offset)).unwrap();
+    let mut reader: Box<dyn BufReadSeek> = Box::new(file);
+    let (superblock, _compression_options) =
+        V3::superblock_and_compression_options(&mut reader, &kind).unwrap();
+
+    // show info about flags
+    println!("{superblock:#08x?}");
+}
+
+fn stat(args: Args, file: BufReader<File>, kind: Kind) {
+    match (kind.version_major(), kind.version_minor()) {
+        (4, 0) => stat_v4(args, file, kind),
+        #[cfg(feature = "v3")]
+        (3, 0) => stat_v3(args, file, kind),
+        _ => {
+            eprintln!(
+                "Unsupported SquashFS version: {}.{}",
+                kind.version_major(),
+                kind.version_minor()
+            );
+        }
+    }
+}
+
 fn set_attributes(
     pb: &ProgressBar,
     args: &Args,
     path: &Path,
-    header: &NodeHeader,
+    header: &BackhandNodeHeader,
     root_process: bool,
     is_file: bool,
 ) {
@@ -405,11 +438,11 @@ fn set_attributes(
     }
 }
 
-fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
+fn extract_all(
     args: &Args,
-    filesystem: &'a FilesystemReader,
+    filesystem: &dyn FilesystemReaderTrait,
     root_process: bool,
-    nodes: S,
+    nodes: Vec<BackhandNode>,
     n_nodes: Option<usize>,
     start: Instant,
 ) {
@@ -435,18 +468,14 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
 
     let processing = Mutex::new(HashSet::new());
 
-    nodes.for_each(|node| {
+    tracing::trace!("{:?}", nodes);
+    nodes.into_par_iter().for_each(|node| {
         let path = &node.fullpath;
         let fullpath = path.strip_prefix(Component::RootDir).unwrap_or(path);
         if !args.quiet {
             let mut p = processing.lock().unwrap();
-            p.insert(fullpath);
-            pb.set_message(
-                p.iter()
-                    .map(|a| a.to_path_buf().into_os_string().into_string().unwrap())
-                    .collect::<Vec<String>>()
-                    .join(", "),
-            );
+            p.insert(fullpath.to_path_buf());
+            pb.set_message(p.iter().map(|a| a.to_string_lossy()).collect::<Vec<_>>().join(", "));
             pb.inc(1);
         }
 
@@ -455,25 +484,24 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
         let _ = fs::create_dir_all(filepath.parent().unwrap());
 
         match &node.inner {
-            InnerNode::File(file) => {
+            BackhandInnerNode::File(file) => {
                 // alloc required space for file data readers
                 // check if file exists
                 if !args.force && filepath.exists() {
                     if !args.quiet {
                         exists(&pb, filepath.to_str().unwrap());
                         let mut p = processing.lock().unwrap();
-                        p.remove(fullpath);
+                        p.remove(&fullpath.to_path_buf());
                     }
                     return;
                 }
 
                 // write to file
+                let file_data = filesystem.file_data(file);
                 let fd = File::create(&filepath).unwrap();
-                let mut writer = BufWriter::with_capacity(file.file_len(), &fd);
-                let file = filesystem.file(file);
-                let mut reader = file.reader();
+                let mut writer = BufWriter::with_capacity(file_data.len(), &fd);
 
-                match io::copy(&mut reader, &mut writer) {
+                match writer.write_all(&file_data) {
                     Ok(_) => {
                         if args.info && !args.quiet {
                             extracted(&pb, filepath.to_str().unwrap());
@@ -485,21 +513,21 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             let line = format!("{} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
                             let mut p = processing.lock().unwrap();
-                            p.remove(fullpath);
+                            p.remove(&fullpath.to_path_buf());
                         }
                         return;
                     }
                 }
                 writer.flush().unwrap();
             }
-            InnerNode::Symlink(SquashfsSymlink { link }) => {
+            BackhandInnerNode::Symlink { link } => {
                 // create symlink
                 let link_display = link.display();
                 // check if file exists
                 if !args.force && filepath.exists() {
                     exists(&pb, filepath.to_str().unwrap());
                     let mut p = processing.lock().unwrap();
-                    p.remove(fullpath);
+                    p.remove(&fullpath.to_path_buf());
                     return;
                 }
 
@@ -516,7 +544,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                 format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
                             failed(&pb, &line);
                             let mut p = processing.lock().unwrap();
-                            p.remove(fullpath);
+                            p.remove(&fullpath.to_path_buf());
                         }
                         return;
                     }
@@ -539,7 +567,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                 failed(&pb, &line);
                             }
                             let mut p = processing.lock().unwrap();
-                            p.remove(fullpath);
+                            p.remove(&fullpath.to_path_buf());
                             return;
                         }
                     }
@@ -557,7 +585,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                 )
                 .unwrap();
             }
-            InnerNode::Dir(SquashfsDir { .. }) => {
+            BackhandInnerNode::Dir => {
                 // These permissions are corrected later (user default permissions for now)
                 //
                 // don't display error if this was already created, we might have already
@@ -566,7 +594,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                     created(&pb, filepath.to_str().unwrap())
                 }
             }
-            InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number }) => {
+            BackhandInnerNode::CharacterDevice { device_number } => {
                 if root_process {
                     #[allow(clippy::unnecessary_fallible_conversions)]
                     match mknod(
@@ -590,7 +618,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                                 );
                                 failed(&pb, &line);
                                 let mut p = processing.lock().unwrap();
-                                p.remove(fullpath);
+                                p.remove(&fullpath.to_path_buf());
                             }
                             return;
                         }
@@ -604,11 +632,11 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         failed(&pb, &line);
                     }
                     let mut p = processing.lock().unwrap();
-                    p.remove(fullpath);
+                    p.remove(&fullpath.to_path_buf());
                     return;
                 }
             }
-            InnerNode::BlockDevice(SquashfsBlockDevice { device_number }) => {
+            BackhandInnerNode::BlockDevice { device_number } => {
                 #[allow(clippy::unnecessary_fallible_conversions)]
                 match mknod(
                     &filepath,
@@ -627,13 +655,13 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         if args.info && !args.quiet {
                             created(&pb, filepath.to_str().unwrap());
                             let mut p = processing.lock().unwrap();
-                            p.remove(fullpath);
+                            p.remove(&fullpath.to_path_buf());
                         }
                         return;
                     }
                 }
             }
-            InnerNode::NamedPipe => {
+            BackhandInnerNode::NamedPipe => {
                 match mkfifo(
                     &filepath,
                     Mode::from_bits(mode_t::from(node.header.permissions)).unwrap(),
@@ -650,12 +678,12 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                             created(&pb, filepath.to_str().unwrap());
                         }
                         let mut p = processing.lock().unwrap();
-                        p.remove(fullpath);
+                        p.remove(&fullpath.to_path_buf());
                         return;
                     }
                 }
             }
-            InnerNode::Socket => {
+            BackhandInnerNode::Socket => {
                 #[allow(clippy::unnecessary_fallible_conversions)]
                 match mknod(
                     &filepath,
@@ -674,7 +702,7 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
                         if args.info && !args.quiet {
                             created(&pb, filepath.to_str().unwrap());
                             let mut p = processing.lock().unwrap();
-                            p.remove(fullpath);
+                            p.remove(&fullpath.to_path_buf());
                         }
                         return;
                     }
@@ -682,12 +710,13 @@ fn extract_all<'a, S: ParallelIterator<Item = &'a Node<SquashfsFileReader>>>(
             }
         }
         let mut p = processing.lock().unwrap();
-        p.remove(fullpath);
+        p.remove(&fullpath.to_path_buf());
     });
 
     // fixup dir permissions
-    for node in filesystem.files().filter(|a| a.fullpath.starts_with(&args.path_filter)) {
-        if let InnerNode::Dir(SquashfsDir { .. }) = &node.inner {
+    let all_filesystem_files: Vec<BackhandNode> = filesystem.files();
+    for node in all_filesystem_files.iter().filter(|a| a.fullpath.starts_with(&args.path_filter)) {
+        if let BackhandInnerNode::Dir = &node.inner {
             let path = &node.fullpath;
             let path = path.strip_prefix(Component::RootDir).unwrap_or(path);
             let path = Path::new(&args.dest).join(path);

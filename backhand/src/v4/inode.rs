@@ -5,12 +5,12 @@ use std::io::{Cursor, Write};
 
 use deku::prelude::*;
 
-use crate::data::DataSize;
-use crate::dir::DirectoryIndex;
-use crate::entry::Entry;
-use crate::kind::Kind;
-use crate::metadata::MetadataWriter;
-use crate::squashfs::SuperBlock;
+use crate::kinds::Kind;
+use crate::v4::data::DataSize;
+use crate::v4::dir::DirectoryIndex;
+use crate::v4::entry::Entry;
+use crate::v4::metadata::MetadataWriter;
+use crate::v4::squashfs::SuperBlock;
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "bytes_used: u64, block_size: u32, block_log: u16, type_endian: deku::ctx::Endian")]

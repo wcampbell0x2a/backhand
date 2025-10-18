@@ -16,11 +16,13 @@ features = ["xz", "gzip", "zstd", "document-features"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-deku = { version = "0.19.1", default-features = false, features = ["std"] }
+deku = { version = "0.20.0", default-features = false, features = ["std", "bits", "descriptive-errors"] }
 tracing = { version = "0.1.40" }
 thiserror = "2.0.1"
 flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }
 liblzma = { version = "0.4.1", optional = true, default-features = false, features = ["static", "parallel"] }
+liblzma-sys = { version = "0.4.3", optional = true }
+lzma-adaptive-sys = { version = "0.1.0", optional = true }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
@@ -31,7 +33,11 @@ lz4_flex = { version = "0.11.3", optional = true, default-features = false }
 rayon = { version = "1.10.0", optional = true, default-features = false }
 
 [features]
-default = ["xz", "gzip", "zstd", "lz4", "parallel"]
+default = ["xz", "gzip", "zstd", "lz4", "parallel", "v3", "v3_lzma"]
+## Enables squashfs v3
+v3 = ["gzip"]
+## Enables squashfs v3 with LZMA compression
+v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:liblzma"]
 ## Enables xz compression inside library and binaries
 xz = ["dep:liblzma"]
 ## Enables xz compression and forces static build inside library and binaries

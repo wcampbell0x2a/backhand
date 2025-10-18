@@ -1,6 +1,6 @@
 mod common;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, BufWriter};
 
 use backhand::compression::{CompressionAction, Compressor, DefaultCompressor};
 use backhand::kind::{self, Kind};
@@ -24,7 +24,7 @@ fn full_test(
     kind: &Kind,
     pad: Option<u32>,
 ) {
-    common::download_backoff(&assets_defs, test_path);
+    common::download_backoff(assets_defs, test_path);
     let og_path = format!("{test_path}/{filepath}");
     let new_path = format!("{test_path}/bytes.squashfs");
     {
@@ -63,8 +63,6 @@ fn full_test(
 #[test]
 #[cfg(feature = "gzip")]
 fn test_non_standard_be_v4_0() {
-    use backhand::compression::DefaultCompressor;
-
     const FILE_NAME: &str = "squashfs_v4.unblob.bin";
     let asset_defs = [TestAssetDef {
         filename: FILE_NAME.to_string(),
@@ -83,7 +81,8 @@ fn test_non_standard_be_v4_0() {
     );
 
     // test custom kind "builder-lite"
-    let _kind = Kind::new(&DefaultCompressor)
+    let _kind = Kind::from_const(kind::BE_V4_0)
+        .unwrap()
         .with_magic(kind::Magic::Big)
         .with_all_endian(kind::Endian::Big);
 }
@@ -125,15 +124,22 @@ fn test_custom_compressor() {
     #[derive(Copy, Clone)]
     pub struct CustomCompressor;
 
+    static CUSTOM_COMPRESSOR: CustomCompressor = CustomCompressor;
+
     // Special decompress that only has support for the Rust version of gzip: lideflator for
     // decompression
     impl CompressionAction for CustomCompressor {
+        type Compressor = Compressor;
+        type FilesystemCompressor = FilesystemCompressor;
+        type SuperBlock = SuperBlock;
+        type Error = BackhandError;
+
         fn decompress(
             &self,
             bytes: &[u8],
             out: &mut Vec<u8>,
-            compressor: Compressor,
-        ) -> Result<(), BackhandError> {
+            compressor: Self::Compressor,
+        ) -> Result<(), Self::Error> {
             if let Compressor::Gzip = compressor {
                 out.resize(out.capacity(), 0);
                 let mut decompressor = libdeflater::Decompressor::new();
@@ -150,23 +156,28 @@ fn test_custom_compressor() {
         fn compress(
             &self,
             bytes: &[u8],
-            fc: FilesystemCompressor,
+            fc: Self::FilesystemCompressor,
             block_size: u32,
-        ) -> Result<Vec<u8>, BackhandError> {
-            DefaultCompressor.compress(bytes, fc, block_size)
+        ) -> Result<Vec<u8>, Self::Error> {
+            CompressionAction::compress(&DefaultCompressor, bytes, fc, block_size)
         }
 
         fn compression_options(
             &self,
-            _superblock: &mut SuperBlock,
+            _superblock: &mut Self::SuperBlock,
             _kind: &Kind,
-            _fs_compressor: FilesystemCompressor,
-        ) -> Result<Vec<u8>, BackhandError> {
-            DefaultCompressor.compression_options(_superblock, _kind, _fs_compressor)
+            _fs_compressor: Self::FilesystemCompressor,
+        ) -> Result<Option<Vec<u8>>, Self::Error> {
+            CompressionAction::compression_options(
+                &DefaultCompressor,
+                _superblock,
+                _kind,
+                _fs_compressor,
+            )
         }
     }
 
-    let kind = Kind::new_with_const(&CustomCompressor, kind::BE_V4_0);
+    let kind = Kind::new_v4_with_const(&CUSTOM_COMPRESSOR, kind::BE_V4_0);
 
     const TEST_PATH: &str = "test-assets/custom_compressor";
     full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &kind, Some(0));

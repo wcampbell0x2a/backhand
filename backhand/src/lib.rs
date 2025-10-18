@@ -57,55 +57,58 @@
 #[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();
 
-mod compressor;
-mod data;
-mod dir;
-mod entry;
-mod error;
-mod export;
-mod filesystem;
-mod fragment;
-mod id;
-mod inode;
+pub mod error;
 mod kinds;
-mod metadata;
-mod reader;
-mod squashfs;
-mod unix_string;
+pub mod traits;
+#[cfg(feature = "v3")]
+pub mod v3;
+#[cfg(feature = "v3_lzma")]
+pub mod v3_lzma;
+pub mod v4;
 
-pub use crate::data::DataSize;
-pub use crate::error::BackhandError;
-pub use crate::export::Export;
-pub use crate::filesystem::node::{
+#[cfg(feature = "v3")]
+pub use crate::v3::V3;
+pub use crate::v4::data::DataSize;
+pub use crate::v4::export::Export;
+pub use crate::v4::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
-pub use crate::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
+pub use crate::v4::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
 #[cfg(not(feature = "parallel"))]
-pub use crate::filesystem::reader_no_parallel::SquashfsReadFile;
+pub use crate::v4::filesystem::reader_no_parallel::SquashfsReadFile;
 #[cfg(feature = "parallel")]
-pub use crate::filesystem::reader_parallel::SquashfsReadFile;
-pub use crate::filesystem::writer::{
+pub use crate::v4::filesystem::reader_parallel::SquashfsReadFile;
+pub use crate::v4::filesystem::writer::{
     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
 };
-pub use crate::fragment::Fragment;
-pub use crate::id::Id;
-pub use crate::inode::{BasicFile, Inode};
-pub use crate::reader::BufReadSeek;
-pub use crate::squashfs::{
+pub use crate::v4::fragment::Fragment;
+pub use crate::v4::id::Id;
+pub use crate::v4::inode::{BasicFile, Inode};
+pub use crate::v4::reader::BufReadSeek;
+pub use crate::v4::squashfs::{
     Flags, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
     MIN_BLOCK_SIZE,
 };
+pub use crate::v4::V4;
+
+pub use crate::error::BackhandError;
+pub use crate::traits::squashfs::create_squashfs_from_kind;
+pub use crate::traits::{FilesystemReaderTrait, GenericSquashfs, SquashfsVersion};
 
 /// Support the wonderful world of vendor formats
 pub mod kind {
     pub use crate::kinds::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
+    #[cfg(feature = "v3")]
+    pub use crate::kinds::{BE_V3_0, LE_V3_0};
+    #[cfg(feature = "v3_lzma")]
+    pub use crate::kinds::{BE_V3_0_LZMA, LE_V3_0_LZMA};
 }
 
 /// Compression Choice and Options
 pub mod compression {
-    pub use crate::compressor::{
-        CompressionAction, CompressionOptions, Compressor, DefaultCompressor, Gzip, Lz4, Lzo, Xz,
-        Zstd,
+    pub use crate::traits::CompressionAction;
+    pub use crate::v4::compressor::{
+        CompressionOptions, Compressor, DefaultCompressor, Gzip, Lz4, Lzo, Xz, Zstd,
     };
 }

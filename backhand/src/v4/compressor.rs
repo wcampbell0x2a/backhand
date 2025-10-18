@@ -14,11 +14,10 @@ use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 use tracing::trace;
 
 use crate::error::BackhandError;
-use crate::filesystem::writer::{CompressionExtra, FilesystemCompressor};
-use crate::kind::Kind;
-use crate::metadata::MetadataWriter;
-use crate::squashfs::Flags;
-use crate::SuperBlock;
+use crate::traits::CompressionAction;
+use crate::v4::filesystem::writer::{CompressionExtra, FilesystemCompressor};
+use crate::v4::metadata::MetadataWriter;
+use crate::v4::squashfs::Flags;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
@@ -26,7 +25,7 @@ use crate::SuperBlock;
 #[repr(u16)]
 #[rustfmt::skip]
 pub enum Compressor {
-    None = 0,
+    Uncompressed = 0,
     Gzip = 1,
     Lzma = 2,
     Lzo =  3,
@@ -139,83 +138,24 @@ pub struct Zstd {
     pub compression_level: u32,
 }
 
-/// Custom Compression support
-///
-/// For most instances, one should just use the [`DefaultCompressor`]. This will correctly
-/// implement the Squashfs found within `squashfs-tools` and the Linux kernel.
-///
-/// However, the "wonderful world of vendor formats" has other ideas and has implemented their own
-/// ideas of compression with custom tables and such! Thus, if the need arises you can implement
-/// your own [`CompressionAction`] to override the compression and de-compression used in this
-/// library by default.
-pub trait CompressionAction {
-    /// Decompress function used for all decompression actions
-    ///
-    /// # Arguments
-    ///
-    /// * `bytes` - Input compressed bytes
-    /// * `out` - Output uncompressed bytes. You will need to call `out.resize(out.capacity(), 0)`
-    ///   if your compressor relies on having a max sized buffer to write into.
-    /// * `compressor` - Compressor id from [SuperBlock]. This can be ignored if your custom
-    ///   compressor doesn't follow the normal values of the Compressor Id.
-    ///
-    /// [SuperBlock]: [`crate::SuperBlock`]
-    fn decompress(
-        &self,
-        bytes: &[u8],
-        out: &mut Vec<u8>,
-        compressor: Compressor,
-    ) -> Result<(), BackhandError>;
-
-    /// Compression function used for all compression actions
-    ///
-    /// # Arguments
-    /// * `bytes` - Input uncompressed bytes
-    /// * `fc` - Information from both the derived image and options added during compression
-    /// * `block_size` - Block size from [SuperBlock]
-    ///
-    /// [SuperBlock]: [`crate::SuperBlock`]
-    fn compress(
-        &self,
-        bytes: &[u8],
-        fc: FilesystemCompressor,
-        block_size: u32,
-    ) -> Result<Vec<u8>, BackhandError>;
-
-    /// Compression Options for non-default compression specific options
-    ///
-    /// This function is called when calling [FilesystemWriter::write](crate::FilesystemWriter::write), and the returned bytes are the
-    ///  section right after the SuperBlock.
-    ///
-    /// # Arguments
-    /// * `superblock` - Mutatable squashfs superblock info that will be written to disk after
-    ///   this function is called. The fields `inode_count`, `block_size`,
-    ///   `block_log` and `mod_time` *will* be set to `FilesystemWriter` options and can be trusted
-    ///   in this function.
-    /// * `kind` - Kind information
-    /// * `fs_compressor` - Compression Options
-    fn compression_options(
-        &self,
-        superblock: &mut SuperBlock,
-        kind: &Kind,
-        fs_compressor: FilesystemCompressor,
-    ) -> Result<Vec<u8>, BackhandError>;
-}
-
 /// Default compressor that handles the compression features that are enabled
 #[derive(Copy, Clone)]
 pub struct DefaultCompressor;
 
 impl CompressionAction for DefaultCompressor {
+    type Compressor = Compressor;
+    type FilesystemCompressor = FilesystemCompressor;
+    type SuperBlock = super::squashfs::SuperBlock;
+    type Error = crate::BackhandError;
     /// Using the current compressor from the superblock, decompress bytes
     fn decompress(
         &self,
         bytes: &[u8],
         out: &mut Vec<u8>,
-        compressor: Compressor,
-    ) -> Result<(), BackhandError> {
+        compressor: Self::Compressor,
+    ) -> Result<(), Self::Error> {
         match compressor {
-            Compressor::None => out.extend_from_slice(bytes),
+            Compressor::Uncompressed => out.extend_from_slice(bytes),
             #[cfg(feature = "any-flate2")]
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
@@ -247,7 +187,7 @@ impl CompressionAction for DefaultCompressor {
                 let out_size = lz4_flex::decompress_into(bytes, out.as_mut_slice()).unwrap();
                 out.truncate(out_size);
             }
-            _ => return Err(BackhandError::UnsupportedCompression(compressor)),
+            _ => return Err(BackhandError::UnsupportedCompression(format!("{:?}", compressor))),
         }
         Ok(())
     }
@@ -256,11 +196,11 @@ impl CompressionAction for DefaultCompressor {
     fn compress(
         &self,
         bytes: &[u8],
-        fc: FilesystemCompressor,
+        fc: Self::FilesystemCompressor,
         block_size: u32,
-    ) -> Result<Vec<u8>, BackhandError> {
+    ) -> Result<Vec<u8>, Self::Error> {
         match (fc.id, fc.options, fc.extra) {
-            (Compressor::None, None, _) => Ok(bytes.to_vec()),
+            (Compressor::Uncompressed, None, _) => Ok(bytes.to_vec()),
             #[cfg(feature = "xz")]
             (Compressor::Xz, option @ (Some(CompressionOptions::Xz(_)) | None), extra) => {
                 let dict_size = match option {
@@ -360,17 +300,17 @@ impl CompressionAction for DefaultCompressor {
             }
             #[cfg(feature = "lz4")]
             (Compressor::Lz4, _option, _) => Ok(lz4_flex::compress(bytes)),
-            _ => Err(BackhandError::UnsupportedCompression(fc.id)),
+            _ => Err(BackhandError::UnsupportedCompression(format!("{:?}", fc.id))),
         }
     }
 
     /// Using the current compressor options, create compression options
     fn compression_options(
         &self,
-        superblock: &mut SuperBlock,
-        kind: &Kind,
-        fs_compressor: FilesystemCompressor,
-    ) -> Result<Vec<u8>, BackhandError> {
+        superblock: &mut Self::SuperBlock,
+        kind: &crate::kinds::Kind,
+        fs_compressor: Self::FilesystemCompressor,
+    ) -> Result<Option<Vec<u8>>, Self::Error> {
         let mut w = Cursor::new(vec![]);
 
         // Write compression options, if any
@@ -396,14 +336,15 @@ impl CompressionAction for DefaultCompressor {
                 CompressionOptions::Lzma => {}
             }
             let mut metadata = MetadataWriter::new(
+                self,
                 fs_compressor,
                 superblock.block_size,
-                Kind { inner: kind.inner.clone() },
+                kind.inner.data_endian,
             );
             metadata.write_all(compression_opt_buf_out.get_ref())?;
             metadata.finalize(&mut w)?;
         }
 
-        Ok(w.into_inner())
+        Ok(Some(w.into_inner()))
     }
 }

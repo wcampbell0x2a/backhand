@@ -5,35 +5,54 @@ use deku::prelude::*;
 use tracing::trace;
 
 use crate::error::BackhandError;
-use crate::filesystem::writer::FilesystemCompressor;
 use crate::kinds::Kind;
-use crate::squashfs::SuperBlock;
+use crate::v4::filesystem::writer::FilesystemCompressor;
+use crate::v4::squashfs::SuperBlock;
 
 pub const METADATA_MAXSIZE: usize = 0x2000;
 
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 
-pub(crate) struct MetadataWriter {
+pub(crate) struct MetadataWriter<'a> {
+    compression_action: &'a (dyn crate::traits::CompressionAction<
+        Compressor = super::compressor::Compressor,
+        FilesystemCompressor = super::filesystem::writer::FilesystemCompressor,
+        SuperBlock = super::squashfs::SuperBlock,
+        Error = crate::BackhandError,
+    > + Send
+             + Sync),
     compressor: FilesystemCompressor,
     block_size: u32,
+    data_endian: deku::ctx::Endian,
     /// Offset from the beginning of the metadata block last written
     pub(crate) metadata_start: u32,
     // All current bytes that are uncompressed
     pub(crate) uncompressed_bytes: VecDeque<u8>,
     // All current bytes that are compressed or uncompressed
     pub(crate) final_bytes: Vec<(bool, Vec<u8>)>,
-    pub kind: Kind,
 }
 
-impl MetadataWriter {
-    pub fn new(compressor: FilesystemCompressor, block_size: u32, kind: Kind) -> Self {
+impl<'a> MetadataWriter<'a> {
+    pub fn new(
+        compression_action: &'a (dyn crate::traits::CompressionAction<
+            Compressor = super::compressor::Compressor,
+            FilesystemCompressor = super::filesystem::writer::FilesystemCompressor,
+            SuperBlock = super::squashfs::SuperBlock,
+            Error = crate::BackhandError,
+        > + Send
+                 + Sync),
+        compressor: FilesystemCompressor,
+        block_size: u32,
+        data_endian: deku::ctx::Endian,
+    ) -> Self {
         Self {
+            compression_action,
             compressor,
             block_size,
+            data_endian,
             metadata_start: 0,
             uncompressed_bytes: VecDeque::new(),
             final_bytes: vec![],
-            kind,
         }
     }
 
@@ -53,7 +72,7 @@ impl MetadataWriter {
         trace!("time to compress");
         // "Write" the to the saved metablock
         let compressed =
-            self.kind.inner.compressor.compress(uncompressed, self.compressor, self.block_size)?;
+            self.compression_action.compress(uncompressed, self.compressor, self.block_size)?;
 
         // Remove the data consumed, if the uncompressed data is smalled, use it.
         let (compressed, metadata) = if compressed.len() > uncompressed_len {
@@ -86,7 +105,7 @@ impl MetadataWriter {
             let len =
                 compressed_bytes.len() as u16 | if *compressed { 0 } else { 1 << (u16::BITS - 1) };
             let mut writer = Writer::new(&mut out);
-            len.to_writer(&mut writer, self.kind.inner.data_endian)?;
+            len.to_writer(&mut writer, self.data_endian)?;
             out.write_all(compressed_bytes)?;
         }
 
@@ -94,7 +113,7 @@ impl MetadataWriter {
     }
 }
 
-impl Write for MetadataWriter {
+impl Write for MetadataWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         // add all of buf into uncompressed
         self.uncompressed_bytes.write_all(buf)?;
@@ -128,7 +147,7 @@ pub fn read_block<R: Read + Seek>(
     let bytes = if is_compressed(metadata_len) {
         tracing::trace!("compressed");
         let mut out = Vec::with_capacity(8 * 1024);
-        kind.inner.compressor.decompress(&buf, &mut out, superblock.compressor)?;
+        kind.inner.compressor.decompress(&buf, &mut out, Some(superblock.compressor.into()))?;
         out
     } else {
         tracing::trace!("uncompressed");

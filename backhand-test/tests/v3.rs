@@ -114,27 +114,27 @@ fn test_v3_le_more() {
     only_read(Kind::from_const(LE_V3_0).unwrap(), &asset_defs, FILE_NAME, TEST_PATH, 0, "le_v3_0");
 }
 
-// #[test]
-// #[cfg(feature = "v3_lzma")]
-// fn test_v3_netgear() {
-//     use backhand::kind::NETGEAR_BE_V3_0_LZMA_STANDARD;
+#[test]
+#[cfg(feature = "v3_lzma")]
+fn test_v3_netgear() {
+    use backhand::kind::NETGEAR_BE_V3_0_LZMA_STANDARD;
 
-//     const FILE_NAME: &str = "netgear_v3.sqsh";
-//     let asset_defs = [TestAssetDef {
-//         filename: FILE_NAME.to_string(),
-//         hash: "a89cdf1cc45f99bd938b7e1d9b63b56f0b16edf803307956d1ba030c62a919ac".to_string(),
-//         url: format!("https://wcampbell.dev/squashfs/testing/{FILE_NAME}"),
-//     }];
-//     const TEST_PATH: &str = "test-assets/test_v3_netgear";
-//     only_read(
-//         Kind::from_const(NETGEAR_BE_V3_0_LZMA_STANDARD).unwrap(),
-//         &asset_defs,
-//         FILE_NAME,
-//         TEST_PATH,
-//         0,
-//         "netgear_be_v3_0_lzma_standard",
-//     );
-// }
+    const FILE_NAME: &str = "netgear_v3.sqsh";
+    let asset_defs = [TestAssetDef {
+        filename: FILE_NAME.to_string(),
+        hash: "a89cdf1cc45f99bd938b7e1d9b63b56f0b16edf803307956d1ba030c62a919ac".to_string(),
+        url: format!("https://wcampbell.dev/squashfs/testing/{FILE_NAME}"),
+    }];
+    const TEST_PATH: &str = "test-assets/test_v3_netgear";
+    only_read(
+        Kind::from_const(NETGEAR_BE_V3_0_LZMA_STANDARD).unwrap(),
+        &asset_defs,
+        FILE_NAME,
+        TEST_PATH,
+        0,
+        "netgear_be_v3_0_lzma_standard",
+    );
+}
 
 #[test]
 #[cfg(feature = "v3")]

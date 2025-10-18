@@ -108,9 +108,9 @@ dependencies = [
  "flate2",
  "libdeflater",
  "liblzma",
- "liblzma-sys",
  "lz4_flex",
  "lzma-adaptive-sys",
+ "lzma-rust2",
  "rayon",
  "rust-lzo",
  "solana-nohash-hasher",
@@ -369,6 +369,21 @@ checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "crc"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9710d3b3739c2e349eb44fe848ad0b7c8cb1e42bd87ee49371df2f7acaf3e675"
+dependencies = [
+ "crc-catalog",
+]
+
+[[package]]
+name = "crc-catalog"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
 
 [[package]]
 name = "crc32fast"
@@ -1074,6 +1089,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69c1d005f103a1e3e2cda011c4a08a2c84e66364deccd246a76eeb1e1ddb4764"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "lzma-rust2"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5999f9ccfee85f09b54a2205c5851f884c83e4e7ef056843ff68d7f2006cd82"
+dependencies = [
+ "crc",
+ "sha2",
 ]
 
 [[package]]

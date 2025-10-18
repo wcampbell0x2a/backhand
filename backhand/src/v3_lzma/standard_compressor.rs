@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use tracing::trace;
 
 pub use crate::traits::types::Compressor;
@@ -25,11 +27,11 @@ impl CompressionAction for LzmaStandardCompressor {
             return Ok(());
         }
 
-        // Use standard LZMA decompression via liblzma
-        let mut stream = liblzma::stream::Stream::new_lzma_decoder(u64::MAX)
+        // Use lzma-rust2 for standard LZMA decompression
+        let mut reader = lzma_rust2::LzmaReader::new_mem_limit(bytes, u32::MAX, None)
             .map_err(|e| crate::BackhandError::UnsupportedCompression(e.to_string()))?;
-        let _status = stream
-            .process_vec(bytes, out, liblzma::stream::Action::Finish)
+        reader
+            .read_to_end(out)
             .map_err(|e| crate::BackhandError::UnsupportedCompression(e.to_string()))?;
         Ok(())
     }

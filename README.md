@@ -29,6 +29,8 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 | `le_v3_0`                              | ✓       |        | `v3`       |
 | `be_v3_0_lzma`                         | ✓       |        | `v3_lzma`  |
 | `le_v3_0_lzma`                         | ✓       |        | `v3_lzma`  |
+| `netgear_be_v3_0_lzma`                 | ✓       |        | `v3_lzma`  |
+| `netgear_be_v3_0_lzma_standard`        | ✓       |        | `v3_lzma`  |
 
 
 ## Library

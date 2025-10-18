@@ -12,7 +12,6 @@ use tracing::{error, info, trace};
 use crate::error::BackhandError;
 use crate::kinds::Kind;
 use crate::kinds::LE_V4_0;
-use crate::traits::CompressionAction;
 use crate::v4::compressor::{CompressionOptions, Compressor};
 use crate::v4::data::DataWriter;
 use crate::v4::entry::Entry;

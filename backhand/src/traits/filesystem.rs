@@ -246,16 +246,16 @@ pub enum BackhandInnerNode {
 }
 
 pub trait FilesystemReaderTrait: Send + Sync {
-    /// Get all files as a vector of owned backhand nodes
-    fn files(&self) -> Vec<BackhandNode>;
+    /// Get an iterator over all files
+    fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_>;
 
     /// Get a file handle that can be used to read file data
     fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8>;
 }
 
 impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemReader<'b> {
-    fn files(&self) -> Vec<BackhandNode> {
-        self.files().map(|node| node.into()).collect()
+    fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_> {
+        Box::new(self.files().map(|node| node.into()))
     }
 
     fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8> {
@@ -311,8 +311,8 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
 
 #[cfg(feature = "v3")]
 impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemReader<'b> {
-    fn files(&self) -> Vec<BackhandNode> {
-        self.files().map(|node| node.into()).collect()
+    fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_> {
+        Box::new(self.files().map(|node| node.into()))
     }
 
     fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8> {

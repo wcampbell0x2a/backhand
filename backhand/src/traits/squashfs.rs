@@ -125,10 +125,8 @@ pub fn create_squashfs_from_kind<'b>(
         (3, 0) => {
             let squashfs = crate::v3::squashfs::Squashfs::from_reader_with_offset_and_kind(
                 reader, offset, kind,
-            )
-            .map_err(crate::error::BackhandError::from)?;
-            let filesystem =
-                squashfs.into_filesystem_reader().map_err(crate::error::BackhandError::from)?;
+            )?;
+            let filesystem = squashfs.into_filesystem_reader()?;
             Ok(Box::new(filesystem) as Box<dyn FilesystemReaderTrait + 'b>)
         }
         #[cfg(not(feature = "v3"))]
@@ -136,10 +134,8 @@ pub fn create_squashfs_from_kind<'b>(
         (4, 0) => {
             let squashfs = crate::v4::squashfs::Squashfs::from_reader_with_offset_and_kind(
                 reader, offset, kind,
-            )
-            .map_err(crate::error::BackhandError::from)?;
-            let filesystem =
-                squashfs.into_filesystem_reader().map_err(crate::error::BackhandError::from)?;
+            )?;
+            let filesystem = squashfs.into_filesystem_reader()?;
             Ok(Box::new(filesystem) as Box<dyn FilesystemReaderTrait + 'b>)
         }
         _ => Err(crate::error::BackhandError::UnsupportedSquashfsVersion(major, minor)),

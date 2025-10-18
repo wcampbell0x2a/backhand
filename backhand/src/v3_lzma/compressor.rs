@@ -77,7 +77,7 @@ impl CompressionAction for LzmaAdaptiveCompressor {
 }
 
 impl LzmaAdaptiveCompressor {
-    /// Try LZMA decompression with specific parameters using raw liblzma-sys
+    /// Try LZMA decompression with specific parameters using lzma-adaptive-sys
     fn try_lzma_with_params(
         &self,
         bytes: &[u8],

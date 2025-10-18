@@ -8,9 +8,7 @@ use flate2::read::ZlibEncoder;
 #[cfg(feature = "any-flate2")]
 use flate2::Compression;
 #[cfg(feature = "xz")]
-use liblzma::read::{XzDecoder, XzEncoder};
-#[cfg(feature = "xz")]
-use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
+use lzma_rust2::{XzOptions, XzReader, XzWriter};
 use tracing::trace;
 
 use crate::error::BackhandError;
@@ -163,7 +161,7 @@ impl CompressionAction for DefaultCompressor {
             }
             #[cfg(feature = "xz")]
             Compressor::Xz => {
-                let mut decoder = XzDecoder::new(bytes);
+                let mut decoder = XzReader::new(bytes, false);
                 decoder.read_to_end(out)?;
             }
             #[cfg(feature = "lzo")]
@@ -219,43 +217,36 @@ impl CompressionAction for DefaultCompressor {
                         }
                     }
                 };
-                let check = Check::Crc32;
-                let mut opts = LzmaOptions::new_preset(level).unwrap();
-                opts.dict_size(dict_size);
 
-                let mut filters = Filters::new();
+                let mut xz_options = XzOptions::with_preset(level);
+                xz_options.lzma_options.dict_size = dict_size;
+
+                // Add BCJ filters if configured
                 if let Some(CompressionOptions::Xz(xz)) = option {
                     if xz.filters.x86() {
-                        filters.x86();
+                        xz_options.prepend_pre_filter(lzma_rust2::FilterType::BcjX86, 0);
                     }
                     if xz.filters.powerpc() {
-                        filters.powerpc();
+                        xz_options.prepend_pre_filter(lzma_rust2::FilterType::BcjPpc, 0);
                     }
                     if xz.filters.ia64() {
-                        filters.ia64();
+                        xz_options.prepend_pre_filter(lzma_rust2::FilterType::BcjIa64, 0);
                     }
                     if xz.filters.arm() {
-                        filters.arm();
+                        xz_options.prepend_pre_filter(lzma_rust2::FilterType::BcjArm, 0);
                     }
                     if xz.filters.armthumb() {
-                        filters.arm_thumb();
+                        xz_options.prepend_pre_filter(lzma_rust2::FilterType::BcjArmThumb, 0);
                     }
                     if xz.filters.sparc() {
-                        filters.sparc();
+                        xz_options.prepend_pre_filter(lzma_rust2::FilterType::BcjSparc, 0);
                     }
                 }
-                filters.lzma2(&opts);
 
-                let stream = MtStreamBuilder::new()
-                    .threads(2)
-                    .filters(filters)
-                    .check(check)
-                    .encoder()
-                    .unwrap();
-
-                let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
-                let mut buf = vec![];
-                encoder.read_to_end(&mut buf)?;
+                let mut buf = Vec::new();
+                let mut encoder = XzWriter::new(Cursor::new(&mut buf), xz_options)?;
+                encoder.write_all(bytes)?;
+                encoder.finish()?;
                 Ok(buf)
             }
             #[cfg(feature = "any-flate2")]

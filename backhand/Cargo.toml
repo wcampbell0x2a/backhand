@@ -20,9 +20,8 @@ deku = { version = "0.20.0", default-features = false, features = ["std", "bits"
 tracing = { version = "0.1.40" }
 thiserror = "2.0.1"
 flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }
-liblzma = { version = "0.4.1", optional = true, default-features = false, features = ["static", "parallel"] }
-liblzma-sys = { version = "0.4.3", optional = true }
 lzma-adaptive-sys = { version = "0.1.0", optional = true }
+lzma-rust2 = { version = "0.14.3", optional = true, features = ["xz", "encoder"] }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
@@ -37,11 +36,11 @@ default = ["xz", "gzip", "zstd", "lz4", "parallel", "v3", "v3_lzma"]
 ## Enables squashfs v3
 v3 = ["gzip"]
 ## Enables squashfs v3 with LZMA compression
-v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:liblzma"]
+v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:lzma-rust2"]
 ## Enables xz compression inside library and binaries
-xz = ["dep:liblzma"]
+xz = ["dep:lzma-rust2"]
 ## Enables xz compression and forces static build inside library and binaries
-xz-static = ["dep:liblzma", "liblzma?/static"]
+xz-static = ["dep:lzma-rust2"]
 ## Enables gzip compression inside library and binaries using flate2 library with zlib-rs
 gzip = ["any-flate2", "any-gzip", "dep:flate2"]
 ## This library is licensed GPL and thus disabled by default

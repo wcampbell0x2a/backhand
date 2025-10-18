@@ -160,7 +160,7 @@ fn test_dont_emit_compression_options() {
 
     let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
-        .args(["-s", "--quiet", &out_image])
+        .args(["-s", "--quiet", "--kind", "le_v4_0", &out_image])
         .unwrap();
     let stdout = std::str::from_utf8(&cmd.stdout).unwrap();
     stdout.contains("Compression Options: None");
@@ -181,7 +181,7 @@ fn test_dont_emit_compression_options() {
 
     let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
-        .args(["-s", "--quiet", &out_image])
+        .args(["-s", "--quiet", "--kind", "le_v4_0", &out_image])
         .unwrap();
     let stdout = std::str::from_utf8(&cmd.stdout).unwrap();
     stdout.contains("Compression Options: Some");

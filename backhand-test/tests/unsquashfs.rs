@@ -68,7 +68,7 @@ fn test_unsquashfs_cli() {
     // Number of xattr ids 0
     let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
-        .args(["-s", "--quiet", &image_path])
+        .args(["-s", "--quiet", "--kind", "le_v4_0", &image_path])
         .unwrap();
     cmd.assert().stdout(
         r#"SuperBlock {
@@ -128,6 +128,8 @@ fn test_unsquashfs_cli_auto_offset() {
             .env("RUST_LOG", "none")
             .args([
                 "--auto-offset",
+                "--kind",
+                "le_v4_0",
                 "-d",
                 tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
                 &image_path,

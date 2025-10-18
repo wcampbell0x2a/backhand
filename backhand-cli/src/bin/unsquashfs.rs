@@ -34,6 +34,24 @@ use std::time::{Duration, Instant};
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
+const AVAILABLE_KINDS: &[&str] = &[
+    "le_v4_0",
+    "be_v4_0",
+    #[cfg(feature = "v3")]
+    "le_v3_0",
+    #[cfg(feature = "v3")]
+    "be_v3_0",
+    #[cfg(feature = "v3_lzma")]
+    "le_v3_0_lzma",
+    #[cfg(feature = "v3_lzma")]
+    "be_v3_0_lzma",
+    #[cfg(feature = "v3_lzma")]
+    "netgear_be_v3_0_lzma_standard",
+    #[cfg(feature = "v3_lzma")]
+    "netgear_be_v3_0_lzma",
+    "avm_be_v4_0",
+];
+
 pub fn required_root(a: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(a);
 
@@ -138,30 +156,9 @@ struct Args {
     #[arg(short, long)]
     stat: bool,
 
-    /// Kind(type of image) to parse
-    #[arg(short,
-          long,
-          default_value = "le_v4_0",
-          value_parser = PossibleValuesParser::new(
-          [
-              "be_v4_0",
-              "le_v4_0",
-              #[cfg(feature = "v3")]
-              "be_v3_0",
-              #[cfg(feature = "v3")]
-              "le_v3_0",
-              #[cfg(feature = "v3_lzma")]
-              "be_v3_0_lzma",
-              #[cfg(feature = "v3_lzma")]
-              "le_v3_0_lzma",
-              #[cfg(feature = "v3_lzma")]
-              "netgear_be_v3_0_lzma",
-              #[cfg(feature = "v3_lzma")]
-              "netgear_be_v3_0_lzma_standard",
-              "avm_be_v4_0",
-          ]
-    ))]
-    kind: String,
+    /// Kind(type of image) to parse. If not specified, will auto-detect by trying all kinds.
+    #[arg(short, long, value_parser = PossibleValuesParser::new(AVAILABLE_KINDS))]
+    kind: Option<String>,
 
     /// Emit shell completion scripts
     #[arg(long)]
@@ -170,6 +167,128 @@ struct Args {
     /// Silence all progress bar and RUST_LOG output
     #[arg(long)]
     quiet: bool,
+}
+
+fn try_all_kinds(file: &mut BufReader<File>, offset: u64) -> Result<(Kind, &'static str), String> {
+    let mut errors = Vec::new();
+
+    for &kind_name in AVAILABLE_KINDS {
+        if let Ok(kind) = Kind::from_target(kind_name) {
+            file.seek(SeekFrom::Start(0)).map_err(|e| format!("Failed to seek: {}", e))?;
+
+            let success = {
+                let result = create_squashfs_from_kind(&mut *file, offset, kind.clone());
+                match result {
+                    Ok(_) => true,
+                    Err(e) => {
+                        errors.push(format!("{}: {}", kind_name, e));
+                        false
+                    }
+                }
+            };
+
+            if success {
+                file.seek(SeekFrom::Start(0)).map_err(|e| format!("Failed to seek back: {}", e))?;
+                return Ok((kind, kind_name));
+            }
+        }
+    }
+
+    Err(format!("Could not detect kind. Tried all kinds, errors:\n{}", errors.join("\n")))
+}
+
+fn handle_with_kind<'a>(
+    args: &mut Args,
+    file: &'a mut BufReader<File>,
+    kind_str: &str,
+    pb: &ProgressBar,
+    blue_bold: &console::Style,
+    red_bold: &console::Style,
+) -> Result<(Box<dyn FilesystemReaderTrait + 'a>, Kind), ExitCode> {
+    let kind = Kind::from_target(kind_str).unwrap();
+
+    if args.auto_offset {
+        if !args.quiet {
+            pb.enable_steady_tick(Duration::from_millis(120));
+            let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
+            pb.set_message(line);
+        }
+        if let Some(found_offset) = find_offset(file, &kind) {
+            if !args.quiet {
+                let line =
+                    format!("{:>14} 0x{:08x}", blue_bold.apply_to("Found magic"), found_offset,);
+                pb.finish_with_message(line);
+            }
+            args.offset = found_offset;
+        } else {
+            if !args.quiet {
+                let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
+                pb.finish_with_message(line);
+            }
+            return Err(ExitCode::FAILURE);
+        }
+    }
+
+    match create_squashfs_from_kind(file, args.offset, kind.clone()) {
+        Ok(filesystem) => Ok((filesystem, kind)),
+        Err(e) => {
+            let line = format!("{:>14}", red_bold.apply_to(format!("Could not read image: {e}")));
+            pb.finish_with_message(line);
+            eprintln!("Debug error: {e:?}");
+            Err(ExitCode::FAILURE)
+        }
+    }
+}
+
+fn handle_auto_detect_kind<'a>(
+    args: &Args,
+    file: &'a mut BufReader<File>,
+    pb: &ProgressBar,
+    blue_bold: &console::Style,
+    red_bold: &console::Style,
+) -> Result<(Box<dyn FilesystemReaderTrait + 'a>, Kind), ExitCode> {
+    if !args.quiet {
+        pb.enable_steady_tick(Duration::from_millis(120));
+        let line = format!("{:>14}", blue_bold.apply_to("Auto-detecting kind"));
+        pb.set_message(line);
+    }
+
+    if args.auto_offset {
+        if !args.quiet {
+            let line =
+                format!("{:>14}", red_bold.apply_to("Cannot use --auto-offset without --kind"),);
+            pb.finish_with_message(line);
+        }
+        eprintln!("Error: --auto-offset requires --kind to be specified");
+        return Err(ExitCode::FAILURE);
+    }
+
+    match try_all_kinds(file, args.offset) {
+        Ok((detected_kind, kind_name)) => {
+            if !args.quiet {
+                let line = format!("{:>14} {}", blue_bold.apply_to("Detected kind"), kind_name);
+                pb.finish_and_clear();
+                eprintln!("{}", line);
+            }
+
+            match create_squashfs_from_kind(file, args.offset, detected_kind.clone()) {
+                Ok(filesystem) => Ok((filesystem, detected_kind)),
+                Err(e) => {
+                    let line =
+                        format!("{:>14}", red_bold.apply_to(format!("Could not read image: {e}")));
+                    pb.finish_with_message(line);
+                    eprintln!("Debug error: {e:?}");
+                    Err(ExitCode::FAILURE)
+                }
+            }
+        }
+        Err(e) => {
+            let line = format!("{:>14}", red_bold.apply_to("Auto-detection failed"));
+            pb.finish_with_message(line);
+            eprintln!("{}", e);
+            Err(ExitCode::FAILURE)
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -185,8 +304,6 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let kind = Kind::from_target(&args.kind).unwrap();
-
     let mut file = BufReader::with_capacity(
         DEFAULT_BLOCK_SIZE as usize,
         File::open(args.filesystem.as_ref().unwrap()).unwrap(),
@@ -196,42 +313,35 @@ fn main() -> ExitCode {
     let red_bold: console::Style = console::Style::new().red().bold();
     let pb = ProgressBar::new_spinner();
 
-    if args.auto_offset {
-        if !args.quiet {
-            pb.enable_steady_tick(Duration::from_millis(120));
-            let line = format!("{:>14}", blue_bold.apply_to("Searching for magic"));
-            pb.set_message(line);
-        }
-        if let Some(found_offset) = find_offset(&mut file, &kind) {
-            if !args.quiet {
-                let line =
-                    format!("{:>14} 0x{:08x}", blue_bold.apply_to("Found magic"), found_offset,);
-                pb.finish_with_message(line);
-            }
-            args.offset = found_offset;
+    if args.stat {
+        if let Some(kind_str) = &args.kind {
+            let kind = Kind::from_target(kind_str).unwrap();
+            stat(args, file, kind);
+            return ExitCode::SUCCESS;
         } else {
             if !args.quiet {
-                let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
+                let line =
+                    format!("{:>14}", red_bold.apply_to("Cannot use --stat without --kind"),);
                 pb.finish_with_message(line);
             }
+            eprintln!("Error: --stat requires --kind to be specified");
             return ExitCode::FAILURE;
         }
     }
 
-    if args.stat {
-        stat(args, file, kind);
-        return ExitCode::SUCCESS;
-    }
-
-    match create_squashfs_from_kind(file, args.offset, kind) {
-        Ok(filesystem) => process_filesystem(filesystem.as_ref(), args, pb, red_bold, blue_bold),
-        Err(e) => {
-            let line = format!("{:>14}", red_bold.apply_to(format!("Could not read image: {e}")));
-            pb.finish_with_message(line);
-            eprintln!("Debug error: {e:?}");
-            ExitCode::FAILURE
+    let (filesystem, _) = if let Some(kind_str) = args.kind.clone() {
+        match handle_with_kind(&mut args, &mut file, &kind_str, &pb, &blue_bold, &red_bold) {
+            Ok(result) => result,
+            Err(exit_code) => return exit_code,
         }
-    }
+    } else {
+        match handle_auto_detect_kind(&args, &mut file, &pb, &blue_bold, &red_bold) {
+            Ok(result) => result,
+            Err(exit_code) => return exit_code,
+        }
+    };
+
+    process_filesystem(filesystem.as_ref(), args, pb, red_bold, blue_bold)
 }
 
 fn process_filesystem(

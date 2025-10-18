@@ -136,6 +136,8 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
                 .env("RUST_LOG", "none")
                 .args([
                     "--auto-offset",
+                    "--kind",
+                    "le_v4_0",
                     "--quiet",
                     "-d",
                     tmp_dir.path().join("squashfs-out").to_str().unwrap(),
@@ -153,6 +155,8 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
                 .env("RUST_LOG", "none")
                 .args([
                     "--auto-offset",
+                    "--kind",
+                    "le_v4_0",
                     "--quiet",
                     "--path-filter",
                     "/usr/sbin/",
@@ -169,7 +173,7 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
         b.iter(|| {
             let cmd = Command::new(assert_cmd::cargo::cargo_bin("unsquashfs-backhand"))
                 .env("RUST_LOG", "none")
-                .args(["--auto-offset", "-l", &path])
+                .args(["--auto-offset", "--kind", "le_v4_0", "-l", &path])
                 .unwrap();
             cmd.assert().code(&[0] as &[i32]);
         })
@@ -179,7 +183,15 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
         b.iter(|| {
             let cmd = Command::new(assert_cmd::cargo::cargo_bin("unsquashfs-backhand"))
                 .env("RUST_LOG", "none")
-                .args(["--auto-offset", "-l", "--path-filter", "/usr/sbin/", &path])
+                .args([
+                    "--auto-offset",
+                    "--kind",
+                    "le_v4_0",
+                    "-l",
+                    "--path-filter",
+                    "/usr/sbin/",
+                    &path,
+                ])
                 .unwrap();
             cmd.assert().code(&[0] as &[i32]);
         })

@@ -15,7 +15,7 @@ use crate::v4::fragment::Fragment;
 use crate::v4::id::Id;
 use crate::v4::inode::Inode;
 use crate::v4::metadata::METADATA_MAXSIZE;
-use crate::v4::squashfs::{SuperBlock, NOT_SET};
+use crate::v4::squashfs::{NOT_SET, SuperBlock};
 use crate::v4::{fragment, metadata};
 
 /// Private struct containing logic to read the `Squashfs` section from a file

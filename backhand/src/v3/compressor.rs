@@ -3,8 +3,8 @@ use no_std_io2::io::Read;
 use flate2::read::ZlibDecoder;
 use tracing::trace;
 
-pub use crate::traits::types::Compressor;
 pub use crate::traits::CompressionAction;
+pub use crate::traits::types::Compressor;
 
 /// Empty filesystem compressor
 #[derive(Debug, Copy, Clone, Default)]

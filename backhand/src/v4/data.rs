@@ -104,13 +104,15 @@ impl<R: std::io::Read> DataWriterChunkReader<R> {
 }
 
 pub(crate) struct DataWriter<'a> {
-    compressor: &'a (dyn crate::traits::CompressionAction<
+    compressor: &'a (
+            dyn crate::traits::CompressionAction<
         Compressor = super::compressor::Compressor,
         FilesystemCompressor = FilesystemCompressor,
         SuperBlock = super::squashfs::SuperBlock,
         Error = crate::BackhandError,
     > + Send
-             + Sync),
+                + Sync
+        ),
     block_size: u32,
     fs_compressor: FilesystemCompressor,
     /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
@@ -123,13 +125,15 @@ pub(crate) struct DataWriter<'a> {
 
 impl<'a> DataWriter<'a> {
     pub fn new(
-        compressor: &'a (dyn crate::traits::CompressionAction<
+        compressor: &'a (
+                dyn crate::traits::CompressionAction<
             Compressor = super::compressor::Compressor,
             FilesystemCompressor = FilesystemCompressor,
             SuperBlock = super::squashfs::SuperBlock,
             Error = crate::BackhandError,
         > + Send
-                 + Sync),
+                    + Sync
+            ),
         fs_compressor: FilesystemCompressor,
         block_size: u32,
         no_duplicate_files: bool,
@@ -327,8 +331,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        compression::{Compressor, DefaultCompressor},
         DEFAULT_BLOCK_SIZE,
+        compression::{Compressor, DefaultCompressor},
     };
 
     #[test]

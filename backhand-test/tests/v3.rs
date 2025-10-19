@@ -4,7 +4,7 @@ mod common;
 use std::fs::File;
 use std::io::BufReader;
 
-use backhand::kind::{Kind, BE_V3_0, LE_V3_0};
+use backhand::kind::{BE_V3_0, Kind, LE_V3_0};
 use backhand::v3::filesystem::reader::FilesystemReader;
 use common::test_bin_unsquashfs_with_kind;
 use test_assets_ureq::TestAssetDef;

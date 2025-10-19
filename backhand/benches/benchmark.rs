@@ -7,8 +7,8 @@ use assert_cmd::prelude::*;
 use backhand::{FilesystemReader, FilesystemWriter};
 use criterion::*;
 use tempfile::tempdir;
-use test_assets_ureq::dl_test_files_backoff;
 use test_assets_ureq::TestAssetDef;
+use test_assets_ureq::dl_test_files_backoff;
 
 fn read_write(file: File, offset: u64) {
     let file = BufReader::new(file);

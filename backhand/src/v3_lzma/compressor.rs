@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
-pub use crate::traits::types::Compressor;
 pub use crate::traits::CompressionAction;
+pub use crate::traits::types::Compressor;
 use tracing::trace;
 
 // Cache for discovered LZMA parameters
@@ -109,13 +109,13 @@ impl LzmaAdaptiveCompressor {
 
         // Call lzma-adaptive-sys's safe wrapper
         tracing::trace!(
-                "Calling lzma_adaptive_sys::decompress_lzma with lc={}, lp={}, pb={}, dict_size=0x{:X}, offset={}",
-                params.lc,
-                params.lp,
-                params.pb,
-                dict_size,
-                params.offset
-            );
+            "Calling lzma_adaptive_sys::decompress_lzma with lc={}, lp={}, pb={}, dict_size=0x{:X}, offset={}",
+            params.lc,
+            params.lp,
+            params.pb,
+            dict_size,
+            params.offset
+        );
 
         match lzma_adaptive_sys::decompress_lzma(
             bytes,
@@ -154,12 +154,25 @@ impl LzmaAdaptiveCompressor {
                         for &dict_size in &[0xFFFFFFFF, 0x800000, 0x100000, 0x400000] {
                             let params = LzmaParams { lc, lp, pb, dict_size, offset };
 
-                            tracing::trace!("Trying LZMA params: lc={}, lp={}, pb={}, dict_size=0x{:X}, offset={}",
-                                          lc, lp, pb, dict_size, offset);
+                            tracing::trace!(
+                                "Trying LZMA params: lc={}, lp={}, pb={}, dict_size=0x{:X}, offset={}",
+                                lc,
+                                lp,
+                                pb,
+                                dict_size,
+                                offset
+                            );
 
                             if let Ok(result) = self.try_lzma_with_params(bytes, params) {
-                                tracing::trace!("SUCCESS: Found working LZMA params: lc={}, lp={}, pb={}, dict_size=0x{:X}, offset={}, decompressed {} bytes",
-                                              lc, lp, pb, dict_size, offset, result.len());
+                                tracing::trace!(
+                                    "SUCCESS: Found working LZMA params: lc={}, lp={}, pb={}, dict_size=0x{:X}, offset={}, decompressed {} bytes",
+                                    lc,
+                                    lp,
+                                    pb,
+                                    dict_size,
+                                    offset,
+                                    result.len()
+                                );
 
                                 // Cache the successful parameters
                                 if let Ok(mut cache) = LZMA_CACHE.lock() {

@@ -54,13 +54,15 @@ pub enum VersionedCompressor {
     V4(&'static V4DefaultCompressor),
     /// Custom v4 compressor
     CustomV4(
-        &'static (dyn crate::traits::CompressionAction<
+        &'static (
+                     dyn crate::traits::CompressionAction<
             Error = crate::BackhandError,
             Compressor = crate::v4::compressor::Compressor,
             FilesystemCompressor = crate::v4::filesystem::writer::FilesystemCompressor,
             SuperBlock = crate::v4::squashfs::SuperBlock,
         > + Send
-                      + Sync),
+                         + Sync
+                 ),
     ),
 }
 

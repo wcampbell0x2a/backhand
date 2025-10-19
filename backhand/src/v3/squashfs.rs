@@ -17,6 +17,7 @@ use super::filesystem::node::{
 };
 use super::filesystem::reader::FilesystemReader;
 use super::id::Id;
+use crate::Flags;
 use crate::error::BackhandError;
 use crate::kinds::{Kind, LE_V4_0};
 use crate::v3::dir::{Dir, DirInodeId};
@@ -25,7 +26,6 @@ use crate::v3::inode::{Inode, InodeInner};
 use crate::v3::reader::{SquashFsReader, SquashfsReaderWithOffset};
 use crate::v3::unix_string::OsStringExt;
 use crate::v4::reader::BufReadSeek;
-use crate::Flags;
 
 /// 128KiB
 pub const DEFAULT_BLOCK_SIZE: u32 = 0x20000;

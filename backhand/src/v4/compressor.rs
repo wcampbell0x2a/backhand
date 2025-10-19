@@ -5,9 +5,9 @@ use std::io::Cursor;
 
 use deku::prelude::*;
 #[cfg(feature = "any-flate2")]
-use flate2::read::ZlibEncoder;
-#[cfg(feature = "any-flate2")]
 use flate2::Compression;
+#[cfg(feature = "any-flate2")]
+use flate2::read::ZlibEncoder;
 #[cfg(feature = "xz")]
 use liblzma::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]

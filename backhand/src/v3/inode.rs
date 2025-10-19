@@ -224,7 +224,7 @@ impl fmt::Debug for BasicSymlink {
 }
 impl BasicSymlink {
     pub fn target(&self) -> String {
-        std::str::from_utf8(&self.target_path).unwrap().to_string()
+        core::str::from_utf8(&self.target_path).unwrap().to_string()
     }
 }
 

@@ -1,6 +1,7 @@
+use no_std_io2::io::Read;
 use rayon::prelude::*;
 use std::collections::VecDeque;
-use std::io::{Read, SeekFrom};
+use std::io::SeekFrom;
 use std::sync::{Arc, Mutex};
 
 use crate::error::BackhandError;
@@ -139,7 +140,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
 
         // Return a prefetched block if available
         if let Some((mut data, block_info)) = self.prefetched_blocks.pop_front() {
-            std::mem::swap(buf, &mut data);
+            core::mem::swap(buf, &mut data);
             // return buffer to our pool
             self.buffer_pool.lock().unwrap().push(data);
             Some(Ok(block_info))
@@ -150,7 +151,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     }
 
     #[inline]
-    fn fragment_range(&self) -> std::ops::Range<usize> {
+    fn fragment_range(&self) -> core::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
         let block_num = self.file.file.block_sizes().len();
         let file_size = self.file.file.file_len();
@@ -172,7 +173,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         // input is already decompress, so just swap the input/output, so the
         // output_buf contains the final data.
         if data.uncompressed {
-            std::mem::swap(input_buf, output_buf);
+            core::mem::swap(input_buf, output_buf);
         } else {
             output_buf.reserve(self.file.system.block_size as usize);
             self.file.system.kind.inner.compressor.decompress(

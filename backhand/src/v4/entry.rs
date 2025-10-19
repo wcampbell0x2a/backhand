@@ -25,7 +25,7 @@ pub(crate) struct Entry<'a> {
 
 impl<'a> Entry<'a> {
     pub fn name(&self) -> String {
-        std::str::from_utf8(self.name).unwrap().to_string()
+        core::str::from_utf8(self.name).unwrap().to_string()
     }
 
     /// Write data and metadata for path node (Basic Directory or ExtendedDirectory)

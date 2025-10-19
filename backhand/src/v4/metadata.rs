@@ -1,5 +1,6 @@
+use no_std_io2::io::{Read, Seek, Write};
 use std::collections::VecDeque;
-use std::io::{self, Read, Seek, Write};
+use std::io;
 
 use deku::prelude::*;
 use tracing::trace;

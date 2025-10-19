@@ -1,7 +1,8 @@
 //! Reader traits
 
+use no_std_io2::io::{Read, Seek};
 use std::collections::HashMap;
-use std::io::{BufRead, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, Cursor, SeekFrom, Write};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
@@ -375,7 +376,7 @@ pub trait SquashFsReader: BufReadSeek {
                 break;
             }
 
-            let fragments_in_this_block = std::cmp::min(
+            let fragments_in_this_block = core::cmp::min(
                 fragment_count - fragments_read,
                 METADATA_MAXSIZE as u64 / fragment::SIZE as u64,
             );
@@ -391,7 +392,8 @@ pub trait SquashFsReader: BufReadSeek {
             let block_fragments = self.fragment_metadata_with_count(superblock, ptr, 1, kind)?;
 
             // Only take the fragments we need
-            let take_count = std::cmp::min(block_fragments.len(), fragments_in_this_block as usize);
+            let take_count =
+                core::cmp::min(block_fragments.len(), fragments_in_this_block as usize);
             ret_vec.extend_from_slice(&block_fragments[..take_count]);
             fragments_read += take_count as u64;
         }
@@ -416,15 +418,15 @@ pub trait SquashFsReader: BufReadSeek {
             let pos_before = self.stream_position()?;
             let mut bytes = metadata::read_block(self, superblock, kind)?;
             let pos_after = self.stream_position()?;
-            trace!("fragment metadata block {}: pos 0x{:x} -> 0x{:x}, read {} decompressed bytes, first 20: {:02x?}", 
-                   i, pos_before, pos_after, bytes.len(), &bytes[..std::cmp::min(20, bytes.len())]);
+            trace!("fragment metadata block {}: pos 0x{:x} -> 0x{:x}, read {} decompressed bytes, first 20: {:02x?}",
+                   i, pos_before, pos_after, bytes.len(), &bytes[..core::cmp::min(20, bytes.len())]);
             all_bytes.append(&mut bytes);
         }
 
         trace!(
             "fragment_metadata_with_count: total decompressed bytes: {}, content: {:02x?}",
             all_bytes.len(),
-            &all_bytes[..std::cmp::min(50, all_bytes.len())]
+            &all_bytes[..core::cmp::min(50, all_bytes.len())]
         );
 
         let mut ret_vec = vec![];

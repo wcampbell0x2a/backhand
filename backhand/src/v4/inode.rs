@@ -1,7 +1,8 @@
 //! Index Node for file or directory
 
 use core::fmt;
-use std::io::{Cursor, Write};
+use no_std_io2::io::Write;
+use std::io::Cursor;
 
 use deku::prelude::*;
 
@@ -230,7 +231,7 @@ impl fmt::Debug for BasicSymlink {
 }
 impl BasicSymlink {
     pub fn target(&self) -> String {
-        std::str::from_utf8(&self.target_path).unwrap().to_string()
+        core::str::from_utf8(&self.target_path).unwrap().to_string()
     }
 }
 

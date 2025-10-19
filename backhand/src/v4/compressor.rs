@@ -1,6 +1,7 @@
 //! Types of supported compression algorithms
 
-use std::io::{Cursor, Read, Write};
+use no_std_io2::io::{Read, Write};
+use std::io::Cursor;
 
 use deku::prelude::*;
 #[cfg(feature = "any-flate2")]

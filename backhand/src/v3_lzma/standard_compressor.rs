@@ -1,4 +1,4 @@
-use std::io::Read;
+use no_std_io2::io::Read;
 
 use tracing::trace;
 

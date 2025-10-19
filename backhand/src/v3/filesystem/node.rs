@@ -1,6 +1,6 @@
 use core::fmt;
-use std::io::Read;
-use std::num::NonZeroUsize;
+use core::num::NonZeroUsize;
+use no_std_io2::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -63,12 +63,12 @@ impl<T> PartialEq for Node<T> {
 }
 impl<T> Eq for Node<T> {}
 impl<T> PartialOrd for Node<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 impl<T> Ord for Node<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.fullpath.cmp(&other.fullpath)
     }
 }

@@ -15,7 +15,7 @@ pub enum BackhandError {
     StringUtf8(#[from] string::FromUtf8Error),
 
     #[error("string error: {0:?}")]
-    StrUtf8(#[from] std::str::Utf8Error),
+    StrUtf8(#[from] core::str::Utf8Error),
 
     #[error("unsupported compression: {0:?}")]
     UnsupportedCompression(String),

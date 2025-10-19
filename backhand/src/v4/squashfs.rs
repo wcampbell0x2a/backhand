@@ -1,7 +1,8 @@
 //! Read from on-disk image
 
+use no_std_io2::io::Seek;
 use std::ffi::OsString;
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::{Cursor, SeekFrom};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::{Arc, RwLock};

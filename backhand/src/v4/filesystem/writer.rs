@@ -1,6 +1,7 @@
+use core::num::NonZeroUsize;
+use no_std_io2::io::{Read, Seek, Write};
 use std::ffi::OsStr;
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
-use std::num::NonZeroUsize;
+use std::io::{Cursor, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;

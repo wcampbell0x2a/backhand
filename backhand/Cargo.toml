@@ -31,6 +31,7 @@ xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
 lz4_flex = { version = "0.11.3", optional = true, default-features = false }
 rayon = { version = "1.10.0", optional = true, default-features = false }
+no_std_io2 = "0.9.0"
 
 [features]
 default = ["xz", "gzip", "zstd", "lz4", "parallel", "v3", "v3_lzma"]

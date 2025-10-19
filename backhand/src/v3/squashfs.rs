@@ -1,7 +1,8 @@
 //! Read from on-disk image
 
+use no_std_io2::io::Seek;
 use std::ffi::OsString;
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::{Cursor, SeekFrom};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -379,13 +380,13 @@ impl<'b> Squashfs<'b> {
                 "ExtendedDirectory detected (actual_dir_size={}), reading multiple Dir blocks",
                 actual_dir_size
             );
-            std::cmp::min(start_pos + actual_dir_size as usize, dir_data.len())
+            core::cmp::min(start_pos + actual_dir_size as usize, dir_data.len())
         } else {
             trace!(
                 "Regular directory (actual_dir_size={}), reading single Dir block",
                 actual_dir_size
             );
-            std::cmp::min(start_pos + actual_dir_size as usize, dir_data.len())
+            core::cmp::min(start_pos + actual_dir_size as usize, dir_data.len())
         };
         while cursor.position() < end_pos as u64 {
             let _current_pos = cursor.position() as usize;

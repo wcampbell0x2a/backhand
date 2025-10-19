@@ -1,4 +1,5 @@
-use std::io::{Read, SeekFrom};
+use no_std_io2::io::Read;
+use std::io::SeekFrom;
 
 use crate::error::BackhandError;
 use crate::v4::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};

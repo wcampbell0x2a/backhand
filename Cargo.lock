@@ -111,6 +111,7 @@ dependencies = [
  "lz4_flex",
  "lzma-adaptive-sys",
  "lzma-rust2",
+ "no_std_io2",
  "rayon",
  "rust-lzo",
  "solana-nohash-hasher",

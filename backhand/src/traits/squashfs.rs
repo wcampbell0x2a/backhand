@@ -6,13 +6,13 @@ use crate::kinds::Kind;
 use crate::v4::reader::BufReadSeek;
 
 pub trait SquashfsVersion<'b> {
-    type SuperBlock: Clone + std::fmt::Debug;
-    type CompressionOptions: Clone + std::fmt::Debug;
-    type Inode: Clone + std::fmt::Debug;
-    type Dir: Clone + std::fmt::Debug;
-    type Fragment: Clone + std::fmt::Debug;
-    type Export: Clone + std::fmt::Debug;
-    type Id: Clone + std::fmt::Debug;
+    type SuperBlock: Clone + core::fmt::Debug;
+    type CompressionOptions: Clone + core::fmt::Debug;
+    type Inode: Clone + core::fmt::Debug;
+    type Dir: Clone + core::fmt::Debug;
+    type Fragment: Clone + core::fmt::Debug;
+    type Export: Clone + core::fmt::Debug;
+    type Id: Clone + core::fmt::Debug;
     type FilesystemReader;
 
     /// Read superblock and compression options

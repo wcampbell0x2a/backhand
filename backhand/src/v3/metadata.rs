@@ -1,4 +1,4 @@
-use std::io::{Read, Seek};
+use no_std_io2::io::{Read, Seek};
 
 use deku::prelude::*;
 

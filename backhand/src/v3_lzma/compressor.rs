@@ -92,13 +92,13 @@ impl LzmaAdaptiveCompressor {
             "Processing {} bytes from offset {}: {:02x?}",
             data.len(),
             params.offset,
-            &data[..std::cmp::min(16, data.len())]
+            &data[..core::cmp::min(16, data.len())]
         );
 
         tracing::trace!("Attempting lzma-adaptive-sys decompression");
 
         // Estimate output size
-        let estimated_output_size = std::cmp::max(data.len() * 10, 8192);
+        let estimated_output_size = core::cmp::max(data.len() * 10, 8192);
 
         // Create LZMA properties (lc, lp, pb, dict_size)
         let dict_size = if params.dict_size == 0xFFFFFFFF || params.dict_size == 0 {

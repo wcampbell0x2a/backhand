@@ -1,7 +1,8 @@
 //! Reader traits
 
+use no_std_io2::io::{Read, Seek, Write};
 use std::collections::HashMap;
-use std::io::{BufRead, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, Cursor, SeekFrom};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;

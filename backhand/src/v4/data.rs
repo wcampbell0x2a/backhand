@@ -1,7 +1,7 @@
 //! File Data
 
+use no_std_io2::io::{Read, Seek, Write};
 use std::collections::HashMap;
-use std::io::{Read, Seek, Write};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;

@@ -31,6 +31,12 @@ pub fn after_help(rayon_env: bool) -> String {
     #[cfg(feature = "zstd")]
     s.push_str(color_print::cstr!("  <cyan, bold>zstd\n"));
 
+    #[cfg(feature = "v3")]
+    s.push_str(color_print::cstr!("  <cyan, bold>v3: gzip\n"));
+
+    #[cfg(feature = "v3_lzma")]
+    s.push_str(color_print::cstr!("  <cyan, bold>v3: lzma\n"));
+
     s.push_str(color_print::cstr!("<green, bold>Environment Variables:\n"));
     s.push_str(color_print::cstr!("  <cyan, bold>RUST_LOG:"));
     s.push_str("    https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables");

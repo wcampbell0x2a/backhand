@@ -396,20 +396,18 @@ fn process_filesystem(
     }
 
     // gather all files and dirs
-    let files_len = files.len();
-    let all_files: Vec<BackhandNode> = filesystem.files();
-    let filtered_files: Vec<BackhandNode> =
-        all_files.iter().filter(|a| a.fullpath.starts_with(&args.path_filter)).cloned().collect();
-    let nodes = files.into_iter().chain(filtered_files.iter().cloned());
+    let nodes = files
+        .into_iter()
+        .chain(filesystem.files().filter(|a| a.fullpath.starts_with(&args.path_filter)));
 
     // extract or list
     if args.list {
         list(nodes);
     } else {
-        // This could be expensive, only pass this in when not quiet
-        let n_nodes = if !args.quiet { Some(files_len + filtered_files.len()) } else { None };
-
         let all_nodes: Vec<BackhandNode> = nodes.collect();
+        // This could be expensive, only pass this in when not quiet
+        let n_nodes = if !args.quiet { Some(all_nodes.len()) } else { None };
+
         extract_all(&args, filesystem, root_process, all_nodes, n_nodes, start);
     }
 
@@ -826,8 +824,7 @@ fn extract_all(
     });
 
     // fixup dir permissions
-    let all_filesystem_files: Vec<BackhandNode> = filesystem.files();
-    for node in all_filesystem_files.iter().filter(|a| a.fullpath.starts_with(&args.path_filter)) {
+    for node in filesystem.files().filter(|a| a.fullpath.starts_with(&args.path_filter)) {
         if let BackhandInnerNode::Dir = &node.inner {
             let path = &node.fullpath;
             let path = path.strip_prefix(Component::RootDir).unwrap_or(path);

@@ -15,13 +15,15 @@ pub const METADATA_MAXSIZE: usize = 0x2000;
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
 
 pub(crate) struct MetadataWriter<'a> {
-    compression_action: &'a (dyn crate::traits::CompressionAction<
+    compression_action: &'a (
+            dyn crate::traits::CompressionAction<
         Compressor = super::compressor::Compressor,
         FilesystemCompressor = super::filesystem::writer::FilesystemCompressor,
         SuperBlock = super::squashfs::SuperBlock,
         Error = crate::BackhandError,
     > + Send
-             + Sync),
+                + Sync
+        ),
     compressor: FilesystemCompressor,
     block_size: u32,
     data_endian: deku::ctx::Endian,
@@ -35,13 +37,15 @@ pub(crate) struct MetadataWriter<'a> {
 
 impl<'a> MetadataWriter<'a> {
     pub fn new(
-        compression_action: &'a (dyn crate::traits::CompressionAction<
+        compression_action: &'a (
+                dyn crate::traits::CompressionAction<
             Compressor = super::compressor::Compressor,
             FilesystemCompressor = super::filesystem::writer::FilesystemCompressor,
             SuperBlock = super::squashfs::SuperBlock,
             Error = crate::BackhandError,
         > + Send
-                 + Sync),
+                    + Sync
+            ),
         compressor: FilesystemCompressor,
         block_size: u32,
         data_endian: deku::ctx::Endian,

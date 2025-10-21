@@ -1,9 +1,9 @@
 //! SquashFS v4 implementation
 
+use crate::BackhandError;
 use crate::kinds::Kind;
 use crate::traits::{GenericSquashfs, SquashfsVersion};
 use crate::v4::reader::BufReadSeek;
-use crate::BackhandError;
 
 pub mod compressor;
 pub mod data;

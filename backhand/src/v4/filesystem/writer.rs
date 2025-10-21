@@ -21,13 +21,13 @@ use crate::v4::filesystem::node::{InnerNode, Nodes};
 use crate::v4::filesystem::normalize_squashfs_path;
 use crate::v4::fragment;
 use crate::v4::id::Id;
-use crate::v4::metadata::{self, MetadataWriter, METADATA_MAXSIZE};
+use crate::v4::metadata::{self, METADATA_MAXSIZE, MetadataWriter};
 use crate::v4::reader::WriteSeek;
 use crate::v4::squashfs::SuperBlock;
 use crate::{
-    FilesystemReader, Flags, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
-    SquashfsDir, SquashfsFileWriter, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, FilesystemReader, Flags, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE,
+    Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
+    SquashfsFileWriter,
 };
 
 /// Representation of SquashFS filesystem to be written back to an image
@@ -304,11 +304,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         S: AsRef<Path>,
     {
         self.mut_node(find_path).and_then(|node| {
-            if let InnerNode::File(file) = &mut node.inner {
-                Some(file)
-            } else {
-                None
-            }
+            if let InnerNode::File(file) = &mut node.inner { Some(file) } else { None }
         })
     }
 
@@ -531,7 +527,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     superblock,
                     kind,
                     id_table,
-                ))
+                ));
             }
             InnerNode::File(_) => unreachable!(),
             InnerNode::Symlink(symlink) => {
@@ -544,7 +540,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     superblock,
                     kind,
                     id_table,
-                ))
+                ));
             }
             InnerNode::CharacterDevice(char) => {
                 return Ok(Entry::char(
@@ -556,7 +552,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     superblock,
                     kind,
                     id_table,
-                ))
+                ));
             }
             InnerNode::BlockDevice(block) => {
                 return Ok(Entry::block_device(
@@ -568,7 +564,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     superblock,
                     kind,
                     id_table,
-                ))
+                ));
             }
             InnerNode::NamedPipe => {
                 return Ok(Entry::named_pipe(
@@ -579,7 +575,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     superblock,
                     kind,
                     id_table,
-                ))
+                ));
             }
             InnerNode::Socket => {
                 return Ok(Entry::socket(
@@ -590,7 +586,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     superblock,
                     kind,
                     id_table,
-                ))
+                ));
             }
             // if dir, fall through
             InnerNode::Dir(_) => (),

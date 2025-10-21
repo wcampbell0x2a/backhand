@@ -327,9 +327,7 @@ pub trait SquashFsReader: BufReadSeek {
     ) -> Result<(u64, Vec<Fragment>), BackhandError> {
         trace!(
             "fragment_lookup_table: seek=0x{:x}, size={}, fragments={}",
-            seek,
-            size,
-            superblock.fragments
+            seek, size, superblock.fragments
         );
 
         // V3 fragment table parsing follows the same pattern as v4:
@@ -343,8 +341,7 @@ pub trait SquashFsReader: BufReadSeek {
 
         trace!(
             "fragment_lookup_table: {} fragments need {} metadata blocks",
-            fragment_count,
-            metadata_block_count
+            fragment_count, metadata_block_count
         );
 
         // Read the index table (pointers to metadata blocks)
@@ -383,9 +380,7 @@ pub trait SquashFsReader: BufReadSeek {
 
             trace!(
                 "Reading {} fragments from metadata block {} at 0x{:x}",
-                fragments_in_this_block,
-                i,
-                ptr
+                fragments_in_this_block, i, ptr
             );
 
             self.seek(SeekFrom::Start(ptr))?;
@@ -418,8 +413,14 @@ pub trait SquashFsReader: BufReadSeek {
             let pos_before = self.stream_position()?;
             let mut bytes = metadata::read_block(self, superblock, kind)?;
             let pos_after = self.stream_position()?;
-            trace!("fragment metadata block {}: pos 0x{:x} -> 0x{:x}, read {} decompressed bytes, first 20: {:02x?}",
-                   i, pos_before, pos_after, bytes.len(), &bytes[..core::cmp::min(20, bytes.len())]);
+            trace!(
+                "fragment metadata block {}: pos 0x{:x} -> 0x{:x}, read {} decompressed bytes, first 20: {:02x?}",
+                i,
+                pos_before,
+                pos_after,
+                bytes.len(),
+                &bytes[..core::cmp::min(20, bytes.len())]
+            );
             all_bytes.append(&mut bytes);
         }
 

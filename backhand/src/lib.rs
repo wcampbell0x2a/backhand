@@ -68,6 +68,7 @@ pub mod v4;
 
 #[cfg(feature = "v3")]
 pub use crate::v3::V3;
+pub use crate::v4::V4;
 pub use crate::v4::data::DataSize;
 pub use crate::v4::export::Export;
 pub use crate::v4::filesystem::node::{
@@ -87,10 +88,9 @@ pub use crate::v4::id::Id;
 pub use crate::v4::inode::{BasicFile, Inode};
 pub use crate::v4::reader::BufReadSeek;
 pub use crate::v4::squashfs::{
-    Flags, Squashfs, SuperBlock, DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, MAX_BLOCK_SIZE,
-    MIN_BLOCK_SIZE,
+    DEFAULT_BLOCK_SIZE, DEFAULT_PAD_LEN, Flags, MAX_BLOCK_SIZE, MIN_BLOCK_SIZE, Squashfs,
+    SuperBlock,
 };
-pub use crate::v4::V4;
 
 pub use crate::error::BackhandError;
 pub use crate::traits::squashfs::create_squashfs_from_kind;
@@ -98,7 +98,7 @@ pub use crate::traits::{FilesystemReaderTrait, GenericSquashfs, SquashfsVersion}
 
 /// Support the wonderful world of vendor formats
 pub mod kind {
-    pub use crate::kinds::{Endian, Kind, Magic, AVM_BE_V4_0, BE_V4_0, LE_V4_0};
+    pub use crate::kinds::{AVM_BE_V4_0, BE_V4_0, Endian, Kind, LE_V4_0, Magic};
     #[cfg(feature = "v3")]
     pub use crate::kinds::{BE_V3_0, LE_V3_0};
     #[cfg(feature = "v3_lzma")]

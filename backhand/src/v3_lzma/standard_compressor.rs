@@ -2,8 +2,8 @@ use no_std_io2::io::Read;
 
 use tracing::trace;
 
-pub use crate::traits::types::Compressor;
 pub use crate::traits::CompressionAction;
+pub use crate::traits::types::Compressor;
 
 #[derive(Copy, Clone)]
 pub struct LzmaStandardCompressor;

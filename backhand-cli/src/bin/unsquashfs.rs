@@ -7,23 +7,23 @@ use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Mutex;
 
-use backhand::kind::Kind;
-use backhand::traits::filesystem::{BackhandInnerNode, BackhandNode, BackhandNodeHeader};
 #[cfg(feature = "v3")]
 use backhand::V3;
+use backhand::kind::Kind;
+use backhand::traits::filesystem::{BackhandInnerNode, BackhandNode, BackhandNodeHeader};
 use backhand::{
-    create_squashfs_from_kind, BufReadSeek, FilesystemReaderTrait, SquashfsVersion,
-    DEFAULT_BLOCK_SIZE, V4,
+    BufReadSeek, DEFAULT_BLOCK_SIZE, FilesystemReaderTrait, SquashfsVersion, V4,
+    create_squashfs_from_kind,
 };
 use backhand_cli::after_help;
 use clap::builder::PossibleValuesParser;
 use clap::{CommandFactory, Parser};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use console::Term;
 use indicatif::{HumanDuration, ProgressBar, ProgressStyle};
 use nix::fcntl::AT_FDCWD;
 use nix::libc::geteuid;
-use nix::sys::stat::{dev_t, mknod, mode_t, umask, utimensat, utimes, Mode, SFlag, UtimensatFlags};
+use nix::sys::stat::{Mode, SFlag, UtimensatFlags, dev_t, mknod, mode_t, umask, utimensat, utimes};
 use nix::sys::time::{TimeSpec, TimeVal};
 use nix::unistd::mkfifo;
 use rayon::prelude::*;
@@ -55,11 +55,7 @@ const AVAILABLE_KINDS: &[&str] = &[
 pub fn required_root(a: &str) -> Result<PathBuf, String> {
     let p = PathBuf::from(a);
 
-    if p.has_root() {
-        Ok(p)
-    } else {
-        Err("argument requires root \"/\"".to_string())
-    }
+    if p.has_root() { Ok(p) } else { Err("argument requires root \"/\"".to_string()) }
 }
 
 fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {

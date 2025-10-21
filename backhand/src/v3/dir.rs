@@ -9,8 +9,8 @@ use std::path::{Component, Path};
 
 use deku::prelude::*;
 
-use crate::v3::unix_string::OsStrExt;
 use crate::BackhandError;
+use crate::v3::unix_string::OsStrExt;
 
 /// `squashfs_dir_header`
 #[derive(Debug, DekuRead, Clone, PartialEq, Eq)]

@@ -661,6 +661,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let v4_compressor = match &self.kind.inner.compressor {
             crate::kinds::VersionedCompressor::V4(compressor) => *compressor,
             crate::kinds::VersionedCompressor::CustomV4(compressor) => *compressor,
+            #[allow(unreachable_patterns)]
             _ => panic!("v4 filesystem writer requires v4 compressor"),
         };
 

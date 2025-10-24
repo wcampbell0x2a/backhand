@@ -33,7 +33,7 @@ version = "0.5.4"
 
 # These features mirror the backhand features
 [features]
-default = ["xz", "gzip", "zstd", "v3", "v3_lzma"]
+default = ["xz", "gzip", "zstd"]
 ## Enables squashfs v3
 v3 = ["backhand/v3"]
 ## Enables squashfs v3 with LZMA compression

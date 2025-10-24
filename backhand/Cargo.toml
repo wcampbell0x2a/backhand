@@ -12,7 +12,7 @@ description = "Library for the reading, creating, and modification of SquashFS f
 readme = "../README.md"
 
 [package.metadata.docs.rs]
-features = ["xz", "gzip", "zstd", "document-features"]
+features = ["xz", "gzip", "zstd", "document-features", "v3", "v3_lzma"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]

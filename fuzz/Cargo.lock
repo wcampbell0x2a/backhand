@@ -16,7 +16,7 @@ checksum = "dde20b3d026af13f561bdd0f15edf01fc734f0dafcedbaf42bba506a9517f223"
 
 [[package]]
 name = "backhand"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "deku",
  "flate2",

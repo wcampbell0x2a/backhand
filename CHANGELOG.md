@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### `backhand`
+- Add Normal and Vendor SquashFS 3.0 Read support. This has been a long time running, and required many under-the-hood changes.
+  Just as before, these are all featured in the kind module. If the lzma settings cannot be found, backhand uses
+  the https://github.com/wcampbell0x2a/lzma-adaptive-sys bindings which are built around sasquatch's LZMA adaptive library.
+  Kinds:
+  - `be_v3_0`
+  - `le_v3_0`
+  - `be_v3_0_lzma`
+  - `le_v3_0_lzma`
+  - `netgear_be_v3_0_lzma`
+  - `netgear_le_v3_0_lzma`
+  Features:
+  - `v3`
+  - `v3_lzma`
+  As always, if you find a SquashFS v3.0 that our tools can't use, let me know!
+- Update to 2024 edition
+- Bump MSRV to 1.85
+- Change files() to be an iterator
+
+### `backhand-cli`
+- unsquashfs: Try all kinds when --kind isn't given by default
+- unsquashfs: Improve error output
+- Update to 2024 edition
 - Bump MSRV to 1.85
 
 ## [v0.23.0] - 2025-06-19

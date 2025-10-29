@@ -62,12 +62,12 @@ fn find_offset(file: &mut BufReader<File>, kind: &Kind) -> Option<u64> {
     let mut magic = [0_u8; 4];
     while file.read_exact(&mut magic).is_ok() {
         if magic == kind.magic() {
-            let found = file.stream_position().unwrap() - magic.len() as u64;
-            file.rewind().unwrap();
+            let found = file.stream_position().ok()? - magic.len() as u64;
+            file.rewind().ok()?;
             return Some(found);
         }
     }
-    file.rewind().unwrap();
+    file.rewind().ok()?;
     None
 }
 
@@ -93,6 +93,12 @@ pub fn failed(pb: &ProgressBar, s: &str) {
     let red_bold: console::Style = console::Style::new().red().bold();
     let line = format!("{:>16} {}", red_bold.apply_to("Failed"), s,);
     pb.println(line);
+}
+
+pub fn error(pb: &ProgressBar, s: &str) {
+    let red_bold: console::Style = console::Style::new().red().bold();
+    let line = format!("{:>14} {}", red_bold.apply_to("Error"), s,);
+    pb.finish_with_message(line);
 }
 
 /// tool to uncompress, extract and list squashfs filesystems
@@ -165,7 +171,12 @@ struct Args {
     quiet: bool,
 }
 
-fn try_all_kinds(file: &mut BufReader<File>, offset: u64) -> Result<(Kind, &'static str), String> {
+fn try_all_kinds(
+    file: &mut BufReader<File>,
+    offset: u64,
+    pb: &ProgressBar,
+    quiet: bool,
+) -> Result<(Kind, &'static str), String> {
     let mut errors = Vec::new();
 
     for &kind_name in AVAILABLE_KINDS {
@@ -177,7 +188,7 @@ fn try_all_kinds(file: &mut BufReader<File>, offset: u64) -> Result<(Kind, &'sta
                 match result {
                     Ok(_) => true,
                     Err(e) => {
-                        errors.push(format!("{}: {}", kind_name, e));
+                        errors.push((kind_name, e));
                         false
                     }
                 }
@@ -190,7 +201,16 @@ fn try_all_kinds(file: &mut BufReader<File>, offset: u64) -> Result<(Kind, &'sta
         }
     }
 
-    Err(format!("Could not detect kind. Tried all kinds, errors:\n{}", errors.join("\n")))
+    // Only emit errors if we failed to detect any kind
+    if !quiet {
+        pb.finish_and_clear();
+        let red_bold: console::Style = console::Style::new().red().bold();
+        for (kind_name, e) in errors {
+            eprintln!("{:>16} {}: {}", red_bold.apply_to("Failed"), kind_name, e);
+        }
+    }
+
+    Err("Could not detect kind".to_string())
 }
 
 fn handle_with_kind<'a>(
@@ -199,9 +219,14 @@ fn handle_with_kind<'a>(
     kind_str: &str,
     pb: &ProgressBar,
     blue_bold: &console::Style,
-    red_bold: &console::Style,
 ) -> Result<(Box<dyn FilesystemReaderTrait + 'a>, Kind), ExitCode> {
-    let kind = Kind::from_target(kind_str).unwrap();
+    let kind = match Kind::from_target(kind_str) {
+        Ok(k) => k,
+        Err(e) => {
+            error(pb, &format!("Invalid kind: {e}"));
+            return Err(ExitCode::FAILURE);
+        }
+    };
 
     if args.auto_offset {
         if !args.quiet {
@@ -218,8 +243,7 @@ fn handle_with_kind<'a>(
             args.offset = found_offset;
         } else {
             if !args.quiet {
-                let line = format!("{:>14}", red_bold.apply_to("Magic not found"),);
-                pb.finish_with_message(line);
+                error(pb, "Magic not found");
             }
             return Err(ExitCode::FAILURE);
         }
@@ -228,9 +252,7 @@ fn handle_with_kind<'a>(
     match create_squashfs_from_kind(file, args.offset, kind.clone()) {
         Ok(filesystem) => Ok((filesystem, kind)),
         Err(e) => {
-            let line = format!("{:>14}", red_bold.apply_to(format!("Could not read image: {e}")));
-            pb.finish_with_message(line);
-            eprintln!("Debug error: {e:?}");
+            error(pb, &format!("Could not read image: {e:?}"));
             Err(ExitCode::FAILURE)
         }
     }
@@ -241,7 +263,6 @@ fn handle_auto_detect_kind<'a>(
     file: &'a mut BufReader<File>,
     pb: &ProgressBar,
     blue_bold: &console::Style,
-    red_bold: &console::Style,
 ) -> Result<(Box<dyn FilesystemReaderTrait + 'a>, Kind), ExitCode> {
     if !args.quiet {
         pb.enable_steady_tick(Duration::from_millis(120));
@@ -251,37 +272,31 @@ fn handle_auto_detect_kind<'a>(
 
     if args.auto_offset {
         if !args.quiet {
-            let line =
-                format!("{:>14}", red_bold.apply_to("Cannot use --auto-offset without --kind"),);
-            pb.finish_with_message(line);
+            error(pb, "--auto-offset requires --kind to be specified");
         }
-        eprintln!("Error: --auto-offset requires --kind to be specified");
         return Err(ExitCode::FAILURE);
     }
 
-    match try_all_kinds(file, args.offset) {
+    match try_all_kinds(file, args.offset, pb, args.quiet) {
         Ok((detected_kind, kind_name)) => {
             if !args.quiet {
-                let line = format!("{:>14} {}", blue_bold.apply_to("Detected kind"), kind_name);
+                let line = format!("{:>16} {}", blue_bold.apply_to("Detected kind"), kind_name);
                 pb.finish_and_clear();
-                eprintln!("{}", line);
+                pb.println(line);
             }
 
             match create_squashfs_from_kind(file, args.offset, detected_kind.clone()) {
                 Ok(filesystem) => Ok((filesystem, detected_kind)),
                 Err(e) => {
-                    let line =
-                        format!("{:>14}", red_bold.apply_to(format!("Could not read image: {e}")));
-                    pb.finish_with_message(line);
-                    eprintln!("Debug error: {e:?}");
+                    error(pb, &format!("Could not read image: {e:?}"));
                     Err(ExitCode::FAILURE)
                 }
             }
         }
         Err(e) => {
-            let line = format!("{:>14}", red_bold.apply_to("Auto-detection failed"));
-            pb.finish_with_message(line);
-            eprintln!("{}", e);
+            if !args.quiet {
+                error(pb, &e);
+            }
             Err(ExitCode::FAILURE)
         }
     }
@@ -300,51 +315,70 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let mut file = BufReader::with_capacity(
-        DEFAULT_BLOCK_SIZE as usize,
-        File::open(args.filesystem.as_ref().unwrap()).unwrap(),
-    );
-
     let blue_bold: console::Style = console::Style::new().blue().bold();
-    let red_bold: console::Style = console::Style::new().red().bold();
     let pb = ProgressBar::new_spinner();
+
+    let filesystem_path = args.filesystem.as_ref().unwrap();
+
+    // Check if path is a regular file
+    match fs::metadata(filesystem_path) {
+        Ok(metadata) if !metadata.is_file() => {
+            error(&pb, &format!("{} is not a regular file", filesystem_path.display()));
+            return ExitCode::FAILURE;
+        }
+        Err(e) => {
+            error(&pb, &format!("Failed to access {}: {}", filesystem_path.display(), e));
+            return ExitCode::FAILURE;
+        }
+        _ => {}
+    }
+
+    let mut file = match File::open(filesystem_path) {
+        Ok(f) => BufReader::with_capacity(DEFAULT_BLOCK_SIZE as usize, f),
+        Err(e) => {
+            error(&pb, &format!("Failed to open file: {}", e));
+            return ExitCode::FAILURE;
+        }
+    };
 
     if args.stat {
         if let Some(kind_str) = &args.kind {
-            let kind = Kind::from_target(kind_str).unwrap();
-            stat(args, file, kind);
+            let kind = match Kind::from_target(kind_str) {
+                Ok(k) => k,
+                Err(e) => {
+                    error(&pb, &format!("Invalid kind: {e}"));
+                    return ExitCode::FAILURE;
+                }
+            };
+            stat(args, file, kind, &pb);
             return ExitCode::SUCCESS;
         } else {
             if !args.quiet {
-                let line =
-                    format!("{:>14}", red_bold.apply_to("Cannot use --stat without --kind"),);
-                pb.finish_with_message(line);
+                error(&pb, "--stat requires --kind to be specified");
             }
-            eprintln!("Error: --stat requires --kind to be specified");
             return ExitCode::FAILURE;
         }
     }
 
     let (filesystem, _) = if let Some(kind_str) = args.kind.clone() {
-        match handle_with_kind(&mut args, &mut file, &kind_str, &pb, &blue_bold, &red_bold) {
+        match handle_with_kind(&mut args, &mut file, &kind_str, &pb, &blue_bold) {
             Ok(result) => result,
             Err(exit_code) => return exit_code,
         }
     } else {
-        match handle_auto_detect_kind(&args, &mut file, &pb, &blue_bold, &red_bold) {
+        match handle_auto_detect_kind(&args, &mut file, &pb, &blue_bold) {
             Ok(result) => result,
             Err(exit_code) => return exit_code,
         }
     };
 
-    process_filesystem(filesystem.as_ref(), args, pb, red_bold, blue_bold)
+    process_filesystem(filesystem.as_ref(), args, pb, blue_bold)
 }
 
 fn process_filesystem(
     filesystem: &dyn FilesystemReaderTrait,
     args: Args,
     _pb: ProgressBar,
-    red_bold: console::Style,
     blue_bold: console::Style,
 ) -> ExitCode {
     let root_process = unsafe { geteuid() == 0 };
@@ -378,11 +412,7 @@ fn process_filesystem(
                 files.push(exact);
             } else {
                 if !args.quiet {
-                    let line = format!(
-                        "{:>14}",
-                        red_bold.apply_to("Invalid --path-filter, path doesn't exist")
-                    );
-                    pb.finish_with_message(line);
+                    error(&pb, "Invalid --path-filter, path doesn't exist");
                 }
                 return ExitCode::FAILURE;
             }
@@ -418,10 +448,19 @@ fn list(nodes: impl Iterator<Item = BackhandNode>) {
 }
 
 fn stat_v4(args: Args, mut file: BufReader<File>, kind: Kind) {
-    file.seek(SeekFrom::Start(args.offset)).unwrap();
+    if let Err(e) = file.seek(SeekFrom::Start(args.offset)) {
+        eprintln!("Failed to seek to offset: {e}");
+        return;
+    }
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, compression_options) =
-        V4::superblock_and_compression_options(&mut reader, &kind).unwrap();
+        match V4::superblock_and_compression_options(&mut reader, &kind) {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("Failed to read superblock: {e}");
+                return;
+            }
+        };
 
     // show info about flags
     println!("{superblock:#08x?}");
@@ -469,25 +508,37 @@ fn stat_v4(args: Args, mut file: BufReader<File>, kind: Kind) {
 
 #[cfg(feature = "v3")]
 fn stat_v3(args: Args, mut file: BufReader<File>, kind: Kind) {
-    file.seek(SeekFrom::Start(args.offset)).unwrap();
+    if let Err(e) = file.seek(SeekFrom::Start(args.offset)) {
+        eprintln!("Failed to seek to offset: {e}");
+        return;
+    }
     let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, _compression_options) =
-        V3::superblock_and_compression_options(&mut reader, &kind).unwrap();
+        match V3::superblock_and_compression_options(&mut reader, &kind) {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("Failed to read superblock: {e}");
+                return;
+            }
+        };
 
     // show info about flags
     println!("{superblock:#08x?}");
 }
 
-fn stat(args: Args, file: BufReader<File>, kind: Kind) {
+fn stat(args: Args, file: BufReader<File>, kind: Kind, pb: &ProgressBar) {
     match (kind.version_major(), kind.version_minor()) {
         (4, 0) => stat_v4(args, file, kind),
         #[cfg(feature = "v3")]
         (3, 0) => stat_v3(args, file, kind),
         _ => {
-            eprintln!(
-                "Unsupported SquashFS version: {}.{}",
-                kind.version_major(),
-                kind.version_minor()
+            error(
+                pb,
+                &format!(
+                    "Unsupported SquashFS version: {}.{}",
+                    kind.version_major(),
+                    kind.version_minor()
+                ),
             );
         }
     }
@@ -503,7 +554,13 @@ fn set_attributes(
 ) {
     // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
     let timeval = TimeVal::new(header.mtime as _, 0);
-    utimes(path, &timeval, &timeval).unwrap();
+    if let Err(e) = utimes(path, &timeval, &timeval) {
+        if !args.quiet {
+            let line = format!("{} : could not set times: {e}", path.display());
+            failed(pb, &line);
+        }
+        return;
+    }
 
     let mut mode = u32::from(header.permissions);
 
@@ -537,7 +594,7 @@ fn set_attributes(
             if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err()
                 && !args.quiet
             {
-                let line = format!("{} : could not set permissions", path.to_str().unwrap());
+                let line = format!("{} : could not set permissions", path.display());
                 failed(pb, &line);
             }
         }
@@ -595,7 +652,7 @@ fn extract_all(
                 // check if file exists
                 if !args.force && filepath.exists() {
                     if !args.quiet {
-                        exists(&pb, filepath.to_str().unwrap());
+                        exists(&pb, &filepath.display().to_string());
                         let mut p = processing.lock().unwrap();
                         p.remove(&fullpath.to_path_buf());
                     }
@@ -604,19 +661,30 @@ fn extract_all(
 
                 // write to file
                 let file_data = filesystem.file_data(file);
-                let fd = File::create(&filepath).unwrap();
+                let fd = match File::create(&filepath) {
+                    Ok(f) => f,
+                    Err(e) => {
+                        if !args.quiet {
+                            let line = format!("{} : {e}", filepath.display());
+                            failed(&pb, &line);
+                            let mut p = processing.lock().unwrap();
+                            p.remove(&fullpath.to_path_buf());
+                        }
+                        return;
+                    }
+                };
                 let mut writer = BufWriter::with_capacity(file_data.len(), &fd);
 
                 match writer.write_all(&file_data) {
                     Ok(_) => {
                         if args.info && !args.quiet {
-                            extracted(&pb, filepath.to_str().unwrap());
+                            extracted(&pb, &filepath.display().to_string());
                         }
                         set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                     }
                     Err(e) => {
                         if !args.quiet {
-                            let line = format!("{} : {e}", filepath.to_str().unwrap());
+                            let line = format!("{} : {e}", filepath.display());
                             failed(&pb, &line);
                             let mut p = processing.lock().unwrap();
                             p.remove(&fullpath.to_path_buf());
@@ -624,14 +692,19 @@ fn extract_all(
                         return;
                     }
                 }
-                writer.flush().unwrap();
+                if let Err(e) = writer.flush() {
+                    if !args.quiet {
+                        let line = format!("{} : flush failed: {e}", filepath.display());
+                        failed(&pb, &line);
+                    }
+                }
             }
             BackhandInnerNode::Symlink { link } => {
                 // create symlink
                 let link_display = link.display();
                 // check if file exists
                 if !args.force && filepath.exists() {
-                    exists(&pb, filepath.to_str().unwrap());
+                    exists(&pb, &filepath.display().to_string());
                     let mut p = processing.lock().unwrap();
                     p.remove(&fullpath.to_path_buf());
                     return;
@@ -640,14 +713,13 @@ fn extract_all(
                 match std::os::unix::fs::symlink(link, &filepath) {
                     Ok(_) => {
                         if args.info && !args.quiet {
-                            let line = format!("{}->{link_display}", filepath.to_str().unwrap());
+                            let line = format!("{}->{link_display}", filepath.display());
                             created(&pb, &line);
                         }
                     }
                     Err(e) => {
                         if !args.quiet {
-                            let line =
-                                format!("{}->{link_display} : {e}", filepath.to_str().unwrap());
+                            let line = format!("{}->{link_display} : {e}", filepath.display());
                             failed(&pb, &line);
                             let mut p = processing.lock().unwrap();
                             p.remove(&fullpath.to_path_buf());
@@ -682,14 +754,18 @@ fn extract_all(
                 // TODO Use (file_set_times) when not nightly: https://github.com/rust-lang/rust/issues/98245
                 // Make sure this doesn't follow symlinks when changed to std library!
                 let timespec = TimeSpec::new(node.header.mtime as _, 0);
-                utimensat(
+                if let Err(e) = utimensat(
                     AT_FDCWD,
                     &filepath,
                     &timespec,
                     &timespec,
                     UtimensatFlags::NoFollowSymlink,
-                )
-                .unwrap();
+                ) {
+                    if !args.quiet {
+                        let line = format!("{} : could not set times: {e}", filepath.display());
+                        failed(&pb, &line);
+                    }
+                }
             }
             BackhandInnerNode::Dir => {
                 // These permissions are corrected later (user default permissions for now)
@@ -697,7 +773,7 @@ fn extract_all(
                 // don't display error if this was already created, we might have already
                 // created it in another thread to put down a file
                 if std::fs::create_dir(&filepath).is_ok() && args.info && !args.quiet {
-                    created(&pb, filepath.to_str().unwrap())
+                    created(&pb, &filepath.display().to_string())
                 }
             }
             BackhandInnerNode::CharacterDevice { device_number } => {
@@ -711,7 +787,7 @@ fn extract_all(
                     ) {
                         Ok(_) => {
                             if args.info && !args.quiet {
-                                created(&pb, filepath.to_str().unwrap());
+                                created(&pb, &filepath.display().to_string());
                             }
 
                             set_attributes(&pb, args, &filepath, &node.header, root_process, true);
@@ -720,7 +796,7 @@ fn extract_all(
                             if !args.quiet {
                                 let line = format!(
                                     "char device {}, are you superuser?",
-                                    filepath.to_str().unwrap()
+                                    filepath.display()
                                 );
                                 failed(&pb, &line);
                                 let mut p = processing.lock().unwrap();
@@ -731,10 +807,8 @@ fn extract_all(
                     }
                 } else {
                     if !args.quiet {
-                        let line = format!(
-                            "char device {}, are you superuser?",
-                            filepath.to_str().unwrap()
-                        );
+                        let line =
+                            format!("char device {}, are you superuser?", filepath.display());
                         failed(&pb, &line);
                     }
                     let mut p = processing.lock().unwrap();
@@ -752,14 +826,14 @@ fn extract_all(
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, filepath.to_str().unwrap());
+                            created(&pb, &filepath.display().to_string());
                         }
 
                         set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                     }
                     Err(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, filepath.to_str().unwrap());
+                            created(&pb, &filepath.display().to_string());
                             let mut p = processing.lock().unwrap();
                             p.remove(&fullpath.to_path_buf());
                         }
@@ -774,14 +848,14 @@ fn extract_all(
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, filepath.to_str().unwrap());
+                            created(&pb, &filepath.display().to_string());
                         }
 
                         set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                     }
                     Err(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, filepath.to_str().unwrap());
+                            created(&pb, &filepath.display().to_string());
                         }
                         let mut p = processing.lock().unwrap();
                         p.remove(&fullpath.to_path_buf());
@@ -799,14 +873,14 @@ fn extract_all(
                 ) {
                     Ok(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, filepath.to_str().unwrap());
+                            created(&pb, &filepath.display().to_string());
                         }
 
                         set_attributes(&pb, args, &filepath, &node.header, root_process, true);
                     }
                     Err(_) => {
                         if args.info && !args.quiet {
-                            created(&pb, filepath.to_str().unwrap());
+                            created(&pb, &filepath.display().to_string());
                             let mut p = processing.lock().unwrap();
                             p.remove(&fullpath.to_path_buf());
                         }

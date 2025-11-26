@@ -63,7 +63,7 @@ impl Inode {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, Clone, Copy, PartialEq, Eq)]
 #[deku(id_type = "u16")]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[repr(u16)]
@@ -131,7 +131,7 @@ pub enum InodeInner {
     ExtendedFile(#[deku(ctx = "bytes_used, block_size, block_log")] ExtendedFile),
 }
 
-#[derive(Debug, DekuRead, DekuWrite, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, Clone, Copy, PartialEq, Eq, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct InodeHeader {
     pub permissions: u16,

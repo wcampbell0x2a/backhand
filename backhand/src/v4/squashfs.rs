@@ -42,7 +42,7 @@ pub const MAX_BLOCK_SIZE: u32 = 0x10_0000;
 pub const MIN_BLOCK_SIZE: u32 = 0x1000;
 
 /// Contains important information about the archive, including the locations of other sections
-#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, DekuRead, DekuWrite, DekuSize, PartialEq, Eq)]
 #[deku(
     endian = "ctx_type_endian",
     ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
@@ -144,6 +144,8 @@ impl SuperBlock {
 }
 
 impl SuperBlock {
+    pub const SIZE: usize = Self::SIZE_BYTES.unwrap();
+
     pub fn new(compressor: Compressor, kind: Kind) -> Self {
         Self {
             magic: kind.inner.magic,

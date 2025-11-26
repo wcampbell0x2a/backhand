@@ -20,7 +20,7 @@ use crate::v4::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::Flags;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(id_type = "u16")]
 #[repr(u16)]
@@ -59,7 +59,7 @@ pub enum CompressionOptions {
     Lzma,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Gzip {
     pub compression_level: u32,
@@ -68,7 +68,7 @@ pub struct Gzip {
     pub strategies: u16,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lzo {
     // TODO: enum
@@ -95,7 +95,7 @@ pub struct Xz {
     pub fb: Option<u16>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct XzFilter(u32);
 
@@ -125,7 +125,7 @@ impl XzFilter {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lz4 {
     pub version: u32,
@@ -133,7 +133,7 @@ pub struct Lz4 {
     pub flags: u32,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Zstd {
     pub compression_level: u32,

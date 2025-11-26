@@ -39,7 +39,7 @@ pub const MAX_BLOCK_SIZE: u32 = 0x10_0000;
 /// 4KiB
 pub const MIN_BLOCK_SIZE: u32 = 0x1000;
 
-#[derive(Debug, Copy, Clone, DekuRead, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, DekuRead, DekuSize, PartialEq, Eq)]
 #[deku(
     endian = "ctx_type_endian",
     ctx = "ctx_magic: [u8; 4], ctx_version_major: u16, ctx_version_minor: u16, ctx_type_endian: deku::ctx::Endian"
@@ -77,6 +77,8 @@ pub struct SuperBlock {
 pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
 impl SuperBlock {
+    pub const SIZE: usize = Self::SIZE_BYTES.unwrap();
+
     pub fn new(kind: Kind) -> Self {
         Self {
             magic: kind.inner.magic,

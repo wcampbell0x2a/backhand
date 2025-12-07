@@ -24,14 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `v3_lzma`
   As always, if you find a SquashFS v3.0 that our tools can't use, let me know!
 - Update to 2024 edition
-- Bump MSRV to 1.85
+- Bump MSRV to 1.86
 - Change `FilesystemReader::files()` to return an iterator instead of `Vec`
 
 ### `backhand-cli`
 - unsquashfs: Try all kinds by default when `--kind` isn't specified
 - unsquashfs: Improve error output
 - Update to 2024 edition
-- Bump MSRV to 1.85
+- Bump MSRV to 1.86
 
 ## [v0.23.0] - 2025-06-19
 ### `backhand`

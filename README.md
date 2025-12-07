@@ -34,7 +34,7 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 
 
 ## Library
-*Compiler support: requires rustc 1.85+*
+*Compiler support: requires rustc 1.86+*
 
 Add the following to your `Cargo.toml` file:
 ```toml
@@ -87,7 +87,7 @@ write_filesystem.write(&mut output).unwrap();
 ```
 
 ## Binaries
-*Compiler support: requires rustc 1.85+*
+*Compiler support: requires rustc 1.86+*
 
 These are currently under development and are missing features, MR's welcome!
 

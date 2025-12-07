@@ -7,7 +7,7 @@ edition.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-rust-version = "1.85"
+rust-version = "1.86"
 description = "Library for the reading, creating, and modification of SquashFS file systems"
 readme = "../README.md"
 

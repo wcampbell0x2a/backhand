@@ -44,7 +44,7 @@ xz = ["dep:liblzma"]
 ## Enables xz compression and forces static build inside library and binaries
 xz-static = ["dep:liblzma", "liblzma?/static"]
 ## Enables gzip compression inside library and binaries using flate2 library with zlib-rs
-gzip = ["any-flate2", "any-gzip", "dep:flate2"]
+gzip = ["any-gzip", "dep:flate2"]
 ## This library is licensed GPL and thus disabled by default
 lzo = ["dep:rust-lzo"]
 ## Enables zstd compression inside library and binaries
@@ -53,8 +53,6 @@ zstd = ["dep:zstd", "dep:zstd-safe"]
 lz4 = ["dep:lz4_flex"]
 ## Internal only
 any-gzip = []
-## Internal only
-any-flate2 = []
 ## Enable parallel decompression
 parallel = ["dep:rayon"]
 

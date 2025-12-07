@@ -4,7 +4,7 @@ const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
 const DATA_STORED_UNCOMPRESSED_V3: u16 = 1 << 15;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuSize)]
 #[deku(
     endian = "endian",
     ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",
@@ -56,7 +56,7 @@ impl DataSize {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuSize)]
 #[deku(
     endian = "endian",
     ctx = "endian: deku::ctx::Endian, order: deku::ctx::Order",

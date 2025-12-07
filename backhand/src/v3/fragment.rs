@@ -4,10 +4,9 @@ use deku::prelude::*;
 
 use super::data::DataSize;
 
-pub(crate) const SIZE: usize =
-    core::mem::size_of::<u64>() + core::mem::size_of::<u32>() + core::mem::size_of::<u32>();
+pub(crate) const SIZE: usize = Fragment::SIZE_BYTES.unwrap();
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuSize)]
 #[deku(
     endian = "type_endian",
     ctx = "type_endian: deku::ctx::Endian, order: deku::ctx::Order",

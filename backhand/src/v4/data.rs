@@ -21,7 +21,7 @@ use crate::v4::filesystem::reader_parallel::SquashfsRawData;
 // bitflag for data size field in inode for signifying that the data is uncompressed
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct DataSize(u32);
 impl DataSize {

@@ -7,7 +7,7 @@ edition.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-rust-version = "1.85.0"
+rust-version = "1.86.0"
 description = "Binaries for the reading, creating, and modification of SquashFS file systems"
 readme = "../README.md"
 
@@ -17,13 +17,13 @@ clap = { version = "4.5.13", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 libc = "0.2.162"
 clap_complete = "4.5.13"
-indicatif = "0.17.8"
-console = "0.15.8"
+indicatif = "0.18.3"
+console = "0.16.1"
 rayon = "1.10.0"
-backhand = { path = "../backhand", default-features = false, version = "0.23.0" }
+backhand = { path = "../backhand", default-features = false, version = "0.24.0" }
 tracing = "0.1.40"
 color-print = "0.3.6"
-clap-cargo = "0.15.0"
+clap-cargo = "0.18.3"
 
 [lib]
 bench = false

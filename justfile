@@ -1,8 +1,8 @@
-# Matches build-test-native
+# Matches build-test-native (plus v3)
 build:
-    cargo build --release --bins
+    cargo build --release --bins --features v3,v3_lzma
 test: build
-    cargo nextest run --release
+    cargo nextest run --release --features v3,v3_lzma
 bench:
     cargo bench
 lint:

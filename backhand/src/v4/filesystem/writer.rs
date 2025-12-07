@@ -666,7 +666,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         };
 
         // Empty Squashfs Superblock
-        w.write_all(&[0x00; 96])?;
+        w.write_all(&[0x00; SuperBlock::SIZE])?;
 
         if self.emit_compression_options && self.fs_compressor.options.is_some() {
             trace!("writing compression options");

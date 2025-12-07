@@ -4,9 +4,9 @@ use no_std_io2::io::{Read, Write};
 use std::io::Cursor;
 
 use deku::prelude::*;
-#[cfg(feature = "any-flate2")]
+#[cfg(feature = "gzip")]
 use flate2::Compression;
-#[cfg(feature = "any-flate2")]
+#[cfg(feature = "gzip")]
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "xz")]
 use liblzma::read::{XzDecoder, XzEncoder};
@@ -20,7 +20,7 @@ use crate::v4::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::Flags;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(id_type = "u16")]
 #[repr(u16)]
@@ -59,7 +59,7 @@ pub enum CompressionOptions {
     Lzma,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Gzip {
     pub compression_level: u32,
@@ -68,7 +68,7 @@ pub struct Gzip {
     pub strategies: u16,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lzo {
     // TODO: enum
@@ -95,7 +95,7 @@ pub struct Xz {
     pub fb: Option<u16>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct XzFilter(u32);
 
@@ -125,7 +125,7 @@ impl XzFilter {
     }
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lz4 {
     pub version: u32,
@@ -133,7 +133,7 @@ pub struct Lz4 {
     pub flags: u32,
 }
 
-#[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Zstd {
     pub compression_level: u32,
@@ -157,7 +157,7 @@ impl CompressionAction for DefaultCompressor {
     ) -> Result<(), Self::Error> {
         match compressor {
             Compressor::Uncompressed => out.extend_from_slice(bytes),
-            #[cfg(feature = "any-flate2")]
+            #[cfg(feature = "gzip")]
             Compressor::Gzip => {
                 let mut decoder = flate2::read::ZlibDecoder::new(bytes);
                 decoder.read_to_end(out)?;
@@ -259,7 +259,7 @@ impl CompressionAction for DefaultCompressor {
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)
             }
-            #[cfg(feature = "any-flate2")]
+            #[cfg(feature = "gzip")]
             (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
                 let compression_level = match option {
                     None => Compression::best(), // 9

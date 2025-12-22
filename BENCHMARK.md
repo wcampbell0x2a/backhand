@@ -74,6 +74,8 @@ Vulnerabilities:
 
 </details>
 
+This uses the latest `dl` binary from https://github.com/wcampbell0x2a/test-assets-ureq.
+
 ```
 $ ./bench.bash
 ```

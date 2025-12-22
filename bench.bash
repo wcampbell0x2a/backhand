@@ -60,6 +60,18 @@ rm -rf last-release
 mkdir -p  last-release
 
 mkdir -p bench-results
+
+# Download required test assets for benchmarks
+echo "Downloading required test assets..."
+dl test-assets.toml backhand-test/test-assets \
+    --assets openwrt_tplink_archera7v5 \
+    --assets netgear_ex6100v2 \
+    --assets re815xe \
+    --assets tplink_ax1800 \
+    --assets archlinux_iso_rootfs \
+    --assets er605 \
+    --assets appimage_plexamp \
+    --assets crates_io_zstd
 # xz
 bench "backhand-test/test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin" 0x225fd0 0_openwrt1
 # xz
@@ -69,13 +81,13 @@ bench "backhand-test/test-assets/test_re815_xev160/870D97.squashfs" 0x0 2_re815
 # xz
 bench "backhand-test/test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs" 0x0 3_ax18000
 # xz
-bench "test-assets/test_archlinux_iso_rootfs/airootfs.sfs" 0x0
+bench "backhand-test/test-assets/test_archlinux_iso_rootfs/airootfs.sfs" 0x0
 # xz
 bench "backhand-test/test-assets/test_er605_v2_2/2611E3.squashfs" 0x0 4_er605
 # gzip
 bench "backhand-test/test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage" 0x2dfe8 5_plexamp
 # zstd
-bench "backhand-test/test-assets/crates_io_zstd/crates-io.squashfs" 0x0 6_crates_zstd
+bench "test-assets/crates_io_zstd/crates-io.squashfs" 0x0 6_crates_zstd
 
 cat bench-results/*_final.md > results.md
 echo "Cool, now add results.md to BENCHMARK.md"

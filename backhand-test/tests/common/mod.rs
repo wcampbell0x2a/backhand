@@ -12,15 +12,10 @@ static TEST_ASSETS: OnceLock<TestAsset> = OnceLock::new();
 /// Get the parsed test assets from the TOML file
 pub fn get_test_assets() -> &'static TestAsset {
     TEST_ASSETS.get_or_init(|| {
-        // Try multiple paths to find test-assets.toml
-        let possible_paths = ["test-assets.toml", "../test-assets.toml", "../../test-assets.toml"];
-
-        let toml_content = possible_paths
-            .iter()
-            .find_map(|path| fs::read_to_string(path).ok())
-            .expect("Failed to read test-assets.toml from any of the expected locations");
-
-        toml::from_str(&toml_content).expect("Failed to parse test-assets.toml")
+        let mut config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        config_path.push("../test-assets.toml");
+        let file_content = std::fs::read_to_string(config_path).unwrap();
+        toml::from_str(&file_content).expect("Failed to parse test-assets.toml")
     })
 }
 

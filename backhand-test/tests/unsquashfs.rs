@@ -1,22 +1,13 @@
 mod common;
 
 use assert_cmd::prelude::*;
-use test_assets_ureq::TestAssetDef;
 
 #[test]
 #[cfg(feature = "xz")]
 #[cfg(feature = "__test_unsquashfs")]
 fn test_unsquashfs_cli() {
-    const FILE_NAME: &str = "870D97.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "a73325883568ba47eaa5379c7768ded5661d61841a81d6c987371842960ac6a2".to_string(),
-        url: format!("wcampbell.dev/squashfs/testing/test_re815xev1/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_re815_xev160";
-
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_asset("re815xe");
+    let image_path = "test-assets/test_re815_xev160/870D97.squashfs";
 
     // single file
     let cmd = common::get_base_command("unsquashfs-backhand")
@@ -109,18 +100,8 @@ flag: nfs export table exists
 fn test_unsquashfs_cli_auto_offset() {
     use tempfile::tempdir;
 
-    const FILE_NAME: &str =
-        "openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "ce0bfab79550885cb7ced388caaaa9bd454852bf1f9c34789abc498eb6c74df6".to_string(),
-        url: format!(
-            "https://downloads.openwrt.org/releases/22.03.2/targets/ath79/generic/{FILE_NAME}"
-        ),
-    }];
-    const TEST_PATH: &str = "test-assets/test_openwrt_tplink_archera7v5";
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_asset("openwrt_tplink_archera7v5");
+    let image_path = "test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin";
 
     let tmp_dir = tempdir().unwrap();
     {

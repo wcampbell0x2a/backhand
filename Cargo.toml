@@ -17,6 +17,10 @@ repository = "https://github.com/wcampbell0x2a/backhand"
 keywords = ["filesystem", "deku", "squashfs", "linux"]
 categories = ["filesystem", "parsing"]
 
+[profile.bench]
+debug = true
+strip = false
+
 [profile.release]
 overflow-checks = true
 

@@ -2,22 +2,13 @@ mod common;
 
 use assert_cmd::prelude::*;
 use tempfile::tempdir;
-use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
 #[test]
 #[cfg(feature = "xz")]
 fn test_replace() {
-    const FILE_NAME: &str = "out.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_05";
-
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_asset("test_05");
+    let image_path = "test-assets/test_05/out.squashfs";
 
     // extract single file
     let tmp_dir = tempdir().unwrap();

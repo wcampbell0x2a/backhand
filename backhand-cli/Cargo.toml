@@ -67,3 +67,8 @@ bench = false
 name = "replace-backhand"
 path = "src/bin/replace.rs"
 bench = false
+
+[dev-dependencies]
+gungraun = "0.17.0"
+test-assets-ureq = "0.6.0"
+toml = "0.8"

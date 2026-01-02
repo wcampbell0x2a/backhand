@@ -1,14 +1,40 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufReader, Cursor};
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use assert_cmd::prelude::*;
 use backhand::{FilesystemReader, FilesystemWriter};
 use criterion::*;
 use tempfile::tempdir;
-use test_assets_ureq::TestAssetDef;
-use test_assets_ureq::dl_test_files_backoff;
+use test_assets_ureq::{TestAsset, dl_test_files_backoff};
+
+static TEST_ASSETS: OnceLock<TestAsset> = OnceLock::new();
+
+/// Get the parsed test assets from the TOML file
+fn get_test_assets() -> &'static TestAsset {
+    TEST_ASSETS.get_or_init(|| {
+        let mut config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        config_path.push("../test-assets.toml");
+        let file_content = std::fs::read_to_string(config_path).unwrap();
+        toml::from_str(&file_content).expect("Failed to parse test-assets.toml")
+    })
+}
+
+/// Download a specific test asset by key
+fn download_asset(asset_key: &str) -> String {
+    let assets = get_test_assets();
+    let asset = assets
+        .assets
+        .get(asset_key)
+        .unwrap_or_else(|| panic!("Asset '{}' not found in test-assets.toml", asset_key));
+
+    // Download to current directory (tests run from workspace root)
+    let _ = dl_test_files_backoff(&[asset.clone()], ".", Duration::from_secs(60));
+
+    asset.filepath.clone()
+}
 
 fn read_write(file: File, offset: u64) {
     let file = BufReader::new(file);
@@ -30,37 +56,18 @@ pub fn bench_read_write(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(10);
 
-    const FILE_NAME_00: &str =
-        "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME_00.to_string(),
-        hash: "9608a6cb558f1a4aa9659257f7c0b401f94343d10ec6e964fc4a452b4f91bea4".to_string(),
-        url: format!(
-            "https://downloads.openwrt.org/releases/22.03.2/targets/ipq40xx/generic/{FILE_NAME_00}"
-        ),
-    }];
-    const TEST_PATH_00: &str = "../backhand-cli/test-assets/test_openwrt_netgear_ex6100v2";
-    dl_test_files_backoff(&asset_defs, TEST_PATH_00, true, Duration::from_secs(1)).unwrap();
-    let og_path = format!("{TEST_PATH_00}/{FILE_NAME_00}");
+    let netgear_path = download_asset("netgear_ex6100v2");
     group.bench_function("netgear_ax6100v2", |b| {
         b.iter(|| {
-            let file = File::open(&og_path).unwrap();
+            let file = File::open(&netgear_path).unwrap();
             read_write(file, 0x2c0080)
         })
     });
 
-    const FILE_NAME: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_tplink_ax1800";
-    dl_test_files_backoff(&asset_defs, TEST_PATH, true, Duration::from_secs(1)).unwrap();
-    let og_path = format!("{TEST_PATH}/{FILE_NAME}");
+    let tplink_path = download_asset("tplink_ax1800");
     group.bench_function("tplink_ax1800", |b| {
         b.iter(|| {
-            let file = File::open(&og_path).unwrap();
+            let file = File::open(&tplink_path).unwrap();
             read_write(file, 0)
         })
     });
@@ -73,37 +80,18 @@ pub fn bench_read(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(10);
 
-    const FILE_NAME_00: &str =
-        "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME_00.to_string(),
-        hash: "9608a6cb558f1a4aa9659257f7c0b401f94343d10ec6e964fc4a452b4f91bea4".to_string(),
-        url: format!(
-            "https://downloads.openwrt.org/releases/22.03.2/targets/ipq40xx/generic/{FILE_NAME_00}"
-        ),
-    }];
-    const TEST_PATH_00: &str = "../backhand-cli/test-assets/test_openwrt_netgear_ex6100v2";
-    dl_test_files_backoff(&asset_defs, TEST_PATH_00, true, Duration::from_secs(1)).unwrap();
-    let og_path = format!("{TEST_PATH_00}/{FILE_NAME_00}");
+    let netgear_path = download_asset("netgear_ex6100v2");
     group.bench_function("netgear_ax6100v2", |b| {
         b.iter(|| {
-            let file = File::open(&og_path).unwrap();
+            let file = File::open(&netgear_path).unwrap();
             read(file, 0x2c0080)
         })
     });
 
-    const FILE_NAME_01: &str = "img-1571203182_vol-ubi_rootfs.ubifs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME_01.to_string(),
-        hash: "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_tplink1800/{FILE_NAME_01}"),
-    }];
-    const TEST_PATH_01: &str = "test-assets/test_tplink_ax1800";
-    dl_test_files_backoff(&asset_defs, TEST_PATH_01, true, Duration::from_secs(1)).unwrap();
-    let og_path = format!("{TEST_PATH_01}/{FILE_NAME_01}");
+    let tplink_path = download_asset("tplink_ax1800");
     group.bench_function("tplink_ax1800", |b| {
         b.iter(|| {
-            let file = File::open(&og_path).unwrap();
+            let file = File::open(&tplink_path).unwrap();
             read(file, 0)
         })
     });
@@ -114,19 +102,7 @@ pub fn bench_read(c: &mut Criterion) {
 pub fn bench_unsquashfs_extract(c: &mut Criterion) {
     let mut group = c.benchmark_group("unsquashfs");
 
-    const FILE_NAME: &str = "openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img";
-
-    let asset_defs = &[TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "9608a6cb558f1a4aa9659257f7c0b401f94343d10ec6e964fc4a452b4f91bea4".to_string(),
-        url: format!(
-            "https://downloads.openwrt.org/releases/22.03.2/targets/ipq40xx/generic/{FILE_NAME}"
-        ),
-    }];
-    // Local, because we run unsquashfs
-    const TEST_PATH: &str = "test-assets/test_openwrt_netgear_ex6100v2";
-    dl_test_files_backoff(asset_defs, TEST_PATH, true, Duration::from_secs(1)).unwrap();
-    let path = format!("{TEST_PATH}/{FILE_NAME}");
+    let path = download_asset("netgear_ex6100v2");
 
     let tmp_dir = tempdir().unwrap();
 

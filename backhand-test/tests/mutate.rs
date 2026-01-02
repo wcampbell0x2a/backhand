@@ -3,8 +3,8 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Cursor};
 
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
+#[allow(unused_imports)]
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
-use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
 /// Before:
@@ -32,28 +32,12 @@ use test_log::test;
 #[test]
 #[cfg(feature = "xz")]
 fn test_add_00() {
-    let asset_defs = [
-        TestAssetDef {
-            filename: "out.squashfs".to_string(),
-            hash: "8610cd350bbd51ca6c8b84c210ef24c57898845f75f5b4ae0c6d7e785efaab4f".to_string(),
-            url: "https://wcampbell.dev/squashfs/testing/test_add_00/out.squashfs".to_string(),
-        },
-        TestAssetDef {
-            filename: "new.squashfs".to_string(),
-            hash: "dc02848152d42b331fa0540000f68bf0942c5b00a3a44a3a6f208af34b4b6ec3".to_string(),
-            url: "https://wcampbell.dev/squashfs/testing/test_add_00/new.squashfs".to_string(),
-        },
-        TestAssetDef {
-            filename: "control.squashfs".to_string(),
-            hash: "b690b167ef3d6126ca4180e73cf0cb827f48405630278a64017208b6774b663b".to_string(),
-            url: "https://wcampbell.dev/squashfs/testing/test_add_00/control.squashfs".to_string(),
-        },
-    ];
-    const TEST_PATH: &str = "test-assets/test_add_00";
-    let og_path = format!("{TEST_PATH}/out.squashfs");
-    let new_path = format!("{TEST_PATH}/bytes.squashfs");
-
-    common::download_backoff(&asset_defs, TEST_PATH);
+    common::download_asset("add_00_out");
+    common::download_asset("add_00_new");
+    common::download_asset("add_00_control");
+    let og_path = "test-assets/test_add_00/out.squashfs";
+    let new_path = std::path::Path::new(&og_path).parent().unwrap().join("bytes.squashfs");
+    let new_path = new_path.to_str().unwrap();
     let file = BufReader::new(File::open(&og_path).unwrap());
     let og_filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
@@ -89,7 +73,7 @@ fn test_add_00() {
     // compare when on x86 host
     #[cfg(feature = "__test_unsquashfs")]
     {
-        let control_new_path = format!("{TEST_PATH}/control.squashfs");
+        let control_new_path = "test-assets/test_add_00/control.squashfs";
         test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
         test_bin_unsquashfs(&og_path, None, true, true);
         test_bin_unsquashfs(&new_path, None, true, true);

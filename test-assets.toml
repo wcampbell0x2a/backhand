@@ -1,0 +1,208 @@
+# Test Assets for backhand project
+# These assets are used across tests and benchmarks
+# Download using: dl test-assets.toml test-assets
+
+# Tests from backhand-test/tests/test.rs
+[test_assets.test_00]
+filepath = "test-assets/test_00/out.squashfs"
+hash = "976c1638d8c1ba8014de6c64b196cbd70a5acf031be10a8e7f649536193c8e78"
+url = "https://wcampbell.dev/squashfs/testing/test_00/out.squashfs"
+
+[test_assets.test_01]
+filepath = "test-assets/test_01/out.squashfs"
+hash = "9d9f5ba77b562fd4141fc725038028822673b24595e2774a8718260f4fc39710"
+url = "https://wcampbell.dev/squashfs/testing/test_01/out.squashfs"
+
+[test_assets.test_02]
+filepath = "test-assets/test_02/out.squashfs"
+hash = "c18d1b57e73740ab4804672c61f5c77f170cc16179d9a7e12dd722ba311f5623"
+url = "https://wcampbell.dev/squashfs/testing/test_02/out.squashfs"
+
+[test_assets.test_03]
+filepath = "test-assets/test_03/out.squashfs"
+hash = "4171d9dd5a53f2ad841715af1c01351028a9d9df13e4ae8172f37660306c0473"
+url = "https://wcampbell.dev/squashfs/testing/test_03/out.squashfs"
+
+[test_assets.test_04]
+filepath = "test-assets/test_04/out.squashfs"
+hash = "bfb3424bf3b744b8c7a156c9c538310c49fbe8a57f336864f00210e6f356f2c3"
+url = "https://wcampbell.dev/squashfs/testing/test_04/out.squashfs"
+
+[test_assets.test_05]
+filepath = "test-assets/test_05/out.squashfs"
+hash = "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb"
+url = "https://wcampbell.dev/squashfs/testing/test_05/out.squashfs"
+
+[test_assets.test_06]
+filepath = "test-assets/test_06/out.squashfs"
+hash = "3c5db6e8c59a4e1291a016f736fbf76ddc1e07fa4bc8940eac1754975b4c617b"
+url = "https://wcampbell.dev/squashfs/testing/test_06/out.squashfs"
+
+[test_assets.test_07]
+filepath = "test-assets/test_07/out.squashfs"
+hash = "6bc1571d82473e74a55cfd2d07ce21d9150ea4ad5941d2345ea429507d812671"
+url = "https://wcampbell.dev/squashfs/testing/test_07/out.squashfs"
+
+[test_assets.test_08]
+filepath = "test-assets/test_08/out.squashfs"
+hash = "debe0986658b276be78c3836779d20464a03d9ba0a40903e6e8e947e434f4d67"
+url = "https://wcampbell.dev/squashfs/testing/test_08/out.squashfs"
+
+[test_assets.test_19]
+filepath = "test-assets/test_19/out.squashfs"
+hash = "4dc83c3eea0d7ae2a23c891798d485ba0eded862db5e1528a984e08b35255b0f"
+url = "https://wcampbell.dev/squashfs/testing/test_19/out.squashfs"
+
+[test_assets.test_20]
+filepath = "test-assets/test_20/out.squashfs"
+hash = "4f00c0debb2d40ecb45f8d5d176a97699a8e07727713883899e6720331d67078"
+url = "https://wcampbell.dev/squashfs/testing/test_20/out.squashfs"
+
+[test_assets.test_21]
+filepath = "test-assets/test_21/out.squashfs"
+hash = "8fe23229be6c3e24b9565007f9f9a25e8e796270cf7ce8518da131e95bb90bad"
+url = "https://wcampbell.dev/squashfs/testing/test_21/out.squashfs"
+
+[test_assets.openwrt_tplink_archera7v5]
+filepath = "test-assets/test_openwrt_tplink_archera7v5/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin"
+hash = "ce0bfab79550885cb7ced388caaaa9bd454852bf1f9c34789abc498eb6c74df6"
+url = "https://downloads.openwrt.org/releases/22.03.2/targets/ath79/generic/openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin"
+
+[test_assets.netgear_ex6100v2]
+filepath = "test-assets/test_openwrt_netgear_ex6100v2/openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img"
+hash = "9608a6cb558f1a4aa9659257f7c0b401f94343d10ec6e964fc4a452b4f91bea4"
+url = "https://downloads.openwrt.org/releases/22.03.2/targets/ipq40xx/generic/openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img"
+
+[test_assets.appimage_plexamp]
+filepath = "test-assets/test_appimage_plexamp/Plexamp-4.6.1.AppImage"
+hash = "6d2a3fba571da54e6869c2f7e1f7e6ca22f380a9a6f7a44a5ac675d1c656b584"
+url = "https://plexamp.plex.tv/plexamp.plex.tv/desktop/Plexamp-4.6.1.AppImage"
+
+[test_assets.appimage_firefox]
+filepath = "test-assets/test_appimage_firefox/firefox-108.0.r20221215175817-x86_64.AppImage"
+hash = "78368f6c9c7080da7e3d7ceea8e64a8352c0f4ce39eb97d51de99943fd222e03"
+url = "https://github.com/srevinsaju/Firefox-Appimage/releases/download/firefox-v108.0.r20221215175817/firefox-108.0.r20221215175817-x86_64.AppImage"
+
+[test_assets.tplink_ax1800]
+filepath = "test-assets/test_tplink_ax1800/img-1571203182_vol-ubi_rootfs.ubifs"
+hash = "e6adbea10615a8ed9f88e403e2478010696f421f4d69a790d37d97fe8921aa81"
+url = "https://wcampbell.dev/squashfs/testing/test_tplink1800/img-1571203182_vol-ubi_rootfs.ubifs"
+
+[test_assets.er605]
+filepath = "test-assets/test_er605_v2_2/2611E3.squashfs"
+hash = "8f69958e5e25a7b9162342739305361dcd6b5a56970e342d85060f9f3be6313c"
+url = "https://wcampbell.dev/squashfs/testing/test_er605_v2_2.0.1/2611E3.squashfs"
+
+[test_assets.re815xe]
+filepath = "test-assets/test_re815_xev160/870D97.squashfs"
+hash = "a73325883568ba47eaa5379c7768ded5661d61841a81d6c987371842960ac6a2"
+url = "https://wcampbell.dev/squashfs/testing/test_re815xev1.60/870D97.squashfs"
+
+[test_assets.archlinux_iso_rootfs]
+filepath = "test-assets/test_archlinux_iso_rootfs/airootfs.sfs"
+hash = "c5a2e50d08c06719e003e59f19c3c618bfd85c495112d10cf3871e17d9a17ad6"
+url = "https://archive.archlinux.org/iso/2023.06.01/arch/x86_64/airootfs.sfs"
+
+[test_assets.many_files]
+filepath = "test-assets/test_many_files/many_files.squashfs"
+hash = "43723443fa8acedbd67384ba9b02806f8a1e53014282eb9c871aa78ec08a0e44"
+url = "https://wcampbell.dev/squashfs/testing/test_many_files/many_files.squashfs"
+
+[test_assets.many_dirs]
+filepath = "test-assets/test_many_dirs/many_dirs.squashfs"
+hash = "2606237d69ebeee9a5da22a63c564921f3ec267c5377ddfbb3aa99409558daf0"
+url = "https://wcampbell.dev/squashfs/testing/test_many_dirs/many_dirs.squashfs"
+
+[test_assets.few_dirs_many_files]
+filepath = "test-assets/test_few_dirs_many_files/few_dirs_many_files.squashfs"
+hash = "66543a46cf96d5e59b47203c421f7967ad552057f09c625fc08131325bc995bd"
+url = "https://wcampbell.dev/squashfs/testing/test_few_dirs_many_files/few_dirs_many_files.squashfs"
+
+[test_assets.socket_fifo]
+filepath = "test-assets/socket_fifo/squashfs_v4.specfile.bin"
+hash = "d27f2e4baf57df961b9aa7298ac390a54fd0d2c904bf1d4baaee49cbdd0a93f1"
+url = "https://wcampbell.dev/squashfs/testing/test_socket_fifo/squashfs_v4.specfile.bin"
+
+[test_assets.crates_io_zstd]
+filepath = "test-assets/crates_io_zstd/crates-io.squashfs"
+hash = "f9d9938626c6cade032a3e54ce9e16fbabaf9e0cb6a0eb486c5c189d7fb9d13d"
+url = "https://wcampbell.dev/squashfs/testing/crates.io-zstd/crates-io.squashfs"
+
+[test_assets.sparse_data_issue_623]
+filepath = "test-assets/aosc-os/aosc-os_buildkit_20251206_amd64.squashfs"
+hash = "e0c8cc4237f88cb8e523efe68dfda0746831d408d93882a9e2584243ae3dc3f1"
+url = "https://wcampbell.dev/squashfs/testing/aosc-os/aosc-os_buildkit_20251206_amd64.squashfs"
+
+[test_assets.lz4_write_read]
+filepath = "test-assets/test_lz4_write_read/testing.lz4.squash"
+hash = "5ea80b6aa0da73ef30fc3fe405b1700758819f85e7140be2278f5db3f9123a21"
+url = "https://wcampbell.dev/squashfs/testing/lz4/testing.lz4.squash"
+
+# Assets from backhand-test/tests/mutate.rs
+[test_assets.add_00_out]
+filepath = "test-assets/test_add_00/out.squashfs"
+hash = "8610cd350bbd51ca6c8b84c210ef24c57898845f75f5b4ae0c6d7e785efaab4f"
+url = "https://wcampbell.dev/squashfs/testing/test_add_00/out.squashfs"
+
+[test_assets.add_00_new]
+filepath = "test-assets/test_add_00/new.squashfs"
+hash = "dc02848152d42b331fa0540000f68bf0942c5b00a3a44a3a6f208af34b4b6ec3"
+url = "https://wcampbell.dev/squashfs/testing/test_add_00/new.squashfs"
+
+[test_assets.add_00_control]
+filepath = "test-assets/test_add_00/control.squashfs"
+hash = "b690b167ef3d6126ca4180e73cf0cb827f48405630278a64017208b6774b663b"
+url = "https://wcampbell.dev/squashfs/testing/test_add_00/control.squashfs"
+
+# Assets from backhand-test/tests/non_standard.rs
+[test_assets.non_standard_be_v4_0]
+filepath = "test-assets/non_standard_be_v4_0/squashfs_v4.unblob.bin"
+hash = "9c7c523c5d1d1cafc0b679af9092ce0289d9656f6a24bc3bd0009f95b69397c0"
+url = "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.unblob.bin"
+
+[test_assets.non_standard_be_v4_1]
+filepath = "test-assets/non_standard_be_v4_1/squashfs_v4.nopad.unblob.bin"
+hash = "a29ddc15f5a6abcabf28b7161837eb56b34111e48420e7392e648f2fdfe956ed"
+url = "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.nopad.unblob.bin"
+
+# Assets from backhand-test/tests/raw.rs
+[test_assets.raw_00_control]
+filepath = "test-assets/test_raw_00/control.squashfs"
+hash = "e3d8f94f8402412ecf742d44680f1dd5d8fd28cc3d1a502e5fcfcc9e2f5f949a"
+url = "https://wcampbell.dev/squashfs/testing/test_raw_00/control.squashfs"
+
+# Assets from backhand-test/tests/v3.rs
+[test_assets.v3_be]
+filepath = "test-assets/test_v3_be/squashfs_v3_be.bin"
+hash = "4e9493d9c6f868005dea8f11992129c3399e0bcb8f3a966c750cb925989ca97c"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v3_be.bin"
+
+[test_assets.v3_le]
+filepath = "test-assets/test_v3_le/squashfs_v3_le.bin"
+hash = "0161351caec8e9da6e3e5ac7b046fd11d832efb18eb09e33011e6d19d50cd1f7"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v3_le.bin"
+
+[test_assets.v3_be_lzma]
+filepath = "test-assets/test_v3_be_lzma/squashfs_v3_be.lzma.bin"
+hash = "71971c7a05d2d0b44bc976bc168f7b9134af8dc9fec83553889a9b5473469495"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v3_be.lzma.bin"
+
+[test_assets.v3_le_lzma]
+filepath = "test-assets/test_v3_le_lzma/squashfs_v3_le.lzma.bin"
+hash = "2ac15e5c993f330854497b2fd032d2e87873a288fab6da2fe72106bb40b43124"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v3_le.lzma.bin"
+
+[test_assets.v3_le_more]
+filepath = "test-assets/test_v3_more/test_v3.sqfs"
+hash = "6934ad5af828172ff10a6c0996f0d415df894c317d3a8cdee042005ba5243802"
+url = "https://wcampbell.dev/squashfs/testing/test_v3.sqfs"
+
+[test_assets.v3_netgear]
+filepath = "test-assets/test_v3_netgear/netgear_v3.sqsh"
+hash = "a89cdf1cc45f99bd938b7e1d9b63b56f0b16edf803307956d1ba030c62a919ac"
+url = "https://wcampbell.dev/squashfs/testing/netgear_v3.sqsh"
+
+[test_assets.v3_many_dirs]
+filepath = "test-assets/many_dirs_v3/many_dirs_v3.sqsh"
+hash = "00d9b4d0dbe98fdb57997da7481b1a6ffaa812aa536d3d8e1c72a8c3eb71e6c4"
+url = "https://wcampbell.dev/squashfs/testing/many_dirs_v3.sqsh"

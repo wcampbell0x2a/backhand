@@ -2,30 +2,28 @@ mod common;
 
 use std::fs::File;
 use std::io::{BufWriter, Cursor};
+use std::process::Command;
 
 use backhand::compression::Compressor;
 use backhand::{
     CompressionExtra, DEFAULT_BLOCK_SIZE, ExtraXz, FilesystemCompressor, FilesystemWriter,
     NodeHeader, SuperBlock, kind,
 };
+#[allow(unused_imports)]
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
-use test_assets_ureq::TestAssetDef;
 
 #[test]
 #[cfg(all(feature = "xz", feature = "gzip"))]
 fn test_raw_00() {
-    use std::{io::BufReader, process::Command};
+    use std::io::BufReader;
 
     use backhand::{FilesystemReader, kind::Kind};
 
-    let asset_defs = [TestAssetDef {
-        filename: "control.squashfs".to_string(),
-        hash: "e3d8f94f8402412ecf742d44680f1dd5d8fd28cc3d1a502e5fcfcc9e2f5f949a".to_string(),
-        url: "https://wcampbell.dev/squashfs/testing/test_raw_00/control.squashfs".to_string(),
-    }];
-    const TEST_PATH: &str = "test-assets/test_raw_00";
-    let new_path = format!("{TEST_PATH}/bytes.squashfs");
-    common::download_backoff(&asset_defs, TEST_PATH);
+    common::download_asset("raw_00_control");
+    let control_path = "test-assets/test_raw_00/control.squashfs";
+    let dir = std::path::Path::new(&control_path).parent().unwrap();
+    let new_path = dir.join("bytes.squashfs");
+    let new_path = new_path.to_str().unwrap();
 
     let header = NodeHeader { permissions: 0o755, uid: 1000, gid: 1000, mtime: 0 };
 
@@ -106,8 +104,7 @@ drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
         // using contains here, the output of squashfs varies between versions
         assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), expected);
 
-        let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
+        test_squashfs_tools_unsquashfs(&new_path, &control_path, None, true);
         test_bin_unsquashfs(&new_path, None, true, true);
     }
 
@@ -123,54 +120,54 @@ drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
     fs.set_compressor(compressor);
 
     // create the modified squashfs
-    let new_path = format!("{TEST_PATH}/bytes_less_xz.squashfs");
-    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let new_path2 = dir.join("bytes_less_xz.squashfs");
+    let new_path2 = new_path2.to_str().unwrap();
+    let mut output = BufWriter::new(File::create(&new_path2).unwrap());
     let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
-        test_bin_unsquashfs(&new_path, None, true, true);
+        test_squashfs_tools_unsquashfs(&new_path2, &control_path, None, true);
+        test_bin_unsquashfs(&new_path2, None, true, true);
     }
 
     // Test picking a different compression
-    let file = BufReader::new(File::open(&new_path).unwrap());
+    let file = BufReader::new(File::open(&new_path2).unwrap());
     let fs = FilesystemReader::from_reader(file).unwrap();
     let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
     let compressor = FilesystemCompressor::new(Compressor::Gzip, None).unwrap();
     fs.set_compressor(compressor);
 
     // create the modified squashfs
-    let new_path = format!("{TEST_PATH}/bytes_gzip.squashfs");
-    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let new_path3 = dir.join("bytes_gzip.squashfs");
+    let new_path3 = new_path3.to_str().unwrap();
+    let mut output = BufWriter::new(File::create(&new_path3).unwrap());
     let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
-        test_bin_unsquashfs(&new_path, None, true, true);
+        test_squashfs_tools_unsquashfs(&new_path3, &control_path, None, true);
+        test_bin_unsquashfs(&new_path3, None, true, true);
     }
 
     // Test changing block size
-    let file = BufReader::new(File::open(&new_path).unwrap());
+    let file = BufReader::new(File::open(&new_path3).unwrap());
     let fs = FilesystemReader::from_reader(file).unwrap();
     let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
     fs.set_block_size(DEFAULT_BLOCK_SIZE * 2);
 
     // create the modified squashfs
-    let new_path = format!("{TEST_PATH}/bytes_bigger_blocks.squashfs");
-    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let new_path4 = dir.join("bytes_bigger_blocks.squashfs");
+    let new_path4 = new_path4.to_str().unwrap();
+    let mut output = BufWriter::new(File::create(&new_path4).unwrap());
     let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        let control_new_path = format!("{TEST_PATH}/control.squashfs");
-        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
-        test_bin_unsquashfs(&new_path, None, true, true);
+        test_squashfs_tools_unsquashfs(&new_path4, &control_path, None, true);
+        test_bin_unsquashfs(&new_path4, None, true, true);
     }
 }

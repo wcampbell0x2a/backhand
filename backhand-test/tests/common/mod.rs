@@ -1,13 +1,52 @@
+use std::fs;
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use assert_cmd::prelude::*;
 use tempfile::tempdir_in;
-use test_assets_ureq::TestAssetDef;
+use test_assets_ureq::{TestAsset, dl_test_files_backoff};
 
-pub fn download_backoff(assets_defs: &[TestAssetDef], test_path: &str) {
-    test_assets_ureq::dl_test_files_backoff(assets_defs, test_path, true, Duration::from_secs(60))
-        .unwrap();
+static TEST_ASSETS: OnceLock<TestAsset> = OnceLock::new();
+
+/// Get the parsed test assets from the TOML file
+pub fn get_test_assets() -> &'static TestAsset {
+    TEST_ASSETS.get_or_init(|| {
+        let mut config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        config_path.push("../test-assets.toml");
+        let file_content = std::fs::read_to_string(config_path).unwrap();
+        toml::from_str(&file_content).expect("Failed to parse test-assets.toml")
+    })
+}
+
+/// Download a specific test asset by key
+pub fn download_asset(asset_key: &str) {
+    let assets = get_test_assets();
+    let asset = assets
+        .assets
+        .get(asset_key)
+        .unwrap_or_else(|| panic!("Asset '{}' not found in test-assets.toml", asset_key));
+
+    // Download to current directory (tests run from workspace root)
+    let _ = dl_test_files_backoff(&[asset.clone()], ".", Duration::from_secs(60));
+}
+
+/// Download multiple test assets by keys
+pub fn download_assets(asset_keys: &[&str]) {
+    let assets = get_test_assets();
+    let assets_to_download: Vec<_> = asset_keys
+        .iter()
+        .map(|key| {
+            assets
+                .assets
+                .get(*key)
+                .unwrap_or_else(|| panic!("Asset '{}' not found in test-assets.toml", key))
+                .clone()
+        })
+        .collect();
+
+    // Download to current directory (tests run from workspace root)
+    let _ = dl_test_files_backoff(&assets_to_download, ".", Duration::from_secs(60));
 }
 
 /// test the new squashfs vs the original squashfs with squashfs-tool/unsquashfs

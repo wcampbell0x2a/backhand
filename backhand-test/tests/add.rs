@@ -1,10 +1,8 @@
 mod common;
 
-use std::process::Command;
-
 use assert_cmd::prelude::*;
+use std::process::Command;
 use tempfile::tempdir;
-use test_assets_ureq::TestAssetDef;
 use test_log::test;
 
 #[test]
@@ -18,16 +16,8 @@ fn test_add() {
     use nix::sys::stat::utimes;
     use nix::sys::time::TimeVal;
 
-    const FILE_NAME: &str = "out.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "6195e4d8d14c63dffa9691d36efa1eda2ee975b476bb95d4a0b59638fd9973cb".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_05/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_01";
-
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_asset("test_05");
+    let image_path = "test-assets/test_05/out.squashfs";
 
     // Add /test dir
     // ./target/release/add test-assets/test_05/out.squashfs /test --dir --gid 4242 --mtime 1 --uid 2 --mode 511 -o $tmp/out
@@ -128,16 +118,8 @@ fn test_dont_emit_compression_options() {
     use std::fs::File;
     use std::io::Write;
 
-    const FILE_NAME: &str = "out.squashfs";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "debe0986658b276be78c3836779d20464a03d9ba0a40903e6e8e947e434f4d67".to_string(),
-        url: format!("https://wcampbell.dev/squashfs/testing/test_08/{FILE_NAME}"),
-    }];
-    const TEST_PATH: &str = "test-assets/test_add_compression_options";
-
-    common::download_backoff(&asset_defs, TEST_PATH);
-    let image_path = format!("{TEST_PATH}/{FILE_NAME}");
+    common::download_asset("test_08");
+    let image_path = "test-assets/test_08/out.squashfs";
     let tmp_dir = tempdir().unwrap();
 
     let mut file = File::create(tmp_dir.path().join("file").to_str().unwrap()).unwrap();

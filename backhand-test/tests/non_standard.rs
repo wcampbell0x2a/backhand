@@ -5,7 +5,6 @@ use std::io::{BufReader, BufWriter};
 use backhand::compression::{CompressionAction, Compressor, DefaultCompressor};
 use backhand::kind::{self, Kind};
 use backhand::{BackhandError, FilesystemCompressor, FilesystemReader, FilesystemWriter};
-use test_assets_ureq::TestAssetDef;
 use test_log::test;
 use tracing::info;
 
@@ -16,17 +15,11 @@ use tracing::info;
 /// - - Into Squashfs
 /// - - Into Filesystem
 /// - Can't test with unsquashfs, as it doesn't support these custom filesystems
-fn full_test(
-    assets_defs: &[TestAssetDef],
-    filepath: &str,
-    test_path: &str,
-    offset: u64,
-    kind: &Kind,
-    pad: Option<u32>,
-) {
-    common::download_backoff(assets_defs, test_path);
-    let og_path = format!("{test_path}/{filepath}");
-    let new_path = format!("{test_path}/bytes.squashfs");
+fn full_test(og_path: &str, offset: u64, kind: &Kind, pad: Option<u32>) {
+    let path = std::path::Path::new(og_path);
+    let dir = path.parent().unwrap();
+    let new_path = dir.join("bytes.squashfs");
+    let new_path = new_path.to_str().unwrap();
     {
         let file = BufReader::new(File::open(og_path).unwrap());
         info!("calling from_reader");
@@ -63,18 +56,9 @@ fn full_test(
 #[test]
 #[cfg(feature = "gzip")]
 fn test_non_standard_be_v4_0() {
-    const FILE_NAME: &str = "squashfs_v4.unblob.bin";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "9c7c523c5d1d1cafc0b679af9092ce0289d9656f6a24bc3bd0009f95b69397c0".to_string(),
-        url: "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.unblob.bin"
-            .to_string(),
-    }];
-    const TEST_PATH: &str = "test-assets/non_standard_be_v4_0";
+    common::download_asset("non_standard_be_v4_0");
     full_test(
-        &asset_defs,
-        FILE_NAME,
-        TEST_PATH,
+        "test-assets/non_standard_be_v4_0/squashfs_v4.unblob.bin",
         0,
         &Kind::from_const(kind::BE_V4_0).unwrap(),
         None,
@@ -90,18 +74,9 @@ fn test_non_standard_be_v4_0() {
 #[test]
 #[cfg(feature = "gzip")]
 fn test_non_standard_be_v4_1() {
-    const FILE_NAME: &str = "squashfs_v4.nopad.unblob.bin";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "a29ddc15f5a6abcabf28b7161837eb56b34111e48420e7392e648f2fdfe956ed".to_string(),
-        url: "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.nopad.unblob.bin"
-            .to_string(),
-    }];
-    const TEST_PATH: &str = "test-assets/non_standard_be_v4_1";
+    common::download_asset("non_standard_be_v4_1");
     full_test(
-        &asset_defs,
-        FILE_NAME,
-        TEST_PATH,
+        "test-assets/non_standard_be_v4_1/squashfs_v4.nopad.unblob.bin",
         0,
         &Kind::from_const(kind::BE_V4_0).unwrap(),
         None,
@@ -113,13 +88,7 @@ fn test_non_standard_be_v4_1() {
 fn test_custom_compressor() {
     use backhand::SuperBlock;
 
-    const FILE_NAME: &str = "squashfs_v4.nopad.unblob.bin";
-    let asset_defs = [TestAssetDef {
-        filename: FILE_NAME.to_string(),
-        hash: "a29ddc15f5a6abcabf28b7161837eb56b34111e48420e7392e648f2fdfe956ed".to_string(),
-        url: "https://wcampbell.dev/squashfs/testing/test_custom/squashfs_v4.nopad.unblob.bin"
-            .to_string(),
-    }];
+    const ASSET_KEY: &str = "non_standard_be_v4_1";
 
     #[derive(Copy, Clone)]
     pub struct CustomCompressor;
@@ -179,6 +148,6 @@ fn test_custom_compressor() {
 
     let kind = Kind::new_v4_with_const(&CUSTOM_COMPRESSOR, kind::BE_V4_0);
 
-    const TEST_PATH: &str = "test-assets/custom_compressor";
-    full_test(&asset_defs, FILE_NAME, TEST_PATH, 0, &kind, Some(0));
+    common::download_asset(ASSET_KEY);
+    full_test("test-assets/non_standard_be_v4_1/squashfs_v4.nopad.unblob.bin", 0, &kind, Some(0));
 }

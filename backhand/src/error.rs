@@ -58,6 +58,24 @@ pub enum BackhandError {
 
     #[error("unsupported squashfs version {0}.{1}")]
     UnsupportedSquashfsVersion(u16, u16),
+
+    #[error("numeric conversion failed: {0}")]
+    NumericConversion(String),
+
+    #[error("system time error: {0}")]
+    SystemTime(#[from] std::time::SystemTimeError),
+
+    #[error("mutex lock poisoned")]
+    MutexPoisoned,
+
+    #[error("uid/gid not found in id table")]
+    IdNotFoundInTable,
+
+    #[error("internal state error: {0}")]
+    InternalState(String),
+
+    #[error("compression initialization failed: {0}")]
+    CompressionInit(String),
 }
 
 impl From<BackhandError> for io::Error {
@@ -81,7 +99,13 @@ impl From<BackhandError> for io::Error {
             | DuplicatedFileName
             | InvalidIdTable
             | UnsupportedSquashfsVersion(_, _)
-            | TryReserveError(_) => Self::from(io::ErrorKind::InvalidData),
+            | TryReserveError(_)
+            | NumericConversion(_)
+            | SystemTime(_)
+            | MutexPoisoned
+            | IdNotFoundInTable
+            | InternalState(_)
+            | CompressionInit(_) => Self::from(io::ErrorKind::InvalidData),
         }
     }
 }

@@ -179,13 +179,18 @@ impl CompressionAction for DefaultCompressor {
             }
             #[cfg(feature = "zstd")]
             Compressor::Zstd => {
-                let mut decoder = zstd::bulk::Decompressor::new().unwrap();
+                let mut decoder = zstd::bulk::Decompressor::new().map_err(|e| {
+                    BackhandError::CompressionInit(format!("zstd decompressor: {}", e))
+                })?;
                 decoder.decompress_to_buffer(bytes, out)?;
             }
             #[cfg(feature = "lz4")]
             Compressor::Lz4 => {
                 out.resize(out.capacity(), 0u8);
-                let out_size = lz4_flex::decompress_into(bytes, out.as_mut_slice()).unwrap();
+                let out_size =
+                    lz4_flex::decompress_into(bytes, out.as_mut_slice()).map_err(|e| {
+                        BackhandError::CompressionInit(format!("lz4 decompression: {}", e))
+                    })?;
                 out.truncate(out_size);
             }
             _ => return Err(BackhandError::UnsupportedCompression(format!("{:?}", compressor))),
@@ -221,7 +226,8 @@ impl CompressionAction for DefaultCompressor {
                     }
                 };
                 let check = Check::Crc32;
-                let mut opts = LzmaOptions::new_preset(level).unwrap();
+                let mut opts = LzmaOptions::new_preset(level)
+                    .map_err(|e| BackhandError::CompressionInit(format!("xz options: {}", e)))?;
                 opts.dict_size(dict_size);
 
                 let mut filters = Filters::new();
@@ -252,7 +258,7 @@ impl CompressionAction for DefaultCompressor {
                     .filters(filters)
                     .check(check)
                     .encoder()
-                    .unwrap();
+                    .map_err(|e| BackhandError::CompressionInit(format!("xz encoder: {}", e)))?;
 
                 let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
                 let mut buf = vec![];

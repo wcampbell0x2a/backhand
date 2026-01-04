@@ -473,7 +473,8 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             let (filesize, added) = match file {
                 SquashfsFileWriter::UserDefined(file) => {
                     let file_ptr = Arc::clone(file);
-                    let mut file_lock = file_ptr.lock().unwrap();
+                    let mut file_lock =
+                        file_ptr.lock().map_err(|_| BackhandError::MutexPoisoned)?;
                     data_writer.add_bytes(&mut *file_lock, &mut writer)?
                 }
                 SquashfsFileWriter::SquashfsFile(file) => {
@@ -512,81 +513,96 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         kind: &Kind,
         id_table: &Vec<Id>,
     ) -> Result<Entry<'slf>, BackhandError> {
-        let node = &self.root.node(node_id).unwrap();
+        let node = &self
+            .root
+            .node(node_id)
+            .ok_or(BackhandError::InternalState("node not found".to_string()))?;
         let filename = node.fullpath.file_name().unwrap_or(OsStr::new("/"));
         //if not a dir, return the entry
         match &node.inner {
             InnerNode::File(SquashfsFileWriter::Consumed(filesize, added)) => {
-                return Ok(Entry::file(
+                return Entry::file(
                     filename,
                     node.header,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     inode_writer,
                     *filesize,
                     added,
                     superblock,
                     kind,
                     id_table,
-                ));
+                );
             }
             InnerNode::File(_) => unreachable!(),
             InnerNode::Symlink(symlink) => {
-                return Ok(Entry::symlink(
+                return Entry::symlink(
                     filename,
                     node.header,
                     symlink,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     inode_writer,
                     superblock,
                     kind,
                     id_table,
-                ));
+                );
             }
             InnerNode::CharacterDevice(char) => {
-                return Ok(Entry::char(
+                return Entry::char(
                     filename,
                     node.header,
                     char,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     inode_writer,
                     superblock,
                     kind,
                     id_table,
-                ));
+                );
             }
             InnerNode::BlockDevice(block) => {
-                return Ok(Entry::block_device(
+                return Entry::block_device(
                     filename,
                     node.header,
                     block,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     inode_writer,
                     superblock,
                     kind,
                     id_table,
-                ));
+                );
             }
             InnerNode::NamedPipe => {
-                return Ok(Entry::named_pipe(
+                return Entry::named_pipe(
                     filename,
                     node.header,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     inode_writer,
                     superblock,
                     kind,
                     id_table,
-                ));
+                );
             }
             InnerNode::Socket => {
-                return Ok(Entry::socket(
+                return Entry::socket(
                     filename,
                     node.header,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     inode_writer,
                     superblock,
                     kind,
                     id_table,
-                ));
+                );
             }
             // if dir, fall through
             InnerNode::Dir(_) => (),
@@ -604,7 +620,9 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                 self.write_inode_dir(
                     inode_writer,
                     dir_writer,
-                    node_id.get().try_into().unwrap(),
+                    node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     child_id,
                     superblock,
                     kind,
@@ -629,7 +647,9 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let entry = Entry::path(
             filename,
             node.header,
-            node_id.get().try_into().unwrap(),
+            node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
+                BackhandError::NumericConversion(e.to_string())
+            })?,
             children_num,
             parent_node_id,
             inode_writer,
@@ -639,7 +659,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             superblock,
             kind,
             id_table,
-        );
+        )?;
         trace!("[{:?}] entries: {:#02x?}", filename, &entry);
         Ok(entry)
     }
@@ -715,13 +735,18 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             &mut inode_writer,
             &mut dir_writer,
             0,
-            1.try_into().unwrap(),
+            1.try_into().map_err(|e: std::num::TryFromIntError| {
+                BackhandError::NumericConversion(e.to_string())
+            })?,
             &superblock,
             &self.kind,
             &self.id_table,
         )?;
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
-        superblock.inode_count = self.root.nodes.len().try_into().unwrap();
+        superblock.inode_count =
+            self.root.nodes.len().try_into().map_err(|e: std::num::TryFromIntError| {
+                BackhandError::NumericConversion(e.to_string())
+            })?;
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
         superblock.mod_time = self.mod_time;
@@ -743,7 +768,9 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         info!("Writing Id Lookup Table");
         let (table_position, count) = self.write_lookup_table(&mut w, &self.id_table, Id::SIZE)?;
         superblock.id_table = table_position;
-        superblock.id_count = count.try_into().unwrap();
+        superblock.id_count = count.try_into().map_err(|e: std::num::TryFromIntError| {
+            BackhandError::NumericConversion(e.to_string())
+        })?;
 
         info!("Finalize Superblock and End Bytes");
         let bytes_written = self.finalize(w, &mut superblock)?;
@@ -763,9 +790,15 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         if self.pad_len != 0 {
             // Pad out block_size to 4K
             info!("Writing Padding");
-            let blocks_used: u32 = u32::try_from(superblock.bytes_used).unwrap() / self.pad_len;
+            let blocks_used: u32 =
+                u32::try_from(superblock.bytes_used).map_err(|e: std::num::TryFromIntError| {
+                    BackhandError::NumericConversion(e.to_string())
+                })? / self.pad_len;
             let total_pad_len = (blocks_used + 1) * self.pad_len;
-            pad_len = total_pad_len - u32::try_from(superblock.bytes_used).unwrap();
+            pad_len = total_pad_len
+                - u32::try_from(superblock.bytes_used).map_err(
+                    |e: std::num::TryFromIntError| BackhandError::NumericConversion(e.to_string()),
+                )?;
 
             // Write 1K at a time
             let mut total_written = 0;
@@ -780,7 +813,11 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     1024
                 };
 
-                w.write_all(&arr[..len.try_into().unwrap()])?;
+                w.write_all(
+                    &arr[..len.try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?],
+                )?;
                 total_written += len;
             }
         }

@@ -95,6 +95,7 @@ impl VersionedCompressor {
     }
 }
 
+#[derive(Clone)]
 pub struct InnerKind {
     /// Magic at the beginning of the image
     pub(crate) magic: [u8; 4],
@@ -257,9 +258,10 @@ impl Kind {
 
     /// Set magic type at the beginning of the image
     // TODO: example
-    pub fn with_magic(mut self, magic: Magic) -> Self {
-        Arc::get_mut(&mut self.inner).unwrap().magic = magic.magic();
-        self
+    pub fn with_magic(self, magic: Magic) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.magic = magic.magic();
+        Self { inner: Arc::new(inner) }
     }
 
     pub fn magic(&self) -> [u8; 4] {
@@ -278,54 +280,50 @@ impl Kind {
 
     /// Set endian used for data types
     // TODO: example
-    pub fn with_type_endian(mut self, endian: Endian) -> Self {
-        match endian {
-            Endian::Little => {
-                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
-            }
-            Endian::Big => {
-                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
-            }
-        }
-        self
+    pub fn with_type_endian(self, endian: Endian) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.type_endian = match endian {
+            Endian::Little => deku::ctx::Endian::Little,
+            Endian::Big => deku::ctx::Endian::Big,
+        };
+        Self { inner: Arc::new(inner) }
     }
 
     /// Set endian used for Metadata lengths
     // TODO: example
-    pub fn with_data_endian(mut self, endian: Endian) -> Self {
-        match endian {
-            Endian::Little => {
-                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
-            }
-            Endian::Big => {
-                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
-            }
-        }
-        self
+    pub fn with_data_endian(self, endian: Endian) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.data_endian = match endian {
+            Endian::Little => deku::ctx::Endian::Little,
+            Endian::Big => deku::ctx::Endian::Big,
+        };
+        Self { inner: Arc::new(inner) }
     }
 
     /// Set both type and data endian
     // TODO: example
-    pub fn with_all_endian(mut self, endian: Endian) -> Self {
+    pub fn with_all_endian(self, endian: Endian) -> Self {
+        let mut inner = (*self.inner).clone();
         match endian {
             Endian::Little => {
-                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Little;
-                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Little;
+                inner.type_endian = deku::ctx::Endian::Little;
+                inner.data_endian = deku::ctx::Endian::Little;
             }
             Endian::Big => {
-                Arc::get_mut(&mut self.inner).unwrap().type_endian = deku::ctx::Endian::Big;
-                Arc::get_mut(&mut self.inner).unwrap().data_endian = deku::ctx::Endian::Big;
+                inner.type_endian = deku::ctx::Endian::Big;
+                inner.data_endian = deku::ctx::Endian::Big;
             }
         }
-        self
+        Self { inner: Arc::new(inner) }
     }
 
     /// Set major and minor version
     // TODO: example
-    pub fn with_version(mut self, major: u16, minor: u16) -> Self {
-        Arc::get_mut(&mut self.inner).unwrap().version_major = major;
-        Arc::get_mut(&mut self.inner).unwrap().version_minor = minor;
-        self
+    pub fn with_version(self, major: u16, minor: u16) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.version_major = major;
+        inner.version_minor = minor;
+        Self { inner: Arc::new(inner) }
     }
 }
 

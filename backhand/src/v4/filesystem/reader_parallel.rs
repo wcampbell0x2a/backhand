@@ -150,21 +150,18 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         }
     }
 
-    // Skip a block without reading/decompressing, just advance file position
+    // Advance position by one block without reading/decompressing - internal to Seek impl
     #[inline]
-    pub fn skip_block(&mut self) -> bool {
-        if !self.prefetched_blocks.is_empty() {
-            // skip_block is only meant to be used before prefetch starts
-            false
-        } else {
-            match self.current_block.next() {
-                Some(BlockFragment::Block(block)) => {
-                    self.pos += block.size() as u64; // correctly adds 0 for sparse blocks (size == 0)
-                    true
-                }
-                Some(BlockFragment::Fragment(_)) => true, // fragment is last, just consume it
-                None => false,
+    pub(crate) fn skip_block(&mut self) -> bool {
+        // only meant to be called by Seek on freshly-reset raw_data with no prefetch yet
+        debug_assert!(self.prefetched_blocks.is_empty());
+        match self.current_block.next() {
+            Some(BlockFragment::Block(block)) => {
+                self.pos += block.size() as u64; // correctly adds 0 for sparse blocks (size == 0)
+                true
             }
+            Some(BlockFragment::Fragment(_)) => true, // fragment is last, just consume it
+            None => false,
         }
     }
 

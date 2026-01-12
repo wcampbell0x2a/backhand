@@ -100,9 +100,9 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         self.current_block.next().map(|next| self.read_raw_data(buf, &next))
     }
 
-    // Skip a block without reading/decompressing, just advance file position
+    // Advance position by one block without reading/decompressing - internal to Seek impl
     #[inline]
-    pub fn skip_block(&mut self) -> bool {
+    pub(crate) fn skip_block(&mut self) -> bool {
         match self.current_block.next() {
             Some(BlockFragment::Block(block)) => {
                 self.pos += block.size() as u64; // correctly adds 0 for sparse blocks (size == 0)

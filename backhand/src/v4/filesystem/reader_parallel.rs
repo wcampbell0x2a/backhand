@@ -1,7 +1,7 @@
 use no_std_io2::io::Read;
 use rayon::prelude::*;
 use std::collections::VecDeque;
-use std::io::SeekFrom;
+use std::io::{Seek, SeekFrom};
 use std::sync::{Arc, Mutex};
 
 use crate::error::BackhandError;
@@ -150,6 +150,21 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         }
     }
 
+    // Advance position by one block without reading/decompressing - internal to Seek impl
+    #[inline]
+    pub(crate) fn skip_block(&mut self) -> bool {
+        // only meant to be called by Seek on freshly-reset raw_data with no prefetch yet
+        debug_assert!(self.prefetched_blocks.is_empty());
+        match self.current_block.next() {
+            Some(BlockFragment::Block(block)) => {
+                self.pos += block.size() as u64; // correctly adds 0 for sparse blocks (size == 0)
+                true
+            }
+            Some(BlockFragment::Fragment(_)) => true, // fragment is last, just consume it
+            None => false,
+        }
+    }
+
     #[inline]
     fn fragment_range(&self) -> core::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
@@ -202,9 +217,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
 
     #[inline]
     pub fn into_reader(self) -> SquashfsReadFile<'a, 'b> {
-        // let block_size = self.file.system.block_size as usize;
-        let bytes_available = self.file.file.file_len();
-        SquashfsReadFile::new(self, 0, bytes_available)
+        SquashfsReadFile::new(self)
     }
 }
 
@@ -213,21 +226,26 @@ pub struct SquashfsReadFile<'a, 'b> {
     buffer_pool: Arc<Mutex<Vec<Vec<u8>>>>,
     decompressed_blocks: VecDeque<Vec<u8>>,
     current_block_position: usize,
-    bytes_available: usize,
+    cursor_pos: u64,
     prefetch_count: usize,
 }
 
 impl<'a, 'b> SquashfsReadFile<'a, 'b> {
-    fn new(raw_data: SquashfsRawData<'a, 'b>, last_read: usize, bytes_available: usize) -> Self {
+    fn new(raw_data: SquashfsRawData<'a, 'b>) -> Self {
         let buffer_pool = Arc::new(Mutex::new(Vec::new()));
         Self {
             raw_data,
             buffer_pool,
             decompressed_blocks: VecDeque::new(),
-            current_block_position: last_read,
-            bytes_available,
+            current_block_position: 0,
+            cursor_pos: 0,
             prefetch_count: PREFETCH_COUNT,
         }
+    }
+
+    #[inline]
+    fn file_len64(&self) -> u64 {
+        self.raw_data.file.file.file_len() as u64
     }
 
     /// Fill the decompressed blocks queue with data
@@ -320,11 +338,12 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
     #[inline]
     fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available_in_current_block();
-        let read_len = buf.len().min(available.len()).min(self.bytes_available);
+        let bytes_left = self.file_len64().saturating_sub(self.cursor_pos);
+        let read_len = bytes_left.min(buf.len().min(available.len()) as u64) as usize;
 
         if read_len > 0 {
             buf[..read_len].copy_from_slice(&available[..read_len]);
-            self.bytes_available -= read_len;
+            self.cursor_pos += read_len as u64;
             self.current_block_position += read_len;
         }
 
@@ -336,7 +355,7 @@ impl Read for SquashfsReadFile<'_, '_> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // Check if we're at the end of the file
-        if self.bytes_available == 0 {
+        if self.cursor_pos >= self.file_len64() {
             return Ok(0);
         }
 
@@ -352,5 +371,63 @@ impl Read for SquashfsReadFile<'_, '_> {
 
         // Read available data
         Ok(self.read_available(buf))
+    }
+}
+
+impl Seek for SquashfsReadFile<'_, '_> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let file_len = self.file_len64();
+        let new_pos = u64::try_from(match pos {
+            SeekFrom::Start(n) => n as i64,
+            SeekFrom::End(n) => file_len as i64 + n,
+            SeekFrom::Current(n) => self.cursor_pos as i64 + n,
+        })
+        .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+
+        if new_pos == self.cursor_pos {
+            return Ok(new_pos);
+        }
+
+        // can we seek within already-loaded data, inclusive of end positions?
+        if let Some(block) = self.decompressed_blocks.front() {
+            let block_start = self.cursor_pos.min(file_len) - self.current_block_position as u64;
+            if new_pos >= block_start && new_pos - block_start <= block.len() as u64 {
+                // seek within already-loaded data
+                self.current_block_position = (new_pos - block_start) as usize;
+                self.cursor_pos = new_pos;
+                return Ok(new_pos);
+            }
+        }
+
+        // reset to initial start-of-file state and then skip forward
+        self.raw_data = self.raw_data.file.raw_data_reader();
+        self.decompressed_blocks.clear();
+        self.current_block_position = 0;
+        self.cursor_pos = 0;
+
+        if new_pos < file_len {
+            // skip full blocks without decompressing them
+            let block_size = self.raw_data.file.system.block_size as u64;
+            while new_pos >= self.cursor_pos + block_size {
+                let _skipped = self.raw_data.skip_block();
+                debug_assert!(_skipped);
+                self.cursor_pos += block_size;
+            }
+            // no block or fragment loaded yet - load now if necessary, else wait for read
+            if new_pos != self.cursor_pos {
+                self.fill_decompressed_queue()?;
+                if let Some(block) = self.decompressed_blocks.front() {
+                    debug_assert!(new_pos <= self.cursor_pos + block.len() as u64);
+                }
+                self.current_block_position = (new_pos - self.cursor_pos) as usize;
+                self.cursor_pos = new_pos;
+            }
+        } else {
+            // drain block iterator to ensure consistent end-of-file state
+            while self.raw_data.skip_block() {}
+            self.cursor_pos = new_pos; // note, may be greater than file_len
+        }
+
+        Ok(new_pos)
     }
 }

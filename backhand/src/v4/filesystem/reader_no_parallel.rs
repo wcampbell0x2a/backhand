@@ -1,5 +1,5 @@
 use no_std_io2::io::Read;
-use std::io::SeekFrom;
+use std::io::{Seek, SeekFrom};
 
 use crate::error::BackhandError;
 use crate::v4::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
@@ -100,6 +100,19 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         self.current_block.next().map(|next| self.read_raw_data(buf, &next))
     }
 
+    // Advance position by one block without reading/decompressing - internal to Seek impl
+    #[inline]
+    pub(crate) fn skip_block(&mut self) -> bool {
+        match self.current_block.next() {
+            Some(BlockFragment::Block(block)) => {
+                self.pos += block.size() as u64; // correctly adds 0 for sparse blocks (size == 0)
+                true
+            }
+            Some(BlockFragment::Fragment(_)) => true, // fragment is last, just consume it
+            None => false,
+        }
+    }
+
     #[inline]
     fn fragment_range(&self) -> std::ops::Range<usize> {
         let block_len = self.file.system.block_size as usize;
@@ -151,9 +164,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
 
     #[inline]
     pub fn into_reader(self) -> SquashfsReadFile<'a, 'b> {
-        let block_size = self.file.system.block_size as usize;
-        let bytes_available = self.file.file.file_len();
-        SquashfsReadFile::new(block_size, self, 0, bytes_available)
+        SquashfsReadFile::new(self)
     }
 }
 
@@ -162,38 +173,40 @@ pub struct SquashfsReadFile<'a, 'b> {
     buf_read: Vec<u8>,
     buf_decompress: Vec<u8>,
     //offset of buf_decompress to start reading
-    last_read: usize,
-    bytes_available: usize,
+    current_block_position: usize,
+    cursor_pos: u64,
 }
 
 impl<'a, 'b> SquashfsReadFile<'a, 'b> {
-    fn new(
-        block_size: usize,
-        raw_data: SquashfsRawData<'a, 'b>,
-        last_read: usize,
-        bytes_available: usize,
-    ) -> Self {
+    fn new(raw_data: SquashfsRawData<'a, 'b>) -> Self {
+        let block_size = raw_data.file.system.block_size as usize;
         Self {
             raw_data,
             buf_read: Vec::with_capacity(block_size),
-            buf_decompress: vec![],
-            last_read,
-            bytes_available,
+            buf_decompress: Vec::with_capacity(block_size),
+            current_block_position: 0,
+            cursor_pos: 0,
         }
     }
 
     #[inline]
+    fn file_len64(&self) -> u64 {
+        self.raw_data.file.file.file_len() as u64
+    }
+
+    #[inline]
     fn available(&self) -> &[u8] {
-        &self.buf_decompress[self.last_read..]
+        &self.buf_decompress[self.current_block_position..]
     }
 
     #[inline]
     fn read_available(&mut self, buf: &mut [u8]) -> usize {
         let available = self.available();
-        let read_len = buf.len().min(available.len()).min(self.bytes_available);
+        let bytes_left = self.file_len64().saturating_sub(self.cursor_pos);
+        let read_len = bytes_left.min(buf.len().min(available.len()) as u64) as usize;
         buf[..read_len].copy_from_slice(&available[..read_len]);
-        self.bytes_available -= read_len;
-        self.last_read += read_len;
+        self.cursor_pos += read_len as u64;
+        self.current_block_position += read_len;
         read_len
     }
 
@@ -205,7 +218,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
         };
         self.buf_decompress.clear();
         self.raw_data.decompress(block, &mut self.buf_read, &mut self.buf_decompress)?;
-        self.last_read = 0;
+        self.current_block_position = 0;
         Ok(())
     }
 }
@@ -214,9 +227,7 @@ impl Read for SquashfsReadFile<'_, '_> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // file was fully consumed
-        if self.bytes_available == 0 {
-            self.buf_read.clear();
-            self.buf_decompress.clear();
+        if self.cursor_pos >= self.file_len64() {
             return Ok(0);
         }
         //no data available, read the next block
@@ -226,5 +237,65 @@ impl Read for SquashfsReadFile<'_, '_> {
 
         //return data from the read block/fragment
         Ok(self.read_available(buf))
+    }
+}
+
+impl Seek for SquashfsReadFile<'_, '_> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let file_len = self.file_len64();
+        let new_pos = u64::try_from(match pos {
+            SeekFrom::Start(n) => n as i64,
+            SeekFrom::End(n) => file_len as i64 + n,
+            SeekFrom::Current(n) => self.cursor_pos as i64 + n,
+        })
+        .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+
+        if new_pos == self.cursor_pos {
+            return Ok(new_pos);
+        }
+
+        // can we seek within already-loaded data, inclusive of end positions?
+        if self.cursor_pos <= file_len && !self.buf_decompress.is_empty() {
+            self.cursor_pos -= self.current_block_position as u64;
+            self.current_block_position = 0;
+            if new_pos >= self.cursor_pos
+                && new_pos - self.cursor_pos <= self.buf_decompress.len() as u64
+            {
+                // seek within already-loaded data
+                self.current_block_position = (new_pos - self.cursor_pos) as usize;
+                self.cursor_pos = new_pos;
+                return Ok(new_pos);
+            }
+        }
+
+        // reset to initial start-of-file state and then skip forward
+        self.raw_data = self.raw_data.file.raw_data_reader();
+        self.buf_read.clear();
+        self.buf_decompress.clear();
+        self.current_block_position = 0;
+        self.cursor_pos = 0;
+
+        if new_pos < file_len {
+            // skip full blocks without decompressing them
+            let block_size = self.raw_data.file.system.block_size as u64;
+            while new_pos >= self.cursor_pos + block_size {
+                let _skipped = self.raw_data.skip_block();
+                debug_assert!(_skipped);
+                self.cursor_pos += block_size;
+            }
+            // no block or fragment loaded yet - load now if necessary, else wait for read
+            if new_pos != self.cursor_pos {
+                self.read_next_block()?;
+                debug_assert!(new_pos <= self.cursor_pos + self.buf_decompress.len() as u64);
+                self.current_block_position = (new_pos - self.cursor_pos) as usize;
+                self.cursor_pos = new_pos;
+            }
+        } else {
+            // drain block iterator to ensure consistent end-of-file state
+            while self.raw_data.skip_block() {}
+            self.cursor_pos = new_pos; // note, may be greater than file_len
+        }
+
+        Ok(new_pos)
     }
 }

@@ -56,4 +56,7 @@ name = "raw"
 name = "replace"
 
 [[test]]
+name = "seek"
+
+[[test]]
 name = "unsquashfs"

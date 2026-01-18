@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::fmt;
 
+use crate::error::BackhandError;
 use crate::kinds::Kind;
 use crate::v4::data::Added;
 use crate::v4::dir::{Dir, DirEntry};
@@ -24,8 +25,16 @@ pub(crate) struct Entry<'a> {
 }
 
 impl<'a> Entry<'a> {
-    pub fn name(&self) -> String {
-        core::str::from_utf8(self.name).unwrap().to_string()
+    pub fn name(&self) -> Result<String, BackhandError> {
+        Ok(core::str::from_utf8(self.name)?.to_string())
+    }
+
+    fn find_id_index(id_table: &[Id], id: u32) -> Result<u16, BackhandError> {
+        id_table
+            .iter()
+            .position(|a| a.num == id)
+            .and_then(|pos| u16::try_from(pos).ok())
+            .ok_or(BackhandError::IdNotFoundInTable)
     }
 
     /// Write data and metadata for path node (Basic Directory or ExtendedDirectory)
@@ -43,9 +52,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -59,8 +68,14 @@ impl<'a> Entry<'a> {
                 InodeId::ExtendedDirectory,
                 header,
                 InodeInner::ExtendedDirectory(ExtendedDirectory {
-                    link_count: 2 + u32::try_from(children_num).unwrap(),
-                    file_size: file_size.try_into().unwrap(), // u32
+                    link_count: 2 + u32::try_from(children_num).map_err(
+                        |e: std::num::TryFromIntError| {
+                            BackhandError::NumericConversion(e.to_string())
+                        },
+                    )?,
+                    file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?, // u32
                     block_index,
                     parent_inode,
                     // TODO: Support Directory Index
@@ -78,15 +93,21 @@ impl<'a> Entry<'a> {
                 header,
                 InodeInner::BasicDirectory(BasicDirectory {
                     block_index,
-                    link_count: 2 + u32::try_from(children_num).unwrap(),
-                    file_size: file_size.try_into().unwrap(), // u16
+                    link_count: 2 + u32::try_from(children_num).map_err(
+                        |e: std::num::TryFromIntError| {
+                            BackhandError::NumericConversion(e.to_string())
+                        },
+                    )?,
+                    file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?, // u16
                     block_offset,
                     parent_inode,
                 }),
             )
         };
 
-        dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind)
+        Ok(dir_inode.to_bytes(name.as_bytes(), inode_writer, superblock, kind))
     }
 
     /// Write data and metadata for file node
@@ -101,9 +122,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -117,7 +138,9 @@ impl<'a> Entry<'a> {
                     blocks_start: *blocks_start,
                     frag_index: 0xffffffff, // <- no fragment
                     block_offset: 0x0,      // <- no fragment
-                    file_size: file_size.try_into().unwrap(),
+                    file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(e.to_string())
+                    })?,
                     block_sizes: block_sizes.to_vec(),
                 }
             }
@@ -125,14 +148,16 @@ impl<'a> Entry<'a> {
                 blocks_start: 0,
                 frag_index: *frag_index,
                 block_offset: *block_offset,
-                file_size: file_size.try_into().unwrap(),
+                file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
+                    BackhandError::NumericConversion(e.to_string())
+                })?,
                 block_sizes: vec![],
             },
         };
 
         let file_inode = Inode::new(InodeId::BasicFile, header, InodeInner::BasicFile(basic_file));
 
-        file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+        Ok(file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
     }
 
     /// Write data and metadata for symlink node
@@ -146,9 +171,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -162,12 +187,14 @@ impl<'a> Entry<'a> {
             header,
             InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
-                target_size: link.len().try_into().unwrap(),
+                target_size: link.len().try_into().map_err(|e: std::num::TryFromIntError| {
+                    BackhandError::NumericConversion(e.to_string())
+                })?,
                 target_path: link.to_vec(),
             }),
         );
 
-        sym_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+        Ok(sym_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
     }
 
     /// Write data and metadata for char device node
@@ -181,9 +208,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -200,7 +227,7 @@ impl<'a> Entry<'a> {
             }),
         );
 
-        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+        Ok(char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
     }
 
     /// Write data and metadata for block device node
@@ -214,9 +241,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -233,7 +260,7 @@ impl<'a> Entry<'a> {
             }),
         );
 
-        block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+        Ok(block_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
     }
 
     /// Write data and metadata for named pipe node
@@ -246,9 +273,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -262,7 +289,7 @@ impl<'a> Entry<'a> {
             InodeInner::BasicNamedPipe(IPCNode { link_count: 0x1 }),
         );
 
-        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+        Ok(char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
     }
 
     /// Write data and metadata for socket
@@ -275,9 +302,9 @@ impl<'a> Entry<'a> {
         superblock: &SuperBlock,
         kind: &Kind,
         id_table: &[Id],
-    ) -> Self {
-        let uid = id_table.iter().position(|a| a.num == header.uid).unwrap() as u16;
-        let gid = id_table.iter().position(|a| a.num == header.gid).unwrap() as u16;
+    ) -> Result<Self, BackhandError> {
+        let uid = Self::find_id_index(id_table, header.uid)?;
+        let gid = Self::find_id_index(id_table, header.gid)?;
         let header = InodeHeader {
             inode_number: inode,
             uid,
@@ -291,7 +318,7 @@ impl<'a> Entry<'a> {
             InodeInner::BasicSocket(IPCNode { link_count: 0x1 }),
         );
 
-        char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind)
+        Ok(char_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
     }
 }
 
@@ -303,18 +330,24 @@ impl fmt::Debug for Entry<'_> {
             .field("inode", &self.inode)
             .field("t", &self.t)
             .field("name_size", &self.name_size)
-            .field("name", &self.name())
+            .field("name", &self.name().unwrap_or_else(|_| "<invalid utf8>".to_string()))
             .finish()
     }
 }
 
 impl Entry<'_> {
-    fn create_dir(creating_dir: &Vec<&Self>, start: u32, lowest_inode: u32) -> Dir {
+    fn create_dir(
+        creating_dir: &Vec<&Self>,
+        start: u32,
+        lowest_inode: u32,
+    ) -> Result<Dir, BackhandError> {
         let mut dir = Dir::new(lowest_inode);
 
-        dir.count = creating_dir.len().try_into().unwrap();
+        dir.count = creating_dir.len().try_into().map_err(|e: std::num::TryFromIntError| {
+            BackhandError::NumericConversion(e.to_string())
+        })?;
         if dir.count >= 256 {
-            panic!("dir.count({}) >= 256:", dir.count);
+            return Err(BackhandError::InternalState(format!("dir.count({}) >= 256", dir.count)));
         }
 
         dir.start = start;
@@ -322,7 +355,9 @@ impl Entry<'_> {
             let inode = e.inode;
             let new_entry = DirEntry {
                 offset: e.offset,
-                inode_offset: (inode - lowest_inode).try_into().unwrap(),
+                inode_offset: (inode - lowest_inode).try_into().map_err(
+                    |e: std::num::TryFromIntError| BackhandError::NumericConversion(e.to_string()),
+                )?,
                 t: e.t.into_base_type(),
                 name_size: e.name_size,
                 name: e.name.to_vec(),
@@ -330,11 +365,11 @@ impl Entry<'_> {
             dir.push(new_entry);
         }
 
-        dir
+        Ok(dir)
     }
 
     /// Create entries, input need to be alphabetically sorted
-    pub(crate) fn into_dir(entries: Vec<Self>) -> Vec<Dir> {
+    pub(crate) fn into_dir(entries: Vec<Self>) -> Result<Vec<Dir>, BackhandError> {
         let mut dirs = vec![];
         let mut creating_dir = vec![];
         let mut lowest_inode = u32::MAX;
@@ -342,7 +377,7 @@ impl Entry<'_> {
         let mut creating_start = if let Some(entry) = iter.peek() {
             entry.start
         } else {
-            return vec![];
+            return Ok(vec![]);
         };
 
         while let Some(e) = iter.next() {
@@ -357,7 +392,7 @@ impl Entry<'_> {
                 let max_inode = (next.inode as u64).abs_diff(lowest_inode as u64) > i16::MAX as u64;
                 // make sure entries have the correct start and amount of directories
                 if next.start != creating_start || creating_dir.len() >= 255 || max_inode {
-                    let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode);
+                    let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode)?;
                     dirs.push(dir);
                     creating_dir = vec![];
                     creating_start = next.start;
@@ -366,12 +401,12 @@ impl Entry<'_> {
             }
             // last entry
             if iter.peek().is_none() {
-                let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode);
+                let dir = Self::create_dir(&creating_dir, creating_start, lowest_inode)?;
                 dirs.push(dir);
             }
         }
 
-        dirs
+        Ok(dirs)
     }
 }
 

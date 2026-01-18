@@ -100,6 +100,10 @@ pub struct Xz {
 pub struct XzFilter(u32);
 
 impl XzFilter {
+    pub fn new(filter: u32) -> Self {
+        Self(filter)
+    }
+
     fn x86(&self) -> bool {
         self.0 & 0x0001 == 0x0001
     }

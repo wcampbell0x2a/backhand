@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.24.1] - 2025-01-18
+### `backhand`
+- [Add a method to create an XzFilter](https://github.com/wcampbell0x2a/backhand/pull/764), thanks [h4dynn](https://github.com/h4dynn).
+- [impl Seek for SquashfsReadFile](https://github.com/wcampbell0x2a/backhand/pull/763), thanks [AMZN-hgoffin](https://github.com/AMZN-hgoffin).
+- Update dependencies
+### `backhand-cli`
+- Update dependencies
+
 ## [v0.24.0] - 2025-12-06
 ### `backhand`
 - Add Normal and Vendor SquashFS 3.0 Read support. This has been a long time coming, and required many under-the-hood changes.

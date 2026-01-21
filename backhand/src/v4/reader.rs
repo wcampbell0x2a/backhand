@@ -195,7 +195,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
     ) -> Result<Option<(u64, Vec<Export>)>, BackhandError> {
         if superblock.nfs_export_table_exists() && superblock.export_table != NOT_SET {
             let ptr = superblock.export_table;
-            let count = (superblock.inode_count as f32 / 1024_f32).ceil() as u64;
+            let count = (superblock.inode_count as u64).div_ceil(1024);
             let (ptr, table) = self.lookup_table::<Export>(superblock, ptr, count, kind)?;
             Ok(Some((ptr, table)))
         } else {
@@ -237,7 +237,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         let mut deku_reader = Reader::new(&mut cursor);
         let ptr = u64::from_reader_with_ctx(&mut deku_reader, kind.inner.type_endian)?;
 
-        let block_count = (size as f32 / METADATA_MAXSIZE as f32).ceil() as u64;
+        let block_count = size.div_ceil(METADATA_MAXSIZE as u64);
 
         trace!("ptr: {:02x?}", ptr);
         let table = self.metadata_with_count::<T>(superblock, ptr, block_count, kind)?;

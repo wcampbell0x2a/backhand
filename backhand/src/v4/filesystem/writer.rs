@@ -99,7 +99,7 @@ impl Default for FilesystemWriter<'_, '_, '_> {
             fs_compressor: FilesystemCompressor::default(),
             kind: Kind { inner: Arc::new(LE_V4_0) },
             root: Nodes::new_root(NodeHeader::default()),
-            block_log: (block_size as f32).log2() as u16,
+            block_log: block_size.ilog2() as u16,
             pad_len: DEFAULT_PAD_LEN,
             no_duplicate_files: true,
             emit_compression_options: true,
@@ -113,11 +113,12 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// # Panics
     /// If invalid, must be [`MIN_BLOCK_SIZE`] `> block_size <` [`MAX_BLOCK_SIZE`]
     pub fn set_block_size(&mut self, block_size: u32) {
-        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) {
+        let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
+        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) || !power_of_two {
             panic!("invalid block_size");
         }
         self.block_size = block_size;
-        self.block_log = (block_size as f32).log2() as u16;
+        self.block_log = block_size.ilog2() as u16;
     }
 
     /// Set time of image as `mod_time`

@@ -14,7 +14,7 @@ use backhand::v4::filesystem::node::InnerNode;
 use backhand::{FilesystemCompressor, FilesystemReader, FilesystemWriter, NodeHeader};
 use crc32fast::Hasher;
 use fastrand::Rng;
-use tempfile::tempdir;
+use tempfile::tempdir_in;
 use test_log::test;
 use tracing::info;
 
@@ -154,7 +154,7 @@ fn verify_squashfs_image(
 fn run_test_scenario(scenario: &TestScenario) {
     info!("Starting test scenario: {}", scenario.description);
 
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = tempdir_in(".").unwrap();
     let image_path = temp_dir.path().join("test.squashfs");
 
     let test_files = generate_test_files(&scenario.size_groups);
@@ -209,6 +209,17 @@ fn test_unaligned_boundaries() {
             FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024 + 1024, count: 2 },
             FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024 + 1024, count: 4 },
             FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 2 },
+        ],
+    };
+    run_test_scenario(&scenario);
+}
+
+#[test]
+fn test_many_small() {
+    let scenario = TestScenario {
+        description: "Many small files, but the total size is large",
+        size_groups: vec![
+            FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 32 },
         ],
     };
     run_test_scenario(&scenario);

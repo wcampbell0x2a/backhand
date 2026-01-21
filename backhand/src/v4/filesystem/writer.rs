@@ -525,7 +525,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("file node id: {}", e))
                     })?,
                     inode_writer,
                     *filesize,
@@ -542,7 +542,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     node.header,
                     symlink,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("symlink node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -556,7 +556,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     node.header,
                     char,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("character device node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -570,7 +570,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     node.header,
                     block,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("block device node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -583,7 +583,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("named pipe node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -596,7 +596,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("socket node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -621,7 +621,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     inode_writer,
                     dir_writer,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!(
+                            "parent node id for directory: {}",
+                            e
+                        ))
                     })?,
                     child_id,
                     superblock,
@@ -648,7 +651,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             filename,
             node.header,
             node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                BackhandError::NumericConversion(e.to_string())
+                BackhandError::NumericConversion(format!("directory node id: {}", e))
             })?,
             children_num,
             parent_node_id,
@@ -745,7 +748,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
         superblock.inode_count =
             self.root.nodes.len().try_into().map_err(|e: std::num::TryFromIntError| {
-                BackhandError::NumericConversion(e.to_string())
+                BackhandError::NumericConversion(format!("inode count: {}", e))
             })?;
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
@@ -769,7 +772,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let (table_position, count) = self.write_lookup_table(&mut w, &self.id_table, Id::SIZE)?;
         superblock.id_table = table_position;
         superblock.id_count = count.try_into().map_err(|e: std::num::TryFromIntError| {
-            BackhandError::NumericConversion(e.to_string())
+            BackhandError::NumericConversion(format!("id count: {}", e))
         })?;
 
         info!("Finalize Superblock and End Bytes");
@@ -815,7 +818,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
                 w.write_all(
                     &arr[..len.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("padding chunk length: {}", e))
                     })?],
                 )?;
                 total_written += len;

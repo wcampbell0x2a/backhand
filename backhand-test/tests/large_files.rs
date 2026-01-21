@@ -164,80 +164,52 @@ fn run_test_scenario(scenario: &TestScenario) {
     info!("Test scenario completed successfully");
 }
 
-/// Define test scenarios
-mod scenarios {
-    use super::*;
-
-    pub fn many_files() -> TestScenario {
-        TestScenario {
-            description: "Test with many small and medium files",
-            size_groups: vec![
-                FileSizeGroup { name: "empty", size: 0, count: 16 },
-                FileSizeGroup { name: "small_1kb", size: 1024, count: 1024 },
-                FileSizeGroup { name: "small_10mb", size: 10 * 1024 * 1024, count: 16 },
-                FileSizeGroup { name: "medium_50mb", size: 50 * 1024 * 1024, count: 8 },
-            ],
-        }
-    }
-
-    pub fn large_files() -> TestScenario {
-        TestScenario {
-            description: "Test with a few very large files",
-            size_groups: vec![
-                FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "xlarge_1gb", size: 1024 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "xlarge_2gb", size: 2u64 * 1024 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024, count: 1 },
-            ],
-        }
-    }
-
-    pub fn mix() -> TestScenario {
-        TestScenario {
-            description: "Test with mixed sizes from small to very large",
-            size_groups: vec![
-                FileSizeGroup { name: "empty", size: 0, count: 2 },
-                FileSizeGroup { name: "small_1kb", size: 1024, count: 4 },
-                FileSizeGroup { name: "small_10mb", size: 10 * 1024 * 1024, count: 2 },
-                FileSizeGroup { name: "medium_50mb", size: 50 * 1024 * 1024, count: 2 },
-                FileSizeGroup { name: "medium_100mb", size: 100 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "xlarge_1gb", size: 1024 * 1024 * 1024, count: 1 },
-                FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024, count: 1 },
-            ],
-        }
-    }
-
-    pub fn many_large_files() -> TestScenario {
-        TestScenario {
-            description: "Test with many large files to stress block counts and offsets",
-            size_groups: vec![
-                FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024, count: 4 },
-                FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 2 },
-                FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024, count: 2 },
-            ],
-        }
-    }
+#[test]
+fn test_small_and_large_mixed() {
+    let scenario = TestScenario {
+        description: "Many small files with multiple gigabyte-scale files",
+        size_groups: vec![
+            FileSizeGroup { name: "small_first_8kib", size: 8 * 1024, count: 2000 },
+            FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024, count: 2 },
+            FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024, count: 4 },
+            FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 2 },
+            FileSizeGroup { name: "small_last_8kib", size: 8 * 1024, count: 2000 },
+        ],
+    };
+    run_test_scenario(&scenario);
 }
 
 #[test]
-fn test_many_files() {
-    run_test_scenario(&scenarios::many_files());
+fn test_full_spectrum() {
+    let scenario = TestScenario {
+        description: "Full spectrum from empty to 8GB files",
+        size_groups: vec![
+            FileSizeGroup { name: "small_first_8kib", size: 8 * 1024, count: 2000 },
+            FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024, count: 1 },
+            FileSizeGroup { name: "xxxlarge_8gb", size: 8u64 * 1024 * 1024 * 1024, count: 1 },
+            FileSizeGroup { name: "empty", size: 0, count: 2 },
+            FileSizeGroup { name: "small_1kb", size: 1024, count: 4 },
+            FileSizeGroup { name: "small_10mb", size: 10 * 1024 * 1024, count: 2 },
+            FileSizeGroup { name: "medium_50mb", size: 50 * 1024 * 1024, count: 2 },
+            FileSizeGroup { name: "medium_100mb", size: 100 * 1024 * 1024, count: 1 },
+            FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024, count: 1 },
+            FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 1 },
+            FileSizeGroup { name: "xlarge_1gb", size: 1024 * 1024 * 1024, count: 1 },
+            FileSizeGroup { name: "small_last_8kib", size: 8 * 1024, count: 2000 },
+        ],
+    };
+    run_test_scenario(&scenario);
 }
 
 #[test]
-fn test_large_files() {
-    run_test_scenario(&scenarios::large_files());
-}
-
-#[test]
-fn test_mix() {
-    run_test_scenario(&scenarios::mix());
-}
-
-#[test]
-fn test_many_large_files() {
-    run_test_scenario(&scenarios::many_large_files());
+fn test_unaligned_boundaries() {
+    let scenario = TestScenario {
+        description: "Multiple large files with non-aligned boundaries",
+        size_groups: vec![
+            FileSizeGroup { name: "xxlarge_4gb", size: 4u64 * 1024 * 1024 * 1024 + 1024, count: 2 },
+            FileSizeGroup { name: "large_256mb", size: 256 * 1024 * 1024 + 1024, count: 4 },
+            FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 2 },
+        ],
+    };
+    run_test_scenario(&scenario);
 }

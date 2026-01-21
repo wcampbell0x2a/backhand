@@ -64,10 +64,10 @@ impl BackhandDataSize {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BackhandSquashfsFileReader {
     Basic {
-        blocks_start: u64,
+        blocks_start: u32,
         frag_index: u32,
         block_offset: u32,
-        file_size: u64,
+        file_size: u32,
         block_sizes: Vec<BackhandDataSize>,
     },
     Extended {
@@ -106,7 +106,7 @@ impl BackhandSquashfsFileReader {
 
     pub fn blocks_start(&self) -> u64 {
         match self {
-            Self::Basic { blocks_start, .. } => *blocks_start,
+            Self::Basic { blocks_start, .. } => *blocks_start as u64,
             Self::Extended { blocks_start, .. } => *blocks_start,
         }
     }
@@ -123,10 +123,10 @@ impl From<&crate::v4::filesystem::node::SquashfsFileReader> for BackhandSquashfs
     fn from(v4_file: &crate::v4::filesystem::node::SquashfsFileReader) -> Self {
         match v4_file {
             crate::v4::filesystem::node::SquashfsFileReader::Basic(basic) => Self::Basic {
-                blocks_start: basic.blocks_start as u64,
+                blocks_start: basic.blocks_start,
                 frag_index: basic.frag_index,
                 block_offset: basic.block_offset,
-                file_size: basic.file_size as u64,
+                file_size: basic.file_size,
                 block_sizes: basic.block_sizes.iter().map(|&ds| ds.into()).collect(),
             },
             crate::v4::filesystem::node::SquashfsFileReader::Extended(extended) => Self::Extended {

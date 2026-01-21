@@ -152,10 +152,10 @@ impl<'a> Entry<'a> {
                             InodeId::BasicFile,
                             header,
                             InodeInner::BasicFile(BasicFile {
-                                blocks_start: blocks_start,
+                                blocks_start,
                                 frag_index: 0xffffffff, // <- no fragment
                                 block_offset: 0x0,      // <- no fragment
-                                file_size: file_size,
+                                file_size,
                                 block_sizes: block_sizes.to_vec(),
                             }),
                         );

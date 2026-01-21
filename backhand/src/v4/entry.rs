@@ -1,18 +1,17 @@
-use std::ffi::OsStr;
-use std::fmt;
-
 use crate::error::BackhandError;
 use crate::kinds::Kind;
 use crate::v4::data::Added;
 use crate::v4::dir::{Dir, DirEntry};
 use crate::v4::inode::{
-    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory, IPCNode,
-    Inode, InodeHeader, InodeId, InodeInner,
+    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory,
+    ExtendedFile, IPCNode, Inode, InodeHeader, InodeId, InodeInner,
 };
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::SuperBlock;
 use crate::v4::unix_string::OsStrExt;
 use crate::{Id, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
+use std::ffi::OsStr;
+use std::fmt;
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {

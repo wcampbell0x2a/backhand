@@ -641,7 +641,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let block_offset = dir_writer.uncompressed_bytes.len() as u16;
         trace!("WRITING DIR: {block_offset:#02x?}");
         let mut total_size: usize = 3;
-        for dir in Entry::into_dir(entries) {
+        for dir in Entry::into_dir(entries)? {
             let mut bytes = Cursor::new(vec![]);
             let mut writer = Writer::new(&mut bytes);
             dir.to_writer(&mut writer, kind.inner.type_endian)?;

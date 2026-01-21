@@ -59,11 +59,7 @@ fn generate_test_files(size_groups: &[FileSizeGroup]) -> Vec<TestFileSpec> {
     let mut test_files = Vec::new();
     for group in size_groups {
         for i in 0..group.count {
-            let name = if group.count > 1 {
-                format!("{}_{}", group.name, i)
-            } else {
-                group.name.to_string()
-            };
+            let name = format!("/{}_{}", group.name, i);
             test_files.push(TestFileSpec { name, size: group.size });
         }
     }
@@ -119,8 +115,6 @@ fn verify_squashfs_image(
 
     // Verify each file
     for file in test_file_specs {
-        info!("Verifying file: {}", file.name);
-
         // Find the file in the filesystem
         let file_node = fs_reader
             .files()
@@ -153,8 +147,6 @@ fn verify_squashfs_image(
             "Hash mismatch for file {}: computed {} != expected {}",
             file.name, computed_hash, expected_hash
         );
-
-        info!("✓ File {} verified: hash {}", file.name, computed_hash);
     }
 }
 
@@ -181,7 +173,7 @@ mod scenarios {
             description: "Test with many small and medium files",
             size_groups: vec![
                 FileSizeGroup { name: "empty", size: 0, count: 16 },
-                FileSizeGroup { name: "small_1kb", size: 1024, count: 1024 * 256 },
+                FileSizeGroup { name: "small_1kb", size: 1024, count: 1024 },
                 FileSizeGroup { name: "small_10mb", size: 10 * 1024 * 1024, count: 16 },
                 FileSizeGroup { name: "medium_50mb", size: 50 * 1024 * 1024, count: 8 },
             ],

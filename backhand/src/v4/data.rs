@@ -71,7 +71,7 @@ impl DataSize {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Added {
     // Only Data was added
-    Data { blocks_start: u32, block_sizes: Vec<DataSize> },
+    Data { blocks_start: u64, block_sizes: Vec<DataSize> },
     // Only Fragment was added
     Fragment { frag_index: u32, block_offset: u32 },
 }
@@ -162,7 +162,7 @@ impl<'a> DataWriter<'a> {
 
         // if the first block is not full (fragment), store only a fragment
         // otherwise processed to store blocks
-        let blocks_start = writer.stream_position()? as u32;
+        let blocks_start = writer.stream_position()?;
         let first_block = match reader.next_block(&mut read_buf) {
             Some(Ok(first_block)) => first_block,
             Some(Err(x)) => return Err(x),
@@ -252,7 +252,7 @@ impl<'a> DataWriter<'a> {
         }
 
         // Add to data bytes
-        let blocks_start = writer.stream_position()? as u32;
+        let blocks_start = writer.stream_position()?;
         let mut block_sizes = vec![];
 
         // If duplicate file checking is enabled, use the old data position as this file if it hashes the same

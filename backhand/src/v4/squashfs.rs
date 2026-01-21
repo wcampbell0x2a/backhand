@@ -247,7 +247,7 @@ impl<'b> Squashfs<'b> {
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
 
-        if (superblock.block_size as f32).log2() != superblock.block_log as f32 {
+        if superblock.block_size.ilog2() != superblock.block_log as u32 {
             error!("block size.log2() != block_log");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }

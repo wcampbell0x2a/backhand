@@ -1,3 +1,4 @@
+use crate::BackhandError;
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
@@ -64,10 +65,10 @@ impl BackhandDataSize {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BackhandSquashfsFileReader {
     Basic {
-        blocks_start: u64,
+        blocks_start: u64, // In SquashFS v4, this is u32, but we use u64 for uniformity since v3 uses u64
         frag_index: u32,
         block_offset: u32,
-        file_size: u64,
+        file_size: u32,
         block_sizes: Vec<BackhandDataSize>,
     },
     Extended {
@@ -123,10 +124,10 @@ impl From<&crate::v4::filesystem::node::SquashfsFileReader> for BackhandSquashfs
     fn from(v4_file: &crate::v4::filesystem::node::SquashfsFileReader) -> Self {
         match v4_file {
             crate::v4::filesystem::node::SquashfsFileReader::Basic(basic) => Self::Basic {
-                blocks_start: basic.blocks_start as u64,
+                blocks_start: basic.blocks_start.into(),
                 frag_index: basic.frag_index,
                 block_offset: basic.block_offset,
-                file_size: basic.file_size as u64,
+                file_size: basic.file_size,
                 block_sizes: basic.block_sizes.iter().map(|&ds| ds.into()).collect(),
             },
             crate::v4::filesystem::node::SquashfsFileReader::Extended(extended) => Self::Extended {
@@ -250,7 +251,7 @@ pub trait FilesystemReaderTrait: Send + Sync {
     fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_>;
 
     /// Get a file handle that can be used to read file data
-    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8>;
+    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError>;
 }
 
 impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemReader<'b> {
@@ -258,7 +259,7 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
         Box::new(self.files().map(|node| node.into()))
     }
 
-    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8> {
+    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError> {
         let v4_file = match file {
             BackhandSquashfsFileReader::Basic {
                 blocks_start,
@@ -268,10 +269,15 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
                 block_sizes,
             } => crate::v4::filesystem::node::SquashfsFileReader::Basic(
                 crate::v4::inode::BasicFile {
-                    blocks_start: *blocks_start as u32,
+                    blocks_start: (*blocks_start).try_into().map_err(|e| {
+                        BackhandError::NumericConversion(format!(
+                            "ExtendedDirectory file_size: {}",
+                            e
+                        ))
+                    })?,
                     frag_index: *frag_index,
                     block_offset: *block_offset,
-                    file_size: *file_size as u32,
+                    file_size: *file_size,
                     block_sizes: block_sizes.iter().map(|&ds| ds.to_v4_datasize()).collect(),
                 },
             ),
@@ -303,9 +309,9 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
         let mut data = Vec::new();
         if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
             // sparse
-            return Vec::new();
+            return Ok(Vec::new());
         }
-        data
+        Ok(data)
     }
 }
 
@@ -315,7 +321,7 @@ impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemRead
         Box::new(self.files().map(|node| node.into()))
     }
 
-    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Vec<u8> {
+    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError> {
         let v3_file = match file {
             BackhandSquashfsFileReader::Basic {
                 blocks_start,
@@ -357,8 +363,8 @@ impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemRead
         let mut data = Vec::new();
         if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
             // sparse
-            return Vec::new();
+            return Ok(Vec::new());
         }
-        data
+        Ok(data)
     }
 }

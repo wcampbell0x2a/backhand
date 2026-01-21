@@ -167,9 +167,8 @@ pub struct BasicFile {
     // this is more, "fragment_offset"
     pub frag: u32,
     pub block_offset: u32,
-    #[deku(bytes = "4")]
-    pub file_size: u64,
-    #[deku(count = "block_count(block_size, block_log, *frag, *file_size)")]
+    pub file_size: u32,
+    #[deku(count = "block_count(block_size, block_log, *frag, *file_size as u64)")]
     pub block_sizes: Vec<DataSize>,
 }
 

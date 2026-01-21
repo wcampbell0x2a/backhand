@@ -218,9 +218,11 @@ fn test_unaligned_boundaries() {
 fn test_many_small() {
     let scenario = TestScenario {
         description: "Many small files, but the total size is large",
-        size_groups: vec![
-            FileSizeGroup { name: "large_512mb", size: 512 * 1024 * 1024, count: 32 },
-        ],
+        size_groups: vec![FileSizeGroup {
+            name: "large_512mb",
+            size: 512 * 1024 * 1024,
+            count: 32,
+        }],
     };
     run_test_scenario(&scenario);
 }

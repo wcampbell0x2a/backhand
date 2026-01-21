@@ -64,7 +64,7 @@ impl BackhandDataSize {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BackhandSquashfsFileReader {
     Basic {
-        blocks_start: u32,
+        blocks_start: u64, // In SquashFS v4, this is u32, but we use u64 for uniformity since v3 uses u64
         frag_index: u32,
         block_offset: u32,
         file_size: u32,
@@ -123,7 +123,7 @@ impl From<&crate::v4::filesystem::node::SquashfsFileReader> for BackhandSquashfs
     fn from(v4_file: &crate::v4::filesystem::node::SquashfsFileReader) -> Self {
         match v4_file {
             crate::v4::filesystem::node::SquashfsFileReader::Basic(basic) => Self::Basic {
-                blocks_start: basic.blocks_start,
+                blocks_start: basic.blocks_start.into(),
                 frag_index: basic.frag_index,
                 block_offset: basic.block_offset,
                 file_size: basic.file_size,
@@ -268,7 +268,9 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
                 block_sizes,
             } => crate::v4::filesystem::node::SquashfsFileReader::Basic(
                 crate::v4::inode::BasicFile {
-                    blocks_start: *blocks_start,
+                    blocks_start: (*blocks_start)
+                        .try_into()
+                        .expect("In squashfs v4, blocks_start for a BasicFile must fit in u32"),
                     frag_index: *frag_index,
                     block_offset: *block_offset,
                     file_size: *file_size,

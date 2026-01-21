@@ -837,7 +837,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         //clean any cache, make sure the output is on disk
         w.flush()?;
-        Ok(superblock.bytes_used + u64::from(pad_len))
+        Ok(superblock.bytes_used + pad_len)
     }
 
     /// For example, writing a fragment table:

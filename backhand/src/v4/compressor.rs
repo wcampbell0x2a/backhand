@@ -5,7 +5,7 @@ use std::io::Cursor;
 
 use deku::prelude::*;
 #[cfg(feature = "gzip")]
-use flate2::{Compression, Compress};
+use flate2::{Compress, Compression};
 #[cfg(feature = "gzip")]
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "xz")]

@@ -5,9 +5,9 @@ use std::io::Cursor;
 
 use deku::prelude::*;
 #[cfg(feature = "gzip")]
-use flate2::Compression;
-#[cfg(feature = "gzip")]
 use flate2::read::ZlibEncoder;
+#[cfg(feature = "gzip")]
+use flate2::{Compress, Compression};
 #[cfg(feature = "xz")]
 use liblzma::read::{XzDecoder, XzEncoder};
 #[cfg(feature = "xz")]
@@ -63,7 +63,8 @@ pub enum CompressionOptions {
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Gzip {
     pub compression_level: u32,
-    pub window_size: u16,
+    // A range from 9 ..= 15
+    pub window_size: u8,
     // TODO: enum
     pub strategies: u16,
 }
@@ -271,17 +272,18 @@ impl CompressionAction for DefaultCompressor {
             }
             #[cfg(feature = "gzip")]
             (Compressor::Gzip, option @ (Some(CompressionOptions::Gzip(_)) | None), _) => {
-                let compression_level = match option {
-                    None => Compression::best(), // 9
+                let (compression_level, window_size) = match option {
+                    None => (Compression::best(), 15), // 9 (best compression level)
                     Some(CompressionOptions::Gzip(option)) => {
-                        Compression::new(option.compression_level)
+                        (Compression::new(option.compression_level), option.window_size)
                     }
                     Some(_) => unreachable!(),
                 };
+                let options = Compress::new_with_window_bits(compression_level, true, window_size);
 
-                // TODO(#8): Use window_size and strategies (current window size defaults to 15)
+                // TODO(#8): Use strategies
 
-                let mut encoder = ZlibEncoder::new(Cursor::new(bytes), compression_level);
+                let mut encoder = ZlibEncoder::new_with_compress(Cursor::new(bytes), options);
                 let mut buf = vec![];
                 encoder.read_to_end(&mut buf)?;
                 Ok(buf)

@@ -39,7 +39,7 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-backhand = "0.24.1"
+backhand = "0.25.0"
 ```
 
 #### Target Support

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### `backhand`
 - Update depends
 - Update `lzma-rust2` to `v0.16.0`
+- [Fix handling of adding files larger than 4 GiB](https://github.com/wcampbell0x2a/backhand/pull/769), thanks [nickguletskii](https://github.com/nickguletskii).
+- [Add window size impl for gzip](https://github.com/wcampbell0x2a/backhand/pull/771), thanks [h4dynn](https://github.com/h4dynn).
 ### `backhand-cli`
 - Update depends
 - Remove libc depend

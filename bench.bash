@@ -2,7 +2,7 @@
 set -ex
 
 QUICK_MODE=false
-LAST_RELEASE="v0.22.0"
+LAST_RELEASE="v0.24.1"
 
 BACKHAND_LAST_RELEASE="./last-release/unsquashfs-backhand"
 BACKHAND_NATIVE_GNU="./native-gnu/dist/unsquashfs-backhand"
@@ -12,7 +12,7 @@ BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
 # Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
-FLAGS="--bins --locked --profile=thin --no-default-features --features xz --features zstd --features gzip --features parallel"
+FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip --features parallel"
 
 bench () {
     echo "You might want to make sudo last longer...."
@@ -41,7 +41,7 @@ bench () {
     echo ""
     file $1
     (echo "### \`$(basename $1)\`"; cat bench-results/$3.md) > bench-results/$3_final.md
-    rm -rf /tmp/BH*
+    sudo rm -rf /tmp/BH*
 }
 
 
@@ -63,7 +63,7 @@ mkdir -p bench-results
 
 # Download required test assets for benchmarks
 echo "Downloading required test assets..."
-dl test-assets.toml backhand-test/test-assets \
+dl test-assets.toml backhand-test \
     --assets openwrt_tplink_archera7v5 \
     --assets netgear_ex6100v2 \
     --assets re815xe \

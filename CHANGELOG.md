@@ -6,11 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.25.0] - 2025-02-14
 ### `backhand`
 - Update depends
 - Update `lzma-rust2` to `v0.16.0`
-- [Fix handling of adding files larger than 4 GiB](https://github.com/wcampbell0x2a/backhand/pull/769), thanks [nickguletskii](https://github.com/nickguletskii).
-- [Add window size impl for gzip](https://github.com/wcampbell0x2a/backhand/pull/771), thanks [h4dynn](https://github.com/h4dynn).
+- [Fix handling of adding files larger than 4 GiB](https://github.com/wcampbell0x2a/backhand/pull/769), thanks [@nickguletskii](https://github.com/nickguletskii).
+- [Add window size impl for gzip](https://github.com/wcampbell0x2a/backhand/pull/771), thanks [@h4dynn](https://github.com/h4dynn).
 ### `backhand-cli`
 - Update depends
 - Remove libc depend
@@ -19,8 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.24.1] - 2025-01-18
 ### `backhand`
-- [Add a method to create an XzFilter](https://github.com/wcampbell0x2a/backhand/pull/764), thanks [h4dynn](https://github.com/h4dynn).
-- [impl Seek for SquashfsReadFile](https://github.com/wcampbell0x2a/backhand/pull/763), thanks [AMZN-hgoffin](https://github.com/AMZN-hgoffin).
+- [Add a method to create an XzFilter](https://github.com/wcampbell0x2a/backhand/pull/764), thanks [@h4dynn](https://github.com/h4dynn).
+- [impl Seek for SquashfsReadFile](https://github.com/wcampbell0x2a/backhand/pull/763), thanks [@AMZN-hgoffin](https://github.com/AMZN-hgoffin).
 - Update dependencies
 ### `backhand-cli`
 - Update dependencies

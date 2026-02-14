@@ -66,14 +66,35 @@ fn generate_test_files(size_groups: &[FileSizeGroup]) -> Vec<TestFileSpec> {
     test_files
 }
 
+/// Get a compressor based on available features
+fn get_compressor() -> Option<FilesystemCompressor> {
+    #[cfg(feature = "zstd")]
+    {
+        Some(FilesystemCompressor::new(Compressor::Zstd, None).unwrap())
+    }
+    #[cfg(all(not(feature = "zstd"), feature = "gzip"))]
+    {
+        Some(FilesystemCompressor::new(Compressor::Gzip, None).unwrap())
+    }
+    #[cfg(all(not(feature = "zstd"), not(feature = "gzip"), feature = "xz"))]
+    {
+        Some(FilesystemCompressor::new(Compressor::Xz, None).unwrap())
+    }
+    #[cfg(all(not(feature = "zstd"), not(feature = "gzip"), not(feature = "xz")))]
+    {
+        None
+    }
+}
+
 /// Write squashfs image with test files
+#[allow(clippy::cast_possible_truncation)] // Large file tests are intended for 64-bit systems
 fn write_squashfs_image(
     image_path: &Path,
     test_file_specs: &[TestFileSpec],
 ) -> HashMap<String, String> {
     info!("Creating FilesystemWriter and adding {} test files", test_file_specs.len());
     let mut fs_writer = FilesystemWriter::default();
-    let compressor = FilesystemCompressor::new(Compressor::Zstd, None).unwrap();
+    let compressor = get_compressor().unwrap();
     fs_writer.set_compressor(compressor);
     let default_header = NodeHeader::default();
     let mut expected_hashes = HashMap::new();
@@ -165,6 +186,7 @@ fn run_test_scenario(scenario: &TestScenario) {
 }
 
 #[test]
+#[cfg(any(feature = "zstd", feature = "gzip", feature = "xz"))]
 fn test_large_files_small_and_large_mixed() {
     let scenario = TestScenario {
         description: "Many small files with multiple gigabyte-scale files",
@@ -180,6 +202,7 @@ fn test_large_files_small_and_large_mixed() {
 }
 
 #[test]
+#[cfg(any(feature = "zstd", feature = "gzip", feature = "xz"))]
 fn test_large_files_full_spectrum() {
     let scenario = TestScenario {
         description: "Full spectrum from empty to 8GB files",
@@ -202,6 +225,7 @@ fn test_large_files_full_spectrum() {
 }
 
 #[test]
+#[cfg(any(feature = "zstd", feature = "gzip", feature = "xz"))]
 fn test_large_files_unaligned_boundaries() {
     let scenario = TestScenario {
         description: "Multiple large files with non-aligned boundaries",
@@ -215,6 +239,7 @@ fn test_large_files_unaligned_boundaries() {
 }
 
 #[test]
+#[cfg(any(feature = "zstd", feature = "gzip", feature = "xz"))]
 fn test_large_files_many_small() {
     let scenario = TestScenario {
         description: "Many small files, but the total size is large",

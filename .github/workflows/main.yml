@@ -100,7 +100,7 @@ jobs:
       # build lib and bins with cross or cargo
       - run: $BUILD_CMD +${{ matrix.toolchain }} build ${{ matrix.features }} --target ${{ matrix.job.target }} --release --locked --workspace --features xz-static
       # test with cross, skipping slow test and tests that use more then qemu default memory without use-cross without use-cross
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info $BUILD_CMD +${{ matrix.toolchain }} test --workspace --release ${{ matrix.features }} --target ${{ matrix.job.target }} --features xz-static --locked -- --skip slow --skip no_qemu
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info $BUILD_CMD +${{ matrix.toolchain }} test --workspace --release ${{ matrix.features }} --target ${{ matrix.job.target }} --features xz-static --locked -- --skip slow --skip no_qemu --skip large_files
 
   # build/test all supported targets for library and bins (skipping slow and squashfs-tools tests) (no v3_lzma)
   cross-test-macos:
@@ -142,7 +142,7 @@ jobs:
       # build lib and bins with cross or cargo
       - run: $BUILD_CMD +${{ matrix.toolchain }} build --no-default-features --features ${{ matrix.features }} --target ${{ matrix.job.target }} --release --locked --workspace --features xz-static
       # test with cross, skipping slow test and tests that use more then qemu default memory without use-cross without use-cross
-      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info $BUILD_CMD +${{ matrix.toolchain }} test --workspace --release --no-default-features --features ${{ matrix.features }} --target ${{ matrix.job.target }} --features xz-static --locked -- --skip slow --skip no_qemu
+      - run: CROSS_CONTAINER_OPTS="--network host" RUST_LOG=info $BUILD_CMD +${{ matrix.toolchain }} test --workspace --release --no-default-features --features ${{ matrix.features }} --target ${{ matrix.job.target }} --features xz-static --locked -- --skip slow --skip no_qemu --skip large_files
 
   # build/test all supported on native x86_64 arch for library and bins (all tests)
   build-test-native:

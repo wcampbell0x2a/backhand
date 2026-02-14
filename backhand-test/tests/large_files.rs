@@ -165,7 +165,7 @@ fn run_test_scenario(scenario: &TestScenario) {
 }
 
 #[test]
-fn test_small_and_large_mixed() {
+fn test_large_files_small_and_large_mixed() {
     let scenario = TestScenario {
         description: "Many small files with multiple gigabyte-scale files",
         size_groups: vec![
@@ -180,7 +180,7 @@ fn test_small_and_large_mixed() {
 }
 
 #[test]
-fn test_full_spectrum() {
+fn test_large_files_full_spectrum() {
     let scenario = TestScenario {
         description: "Full spectrum from empty to 8GB files",
         size_groups: vec![
@@ -202,7 +202,7 @@ fn test_full_spectrum() {
 }
 
 #[test]
-fn test_unaligned_boundaries() {
+fn test_large_files_unaligned_boundaries() {
     let scenario = TestScenario {
         description: "Multiple large files with non-aligned boundaries",
         size_groups: vec![
@@ -215,7 +215,7 @@ fn test_unaligned_boundaries() {
 }
 
 #[test]
-fn test_many_small() {
+fn test_large_files_many_small() {
     let scenario = TestScenario {
         description: "Many small files, but the total size is large",
         size_groups: vec![FileSizeGroup {

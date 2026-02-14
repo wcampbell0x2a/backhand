@@ -660,7 +660,18 @@ fn extract_all(
                 }
 
                 // write to file
-                let file_data = filesystem.file_data(file);
+                let file_data = match filesystem.file_data(file) {
+                    Ok(file_data) => file_data,
+                    Err(e) => {
+                        if !args.quiet {
+                            let line = format!("{} : {e}", filepath.display());
+                            failed(&pb, &line);
+                            let mut p = processing.lock().unwrap();
+                            p.remove(&fullpath.to_path_buf());
+                        }
+                        return;
+                    }
+                };
                 let fd = match File::create(&filepath) {
                     Ok(f) => f,
                     Err(e) => {

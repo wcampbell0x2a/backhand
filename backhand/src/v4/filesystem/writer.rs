@@ -99,7 +99,7 @@ impl Default for FilesystemWriter<'_, '_, '_> {
             fs_compressor: FilesystemCompressor::default(),
             kind: Kind { inner: Arc::new(LE_V4_0) },
             root: Nodes::new_root(NodeHeader::default()),
-            block_log: (block_size as f32).log2() as u16,
+            block_log: block_size.ilog2() as u16,
             pad_len: DEFAULT_PAD_LEN,
             no_duplicate_files: true,
             emit_compression_options: true,
@@ -113,11 +113,12 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// # Panics
     /// If invalid, must be [`MIN_BLOCK_SIZE`] `> block_size <` [`MAX_BLOCK_SIZE`]
     pub fn set_block_size(&mut self, block_size: u32) {
-        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) {
+        let power_of_two = block_size != 0 && (block_size & (block_size - 1)) == 0;
+        if !(MIN_BLOCK_SIZE..=MAX_BLOCK_SIZE).contains(&block_size) || !power_of_two {
             panic!("invalid block_size");
         }
         self.block_size = block_size;
-        self.block_log = (block_size as f32).log2() as u16;
+        self.block_log = block_size.ilog2() as u16;
     }
 
     /// Set time of image as `mod_time`
@@ -525,7 +526,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("file node id: {}", e))
                     })?,
                     inode_writer,
                     *filesize,
@@ -542,7 +543,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     node.header,
                     symlink,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("symlink node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -556,7 +557,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     node.header,
                     char,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("character device node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -570,7 +571,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     node.header,
                     block,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("block device node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -583,7 +584,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("named pipe node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -596,7 +597,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     filename,
                     node.header,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("socket node id: {}", e))
                     })?,
                     inode_writer,
                     superblock,
@@ -621,7 +622,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     inode_writer,
                     dir_writer,
                     node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!(
+                            "parent node id for directory: {}",
+                            e
+                        ))
                     })?,
                     child_id,
                     superblock,
@@ -648,7 +652,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             filename,
             node.header,
             node_id.get().try_into().map_err(|e: std::num::TryFromIntError| {
-                BackhandError::NumericConversion(e.to_string())
+                BackhandError::NumericConversion(format!("directory node id: {}", e))
             })?,
             children_num,
             parent_node_id,
@@ -745,7 +749,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         superblock.root_inode = ((root.start as u64) << 16) | ((root.offset as u64) & 0xffff);
         superblock.inode_count =
             self.root.nodes.len().try_into().map_err(|e: std::num::TryFromIntError| {
-                BackhandError::NumericConversion(e.to_string())
+                BackhandError::NumericConversion(format!("inode count: {}", e))
             })?;
         superblock.block_size = self.block_size;
         superblock.block_log = self.block_log;
@@ -769,7 +773,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let (table_position, count) = self.write_lookup_table(&mut w, &self.id_table, Id::SIZE)?;
         superblock.id_table = table_position;
         superblock.id_count = count.try_into().map_err(|e: std::num::TryFromIntError| {
-            BackhandError::NumericConversion(e.to_string())
+            BackhandError::NumericConversion(format!("id count: {}", e))
         })?;
 
         info!("Finalize Superblock and End Bytes");
@@ -790,19 +794,13 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         if self.pad_len != 0 {
             // Pad out block_size to 4K
             info!("Writing Padding");
-            let blocks_used: u32 =
-                u32::try_from(superblock.bytes_used).map_err(|e: std::num::TryFromIntError| {
-                    BackhandError::NumericConversion(e.to_string())
-                })? / self.pad_len;
-            let total_pad_len = (blocks_used + 1) * self.pad_len;
-            pad_len = total_pad_len
-                - u32::try_from(superblock.bytes_used).map_err(
-                    |e: std::num::TryFromIntError| BackhandError::NumericConversion(e.to_string()),
-                )?;
+            let blocks_used: u64 = superblock.bytes_used / (self.pad_len as u64);
+            let total_pad_len = (blocks_used + 1) * (self.pad_len as u64);
+            pad_len = total_pad_len - superblock.bytes_used;
 
             // Write 1K at a time
             let mut total_written = 0;
-            while w.stream_position()? < (superblock.bytes_used + u64::from(pad_len)) {
+            while w.stream_position()? < (superblock.bytes_used + pad_len) {
                 let arr = &[0x00; 1024];
 
                 // check if last block to write
@@ -815,7 +813,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
                 w.write_all(
                     &arr[..len.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("padding chunk length: {}", e))
                     })?],
                 )?;
                 total_written += len;
@@ -839,7 +837,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
         //clean any cache, make sure the output is on disk
         w.flush()?;
-        Ok(superblock.bytes_used + u64::from(pad_len))
+        Ok(superblock.bytes_used + pad_len)
     }
 
     /// For example, writing a fragment table:

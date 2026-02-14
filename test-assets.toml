@@ -202,6 +202,11 @@ filepath = "test-assets/test_v3_netgear/netgear_v3.sqsh"
 hash = "a89cdf1cc45f99bd938b7e1d9b63b56f0b16edf803307956d1ba030c62a919ac"
 url = "https://wcampbell.dev/squashfs/testing/netgear_v3.sqsh"
 
+[test_assets.v3_openwrt]
+filepath = "test-assets/test-assets/openwrt-ar71xx-root/openwrt-ar71xx-root.squashfs"
+hash = "ac202e0676872deddaafc2ed5f26349ab51f3f34c12500cf896f615ad8ee00ca"
+url = "https://wcampbell.dev/squashfs/testing/openwrt-ar71xx-root.squashfs"
+
 [test_assets.v3_many_dirs]
 filepath = "test-assets/many_dirs_v3/many_dirs_v3.sqsh"
 hash = "00d9b4d0dbe98fdb57997da7481b1a6ffaa812aa536d3d8e1c72a8c3eb71e6c4"

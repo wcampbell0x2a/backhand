@@ -18,6 +18,8 @@ env_logger = "0.11.5"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 nix = { version = "0.30.0", default-features = false, features = ["fs"] }
 backon = "1.2.0"
+crc32fast = "1.5"
+fastrand = "2.3"
 
 [lib]
 bench = false
@@ -60,3 +62,6 @@ name = "seek"
 
 [[test]]
 name = "unsquashfs"
+
+[[test]]
+name = "large_files"

@@ -31,7 +31,7 @@ jobs:
       - run: cargo llvm-cov run --bin replace-backhand --no-clean --release || true
       - run: cargo llvm-cov run --bin add-backhand --no-clean --release || true
       - run: cargo llvm-cov run --bin unsquashfs-backhand --no-clean --release || true  
-      - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean -- --skip slow
+      - run: cargo llvm-cov --workspace --codecov --output-path codecov.json --features __test_unsquashfs --release --no-clean -- --skip slow --skip large_files
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2

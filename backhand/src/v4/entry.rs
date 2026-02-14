@@ -1,18 +1,17 @@
-use std::ffi::OsStr;
-use std::fmt;
-
 use crate::error::BackhandError;
 use crate::kinds::Kind;
 use crate::v4::data::Added;
 use crate::v4::dir::{Dir, DirEntry};
 use crate::v4::inode::{
-    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory, IPCNode,
-    Inode, InodeHeader, InodeId, InodeInner,
+    BasicDeviceSpecialFile, BasicDirectory, BasicFile, BasicSymlink, ExtendedDirectory,
+    ExtendedFile, IPCNode, Inode, InodeHeader, InodeId, InodeInner,
 };
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::SuperBlock;
 use crate::v4::unix_string::OsStrExt;
 use crate::{Id, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsSymlink};
+use std::ffi::OsStr;
+use std::fmt;
 
 #[derive(Clone)]
 pub(crate) struct Entry<'a> {
@@ -70,11 +69,17 @@ impl<'a> Entry<'a> {
                 InodeInner::ExtendedDirectory(ExtendedDirectory {
                     link_count: 2 + u32::try_from(children_num).map_err(
                         |e: std::num::TryFromIntError| {
-                            BackhandError::NumericConversion(e.to_string())
+                            BackhandError::NumericConversion(format!(
+                                "ExtendedDirectory link_count from children_num: {}",
+                                e
+                            ))
                         },
                     )?,
                     file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!(
+                            "ExtendedDirectory file_size: {}",
+                            e
+                        ))
                     })?, // u32
                     block_index,
                     parent_inode,
@@ -95,11 +100,14 @@ impl<'a> Entry<'a> {
                     block_index,
                     link_count: 2 + u32::try_from(children_num).map_err(
                         |e: std::num::TryFromIntError| {
-                            BackhandError::NumericConversion(e.to_string())
+                            BackhandError::NumericConversion(format!(
+                                "BasicDirectory link_count from children_num: {}",
+                                e
+                            ))
                         },
                     )?,
                     file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
+                        BackhandError::NumericConversion(format!("BasicDirectory file_size: {}", e))
                     })?, // u16
                     block_offset,
                     parent_inode,
@@ -132,32 +140,81 @@ impl<'a> Entry<'a> {
             permissions: header.permissions,
             mtime: header.mtime,
         };
-        let basic_file = match added {
+
+        match added {
             Added::Data { blocks_start, block_sizes } => {
-                BasicFile {
-                    blocks_start: *blocks_start,
-                    frag_index: 0xffffffff, // <- no fragment
-                    block_offset: 0x0,      // <- no fragment
-                    file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(e.to_string())
-                    })?,
-                    block_sizes: block_sizes.to_vec(),
+                match (
+                    <usize as TryInto<u32>>::try_into(file_size),
+                    <u64 as TryInto<u32>>::try_into(*blocks_start),
+                ) {
+                    (Ok(file_size), Ok(blocks_start)) => {
+                        let file_inode = Inode::new(
+                            InodeId::BasicFile,
+                            header,
+                            InodeInner::BasicFile(BasicFile {
+                                blocks_start,
+                                frag_index: 0xffffffff, // <- no fragment
+                                block_offset: 0x0,      // <- no fragment
+                                file_size,
+                                block_sizes: block_sizes.to_vec(),
+                            }),
+                        );
+
+                        Ok(file_inode.to_bytes(
+                            node_path.as_bytes(),
+                            inode_writer,
+                            superblock,
+                            kind,
+                        ))
+                    }
+                    (_, _) => {
+                        let file_inode = Inode::new(
+                            InodeId::ExtendedFile,
+                            header,
+                            InodeInner::ExtendedFile(ExtendedFile {
+                                blocks_start: *blocks_start,
+                                frag_index: 0xffffffff, // <- no fragment
+                                block_offset: 0x0,      // <- no fragment
+                                file_size: file_size as u64,
+                                sparse: 0,
+                                block_sizes: block_sizes.to_vec(),
+                                link_count: 0,
+                                xattr_index: 0xffffffff, // <- no xattr
+                            }),
+                        );
+
+                        Ok(file_inode.to_bytes(
+                            node_path.as_bytes(),
+                            inode_writer,
+                            superblock,
+                            kind,
+                        ))
+                    }
                 }
             }
-            Added::Fragment { frag_index, block_offset } => BasicFile {
-                blocks_start: 0,
-                frag_index: *frag_index,
-                block_offset: *block_offset,
-                file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
-                    BackhandError::NumericConversion(e.to_string())
-                })?,
-                block_sizes: vec![],
-            },
-        };
+            Added::Fragment { frag_index, block_offset } => {
+                let file_inode = Inode::new(
+                    InodeId::BasicFile,
+                    header,
+                    InodeInner::BasicFile(BasicFile {
+                        blocks_start: 0,
+                        frag_index: *frag_index,
+                        block_offset: *block_offset,
+                        file_size: file_size.try_into().map_err(
+                            |e: std::num::TryFromIntError| {
+                                BackhandError::NumericConversion(format!(
+                                    "BasicFile file_size from fragment: {}",
+                                    e
+                                ))
+                            },
+                        )?,
+                        block_sizes: vec![],
+                    }),
+                );
 
-        let file_inode = Inode::new(InodeId::BasicFile, header, InodeInner::BasicFile(basic_file));
-
-        Ok(file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
+                Ok(file_inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
+            }
+        }
     }
 
     /// Write data and metadata for symlink node
@@ -188,7 +245,7 @@ impl<'a> Entry<'a> {
             InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
                 target_size: link.len().try_into().map_err(|e: std::num::TryFromIntError| {
-                    BackhandError::NumericConversion(e.to_string())
+                    BackhandError::NumericConversion(format!("Symlink target_size: {}", e))
                 })?,
                 target_path: link.to_vec(),
             }),
@@ -344,7 +401,7 @@ impl Entry<'_> {
         let mut dir = Dir::new(lowest_inode);
 
         dir.count = creating_dir.len().try_into().map_err(|e: std::num::TryFromIntError| {
-            BackhandError::NumericConversion(e.to_string())
+            BackhandError::NumericConversion(format!("Dir count: {}", e))
         })?;
         if dir.count >= 256 {
             return Err(BackhandError::InternalState(format!("dir.count({}) >= 256", dir.count)));
@@ -356,7 +413,9 @@ impl Entry<'_> {
             let new_entry = DirEntry {
                 offset: e.offset,
                 inode_offset: (inode - lowest_inode).try_into().map_err(
-                    |e: std::num::TryFromIntError| BackhandError::NumericConversion(e.to_string()),
+                    |e: std::num::TryFromIntError| {
+                        BackhandError::NumericConversion(format!("DirEntry inode_offset: {}", e))
+                    },
                 )?,
                 t: e.t.into_base_type(),
                 name_size: e.name_size,

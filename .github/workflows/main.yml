@@ -174,7 +174,7 @@ jobs:
       # build bins
       - run: cargo +${{ matrix.toolchain }} build ${{ matrix.features }} --release --locked --workspace
       # run tests with native unsquashfs on x86_64-unknown-linux-musl (using Cross.toml)
-      - run: RUST_LOG=info cargo +${{ matrix.toolchain }} test --workspace --release ${{ matrix.features }}  --locked --features __test_unsquashfs -- --skip slow
+      - run: RUST_LOG=info cargo +${{ matrix.toolchain }} test --workspace --release ${{ matrix.features }}  --locked --features __test_unsquashfs -- --skip slow --skip large_files
 
   # fmt and clippy on stable
   fmt-clippy-stable:

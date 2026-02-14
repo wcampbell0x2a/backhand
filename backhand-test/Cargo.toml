@@ -10,13 +10,13 @@ assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
 tempfile = "3.14.0"
 test-assets-ureq = "0.6.0"
-toml = "0.8"
+toml = "0.9"
 test-log = { version = "0.2.16", features = ["trace"] }
 tracing = "0.1.40"
 libdeflater = "1.22.0"
 env_logger = "0.11.5"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
-nix = { version = "0.30.0", default-features = false, features = ["fs"] }
+nix = { version = "0.31.0", default-features = false, features = ["fs"] }
 backon = "1.2.0"
 crc32fast = "1.5"
 fastrand = "2.3"

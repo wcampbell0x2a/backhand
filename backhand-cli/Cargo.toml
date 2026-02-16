@@ -12,7 +12,7 @@ description = "Binaries for the reading, creating, and modification of SquashFS 
 readme = "../README.md"
 
 [dependencies]
-nix = { version = "0.30.0", default-features = false, features = ["fs"] }
+nix = { version = "0.31.0", default-features = false, features = ["fs"] }
 clap = { version = "4.5.13", features = ["derive", "wrap_help"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
 clap_complete = "4.5.13"
@@ -70,4 +70,4 @@ bench = false
 [dev-dependencies]
 gungraun = "0.17.0"
 test-assets-ureq = "0.6.0"
-toml = "0.8"
+toml = "0.9"

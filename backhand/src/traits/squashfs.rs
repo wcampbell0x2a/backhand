@@ -122,7 +122,7 @@ pub fn create_squashfs_from_kind<'b>(
     let (major, minor) = (kind.version_major(), kind.version_minor());
     match (major, minor) {
         #[cfg(feature = "v3")]
-        (3, 0) => {
+        (3, 0) | (3, 1) => {
             let squashfs = crate::v3::squashfs::Squashfs::from_reader_with_offset_and_kind(
                 reader, offset, kind,
             )?;
@@ -130,7 +130,7 @@ pub fn create_squashfs_from_kind<'b>(
             Ok(Box::new(filesystem) as Box<dyn FilesystemReaderTrait + 'b>)
         }
         #[cfg(not(feature = "v3"))]
-        (3, 0) => Err(crate::error::BackhandError::UnsupportedSquashfsVersion(3, 0)),
+        (3, 0) | (3, 1) => Err(crate::error::BackhandError::UnsupportedSquashfsVersion(3, 0)),
         (4, 0) => {
             let squashfs = crate::v4::squashfs::Squashfs::from_reader_with_offset_and_kind(
                 reader, offset, kind,

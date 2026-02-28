@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.26.1] - 2025-02-28
+### `backhand`
+- v3: Add kinds: `BE_V3_1_LZMA_SWAP` and `LE_V3_1_LZMA_SWAP`
+  - Big and little endian, with special magic.
+  - General support for v3.1, no on-disk changes.
+- v3: Fall back to standard LZMA even if adaptive is picked. Thanks vendors!
+
+### `backhand-cli`
+- Add --kinds: `le_v3_1_lzma_swap` and 1be_v3_1_lzma_swap`
+
 ## [v0.25.0] - 2025-02-14
 ### `backhand`
 - Update depends

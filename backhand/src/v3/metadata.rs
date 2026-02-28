@@ -18,14 +18,22 @@ pub fn read_block<R: Read + Seek + ?Sized>(
     let mut deku_reader = Reader::new(&mut *reader);
     let metadata_len = u16::from_reader_with_ctx(&mut deku_reader, kind.inner.data_endian)?;
 
+    if superblock.check_data() {
+        let mut check_byte = [0u8; 1];
+        reader.read_exact(&mut check_byte)?;
+        tracing::trace!("check_data: skipped check byte 0x{:02x}", check_byte[0]);
+    }
+
     let byte_len = len(metadata_len);
     tracing::trace!("len: 0x{:02x?}", byte_len);
     let mut buf = vec![0u8; byte_len as usize];
     reader.read_exact(&mut buf)?;
 
+    // NOTE: We intentionally ignore superblock.inodes_uncompressed() here.
+    // Some v3 images set that flag but still use per-block compression,
+    // so we rely solely on the per-block compressed bit.
     let is_block_compressed = is_compressed(metadata_len);
-    let is_superblock_uncompressed = superblock.inodes_uncompressed();
-    let bytes = if is_block_compressed && !is_superblock_uncompressed {
+    let bytes = if is_block_compressed {
         let mut out = Vec::with_capacity(8 * 1024);
         kind.inner.compressor.decompress(&buf, &mut out, None)?;
         out

@@ -144,6 +144,11 @@ impl SuperBlock {
     pub fn nfs_export_table_exists(&self) -> bool {
         u16::from(self.flags) & Flags::NFSExportTableExists as u16 != 0
     }
+
+    /// If set to true, metadata blocks have a leading check byte
+    pub fn check_data(&self) -> bool {
+        u16::from(self.flags) & Flags::Unused as u16 != 0
+    }
 }
 
 #[derive(Default, Clone, Debug)]

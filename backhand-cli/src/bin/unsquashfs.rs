@@ -49,6 +49,10 @@ const AVAILABLE_KINDS: &[&str] = &[
     "netgear_be_v3_0_lzma_standard",
     #[cfg(feature = "v3_lzma")]
     "netgear_be_v3_0_lzma",
+    #[cfg(feature = "v3_lzma")]
+    "le_v3_1_lzma_swap",
+    #[cfg(feature = "v3_lzma")]
+    "be_v3_1_lzma_swap",
     "avm_be_v4_0",
 ];
 

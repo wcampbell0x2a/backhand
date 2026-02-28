@@ -10,7 +10,7 @@ use tracing::{error, trace};
 
 use super::export::Export;
 use super::fragment::Fragment;
-use super::inode::{Inode, InodeInner};
+use super::inode::Inode;
 use super::metadata::METADATA_MAXSIZE;
 use super::squashfs::SuperBlock;
 use super::{fragment, metadata};
@@ -92,23 +92,16 @@ pub trait SquashFsReader: BufReadSeek {
             metadata_offsets.push(self.stream_position()? - start);
             // parse into metadata
             let mut bytes = metadata::read_block(self, superblock, kind)?;
-            trace!("wowo");
 
             // parse as many inodes as you can
             let mut inode_bytes = next;
             inode_bytes.append(&mut bytes);
-            trace!("after");
             let mut c_inode_bytes = Cursor::new(inode_bytes.clone());
-            // trace!("{:02x?}", &c_inode_bytes);
             let mut container = Reader::new(&mut c_inode_bytes);
 
             // store last successful read position
             let mut container_bits_read = container.bits_read;
             loop {
-                tracing::debug!(
-                    "rest: {:02x?}",
-                    inode_bytes.clone()[(container_bits_read / 8)..].to_vec()
-                );
                 match Inode::from_reader_with_ctx(
                     &mut container,
                     (
@@ -120,20 +113,17 @@ pub trait SquashFsReader: BufReadSeek {
                     ),
                 ) {
                     Ok(inode) => {
-                        // Push the new Inode to the return, with the position this was read from
-                        tracing::debug!("new: {inode:02x?}");
                         ret_vec.insert(inode.header.inode_number, inode);
                         container_bits_read = container.bits_read;
                     }
                     Err(e) => {
-                        trace!("err");
                         if matches!(e, DekuError::Incomplete(_)) {
                             // try next block, inodes can span multiple blocks!
                             next = inode_bytes.clone()[(container_bits_read / 8)..].to_vec();
                             break;
                         } else {
-                            // panic!("{:?} {:02x?}", e, c_inode_bytes);
-                            panic!("{:?}", e);
+                            error!("Fatal error parsing inode: {:?}", e);
+                            return Err(BackhandError::Deku(e));
                         }
                     }
                 }
@@ -141,19 +131,9 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         if ret_vec.len() != superblock.inode_count.try_into().unwrap() {
-            panic!("Parsed {} inodes, expected {}", ret_vec.len(), superblock.inode_count);
+            error!("Parsed {} inodes, expected {}", ret_vec.len(), superblock.inode_count);
+            return Err(BackhandError::CorruptedOrInvalidSquashfs);
         }
-
-        // Debug: Print out directory inode numbers to see what we have
-        let mut _dir_inodes: Vec<_> = ret_vec
-            .iter()
-            .filter_map(|(inode_num, inode)| match &inode.inner {
-                InodeInner::BasicDirectory(_) | InodeInner::ExtendedDirectory(_) => {
-                    Some(*inode_num)
-                }
-                _ => None,
-            })
-            .collect();
 
         Ok(ret_vec)
     }

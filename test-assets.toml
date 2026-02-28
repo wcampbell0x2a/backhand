@@ -211,3 +211,8 @@ url = "https://wcampbell.dev/squashfs/testing/openwrt-ar71xx-root.squashfs"
 filepath = "test-assets/many_dirs_v3/many_dirs_v3.sqsh"
 hash = "00d9b4d0dbe98fdb57997da7481b1a6ffaa812aa536d3d8e1c72a8c3eb71e6c4"
 url = "https://wcampbell.dev/squashfs/testing/many_dirs_v3.sqsh"
+
+[test_assets.v3_le_lzma_swap]
+filepath = "test-assets/squashfs_v3_le_lzma_swap.sqfs"
+hash = "2eada74aee4336c4489b4a3551b73471785bc2a7a760f4acbb8bc94faa586197"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v3_le_lzma_swap.sqfs"

@@ -1,5 +1,7 @@
 use std::sync::Mutex;
 
+use no_std_io2::io::Read;
+
 pub use crate::traits::CompressionAction;
 pub use crate::traits::types::Compressor;
 use tracing::trace;
@@ -59,6 +61,16 @@ impl CompressionAction for LzmaAdaptiveCompressor {
             tracing::trace!("LZMA decompression successful after brute force discovery");
             out.extend_from_slice(&result);
             return Ok(());
+        }
+
+        // Fall back to standard LZMA (some blocks like fragments in le_v3_0_lzma_swap use standard format)
+        trace!("Adaptive LZMA failed, trying standard LZMA");
+        if let Ok(mut reader) = lzma_rust2::LzmaReader::new_mem_limit(bytes, u32::MAX, None) {
+            if reader.read_to_end(out).is_ok() {
+                trace!("Standard LZMA decompression successful: {} bytes", out.len());
+                return Ok(());
+            }
+            out.clear();
         }
 
         Err(crate::BackhandError::UnsupportedCompression(

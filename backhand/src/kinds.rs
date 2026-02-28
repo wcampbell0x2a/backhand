@@ -232,6 +232,10 @@ impl Kind {
             "netgear_be_v3_0_lzma" => NETGEAR_BE_V3_0_LZMA,
             #[cfg(feature = "v3_lzma")]
             "netgear_be_v3_0_lzma_standard" => NETGEAR_BE_V3_0_LZMA_STANDARD,
+            #[cfg(feature = "v3_lzma")]
+            "le_v3_1_lzma_swap" => LE_V3_1_LZMA_SWAP,
+            #[cfg(feature = "v3_lzma")]
+            "be_v3_1_lzma_swap" => BE_V3_1_LZMA_SWAP,
             _ => return Err("not a valid kind".to_string()),
         };
 
@@ -429,5 +433,29 @@ pub const NETGEAR_BE_V3_0_LZMA_STANDARD: InnerKind = InnerKind {
     version_major: 3,
     version_minor: 0,
     compressor: VersionedCompressor::V3LzmaStandard(&V3_LZMA_STANDARD_COMPRESSOR),
+    bit_order: Some(deku::ctx::Order::Msb0),
+};
+
+/// Little-Endian SquashFS v3.1 with LZMA compression and swapped magic (Thomson/Technicolor/NETGEAR)
+#[cfg(feature = "v3_lzma")]
+pub const LE_V3_1_LZMA_SWAP: InnerKind = InnerKind {
+    magic: *b"shsq",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 3,
+    version_minor: 1,
+    compressor: VersionedCompressor::V3Lzma(&V3LzmaCompressor),
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// Big-Endian SquashFS v3.1 with LZMA compression and swapped magic (Thomson/Technicolor/NETGEAR)
+#[cfg(feature = "v3_lzma")]
+pub const BE_V3_1_LZMA_SWAP: InnerKind = InnerKind {
+    magic: *b"shsq",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 3,
+    version_minor: 1,
+    compressor: VersionedCompressor::V3Lzma(&V3LzmaCompressor),
     bit_order: Some(deku::ctx::Order::Msb0),
 };

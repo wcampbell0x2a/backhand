@@ -139,3 +139,17 @@ fn test_v3_openwrt() {
         "be_v3_0_lzma",
     );
 }
+
+#[test]
+#[cfg(feature = "v3_lzma")]
+fn test_v3_lzma_swap() {
+    use backhand::kind::LE_V3_1_LZMA_SWAP;
+
+    common::download_asset("v3_le_lzma_swap");
+    only_read(
+        Kind::from_const(LE_V3_1_LZMA_SWAP).unwrap(),
+        "test-assets/squashfs_v3_le_lzma_swap.sqfs",
+        0,
+        "le_v3_1_lzma_swap",
+    );
+}

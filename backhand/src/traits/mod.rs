@@ -6,9 +6,7 @@ pub mod filesystem;
 pub mod squashfs;
 pub mod types;
 
-#[cfg(feature = "v3")]
-pub use compression::CompressionActionV3;
-pub use compression::{CompressionAction, CompressionActionV4};
+pub use compression::CompressionAction;
 pub use error::BackhandError;
 pub use filesystem::FilesystemReaderTrait;
 pub use squashfs::{GenericSquashfs, SquashfsVersion};

@@ -216,3 +216,15 @@ url = "https://wcampbell.dev/squashfs/testing/many_dirs_v3.sqsh"
 filepath = "test-assets/squashfs_v3_le_lzma_swap.sqfs"
 hash = "2eada74aee4336c4489b4a3551b73471785bc2a7a760f4acbb8bc94faa586197"
 url = "https://wcampbell.dev/squashfs/testing/squashfs_v3_le_lzma_swap.sqfs"
+
+# https://github.com/onekey-sec/sasquatch/issues/14
+# DIR-655_fw_revc_302b05_ALL_de_20141121/DIR655C1_FW302B05.bin
+[test_assets.v4_le_lzma]
+filepath = "test-assets/squashfs_v4_le_lzma.sqfs"
+hash = "a91c35d7570a3cf6b301364dfc4e69750421b172b8be5fb44eee14d8f9279ae9"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v4_le_lzma_swap.sqfs"
+
+[test_assets.WNR1000v3]
+filepath = "test-assets/WNR1000v3.sqfs"
+hash = "b557bfeffd9c54a9e159fc75c31ba72f7fe30b4374c0c32dc4f97a6da07a7541"
+url = "https://wcampbell.dev/squashfs/testing/WNR1000v3.sqfs"

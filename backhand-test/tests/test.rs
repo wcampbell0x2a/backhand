@@ -29,6 +29,12 @@ fn only_read(path: &str, offset: u64) {
     // TODO: this should still check our own unsquashfs
 }
 
+fn only_read_kind(path: &str, offset: u64, kind: backhand::kind::Kind) {
+    let file = BufReader::new(File::open(path).unwrap());
+    info!("calling from_reader");
+    let _ = FilesystemReader::from_reader_with_offset_and_kind(file, offset, kind).unwrap();
+}
+
 /// - Download file
 /// - Read into Squashfs
 /// - Into Filesystem
@@ -393,4 +399,15 @@ fn test_slow_sparse_data_issue_623() {
 fn test_lz4_write_read() {
     common::download_asset("lz4_write_read");
     full_test("test-assets/test_lz4_write_read/testing.lz4.squash", 0, Verify::Extract, true);
+}
+
+#[test]
+#[cfg(feature = "v4_lzma")]
+fn test_v4_le_lzma() {
+    common::download_asset("v4_le_lzma");
+    only_read_kind(
+        "test-assets/squashfs_v4_le_lzma.sqfs",
+        0x160000,
+        backhand::kind::Kind::from_const(backhand::kind::LE_V4_0_LZMA).unwrap(),
+    );
 }

@@ -2,7 +2,9 @@
 build:
     cargo build --release --bins --features v3,v3_lzma,v4_lzma
 test *args: build
-    cargo nextest run --release --features v3,v3_lzma,v4_lzma {{args}}
+    cargo nextest run --release --features v3,v3_lzma,v4_lzma -E 'not test(test_large_files) and not test(test_slow)' {{args}}
+test_large_files *args: build
+    cargo nextest run --release --features v3,v3_lzma,v4_lzma -E 'test(test_large_files)' {{args}}
 bench:
     cargo bench
 lint:

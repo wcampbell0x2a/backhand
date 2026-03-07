@@ -5,6 +5,8 @@ test *args: build
     cargo nextest run --release --features v3,v3_lzma,v4_lzma {{args}}
 quick-test *args: build
     cargo nextest run --release --features v3,v3_lzma,v4_lzma -E 'not (test(large_files) | test(/slow/))' {{args}}
+test_large_files *args: build
+    cargo nextest run --release --features v3,v3_lzma,v4_lzma -E 'test(large_files)' {{args}}
 bench:
     cargo build --bins --release --workspace
     cargo bench

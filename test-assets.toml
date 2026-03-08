@@ -203,7 +203,7 @@ hash = "a89cdf1cc45f99bd938b7e1d9b63b56f0b16edf803307956d1ba030c62a919ac"
 url = "https://wcampbell.dev/squashfs/testing/netgear_v3.sqsh"
 
 [test_assets.v3_openwrt]
-filepath = "test-assets/test-assets/openwrt-ar71xx-root/openwrt-ar71xx-root.squashfs"
+filepath = "test-assets/openwrt-ar71xx-root/openwrt-ar71xx-root.squashfs"
 hash = "ac202e0676872deddaafc2ed5f26349ab51f3f34c12500cf896f615ad8ee00ca"
 url = "https://wcampbell.dev/squashfs/testing/openwrt-ar71xx-root.squashfs"
 

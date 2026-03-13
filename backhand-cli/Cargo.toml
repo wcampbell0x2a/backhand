@@ -32,7 +32,7 @@ version = "0.5.4"
 
 # These features mirror the backhand features
 [features]
-default = ["xz", "gzip", "zstd"]
+default = ["xz", "gzip", "lzo", "zstd"]
 ## Enables squashfs v3
 v3 = ["backhand/v3"]
 ## Enables squashfs v3 with LZMA compression
@@ -44,7 +44,7 @@ xz-static = ["xz", "backhand/xz-static"]
 ## Enables gzip compression inside library and binaries
 any-gzip = []
 gzip = ["any-gzip", "backhand/gzip"]
-## This library is licensed GPL and thus disabled by default
+## Enables lzo compression inside library and binaries
 lzo = ["backhand/lzo"]
 ## Enables zstd compression inside library and binaries
 zstd = ["backhand/zstd"]

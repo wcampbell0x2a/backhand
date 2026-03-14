@@ -15,11 +15,10 @@ use tracing::info;
 /// - - Into Squashfs
 /// - - Into Filesystem
 /// - Can't test with unsquashfs, as it doesn't support these custom filesystems
-fn full_test(og_path: &str, offset: u64, kind: &Kind, pad: Option<u32>) {
+fn full_test(test_name: &str, og_path: &str, offset: u64, kind: &Kind, pad: Option<u32>) {
     let path = std::path::Path::new(og_path);
     let dir = path.parent().unwrap();
-    let new_path = dir.join("bytes.squashfs");
-    let new_path = new_path.to_str().unwrap();
+    let new_path = dir.join(format!("bytes.{test_name}.squashfs"));
     {
         let file = BufReader::new(File::open(og_path).unwrap());
         info!("calling from_reader");
@@ -58,6 +57,7 @@ fn full_test(og_path: &str, offset: u64, kind: &Kind, pad: Option<u32>) {
 fn test_non_standard_be_v4_0() {
     common::download_asset("non_standard_be_v4_0");
     full_test(
+        "test_non_standard_be_v4_0",
         "test-assets/non_standard_be_v4_0/squashfs_v4.unblob.bin",
         0,
         &Kind::from_const(kind::BE_V4_0).unwrap(),
@@ -76,6 +76,7 @@ fn test_non_standard_be_v4_0() {
 fn test_non_standard_be_v4_1() {
     common::download_asset("non_standard_be_v4_1");
     full_test(
+        "test_non_standard_be_v4_1",
         "test-assets/non_standard_be_v4_1/squashfs_v4.nopad.unblob.bin",
         0,
         &Kind::from_const(kind::BE_V4_0).unwrap(),
@@ -149,5 +150,11 @@ fn test_custom_compressor() {
     let kind = Kind::new_v4_with_const(&CUSTOM_COMPRESSOR, kind::BE_V4_0);
 
     common::download_asset(ASSET_KEY);
-    full_test("test-assets/non_standard_be_v4_1/squashfs_v4.nopad.unblob.bin", 0, &kind, Some(0));
+    full_test(
+        "test_custom_compressor",
+        "test-assets/non_standard_be_v4_1/squashfs_v4.nopad.unblob.bin",
+        0,
+        &kind,
+        Some(0),
+    );
 }

@@ -125,9 +125,9 @@ dependencies = [
  "lz4_flex",
  "lzma-adaptive-sys",
  "lzma-rust2",
+ "lzokay",
  "no_std_io2",
  "rayon",
- "rust-lzo",
  "solana-nohash-hasher",
  "tempfile",
  "test-assets-ureq",
@@ -1228,6 +1228,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lzokay"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "953d350dc065718bb00b61ea2118274ffe2fdf6488f32f720422bcd1c9d6025f"
+dependencies = [
+ "zerocopy",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1580,15 +1589,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rust-lzo"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf191ab1b954757cb5bb7f366e17d80daaa06010f1fdde7a3a7db052c1ecd1a8"
-dependencies = [
- "libc",
 ]
 
 [[package]]

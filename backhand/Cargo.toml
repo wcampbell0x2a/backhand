@@ -12,7 +12,7 @@ description = "Library for the reading, creating, and modification of SquashFS f
 readme = "../README.md"
 
 [package.metadata.docs.rs]
-features = ["xz", "gzip", "zstd", "document-features", "v3", "v3_lzma"]
+features = ["xz", "gzip", "lzo", "zstd", "document-features", "v3", "v3_lzma"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
@@ -23,7 +23,7 @@ flate2 = { version = "1.1.0", optional = true, default-features = false, feature
 liblzma = { version = "0.4.1", optional = true, default-features = false, features = ["static", "parallel"] }
 lzma-adaptive-sys = { version = "0.1.0", optional = true }
 lzma-rust2 = { version = "0.16.0", optional = true, features = ["xz", "encoder", "optimization"] }
-rust-lzo = { version = "0.6.2", optional = true }
+lzokay = { version = "2.0.1", optional = true }
 zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
@@ -34,7 +34,7 @@ rayon = { version = "1.10.0", optional = true, default-features = false }
 no_std_io2 = "0.9.0"
 
 [features]
-default = ["xz", "gzip", "zstd", "lz4", "parallel"]
+default = ["xz", "gzip", "lzo", "zstd", "lz4", "parallel"]
 ## Enables squashfs v3
 v3 = ["gzip"]
 ## Enables squashfs v3 with LZMA compression
@@ -45,8 +45,8 @@ xz = ["dep:liblzma"]
 xz-static = ["dep:liblzma", "liblzma?/static"]
 ## Enables gzip compression inside library and binaries using flate2 library with zlib-rs
 gzip = ["any-gzip", "dep:flate2"]
-## This library is licensed GPL and thus disabled by default
-lzo = ["dep:rust-lzo"]
+## Enables lzo compression inside library and binaries
+lzo = ["dep:lzokay"]
 ## Enables zstd compression inside library and binaries
 zstd = ["dep:zstd", "dep:zstd-safe"]
 ## Enables Lz4 compression

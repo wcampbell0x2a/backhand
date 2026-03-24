@@ -11,10 +11,14 @@ use crate::v3_lzma::compressor::LzmaAdaptiveCompressor as V3LzmaCompressor;
 #[cfg(feature = "v3_lzma")]
 use crate::v3_lzma::standard_compressor::LzmaStandardCompressor as V3LzmaStandardCompressor;
 use crate::v4::compressor::DefaultCompressor as V4DefaultCompressor;
+#[cfg(feature = "v4_lzma")]
+use crate::v4_lzma::compressor::V4LzmaAdaptiveCompressor;
 
 // Static instances of compressors
 #[cfg(feature = "v3_lzma")]
 static V3_LZMA_STANDARD_COMPRESSOR: V3LzmaStandardCompressor = V3LzmaStandardCompressor;
+#[cfg(feature = "v4_lzma")]
+static V4_LZMA_ADAPTIVE_COMPRESSOR: V4LzmaAdaptiveCompressor = V4LzmaAdaptiveCompressor;
 
 /// Kind Magic - First 4 bytes of image
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -52,6 +56,8 @@ pub enum VersionedCompressor {
     #[cfg(feature = "v3_lzma")]
     V3LzmaStandard(&'static V3LzmaStandardCompressor),
     V4(&'static V4DefaultCompressor),
+    #[cfg(feature = "v4_lzma")]
+    V4Lzma(&'static V4LzmaAdaptiveCompressor),
     /// Custom v4 compressor
     CustomV4(
         &'static (
@@ -82,6 +88,12 @@ impl VersionedCompressor {
             #[cfg(feature = "v3_lzma")]
             VersionedCompressor::V3LzmaStandard(comp) => comp.decompress(bytes, out, None),
             VersionedCompressor::V4(comp) => {
+                let v4_compressor =
+                    compressor.ok_or(crate::BackhandError::MissingCompressor)?.into();
+                comp.decompress(bytes, out, v4_compressor)
+            }
+            #[cfg(feature = "v4_lzma")]
+            VersionedCompressor::V4Lzma(comp) => {
                 let v4_compressor =
                     compressor.ok_or(crate::BackhandError::MissingCompressor)?.into();
                 comp.decompress(bytes, out, v4_compressor)
@@ -233,9 +245,17 @@ impl Kind {
             #[cfg(feature = "v3_lzma")]
             "netgear_be_v3_0_lzma_standard" => NETGEAR_BE_V3_0_LZMA_STANDARD,
             #[cfg(feature = "v3_lzma")]
+            "le_v3_0_lzma_swap_standard" => LE_V3_0_LZMA_SWAP_STANDARD,
+            #[cfg(feature = "v3_lzma")]
+            "be_v3_0_lzma_swap_standard" => BE_V3_0_LZMA_SWAP_STANDARD,
+            #[cfg(feature = "v3_lzma")]
             "le_v3_1_lzma_swap" => LE_V3_1_LZMA_SWAP,
             #[cfg(feature = "v3_lzma")]
             "be_v3_1_lzma_swap" => BE_V3_1_LZMA_SWAP,
+            #[cfg(feature = "v4_lzma")]
+            "le_v4_0_lzma" => LE_V4_0_LZMA,
+            #[cfg(feature = "v4_lzma")]
+            "be_v4_0_lzma" => BE_V4_0_LZMA,
             _ => return Err("not a valid kind".to_string()),
         };
 
@@ -436,6 +456,30 @@ pub const NETGEAR_BE_V3_0_LZMA_STANDARD: InnerKind = InnerKind {
     bit_order: Some(deku::ctx::Order::Msb0),
 };
 
+/// Little-Endian SquashFS v3.0 with standard LZMA compression and swapped magic (shsq)
+#[cfg(feature = "v3_lzma")]
+pub const LE_V3_0_LZMA_SWAP_STANDARD: InnerKind = InnerKind {
+    magic: *b"shsq",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 3,
+    version_minor: 0,
+    compressor: VersionedCompressor::V3LzmaStandard(&V3_LZMA_STANDARD_COMPRESSOR),
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// Big-Endian SquashFS v3.0 with standard LZMA compression and swapped magic (shsq)
+#[cfg(feature = "v3_lzma")]
+pub const BE_V3_0_LZMA_SWAP_STANDARD: InnerKind = InnerKind {
+    magic: *b"shsq",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 3,
+    version_minor: 0,
+    compressor: VersionedCompressor::V3LzmaStandard(&V3_LZMA_STANDARD_COMPRESSOR),
+    bit_order: Some(deku::ctx::Order::Msb0),
+};
+
 /// Little-Endian SquashFS v3.1 with LZMA compression and swapped magic (Thomson/Technicolor/NETGEAR)
 #[cfg(feature = "v3_lzma")]
 pub const LE_V3_1_LZMA_SWAP: InnerKind = InnerKind {
@@ -458,4 +502,28 @@ pub const BE_V3_1_LZMA_SWAP: InnerKind = InnerKind {
     version_minor: 1,
     compressor: VersionedCompressor::V3Lzma(&V3LzmaCompressor),
     bit_order: Some(deku::ctx::Order::Msb0),
+};
+
+/// Little-Endian SquashFS v4.0 with LZMA compression
+#[cfg(feature = "v4_lzma")]
+pub const LE_V4_0_LZMA: InnerKind = InnerKind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 4,
+    version_minor: 0,
+    compressor: VersionedCompressor::V4Lzma(&V4_LZMA_ADAPTIVE_COMPRESSOR),
+    bit_order: None,
+};
+
+/// Big-Endian SquashFS v4.0 with LZMA compression
+#[cfg(feature = "v4_lzma")]
+pub const BE_V4_0_LZMA: InnerKind = InnerKind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 4,
+    version_minor: 0,
+    compressor: VersionedCompressor::V4Lzma(&V4_LZMA_ADAPTIVE_COMPRESSOR),
+    bit_order: None,
 };

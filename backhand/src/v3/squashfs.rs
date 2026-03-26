@@ -188,8 +188,8 @@ impl<'b> Squashfs<'b> {
     /// Read Superblock at current `reader` offset without parsing inodes and dirs
     ///
     /// Used for unsquashfs (extraction and --stat)
-    pub fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek + 'b>,
+    pub fn superblock_and_compression_options<R: BufReadSeek + 'b>(
+        reader: &mut R,
         kind: &Kind,
     ) -> Result<(SuperBlock, Option<()>), BackhandError> {
         // Parse SuperBlock

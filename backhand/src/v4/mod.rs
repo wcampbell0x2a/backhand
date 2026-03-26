@@ -32,8 +32,8 @@ impl<'b> SquashfsVersion<'b> for V4 {
     type Id = id::Id;
     type FilesystemReader = filesystem::reader::FilesystemReader<'b>;
 
-    fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek + 'b>,
+    fn superblock_and_compression_options<R: BufReadSeek + 'b>(
+        reader: &mut R,
         kind: &Kind,
     ) -> Result<(Self::SuperBlock, Option<Self::CompressionOptions>), BackhandError> {
         squashfs::Squashfs::superblock_and_compression_options(reader, kind)

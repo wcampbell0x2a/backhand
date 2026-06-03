@@ -21,10 +21,12 @@ use crate::v4::filesystem::reader_parallel::SquashfsRawData;
 // bitflag for data size field in inode for signifying that the data is uncompressed
 const DATA_STORED_UNCOMPRESSED: u32 = 1 << 24;
 
+/// Size of a data block with compression flag encoded in bit 24
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct DataSize(u32);
 impl DataSize {
+    /// Create with explicit size and compression flag
     #[inline]
     pub fn new(size: u32, uncompressed: bool) -> Self {
         let mut value: u32 = size;
@@ -37,43 +39,60 @@ impl DataSize {
         Self(value)
     }
 
+    /// Create a compressed data size
     #[inline]
     pub fn new_compressed(size: u32) -> Self {
         Self::new(size, false)
     }
 
+    /// Create an uncompressed data size
     #[inline]
     pub fn new_uncompressed(size: u32) -> Self {
         Self::new(size, true)
     }
 
+    /// Returns true if this block is stored uncompressed
     #[inline]
     pub fn uncompressed(&self) -> bool {
         self.0 & DATA_STORED_UNCOMPRESSED != 0
     }
 
+    /// Mark this block as uncompressed
     #[inline]
     pub fn set_uncompressed(&mut self) {
         self.0 |= DATA_STORED_UNCOMPRESSED
     }
 
+    /// Mark this block as compressed
     #[inline]
     pub fn set_compressed(&mut self) {
         self.0 &= !DATA_STORED_UNCOMPRESSED
     }
 
+    /// Get the block size without the compression flag
     #[inline]
     pub fn size(&self) -> u32 {
         self.0 & !DATA_STORED_UNCOMPRESSED
     }
 }
 
+/// Result of writing file data
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Added {
-    // Only Data was added
-    Data { blocks_start: u64, block_sizes: Vec<DataSize> },
-    // Only Fragment was added
-    Fragment { frag_index: u32, block_offset: u32 },
+    /// File stored as data blocks
+    Data {
+        /// Offset to start of data blocks
+        blocks_start: u64,
+        /// Size of each block
+        block_sizes: Vec<DataSize>,
+    },
+    /// File stored as a fragment
+    Fragment {
+        /// Index into the fragment table
+        frag_index: u32,
+        /// Byte offset within the fragment block
+        block_offset: u32,
+    },
 }
 
 struct DataWriterChunkReader<R: std::io::Read> {

@@ -10,6 +10,7 @@ use crate::kinds::Kind;
 use crate::v4::filesystem::writer::FilesystemCompressor;
 use crate::v4::squashfs::SuperBlock;
 
+/// Maximum size of a metadata block (8KiB)
 pub const METADATA_MAXSIZE: usize = 0x2000;
 
 const METDATA_UNCOMPRESSED: u16 = 1 << 15;
@@ -136,6 +137,7 @@ impl Write for MetadataWriter<'_> {
     }
 }
 
+/// Read and decompress a metadata block from the reader
 pub fn read_block<R: Read + Seek>(
     reader: &mut R,
     superblock: &SuperBlock,
@@ -173,6 +175,7 @@ pub fn len(len: u16) -> u16 {
     len & !(METDATA_UNCOMPRESSED)
 }
 
+/// Set the uncompressed flag on a metadata length
 pub fn set_if_uncompressed(len: u16) -> u16 {
     len | METDATA_UNCOMPRESSED
 }

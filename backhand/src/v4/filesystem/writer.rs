@@ -976,6 +976,7 @@ pub struct FilesystemCompressor {
 }
 
 impl FilesystemCompressor {
+    /// Create a new compressor with the given id and optional options
     pub fn new(id: Compressor, options: Option<CompressionOptions>) -> Result<Self, BackhandError> {
         match (id, options) {
             // lz4 always requires options
@@ -1025,6 +1026,7 @@ impl FilesystemCompressor {
 /// Compression options only for [`FilesystemWriter`]
 #[derive(Debug, Copy, Clone)]
 pub enum CompressionExtra {
+    /// XZ-specific extra options
     Xz(ExtraXz),
 }
 

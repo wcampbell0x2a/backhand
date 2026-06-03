@@ -7,8 +7,11 @@ use std::os::unix::ffi::OsStrExt as OsStrExtUnix;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStringExt as OsStringExtUnix;
 
+/// Platform-independent byte access for OsStr
 pub trait OsStrExt {
+    /// Get the underlying bytes
     fn as_bytes(&self) -> &[u8];
+    /// Create from a byte slice
     fn from_bytes(slice: &[u8]) -> &Self;
 }
 
@@ -35,7 +38,9 @@ impl OsStrExt for OsStr {
     }
 }
 
+/// Platform-independent byte construction for OsString
 pub trait OsStringExt {
+    /// Create from a byte vector
     fn from_vec(vec: Vec<u8>) -> Self;
 }
 

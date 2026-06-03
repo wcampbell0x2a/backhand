@@ -52,13 +52,16 @@
 //! # Features
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_docs)]
 
 #[cfg(doctest)]
 #[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();
 
+/// Error types
 pub mod error;
 mod kinds;
+/// Shared traits for version-independent SquashFS operations
 pub mod traits;
 #[cfg(feature = "v3")]
 pub mod v3;

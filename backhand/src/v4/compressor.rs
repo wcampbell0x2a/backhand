@@ -20,67 +20,89 @@ use crate::v4::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::Flags;
 
+/// SquashFS compression algorithm identifier
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(id_type = "u16")]
 #[repr(u16)]
 #[rustfmt::skip]
 pub enum Compressor {
+    /// No compression
     Uncompressed = 0,
+    /// Gzip (zlib) compression
     Gzip = 1,
+    /// LZMA compression
     Lzma = 2,
+    /// LZO compression
     Lzo =  3,
+    /// XZ compression (default)
     #[default]
     Xz =   4,
+    /// LZ4 compression
     Lz4 =  5,
+    /// Zstandard compression
     Zstd = 6,
 }
 
+/// Compressor-specific options stored in the image
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian, compressor: Compressor")]
 #[deku(id = "compressor")]
 pub enum CompressionOptions {
+    /// Gzip options
     #[deku(id = "Compressor::Gzip")]
     Gzip(Gzip),
 
+    /// LZO options
     #[deku(id = "Compressor::Lzo")]
     Lzo(Lzo),
 
+    /// XZ options
     #[deku(id = "Compressor::Xz")]
     Xz(Xz),
 
+    /// LZ4 options
     #[deku(id = "Compressor::Lz4")]
     Lz4(Lz4),
 
+    /// Zstandard options
     #[deku(id = "Compressor::Zstd")]
     Zstd(Zstd),
 
+    /// LZMA (no extra options)
     #[deku(id = "Compressor::Lzma")]
     Lzma,
 }
 
+/// Gzip compression options
 #[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Gzip {
+    /// Compression level
     pub compression_level: u32,
-    // A range from 9 ..= 15
+    /// Window size (range 9..=15)
     pub window_size: u8,
-    // TODO: enum
+    /// Compression strategies bitmask
     pub strategies: u16,
 }
 
+/// LZO compression options
 #[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lzo {
-    // TODO: enum
+    /// LZO algorithm variant
     pub algorithm: u32,
+    /// Compression level
     pub compression_level: u32,
 }
 
+/// XZ compression options
 #[derive(Debug, DekuRead, DekuWrite, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Xz {
+    /// LZMA dictionary size in bytes
     pub dictionary_size: u32,
+    /// Enabled BCJ filters
     pub filters: XzFilter,
 
     // the rest of these fields are from OpenWRT. These are optional, as the kernel will ignore
@@ -90,17 +112,21 @@ pub struct Xz {
     // TODO: in openwrt, git-hash:f97ad870e11ebe5f3dcf833dda6c83b9165b37cb shows that before
     // official squashfs-tools had xz support they had the dictionary_size field as the last field
     // in this struct. If we get test images, I guess we can support this in the future.
+    /// Optional OpenWRT bit options
     #[deku(cond = "!deku::reader.end()")]
     pub bit_opts: Option<u16>,
+    /// Optional OpenWRT fb field
     #[deku(cond = "!deku::reader.end()")]
     pub fb: Option<u16>,
 }
 
+/// XZ BCJ filter flags
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct XzFilter(u32);
 
 impl XzFilter {
+    /// Create from raw filter bitmask
     pub fn new(filter: u32) -> Self {
         Self(filter)
     }
@@ -130,17 +156,21 @@ impl XzFilter {
     }
 }
 
+/// LZ4 compression options
 #[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Lz4 {
+    /// LZ4 version
     pub version: u32,
-    //TODO: enum
+    /// LZ4 flags
     pub flags: u32,
 }
 
+/// Zstandard compression options
 #[derive(Debug, DekuRead, DekuWrite, DekuSize, PartialEq, Eq, Clone, Copy)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 pub struct Zstd {
+    /// Compression level
     pub compression_level: u32,
 }
 

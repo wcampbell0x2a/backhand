@@ -79,16 +79,21 @@ pub struct SuperBlock {
     /// The number of bytes used by the archive.
     /// Because SquashFS archives must be padded to a multiple of the underlying device block size, this can be less than the actual file size.
     pub bytes_used: u64,
+    /// Offset to the ID lookup table
     pub id_table: u64,
-    //TODO: add read into Squashfs
+    /// Offset to the xattr table (NOT_SET if absent)
     pub xattr_table: u64,
+    /// Offset to the inode table
     pub inode_table: u64,
+    /// Offset to the directory table
     pub dir_table: u64,
+    /// Offset to the fragment table (NOT_SET if absent)
     pub frag_table: u64,
-    //TODO: add read into Squashfs
+    /// Offset to the export table (NOT_SET if absent)
     pub export_table: u64,
 }
 
+/// Sentinel value indicating an optional field is not set
 pub const NOT_SET: u64 = 0xffff_ffff_ffff_ffff;
 
 impl SuperBlock {
@@ -144,8 +149,10 @@ impl SuperBlock {
 }
 
 impl SuperBlock {
+    /// Size of the superblock in bytes
     pub const SIZE: usize = Self::SIZE_BYTES.unwrap();
 
+    /// Create a new superblock with the given compressor and kind
     pub fn new(compressor: Compressor, kind: Kind) -> Self {
         Self {
             magic: kind.inner.magic,
@@ -171,20 +178,32 @@ impl SuperBlock {
     }
 }
 
+/// Superblock feature flags
 #[rustfmt::skip]
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 pub enum Flags {
+    /// Inodes are stored uncompressed
     InodesStoredUncompressed    = 0b0000_0000_0000_0001,
+    /// Data blocks are stored uncompressed
     DataBlockStoredUncompressed = 0b0000_0000_0000_0010,
+    /// Unused flag
     Unused                      = 0b0000_0000_0000_0100,
+    /// Fragments are stored uncompressed
     FragmentsStoredUncompressed = 0b0000_0000_0000_1000,
+    /// Fragments are not used
     FragmentsAreNotUsed         = 0b0000_0000_0001_0000,
+    /// Fragments are always generated
     FragmentsAreAlwaysGenerated = 0b0000_0000_0010_0000,
+    /// Duplicate data blocks have been removed
     DataHasBeenDeduplicated     = 0b0000_0000_0100_0000,
+    /// NFS export table exists
     NFSExportTableExists        = 0b0000_0000_1000_0000,
+    /// Xattrs are stored uncompressed
     XattrsAreStoredUncompressed = 0b0000_0001_0000_0000,
+    /// No xattrs in archive
     NoXattrsInArchive           = 0b0000_0010_0000_0000,
+    /// Compressor-specific options are present
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
@@ -199,11 +218,13 @@ pub(crate) struct Cache {
 ///
 /// See [`FilesystemReader`] for a representation with the data extracted and uncompressed.
 pub struct Squashfs<'b> {
+    /// Image format kind
     pub kind: Kind,
+    /// Parsed superblock
     pub superblock: SuperBlock,
     /// Compression options that are used for the Compressor located after the Superblock
     pub compression_options: Option<CompressionOptions>,
-    // Inode Cache `<InodeNumber, Inode>`
+    /// Inode cache keyed by inode number
     pub inodes: IntMap<u32, Inode>,
     /// Root Inode
     pub root_inode: Inode,
@@ -213,9 +234,9 @@ pub struct Squashfs<'b> {
     pub fragments: Option<Vec<Fragment>>,
     /// Export Lookup Table Cache
     pub export: Option<Vec<Export>>,
-    /// Id Lookup Table Cache
+    /// ID lookup table cache
     pub id: Vec<Id>,
-    //file reader
+    /// Source reader
     pub file: Box<dyn BufReadSeek + 'b>,
 }
 

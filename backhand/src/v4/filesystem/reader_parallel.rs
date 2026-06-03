@@ -221,6 +221,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     }
 }
 
+/// Reader that decompresses file data from a SquashFS image (parallel)
 pub struct SquashfsReadFile<'a, 'b> {
     raw_data: SquashfsRawData<'a, 'b>,
     buffer_pool: Arc<Mutex<Vec<Vec<u8>>>>,

@@ -38,19 +38,25 @@ impl Magic {
 /// Kind Endian
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Endian {
+    /// Little-endian byte order
     Little,
+    /// Big-endian byte order
     Big,
 }
 
 /// Version-specific compressor types
 #[derive(Clone)]
 pub enum VersionedCompressor {
+    /// V3 gzip compressor
     #[cfg(feature = "v3")]
     V3(&'static V3DefaultCompressor),
+    /// V3 LZMA compressor
     #[cfg(feature = "v3_lzma")]
     V3Lzma(&'static V3LzmaCompressor),
+    /// V3 LZMA standard compressor
     #[cfg(feature = "v3_lzma")]
     V3LzmaStandard(&'static V3LzmaStandardCompressor),
+    /// V4 default compressor
     V4(&'static V4DefaultCompressor),
     /// Custom v4 compressor
     CustomV4(
@@ -255,7 +261,7 @@ impl Kind {
         Ok(Kind { inner: Arc::new(inner) })
     }
 
-    // TODO: example
+    /// Clone a [`Kind`] from an existing reference
     pub fn from_kind(kind: &Kind) -> Kind {
         Self { inner: kind.inner.clone() }
     }
@@ -268,6 +274,7 @@ impl Kind {
         Self { inner: Arc::new(inner) }
     }
 
+    /// Get magic bytes at the beginning of the image
     pub fn magic(&self) -> [u8; 4] {
         self.inner.magic
     }

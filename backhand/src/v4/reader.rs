@@ -168,7 +168,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         Ok((map, all_bytes))
     }
 
-    /// Parse and Cache Fragment Table
+    /// Parse and cache fragment table
     fn fragments(
         &mut self,
         superblock: &SuperBlock,
@@ -187,7 +187,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         Ok(Some((ptr, table)))
     }
 
-    /// Parse Export Table
+    /// Parse NFS export table
     fn export(
         &mut self,
         superblock: &SuperBlock,
@@ -203,7 +203,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         }
     }
 
-    /// Parse and Cache ID Table
+    /// Parse and cache ID table
     fn id(
         &mut self,
         superblock: &SuperBlock,
@@ -245,7 +245,7 @@ pub trait SquashFsReader: BufReadSeek + Sized {
         Ok((ptr, table))
     }
 
-    /// Parse count of `Metadata` block at offset into `T`
+    /// Parse multiple metadata blocks at offset into `T`
     fn metadata_with_count<T>(
         &mut self,
         superblock: &SuperBlock,

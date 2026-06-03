@@ -168,6 +168,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
     }
 }
 
+/// Reader that decompresses file data from a SquashFS image
 pub struct SquashfsReadFile<'a, 'b> {
     raw_data: SquashfsRawData<'a, 'b>,
     buf_read: Vec<u8>,

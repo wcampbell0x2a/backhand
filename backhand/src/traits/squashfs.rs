@@ -5,14 +5,23 @@ use super::types::Compressor;
 use crate::kinds::Kind;
 use crate::v4::reader::BufReadSeek;
 
+/// Version-specific SquashFS implementation trait
 pub trait SquashfsVersion<'b> {
+    /// Superblock type for this version
     type SuperBlock: Clone + core::fmt::Debug;
+    /// Compression options type
     type CompressionOptions: Clone + core::fmt::Debug;
+    /// Inode type
     type Inode: Clone + core::fmt::Debug;
+    /// Directory entry type
     type Dir: Clone + core::fmt::Debug;
+    /// Fragment table entry type
     type Fragment: Clone + core::fmt::Debug;
+    /// Export table entry type
     type Export: Clone + core::fmt::Debug;
+    /// ID table entry type
     type Id: Clone + core::fmt::Debug;
+    /// Filesystem reader type
     type FilesystemReader;
 
     /// Read superblock and compression options
@@ -44,16 +53,27 @@ pub trait SquashfsVersion<'b> {
     fn get_block_size(superblock: &Self::SuperBlock) -> u32;
 }
 
+/// Version-generic SquashFS image data
 pub struct GenericSquashfs<'b, V: SquashfsVersion<'b>> {
+    /// Image format kind
     pub kind: Kind,
+    /// Parsed superblock
     pub superblock: V::SuperBlock,
+    /// Compression options from the image
     pub compression_options: Option<V::CompressionOptions>,
+    /// Inode cache keyed by inode number
     pub inodes: IntMap<u32, V::Inode>,
+    /// Root directory inode
     pub root_inode: V::Inode,
+    /// Directory table data
     pub dir_blocks: (IntMap<u64, u64>, Vec<u8>),
+    /// Fragment lookup table
     pub fragments: Option<Vec<V::Fragment>>,
+    /// NFS export lookup table
     pub export: Option<Vec<V::Export>>,
+    /// ID lookup table
     pub id: Vec<V::Id>,
+    /// Source reader
     pub file: Box<dyn BufReadSeek + 'b>,
 }
 
@@ -114,6 +134,7 @@ impl<'b, V: SquashfsVersion<'b>> GenericSquashfs<'b, V> {
     }
 }
 
+/// Create a version-appropriate SquashFS reader based on the kind's version
 pub fn create_squashfs_from_kind<'b>(
     reader: impl BufReadSeek + 'b,
     offset: u64,

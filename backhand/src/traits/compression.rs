@@ -71,6 +71,7 @@ pub trait CompressionAction {
     }
 }
 
+/// Type alias for v3 compression action trait object
 #[cfg(feature = "v3")]
 pub type CompressionActionV3 = dyn CompressionAction<
         Error = crate::error::BackhandError,
@@ -79,6 +80,7 @@ pub type CompressionActionV3 = dyn CompressionAction<
         SuperBlock = crate::v3::squashfs::SuperBlock,
     >;
 
+/// Type alias for v4 compression action trait object
 pub type CompressionActionV4 = dyn CompressionAction<
         Error = crate::error::BackhandError,
         Compressor = crate::v4::compressor::Compressor,

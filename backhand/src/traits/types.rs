@@ -1,13 +1,21 @@
+/// Version-independent compression algorithm identifier
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[rustfmt::skip]
 pub enum Compressor {
+    /// No compression
     Uncompressed = 0,
+    /// Gzip (zlib) compression
     Gzip = 1,
+    /// LZMA compression
     Lzma = 2,
+    /// LZO compression
     Lzo =  3,
+    /// XZ compression (default)
     #[default]
     Xz =   4,
+    /// LZ4 compression
     Lz4 =  5,
+    /// Zstandard compression
     Zstd = 6,
 }
 

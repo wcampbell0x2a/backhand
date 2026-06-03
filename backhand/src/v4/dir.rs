@@ -15,6 +15,7 @@ use crate::v4::unix_string::OsStrExt;
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(ctx = "type_endian: deku::ctx::Endian")]
 #[deku(endian = "type_endian")]
+/// Directory header in the directory table
 pub struct Dir {
     /// Number of entries following the header.
     ///
@@ -32,6 +33,7 @@ pub struct Dir {
 }
 
 impl Dir {
+    /// Create a new directory header
     pub fn new(lowest_inode: u32) -> Self {
         Self {
             count: u32::default(),
@@ -41,6 +43,7 @@ impl Dir {
         }
     }
 
+    /// Add a directory entry
     pub fn push(&mut self, entry: DirEntry) {
         self.dir_entries.push(entry);
         self.count = (self.dir_entries.len() - 1) as u32;
@@ -49,6 +52,7 @@ impl Dir {
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+/// Individual entry within a directory
 pub struct DirEntry {
     /// An offset into the uncompressed inode metadata block.
     pub(crate) offset: u16,
@@ -65,6 +69,7 @@ pub struct DirEntry {
 }
 
 impl DirEntry {
+    /// Get entry name as a path
     pub fn name(&self) -> Result<&Path, BackhandError> {
         // allow root and nothing else
         if self.name == Component::RootDir.as_os_str().as_bytes() {
@@ -82,6 +87,7 @@ impl DirEntry {
 
 #[derive(Debug, DekuRead, DekuWrite, Clone, PartialEq, Eq)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+/// Directory index for faster directory lookups
 pub struct DirectoryIndex {
     /// This stores a byte offset from the first directory header to the current header,
     /// as if the uncompressed directory metadata blocks were laid out in memory consecutively.
@@ -95,6 +101,7 @@ pub struct DirectoryIndex {
 }
 
 impl DirectoryIndex {
+    /// Get the directory index name as a string
     pub fn name(&self) -> String {
         core::str::from_utf8(&self.name).unwrap().to_string()
     }

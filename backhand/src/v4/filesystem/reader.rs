@@ -72,6 +72,7 @@ use crate::v4::filesystem::reader_parallel::{SquashfsRawData, SquashfsReadFile};
 /// ```
 /// [InnerNode]: [`crate::InnerNode`]
 pub struct FilesystemReader<'b> {
+    /// Image format kind
     pub kind: Kind,
     /// The size of a data block in bytes. Must be a power of two between 4096 (4k) and 1048576 (1 MiB).
     pub block_size: u32,
@@ -178,6 +179,7 @@ pub struct FilesystemReaderFile<'a, 'b> {
 }
 
 impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
+    /// Create a new file handle
     pub fn new(system: &'a FilesystemReader<'b>, file: &'a SquashfsFileReader) -> Self {
         Self { system, file }
     }
@@ -192,6 +194,7 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
         self.raw_data_reader().into_reader()
     }
 
+    /// Get the fragment for this file, if any
     pub fn fragment(&self) -> Option<&'a Fragment> {
         if self.file.frag_index() == 0xffffffff {
             None
@@ -214,13 +217,19 @@ impl<'a> IntoIterator for FilesystemReaderFile<'a, '_> {
     }
 }
 
+/// A block or fragment reference yielded during iteration
 pub enum BlockFragment<'a> {
+    /// A data block
     Block(&'a DataSize),
+    /// A fragment
     Fragment(&'a Fragment),
 }
 
+/// Iterator over data blocks and optional trailing fragment
 pub struct BlockIterator<'a> {
+    /// Remaining data blocks
     pub blocks: &'a [DataSize],
+    /// Optional trailing fragment
     pub fragment: Option<&'a Fragment>,
 }
 

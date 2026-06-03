@@ -1,11 +1,16 @@
 use crate::BackhandError;
 use std::path::PathBuf;
 
+/// Version-independent node header
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct BackhandNodeHeader {
+    /// Unix permissions
     pub permissions: u16,
+    /// User ID
     pub uid: u32,
+    /// Group ID
     pub gid: u32,
+    /// Modification time
     pub mtime: u32,
 }
 
@@ -32,9 +37,12 @@ impl From<crate::v3::filesystem::node::NodeHeader> for BackhandNodeHeader {
     }
 }
 
+/// Version-independent data block size
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct BackhandDataSize {
+    /// Block size in bytes
     pub size: u32,
+    /// Whether the block is stored uncompressed
     pub uncompressed: bool,
 }
 
@@ -52,38 +60,57 @@ impl From<crate::v3::data::DataSize> for BackhandDataSize {
 }
 
 impl BackhandDataSize {
+    /// Convert to v4 DataSize
     pub fn to_v4_datasize(self) -> crate::v4::data::DataSize {
         crate::v4::data::DataSize::new(self.size, self.uncompressed)
     }
 
+    /// Convert to v3 DataSize
     #[cfg(feature = "v3")]
     pub fn to_v3_datasize(self) -> crate::v3::data::DataSize {
         crate::v3::data::DataSize::new(self.size, self.uncompressed)
     }
 }
 
+/// Version-independent file reader info
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BackhandSquashfsFileReader {
+    /// Basic file info
     Basic {
-        blocks_start: u64, // In SquashFS v4, this is u32, but we use u64 for uniformity since v3 uses u64
+        /// Offset to data blocks
+        blocks_start: u64,
+        /// Fragment table index
         frag_index: u32,
+        /// Offset into fragment block
         block_offset: u32,
+        /// File size in bytes
         file_size: u32,
+        /// Data block sizes
         block_sizes: Vec<BackhandDataSize>,
     },
+    /// Extended file info
     Extended {
+        /// Offset to data blocks
         blocks_start: u64,
+        /// Fragment table index
         frag_index: u32,
+        /// Offset into fragment block
         block_offset: u32,
+        /// File size in bytes
         file_size: u64,
+        /// Sparse byte count
         sparse: u64,
+        /// Hard link count
         link_count: u32,
+        /// Extended attribute index
         xattr_index: u32,
+        /// Data block sizes
         block_sizes: Vec<BackhandDataSize>,
     },
 }
 
 impl BackhandSquashfsFileReader {
+    /// Uncompressed file length in bytes
     pub fn file_len(&self) -> usize {
         match self {
             Self::Basic { file_size, .. } => *file_size as usize,
@@ -91,6 +118,7 @@ impl BackhandSquashfsFileReader {
         }
     }
 
+    /// Fragment table index
     pub fn frag_index(&self) -> usize {
         match self {
             Self::Basic { frag_index, .. } => *frag_index as usize,
@@ -98,6 +126,7 @@ impl BackhandSquashfsFileReader {
         }
     }
 
+    /// Data block sizes
     pub fn block_sizes(&self) -> &[BackhandDataSize] {
         match self {
             Self::Basic { block_sizes, .. } => block_sizes,
@@ -105,6 +134,7 @@ impl BackhandSquashfsFileReader {
         }
     }
 
+    /// Offset to start of data blocks
     pub fn blocks_start(&self) -> u64 {
         match self {
             Self::Basic { blocks_start, .. } => *blocks_start,
@@ -112,6 +142,7 @@ impl BackhandSquashfsFileReader {
         }
     }
 
+    /// Offset into fragment block
     pub fn block_offset(&self) -> u32 {
         match self {
             Self::Basic { block_offset, .. } => *block_offset,
@@ -228,24 +259,46 @@ impl From<&crate::v3::filesystem::node::Node<crate::v3::filesystem::node::Squash
     }
 }
 
+/// Version-independent filesystem node
 #[derive(Debug, Clone)]
 pub struct BackhandNode {
+    /// Full path from root
     pub fullpath: PathBuf,
+    /// Node metadata
     pub header: BackhandNodeHeader,
+    /// Node type data
     pub inner: BackhandInnerNode,
 }
 
+/// Version-independent node type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BackhandInnerNode {
+    /// Regular file
     File(BackhandSquashfsFileReader),
-    Symlink { link: PathBuf },
+    /// Symbolic link
+    Symlink {
+        /// Link target
+        link: PathBuf,
+    },
+    /// Directory
     Dir,
-    CharacterDevice { device_number: u32 },
-    BlockDevice { device_number: u32 },
+    /// Character device
+    CharacterDevice {
+        /// Device number
+        device_number: u32,
+    },
+    /// Block device
+    BlockDevice {
+        /// Device number
+        device_number: u32,
+    },
+    /// Named pipe (FIFO)
     NamedPipe,
+    /// Unix domain socket
     Socket,
 }
 
+/// Version-independent filesystem reader trait
 pub trait FilesystemReaderTrait: Send + Sync {
     /// Get an iterator over all files
     fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_>;

@@ -5,18 +5,31 @@ use crate::kinds::Kind;
 use crate::traits::{GenericSquashfs, SquashfsVersion};
 use crate::v4::reader::BufReadSeek;
 
+/// Compression algorithm types and implementation
 pub mod compressor;
+/// Data block reading and writing
 pub mod data;
+/// Directory table types
 pub mod dir;
+/// Directory entry types (internal)
 pub mod entry;
+/// NFS export table
 pub mod export;
+/// In-memory filesystem representation
 pub mod filesystem;
+/// Fragment table types
 pub mod fragment;
+/// UID/GID table
 pub mod id;
+/// Inode types
 pub mod inode;
+/// Metadata block reading and writing
 pub mod metadata;
+/// Reader traits and utilities
 pub mod reader;
+/// Superblock and on-disk image types
 pub mod squashfs;
+/// Platform-independent OsStr/OsString extensions
 pub mod unix_string;
 
 /// V4 implementation of SquashfsVersion trait

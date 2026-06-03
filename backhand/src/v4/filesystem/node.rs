@@ -13,21 +13,25 @@ use crate::{DataSize, FilesystemReaderFile, Id};
 /// File information for Node
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct NodeHeader {
+    /// Unix permissions mode
     pub permissions: u16,
     /// actual value
     pub uid: u32,
     /// actual value
     pub gid: u32,
+    /// Modification time (seconds since epoch)
     pub mtime: u32,
 }
 
 impl NodeHeader {
+    /// Create a new node header
     pub fn new(permissions: u16, uid: u32, gid: u32, mtime: u32) -> Self {
         Self { permissions, uid, gid, mtime }
     }
 }
 
 impl NodeHeader {
+    /// Create from an inode header, resolving uid/gid from the ID table
     pub fn from_inode(inode_header: InodeHeader, id_table: &[Id]) -> Result<Self, BackhandError> {
         let uid = id_table.get(inode_header.uid as usize).ok_or(BackhandError::InvalidIdTable)?;
         let gid = id_table.get(inode_header.gid as usize).ok_or(BackhandError::InvalidIdTable)?;
@@ -43,8 +47,11 @@ impl NodeHeader {
 /// Filesystem Node
 #[derive(Clone, Debug)]
 pub struct Node<T> {
+    /// Full path from root
     pub fullpath: PathBuf,
+    /// File metadata
     pub header: NodeHeader,
+    /// Node type and type-specific data
     pub inner: InnerNode<T>,
 }
 
@@ -70,6 +77,7 @@ impl<T> Node<T> {
         Self { fullpath, header, inner }
     }
 
+    /// Create a root directory node
     pub fn new_root(header: NodeHeader) -> Self {
         let fullpath = PathBuf::from("/");
         let inner = InnerNode::Dir(SquashfsDir::default());
@@ -82,22 +90,31 @@ impl<T> Node<T> {
 pub enum InnerNode<T> {
     /// Either [`SquashfsFileReader`] or [`SquashfsFileWriter`]
     File(T),
+    /// Symbolic link
     Symlink(SquashfsSymlink),
+    /// Directory
     Dir(SquashfsDir),
+    /// Character device
     CharacterDevice(SquashfsCharacterDevice),
+    /// Block device
     BlockDevice(SquashfsBlockDevice),
+    /// Named pipe (FIFO)
     NamedPipe,
+    /// Unix domain socket
     Socket,
 }
 
 /// Unread file for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SquashfsFileReader {
+    /// Basic file inode
     Basic(BasicFile),
+    /// Extended file inode
     Extended(ExtendedFile),
 }
 
 impl SquashfsFileReader {
+    /// Uncompressed file length in bytes
     pub fn file_len(&self) -> usize {
         match self {
             SquashfsFileReader::Basic(basic) => basic.file_size as usize,
@@ -105,6 +122,7 @@ impl SquashfsFileReader {
         }
     }
 
+    /// Fragment table index (0xFFFFFFFF if no fragment)
     pub fn frag_index(&self) -> usize {
         match self {
             SquashfsFileReader::Basic(basic) => basic.frag_index as usize,
@@ -112,6 +130,7 @@ impl SquashfsFileReader {
         }
     }
 
+    /// Slice of data block sizes
     pub fn block_sizes(&self) -> &[DataSize] {
         match self {
             SquashfsFileReader::Basic(basic) => &basic.block_sizes,
@@ -119,6 +138,7 @@ impl SquashfsFileReader {
         }
     }
 
+    /// Offset to the start of data blocks
     pub fn blocks_start(&self) -> u64 {
         match self {
             SquashfsFileReader::Basic(basic) => basic.blocks_start as u64,
@@ -126,6 +146,7 @@ impl SquashfsFileReader {
         }
     }
 
+    /// Offset into the fragment block
     pub fn block_offset(&self) -> u32 {
         match self {
             SquashfsFileReader::Basic(basic) => basic.block_offset,
@@ -136,8 +157,11 @@ impl SquashfsFileReader {
 
 /// Read file from other SquashfsFile or an user file
 pub enum SquashfsFileWriter<'a, 'b, 'c> {
+    /// User-provided reader
     UserDefined(Arc<Mutex<dyn Read + 'c>>),
+    /// File from an existing SquashFS image
     SquashfsFile(FilesystemReaderFile<'a, 'b>),
+    /// Already written (file size, location)
     Consumed(usize, Added),
 }
 
@@ -150,6 +174,7 @@ impl fmt::Debug for SquashfsFileWriter<'_, '_, '_> {
 /// Symlink for filesystem
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SquashfsSymlink {
+    /// Symlink target path
     pub link: PathBuf,
 }
 
@@ -160,33 +185,41 @@ pub struct SquashfsDir {}
 /// Character Device for filesystem
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct SquashfsCharacterDevice {
+    /// Device major/minor number
     pub device_number: u32,
 }
 
 /// Block Device for filesystem
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct SquashfsBlockDevice {
+    /// Device major/minor number
     pub device_number: u32,
 }
 
+/// Sorted collection of filesystem nodes
 #[derive(Debug, Clone)]
 pub struct Nodes<T> {
+    /// All nodes sorted by path
     pub nodes: Vec<Node<T>>,
 }
 
 impl<T> Nodes<T> {
+    /// Create with only a root node
     pub fn new_root(header: NodeHeader) -> Self {
         Self { nodes: vec![Node::new_root(header)] }
     }
 
+    /// Get the root node
     pub fn root(&self) -> &Node<T> {
         &self.nodes[0]
     }
 
+    /// Get the root node mutably
     pub fn root_mut(&mut self) -> &mut Node<T> {
         &mut self.nodes[0]
     }
 
+    /// Find a node by path, returning a mutable reference
     pub fn node_mut<S: AsRef<Path>>(&mut self, path: S) -> Option<&mut Node<T>> {
         //the search path root prefix is optional, so remove it if present to
         //not affect the search
@@ -197,6 +230,7 @@ impl<T> Nodes<T> {
             .map(|found| &mut self.nodes[found])
     }
 
+    /// Insert a node, checking parent exists and is a directory
     pub fn insert(&mut self, node: Node<T>) -> Result<(), BackhandError> {
         let path = &node.fullpath;
         let parent = node.fullpath.parent().ok_or(BackhandError::InvalidFilePath)?;
@@ -232,10 +266,12 @@ impl<T> Nodes<T> {
         Some(&unbounded_children[..children_len])
     }
 
+    /// Get a node by 1-based index
     pub fn node(&self, node_index: NonZeroUsize) -> Option<&Node<T>> {
         self.nodes.get(node_index.get() - 1)
     }
 
+    /// Iterate over all children (recursive) of the node at the given index
     pub fn children_of(
         &self,
         node_index: NonZeroUsize,

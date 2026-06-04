@@ -12,7 +12,7 @@ description = "Library for the reading, creating, and modification of SquashFS f
 readme = "../README.md"
 
 [package.metadata.docs.rs]
-features = ["xz", "gzip", "zstd", "document-features", "v3", "v3_lzma"]
+features = ["xz", "gzip", "zstd", "document-features", "v3", "v3_lzma", "v4_lzma"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
@@ -38,7 +38,9 @@ default = ["xz", "gzip", "zstd", "lz4", "parallel"]
 ## Enables squashfs v3
 v3 = ["gzip"]
 ## Enables squashfs v3 with LZMA compression
-v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:lzma-rust2"]
+v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:lzma-rust2", "dep:liblzma"]
+## Enables squashfs v4 with adaptive LZMA compression
+v4_lzma = ["dep:lzma-adaptive-sys", "dep:lzma-rust2"]
 ## Enables xz compression inside library and binaries
 xz = ["dep:liblzma"]
 ## Enables xz compression and forces static build inside library and binaries

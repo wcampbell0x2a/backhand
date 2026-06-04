@@ -1,14 +1,13 @@
 pub use crate::traits::CompressionAction;
-pub use crate::traits::types::Compressor;
 
 #[derive(Copy, Clone)]
-pub struct LzmaAdaptiveCompressor;
+pub struct V4LzmaAdaptiveCompressor;
 
-impl CompressionAction for LzmaAdaptiveCompressor {
+impl CompressionAction for V4LzmaAdaptiveCompressor {
     type Error = crate::error::BackhandError;
-    type Compressor = Option<Compressor>;
-    type FilesystemCompressor = crate::v3::compressor::FilesystemCompressor;
-    type SuperBlock = crate::v3::squashfs::SuperBlock;
+    type Compressor = crate::v4::compressor::Compressor;
+    type FilesystemCompressor = crate::v4::filesystem::writer::FilesystemCompressor;
+    type SuperBlock = crate::v4::squashfs::SuperBlock;
 
     fn decompress(
         &self,

@@ -59,12 +59,16 @@ type _ReadmeTest = ();
 
 pub mod error;
 mod kinds;
+#[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+mod lzma;
 pub mod traits;
 #[cfg(feature = "v3")]
 pub mod v3;
 #[cfg(feature = "v3_lzma")]
 pub mod v3_lzma;
 pub mod v4;
+#[cfg(feature = "v4_lzma")]
+pub mod v4_lzma;
 
 #[cfg(feature = "v3")]
 pub use crate::v3::V3;
@@ -103,9 +107,12 @@ pub mod kind {
     pub use crate::kinds::{BE_V3_0, LE_V3_0};
     #[cfg(feature = "v3_lzma")]
     pub use crate::kinds::{
-        BE_V3_0_LZMA, BE_V3_1_LZMA_SWAP, LE_V3_0_LZMA, LE_V3_1_LZMA_SWAP, NETGEAR_BE_V3_0_LZMA,
+        BE_V3_0_LZMA, BE_V3_0_LZMA_SWAP_STANDARD, BE_V3_1_LZMA_SWAP, LE_V3_0_LZMA,
+        LE_V3_0_LZMA_SWAP_STANDARD, LE_V3_1_LZMA_SWAP, NETGEAR_BE_V3_0_LZMA,
         NETGEAR_BE_V3_0_LZMA_STANDARD,
     };
+    #[cfg(feature = "v4_lzma")]
+    pub use crate::kinds::{BE_V4_0_LZMA, LE_V4_0_LZMA};
 }
 
 /// Compression Choice and Options

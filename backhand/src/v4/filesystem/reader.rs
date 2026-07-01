@@ -193,10 +193,19 @@ impl<'a, 'b> FilesystemReaderFile<'a, 'b> {
     }
 
     pub fn fragment(&self) -> Option<&'a Fragment> {
+        self.fragment_checked().ok().flatten()
+    }
+
+    pub(crate) fn fragment_checked(&self) -> Result<Option<&'a Fragment>, BackhandError> {
         if self.file.frag_index() == 0xffffffff {
-            None
-        } else {
-            self.system.fragments.as_ref().map(|fragments| &fragments[self.file.frag_index()])
+            return Ok(None);
+        }
+        match self.system.fragments.as_ref() {
+            None => Ok(None),
+            Some(fragments) => fragments
+                .get(self.file.frag_index())
+                .map(Some)
+                .ok_or(BackhandError::CorruptedOrInvalidSquashfs),
         }
     }
 

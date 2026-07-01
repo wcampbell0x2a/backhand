@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs::{self, File, Permissions};
-use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::os::unix::fs::lchown;
 use std::os::unix::prelude::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
@@ -676,7 +676,7 @@ fn extract_all(
                         return;
                     }
                 };
-                let fd = match File::create(&filepath) {
+                let mut fd = match File::create(&filepath) {
                     Ok(f) => f,
                     Err(e) => {
                         if !args.quiet {
@@ -688,9 +688,9 @@ fn extract_all(
                         return;
                     }
                 };
-                let mut writer = BufWriter::with_capacity(file_data.len(), &fd);
 
-                match writer.write_all(&file_data) {
+                // file_data is a single contiguous buffer, write it directly
+                match fd.write_all(&file_data) {
                     Ok(_) => {
                         if args.info && !args.quiet {
                             extracted(&pb, &filepath.display().to_string());
@@ -705,12 +705,6 @@ fn extract_all(
                             p.remove(&fullpath.to_path_buf());
                         }
                         return;
-                    }
-                }
-                if let Err(e) = writer.flush() {
-                    if !args.quiet {
-                        let line = format!("{} : flush failed: {e}", filepath.display());
-                        failed(&pb, &line);
                     }
                 }
             }

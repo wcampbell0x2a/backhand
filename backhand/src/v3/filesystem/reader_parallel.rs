@@ -296,6 +296,18 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
             return Ok(());
         }
 
+        // a single block (common when extracting many small files in parallel) is
+        // decompressed inline, rayon dispatch costs more than it gains
+        if read_blocks.len() == 1 {
+            let (mut input_buf, block_info) = read_blocks.pop().unwrap();
+            let mut output_buf = Vec::new();
+            self.raw_data.decompress(block_info, &mut input_buf, &mut output_buf)?;
+            self.buffer_pool.lock().unwrap().push(input_buf);
+            self.decompressed_blocks.push_back(output_buf);
+            self.current_block_position = 0;
+            return Ok(());
+        }
+
         // Use Rayon to decompress blocks in parallel
         let raw_data = &self.raw_data;
         let buffer_pool = &self.buffer_pool;

@@ -20,6 +20,21 @@ use crate::v4::filesystem::writer::{CompressionExtra, FilesystemCompressor};
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::Flags;
 
+// Decompressor state is expensive to construct (allocations + codec init) and
+// decompression runs on rayon worker threads, so keep one per thread instead of
+// re-creating it for every block.
+#[cfg(feature = "gzip")]
+std::thread_local! {
+    static GZIP_DECOMPRESS: core::cell::RefCell<flate2::Decompress> =
+        core::cell::RefCell::new(flate2::Decompress::new(true));
+}
+
+#[cfg(feature = "zstd")]
+std::thread_local! {
+    static ZSTD_DECOMPRESSOR: core::cell::RefCell<Option<zstd::bulk::Decompressor<'static>>> =
+        const { core::cell::RefCell::new(None) };
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, DekuRead, DekuWrite, DekuSize, Default)]
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[deku(id_type = "u16")]
@@ -164,8 +179,31 @@ impl CompressionAction for DefaultCompressor {
             Compressor::Uncompressed => out.extend_from_slice(bytes),
             #[cfg(feature = "gzip")]
             Compressor::Gzip => {
-                let mut decoder = flate2::read::ZlibDecoder::new(bytes);
-                decoder.read_to_end(out)?;
+                GZIP_DECOMPRESS.with(|state| -> Result<(), BackhandError> {
+                    let mut decompress = state.borrow_mut();
+                    decompress.reset(true);
+                    let mut input = bytes;
+                    loop {
+                        if out.len() == out.capacity() {
+                            out.reserve(8 * 1024);
+                        }
+                        let before_in = decompress.total_in();
+                        let status = decompress
+                            .decompress_vec(input, out, flate2::FlushDecompress::None)
+                            .map_err(|_| BackhandError::CorruptedOrInvalidSquashfs)?;
+                        input = &input[(decompress.total_in() - before_in) as usize..];
+                        match status {
+                            flate2::Status::StreamEnd => break,
+                            flate2::Status::Ok | flate2::Status::BufError => {
+                                // out of input with room left in the output: stream is truncated
+                                if input.is_empty() && out.len() < out.capacity() {
+                                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                                }
+                            }
+                        }
+                    }
+                    Ok(())
+                })?;
             }
             #[cfg(feature = "xz")]
             Compressor::Xz => {
@@ -184,10 +222,20 @@ impl CompressionAction for DefaultCompressor {
             }
             #[cfg(feature = "zstd")]
             Compressor::Zstd => {
-                let mut decoder = zstd::bulk::Decompressor::new().map_err(|e| {
-                    BackhandError::CompressionInit(format!("zstd decompressor: {}", e))
+                ZSTD_DECOMPRESSOR.with(|state| -> Result<(), BackhandError> {
+                    let mut decoder = state.borrow_mut();
+                    let decoder = match decoder.as_mut() {
+                        Some(decoder) => decoder,
+                        None => {
+                            let new = zstd::bulk::Decompressor::new().map_err(|e| {
+                                BackhandError::CompressionInit(format!("zstd decompressor: {}", e))
+                            })?;
+                            decoder.insert(new)
+                        }
+                    };
+                    decoder.decompress_to_buffer(bytes, out)?;
+                    Ok(())
                 })?;
-                decoder.decompress_to_buffer(bytes, out)?;
             }
             #[cfg(feature = "lz4")]
             Compressor::Lz4 => {

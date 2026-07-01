@@ -77,8 +77,9 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     let mut reader = self.file.system.reader.lock().unwrap();
                     reader.seek(SeekFrom::Start(self.pos))?;
                     reader.read_exact(data)?;
-                    self.pos = reader.stream_position()?;
                 }
+                // we read exactly block_size bytes, no syscall needed to know the new position
+                self.pos += block_size as u64;
                 Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
             }
             BlockFragment::Fragment(fragment) => {

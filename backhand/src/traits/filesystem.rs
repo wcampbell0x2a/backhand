@@ -304,9 +304,14 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
             ),
         };
 
+        let file_size = match file {
+            BackhandSquashfsFileReader::Basic { file_size, .. } => *file_size as usize,
+            BackhandSquashfsFileReader::Extended { file_size, .. } => *file_size as usize,
+        };
         let file_handle = self.file(&v4_file);
         let mut reader = file_handle.reader();
-        let mut data = Vec::new();
+        // file_size is known up front: pre-allocating avoids realloc-copies while reading
+        let mut data = Vec::with_capacity(file_size);
         if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
             // sparse
             return Ok(Vec::new());
@@ -358,9 +363,14 @@ impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemRead
             ),
         };
 
+        let file_size = match file {
+            BackhandSquashfsFileReader::Basic { file_size, .. } => *file_size as usize,
+            BackhandSquashfsFileReader::Extended { file_size, .. } => *file_size as usize,
+        };
         let file_handle = self.file(&v3_file);
         let mut reader = file_handle.reader();
-        let mut data = Vec::new();
+        // file_size is known up front: pre-allocating avoids realloc-copies while reading
+        let mut data = Vec::with_capacity(file_size);
         if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
             // sparse
             return Ok(Vec::new());

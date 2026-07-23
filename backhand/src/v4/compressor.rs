@@ -175,12 +175,9 @@ impl CompressionAction for DefaultCompressor {
             #[cfg(feature = "lzo")]
             Compressor::Lzo => {
                 out.resize(out.capacity(), 0);
-                let (out_size, error) = rust_lzo::LZOContext::decompress_to_slice(bytes, out);
-                let out_size = out_size.len();
+                let out_size = lzokay::decompress::decompress(bytes, out)
+                    .map_err(|_| BackhandError::CorruptedOrInvalidSquashfs)?;
                 out.truncate(out_size);
-                if error != rust_lzo::LZOError::OK {
-                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-                }
             }
             #[cfg(feature = "zstd")]
             Compressor::Zstd => {
@@ -289,15 +286,8 @@ impl CompressionAction for DefaultCompressor {
                 Ok(buf)
             }
             #[cfg(feature = "lzo")]
-            (Compressor::Lzo, _, _) => {
-                let mut lzo = rust_lzo::LZOContext::new();
-                let mut buf = vec![0; rust_lzo::worst_compress(bytes.len())];
-                let error = lzo.compress(bytes, &mut buf);
-                if error != rust_lzo::LZOError::OK {
-                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-                }
-                Ok(buf)
-            }
+            (Compressor::Lzo, _, _) => lzokay::compress::compress(bytes)
+                .map_err(|_| BackhandError::CorruptedOrInvalidSquashfs),
             #[cfg(feature = "zstd")]
             (Compressor::Zstd, option @ (Some(CompressionOptions::Zstd(_)) | None), _) => {
                 let compression_level = match option {

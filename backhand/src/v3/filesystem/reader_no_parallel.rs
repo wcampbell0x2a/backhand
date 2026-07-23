@@ -277,7 +277,7 @@ impl Seek for SquashfsReadFile<'_, '_> {
 
         if new_pos < file_len {
             // skip full blocks without decompressing them
-            let block_size = 1u64 << self.raw_data.file.system.block_log; // block_size is 0 in v3?
+            let block_size = u64::from(self.raw_data.file.system.block_size);
             while new_pos >= self.cursor_pos + block_size {
                 let _skipped = self.raw_data.skip_block();
                 debug_assert!(_skipped);

@@ -277,10 +277,8 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
             let mut input_buf = buf_pool.pop().unwrap_or_default();
 
             if let Some(block_result) = self.raw_data.next_block(&mut input_buf) {
-                match block_result {
-                    Ok(block_info) => read_blocks.push((input_buf, block_info)),
-                    Err(e) => return Err(e),
-                }
+                let block_info = block_result?;
+                read_blocks.push((input_buf, block_info));
             } else {
                 // Return unused buffer to the pool
                 buf_pool.push(input_buf);
@@ -314,10 +312,8 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
 
         // Process results
         for result in decompressed_results {
-            match result {
-                Ok(output_buf) => self.decompressed_blocks.push_back(output_buf),
-                Err(e) => return Err(e),
-            }
+            let output_buf = result?;
+            self.decompressed_blocks.push_back(output_buf);
         }
 
         self.current_block_position = 0;

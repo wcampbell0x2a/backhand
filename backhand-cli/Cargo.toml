@@ -70,4 +70,4 @@ bench = false
 [dev-dependencies]
 gungraun = "0.17.0"
 test-assets-ureq = "0.6.0"
-toml = "0.8"
+toml = "1.0"

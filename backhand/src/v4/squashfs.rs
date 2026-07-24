@@ -224,8 +224,8 @@ impl<'b> Squashfs<'b> {
     /// and dirs
     ///
     /// Used for unsquashfs (extraction and --stat)
-    pub fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek + 'b>,
+    pub fn superblock_and_compression_options<R: BufReadSeek + 'b>(
+        reader: &mut R,
         kind: &Kind,
     ) -> Result<(SuperBlock, Option<CompressionOptions>), BackhandError> {
         // Parse SuperBlock

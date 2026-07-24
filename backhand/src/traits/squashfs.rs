@@ -16,8 +16,8 @@ pub trait SquashfsVersion<'b> {
     type FilesystemReader;
 
     /// Read superblock and compression options
-    fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek + 'b>,
+    fn superblock_and_compression_options<R: BufReadSeek + 'b>(
+        reader: &mut R,
         kind: &Kind,
     ) -> Result<(Self::SuperBlock, Option<Self::CompressionOptions>), crate::error::BackhandError>;
 

@@ -70,18 +70,3 @@ pub trait CompressionAction {
         Ok(None)
     }
 }
-
-#[cfg(feature = "v3")]
-pub type CompressionActionV3 = dyn CompressionAction<
-        Error = crate::error::BackhandError,
-        Compressor = crate::v3::compressor::Compressor,
-        FilesystemCompressor = crate::v3::compressor::FilesystemCompressor,
-        SuperBlock = crate::v3::squashfs::SuperBlock,
-    >;
-
-pub type CompressionActionV4 = dyn CompressionAction<
-        Error = crate::error::BackhandError,
-        Compressor = crate::v4::compressor::Compressor,
-        FilesystemCompressor = crate::v4::filesystem::writer::FilesystemCompressor,
-        SuperBlock = crate::v4::squashfs::SuperBlock,
-    >;

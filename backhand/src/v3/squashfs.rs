@@ -151,12 +151,7 @@ impl SuperBlock {
     }
 }
 
-#[derive(Default, Clone, Debug)]
-pub(crate) struct Cache {
-    /// The first time a fragment bytes is read, those bytes are added to this map with the key
-    /// representing the start position
-    pub(crate) fragment_cache: IntMap<u64, Vec<u8>>,
-}
+pub use crate::traits::block_reader::Cache;
 
 /// Squashfs Image initial read information
 ///

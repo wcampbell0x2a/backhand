@@ -250,17 +250,21 @@ pub trait FilesystemReaderTrait: Send + Sync {
     /// Get an iterator over all files
     fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_>;
 
-    /// Get a file handle that can be used to read file data
+    /// Read a file's full contents
     fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError>;
+
+    /// Stream a file's contents into `writer`, without holding it all in memory
+    fn file_data_to_writer(
+        &self,
+        file: &BackhandSquashfsFileReader,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<u64, BackhandError>;
 }
 
-impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemReader<'b> {
-    fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_> {
-        Box::new(self.files().map(|node| node.into()))
-    }
-
-    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError> {
-        let v4_file = match file {
+impl BackhandSquashfsFileReader {
+    /// Convert back into the v4 file inode the v4 reader expects
+    fn to_v4_file(&self) -> Result<crate::v4::filesystem::node::SquashfsFileReader, BackhandError> {
+        Ok(match self {
             BackhandSquashfsFileReader::Basic {
                 blocks_start,
                 frag_index,
@@ -270,10 +274,7 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
             } => crate::v4::filesystem::node::SquashfsFileReader::Basic(
                 crate::v4::inode::BasicFile {
                     blocks_start: (*blocks_start).try_into().map_err(|e| {
-                        BackhandError::NumericConversion(format!(
-                            "ExtendedDirectory file_size: {}",
-                            e
-                        ))
+                        BackhandError::NumericConversion(format!("BasicFile blocks_start: {e}"))
                     })?,
                     frag_index: *frag_index,
                     block_offset: *block_offset,
@@ -302,27 +303,41 @@ impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemRead
                     block_sizes: block_sizes.iter().map(|&ds| ds.to_v4_datasize()).collect(),
                 },
             ),
-        };
-
-        let file_handle = self.file(&v4_file);
-        let mut reader = file_handle.reader();
-        let mut data = Vec::new();
-        if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
-            // sparse
-            return Ok(Vec::new());
-        }
-        Ok(data)
+        })
     }
 }
 
-#[cfg(feature = "v3")]
-impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemReader<'b> {
+impl<'b> FilesystemReaderTrait for crate::v4::filesystem::reader::FilesystemReader<'b> {
     fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_> {
         Box::new(self.files().map(|node| node.into()))
     }
 
     fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError> {
-        let v3_file = match file {
+        let v4_file = file.to_v4_file()?;
+        let mut reader = self.file(&v4_file).reader_checked()?;
+        let mut data = Vec::new();
+        std::io::Read::read_to_end(&mut reader, &mut data)?;
+        Ok(data)
+    }
+
+    fn file_data_to_writer(
+        &self,
+        file: &BackhandSquashfsFileReader,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<u64, BackhandError> {
+        let v4_file = file.to_v4_file()?;
+        let mut reader = self.file(&v4_file).reader_checked()?;
+        Ok(std::io::copy(&mut reader, writer)?)
+    }
+}
+
+#[cfg(feature = "v3")]
+impl BackhandSquashfsFileReader {
+    /// Convert back into the v3 file inode the v3 reader expects
+    ///
+    /// v3 has no sparse or xattr fields, so those are dropped.
+    fn to_v3_file(&self) -> crate::v3::filesystem::node::SquashfsFileReader {
+        match self {
             BackhandSquashfsFileReader::Basic {
                 blocks_start,
                 frag_index,
@@ -356,15 +371,31 @@ impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemRead
                     block_sizes: block_sizes.iter().map(|&ds| ds.to_v3_datasize()).collect(),
                 },
             ),
-        };
-
-        let file_handle = self.file(&v3_file);
-        let mut reader = file_handle.reader();
-        let mut data = Vec::new();
-        if let Err(_e) = std::io::Read::read_to_end(&mut reader, &mut data) {
-            // sparse
-            return Ok(Vec::new());
         }
+    }
+}
+
+#[cfg(feature = "v3")]
+impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemReader<'b> {
+    fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_> {
+        Box::new(self.files().map(|node| node.into()))
+    }
+
+    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError> {
+        let v3_file = file.to_v3_file();
+        let mut reader = self.file(&v3_file).reader_checked()?;
+        let mut data = Vec::new();
+        std::io::Read::read_to_end(&mut reader, &mut data)?;
         Ok(data)
+    }
+
+    fn file_data_to_writer(
+        &self,
+        file: &BackhandSquashfsFileReader,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<u64, BackhandError> {
+        let v3_file = file.to_v3_file();
+        let mut reader = self.file(&v3_file).reader_checked()?;
+        Ok(std::io::copy(&mut reader, writer)?)
     }
 }

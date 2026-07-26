@@ -239,7 +239,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             block_size: reader.block_size,
             block_log: reader.block_log,
             fs_compressor: FilesystemCompressor::new(
-                reader.compressor,
+                reader.compressor.ok_or(BackhandError::MissingCompressor)?.into(),
                 reader.compression_options,
             )?,
             mod_time: reader.mod_time,
@@ -482,7 +482,9 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     // if the source file and the destination files are both
                     // squashfs files and use the same compressor and block_size
                     // just copy the data, don't compress->decompress
-                    if file.system.compressor == compressor.id
+                    // A `None` source compressor never matches, so those files take the
+                    // decompress->recompress path rather than being copied blindly.
+                    if file.system.compressor == Some(compressor.id.into())
                         && file.system.compression_options == compressor.options
                         && file.system.block_size == block_size
                     {

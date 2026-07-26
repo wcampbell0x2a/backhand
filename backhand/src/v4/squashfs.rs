@@ -188,12 +188,7 @@ pub enum Flags {
     CompressorOptionsArePresent = 0b0000_0100_0000_0000,
 }
 
-#[derive(Default, Clone, Debug)]
-pub(crate) struct Cache {
-    /// The first time a fragment bytes is read, those bytes are added to this map with the key
-    /// representing the start position
-    pub(crate) fragment_cache: IntMap<u64, Vec<u8>>,
-}
+pub use crate::traits::block_reader::Cache;
 
 /// Squashfs Image initial read information
 ///
@@ -643,7 +638,7 @@ impl<'b> Squashfs<'b> {
             kind: self.kind,
             block_size: self.superblock.block_size,
             block_log: self.superblock.block_log,
-            compressor: self.superblock.compressor,
+            compressor: Some(self.superblock.compressor.into()),
             compression_options: self.compression_options,
             mod_time: self.superblock.mod_time,
             id_table: self.id,

@@ -70,6 +70,9 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     *data = vec![0; self.file.system.block_size as usize];
                     return Ok(RawDataBlock { fragment: false, uncompressed: true });
                 }
+                if block_size > self.file.system.block_size as usize {
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
                 data.resize(block_size, 0);
                 //NOTE: storing/restoring the file-pos is not required at the
                 //moment of writing, but in the future, it may.
@@ -87,7 +90,7 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     let cache = self.file.system.cache.read().unwrap();
                     if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
                         //if in cache, just return the cache, don't read it
-                        let range = self.fragment_range();
+                        let range = self.fragment_range(cache_bytes.len())?;
                         tracing::trace!("fragment in cache: {:02x}:{range:02x?}", fragment.start);
                         data.resize(range.end - range.start, 0);
                         data.copy_from_slice(&cache_bytes[range]);
@@ -97,11 +100,11 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                     }
                 }
 
-                // if not in the cache, read the entire fragment bytes to store into
-                // the cache. Once that is done, if uncompressed just return the bytes
-                // that were read that are for the file
                 tracing::trace!("fragment: reading from data");
                 let frag_size = fragment.size.size() as usize;
+                if frag_size > self.file.system.block_size as usize {
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
                 data.resize(frag_size, 0);
                 {
                     let mut reader = self.file.system.reader.lock().unwrap();
@@ -111,16 +114,16 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
 
                 // if already decompressed, store
                 if fragment.size.uncompressed() {
+                    let range = self.fragment_range(data.len())?;
                     self.file
                         .system
                         .cache
                         .write()
                         .unwrap()
                         .fragment_cache
-                        .insert(self.file.fragment().unwrap().start, data.clone());
+                        .insert(fragment.start, data.clone());
 
                     //apply the fragment offset
-                    let range = self.fragment_range();
                     data.drain(range.end..);
                     data.drain(..range.start);
                 }
@@ -165,15 +168,23 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         }
     }
 
+    /// Compute the byte range of this file's tail data within the fragment block.
     #[inline]
-    fn fragment_range(&self) -> core::ops::Range<usize> {
+    fn fragment_range(
+        &self,
+        frag_buf_len: usize,
+    ) -> Result<core::ops::Range<usize>, BackhandError> {
         let block_len = self.file.system.block_size as usize;
         let block_num = self.file.file.block_sizes().len();
         let file_size = self.file.file.file_len();
-        let frag_len = file_size - (block_num * block_len);
         let frag_start = self.file.file.block_offset() as usize;
-        let frag_end = frag_start + frag_len;
-        frag_start..frag_end
+
+        (|| {
+            let frag_len = file_size.checked_sub(block_num.checked_mul(block_len)?)?;
+            let frag_end = frag_start.checked_add(frag_len)?;
+            (frag_end <= frag_buf_len).then_some(frag_start..frag_end)
+        })()
+        .ok_or(BackhandError::CorruptedOrInvalidSquashfs)
     }
 
     /// Decompress function that can be run in parallel
@@ -198,16 +209,20 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
             )?;
             // store the cache, so decompression is not duplicated
             if data.fragment {
+                let fragment = self
+                    .file
+                    .fragment_checked()?
+                    .ok_or(BackhandError::CorruptedOrInvalidSquashfs)?;
+                //apply the fragment offset
+                let range = self.fragment_range(output_buf.len())?;
                 self.file
                     .system
                     .cache
                     .write()
                     .unwrap()
                     .fragment_cache
-                    .insert(self.file.fragment().unwrap().start, output_buf.clone());
+                    .insert(fragment.start, output_buf.clone());
 
-                //apply the fragment offset
-                let range = self.fragment_range();
                 output_buf.drain(range.end..);
                 output_buf.drain(..range.start);
             }

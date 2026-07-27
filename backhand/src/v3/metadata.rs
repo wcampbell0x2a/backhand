@@ -26,6 +26,9 @@ pub fn read_block<R: Read + Seek + ?Sized>(
 
     let byte_len = len(metadata_len);
     tracing::trace!("len: 0x{:02x?}", byte_len);
+    if byte_len as usize > METADATA_MAXSIZE {
+        return Err(BackhandError::CorruptedOrInvalidSquashfs);
+    }
     let mut buf = vec![0u8; byte_len as usize];
     reader.read_exact(&mut buf)?;
 

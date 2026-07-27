@@ -1,6 +1,10 @@
 [env]
-# 1. Always remove debug asserts
+# Always remove debug asserts
 CFLAGS = "-D NDEBUG=1"
+
+# Restore liblzma's fast decoder on x86_64.
+CFLAGS_x86_64_unknown_linux_gnu = "-D NDEBUG=1 -D TUKLIB_FAST_UNALIGNED_ACCESS=1 -D HAVE_IMMINTRIN_H=1 -D HAVE_CPUID_H=1"
+CFLAGS_x86_64_unknown_linux_musl = "-D NDEBUG=1 -D TUKLIB_FAST_UNALIGNED_ACCESS=1 -D HAVE_IMMINTRIN_H=1 -D HAVE_CPUID_H=1"
 
 [target."x86_64-unknown-linux-musl"]
 rustflags = ["-C", "target-feature=+crt-static"]

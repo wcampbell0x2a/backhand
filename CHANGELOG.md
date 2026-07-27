@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### `backhand`
+- Reject wrong sizes and indices in the block reader
 - Add combined block reader logic and remove all duplicated code between the v3
   and v4 paths.
 - Return error from file_data, instead of vec![]

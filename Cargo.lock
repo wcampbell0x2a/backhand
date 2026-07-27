@@ -1179,6 +1179,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "libzstd-rs-sys"
+version = "0.0.0"
+source = "git+https://github.com/trifectatechfoundation/libzstd-rs-sys.git?rev=edd8e07b9fe21e477848e9221efed2bd39e32013#edd8e07b9fe21e477848e9221efed2bd39e32013"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2816,8 +2825,7 @@ checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 [[package]]
 name = "zstd"
 version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
+source = "git+https://github.com/trifectatechfoundation/zstd-rs.git?branch=libzstd-rs-sys-support#f71bedb5a6580105be8e27f9f483e79598b81a0c"
 dependencies = [
  "zstd-safe",
 ]
@@ -2825,18 +2833,7 @@ dependencies = [
 [[package]]
 name = "zstd-safe"
 version = "7.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d"
+source = "git+https://github.com/trifectatechfoundation/zstd-rs.git?branch=libzstd-rs-sys-support#f71bedb5a6580105be8e27f9f483e79598b81a0c"
 dependencies = [
- "zstd-sys",
-]
-
-[[package]]
-name = "zstd-sys"
-version = "2.0.16+zstd.1.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748"
-dependencies = [
- "cc",
- "pkg-config",
+ "libzstd-rs-sys",
 ]

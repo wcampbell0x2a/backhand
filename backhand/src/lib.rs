@@ -75,11 +75,8 @@ pub use crate::v4::filesystem::node::{
     InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
     SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
+pub use crate::v4::filesystem::reader::SquashfsReadFile;
 pub use crate::v4::filesystem::reader::{FilesystemReader, FilesystemReaderFile};
-#[cfg(not(feature = "parallel"))]
-pub use crate::v4::filesystem::reader_no_parallel::SquashfsReadFile;
-#[cfg(feature = "parallel")]
-pub use crate::v4::filesystem::reader_parallel::SquashfsReadFile;
 pub use crate::v4::filesystem::writer::{
     CompressionExtra, ExtraXz, FilesystemCompressor, FilesystemWriter,
 };

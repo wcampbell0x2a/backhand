@@ -6,6 +6,205 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### `backhand`
+- Reject wrong sizes and indices in the block reader
+- Add combined block reader logic and remove all duplicated code between the v3
+  and v4 paths.
+- Return error from file_data, instead of vec![]
+- Add file_data_to_writer, which allows one to stream file contents into a writer.
+
+### Complete API Updates
+<details>
+<summary>Click to expand</summary>
+
+```diff
+Removed items from the public API
+=================================
+-pub enum backhand::v4::filesystem::reader::BlockFragment<'a>
+-pub backhand::v4::filesystem::reader::BlockFragment::Block(&'a backhand::v4::data::DataSize)
+-pub backhand::v4::filesystem::reader::BlockFragment::Fragment(&'a backhand::v4::fragment::Fragment)
+-pub struct backhand::v4::filesystem::reader::BlockIterator<'a>
+-pub backhand::v4::filesystem::reader::BlockIterator::blocks: &'a [backhand::v4::data::DataSize]
+-pub backhand::v4::filesystem::reader::BlockIterator::fragment: core::option::Option<&'a backhand::v4::fragment::Fragment>
+-impl<'a> core::iter::traits::iterator::Iterator for backhand::v4::filesystem::reader::BlockIterator<'a>
+-pub type backhand::v4::filesystem::reader::BlockIterator<'a>::Item = backhand::v4::filesystem::reader::BlockFragment<'a>
+-pub fn backhand::v4::filesystem::reader::BlockIterator<'a>::next(&mut self) -> core::option::Option<Self::Item>
+-pub struct backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-impl<'a, 'b> backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-impl<'a, 'b> backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::fragment(&self) -> core::option::Option<&'a backhand::v4::fragment::Fragment>
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::fragment(&self) -> core::option::Option<&'a backhand::v4::fragment::Fragment>
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::new(&'a backhand::v4::filesystem::reader::FilesystemReader<'b>, &'a backhand::v4::filesystem::node::SquashfsFileReader) -> Self
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::new(&'a backhand::v4::filesystem::reader::FilesystemReader<'b>, &'a backhand::v4::filesystem::node::SquashfsFileReader) -> Self
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::reader(&self) -> backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'a, 'b>
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::reader(&self) -> backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'a, 'b>
+-impl<'a, 'b> core::clone::Clone for backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-impl<'a, 'b> core::clone::Clone for backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::clone(&self) -> backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>::clone(&self) -> backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-impl<'a, 'b> core::marker::Copy for backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-impl<'a, 'b> core::marker::Copy for backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b>
+-impl<'a> core::iter::traits::collect::IntoIterator for backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>
+-impl<'a> core::iter::traits::collect::IntoIterator for backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>
+-pub type backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>::IntoIter = backhand::v4::filesystem::reader::BlockIterator<'a>
+-pub type backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>::IntoIter = backhand::v4::filesystem::reader::BlockIterator<'a>
+-pub type backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>::Item = <backhand::v4::filesystem::reader::BlockIterator<'a> as core::iter::traits::iterator::Iterator>::Item
+-pub type backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>::Item = <backhand::v4::filesystem::reader::BlockIterator<'a> as core::iter::traits::iterator::Iterator>::Item
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>::into_iter(self) -> Self::IntoIter
+-pub fn backhand::v4::filesystem::reader::FilesystemReaderFile<'a, '_>::into_iter(self) -> Self::IntoIter
+-pub mod backhand::v4::filesystem::reader_parallel
+-pub struct backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'a, 'b>
+-impl alloc::io::read::Read for backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>
+-impl alloc::io::read::Read for backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>
+-pub fn backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>::read(&mut self, &mut [u8]) -> core::io::error::Result<usize>
+-pub fn backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>::read(&mut self, &mut [u8]) -> core::io::error::Result<usize>
+-impl core::io::seek::Seek for backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>
+-impl core::io::seek::Seek for backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>
+-pub fn backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>::seek(&mut self, core::io::seek::SeekFrom) -> core::io::error::Result<u64>
+-pub fn backhand::v4::filesystem::reader_parallel::SquashfsReadFile<'_, '_>::seek(&mut self, core::io::seek::SeekFrom) -> core::io::error::Result<u64>
+-pub struct backhand::FilesystemReaderFile<'a, 'b>
+-pub struct backhand::SquashfsReadFile<'a, 'b>
+
+Changed items in the public API
+===============================
+-pub backhand::v4::filesystem::reader::FilesystemReader::compressor: backhand::v4::compressor::Compressor
++pub backhand::v4::filesystem::reader::FilesystemReader::compressor: core::option::Option<backhand::traits::types::Compressor>
+-pub backhand::FilesystemReader::compressor: backhand::v4::compressor::Compressor
++pub backhand::FilesystemReader::compressor: core::option::Option<backhand::traits::types::Compressor>
+
+Added items to the public API
+=============================
++pub mod backhand::traits::block_reader
++pub enum backhand::traits::block_reader::BlockFragment<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>>
++pub backhand::traits::block_reader::BlockFragment::Block(&'a <V as backhand::traits::block_reader::BlockReaderVersion>::DataSize)
++pub backhand::traits::block_reader::BlockFragment::Fragment(&'a <V as backhand::traits::block_reader::BlockReaderVersion>::Fragment)
++pub struct backhand::traits::block_reader::BlockIterator<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>>
++pub backhand::traits::block_reader::BlockIterator::blocks: &'a [<V as backhand::traits::block_reader::BlockReaderVersion>::DataSize]
++pub backhand::traits::block_reader::BlockIterator::fragment: core::option::Option<&'a <V as backhand::traits::block_reader::BlockReaderVersion>::Fragment>
++impl<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> core::iter::traits::iterator::Iterator for backhand::traits::block_reader::BlockIterator<'a, 'b, V>
++pub type backhand::traits::block_reader::BlockIterator<'a, 'b, V>::Item = backhand::traits::block_reader::BlockFragment<'a, 'b, V>
++pub fn backhand::traits::block_reader::BlockIterator<'a, 'b, V>::next(&mut self) -> core::option::Option<Self::Item>
++pub struct backhand::traits::block_reader::Cache
++impl core::clone::Clone for backhand::traits::block_reader::Cache
++impl core::clone::Clone for backhand::traits::block_reader::Cache
++pub fn backhand::traits::block_reader::Cache::clone(&self) -> backhand::traits::block_reader::Cache
++pub fn backhand::traits::block_reader::Cache::clone(&self) -> backhand::traits::block_reader::Cache
++impl core::default::Default for backhand::traits::block_reader::Cache
++impl core::default::Default for backhand::traits::block_reader::Cache
++pub fn backhand::traits::block_reader::Cache::default() -> backhand::traits::block_reader::Cache
++pub fn backhand::traits::block_reader::Cache::default() -> backhand::traits::block_reader::Cache
++impl core::fmt::Debug for backhand::traits::block_reader::Cache
++impl core::fmt::Debug for backhand::traits::block_reader::Cache
++pub fn backhand::traits::block_reader::Cache::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
++pub fn backhand::traits::block_reader::Cache::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
++pub struct backhand::traits::block_reader::FilesystemReaderFile<'a, 'b: 'a, V: backhand::traits::block_reader::BlockReaderVersion<'b>>
++impl<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>
++pub fn backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>::fragment(&self) -> core::option::Option<&'a <V as backhand::traits::block_reader::BlockReaderVersion>::Fragment>
++pub fn backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>::new(&'a <V as backhand::traits::block_reader::BlockReaderVersion>::System, &'a <V as backhand::traits::block_reader::BlockReaderVersion>::File) -> Self
++impl<'a, 'b> backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>
++pub fn backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>::reader(&self) -> backhand::v4::filesystem::reader::SquashfsReadFile<'a, 'b>
++pub fn backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>::reader_checked(&self) -> core::result::Result<backhand::v4::filesystem::reader::SquashfsReadFile<'a, 'b>, backhand::error::BackhandError>
++impl<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> core::iter::traits::collect::IntoIterator for backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>
++pub type backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>::IntoIter = backhand::traits::block_reader::BlockIterator<'a, 'b, V>
++pub type backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>::Item = backhand::traits::block_reader::BlockFragment<'a, 'b, V>
++pub fn backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, V>::into_iter(self) -> Self::IntoIter
++impl<'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> core::clone::Clone for backhand::traits::block_reader::FilesystemReaderFile<'_, 'b, V>
++pub fn backhand::traits::block_reader::FilesystemReaderFile<'_, 'b, V>::clone(&self) -> Self
++impl<'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> core::marker::Copy for backhand::traits::block_reader::FilesystemReaderFile<'_, 'b, V>
++pub struct backhand::traits::block_reader::RawDataBlock
++impl core::clone::Clone for backhand::traits::block_reader::RawDataBlock
++pub fn backhand::traits::block_reader::RawDataBlock::clone(&self) -> backhand::traits::block_reader::RawDataBlock
++impl core::fmt::Debug for backhand::traits::block_reader::RawDataBlock
++pub fn backhand::traits::block_reader::RawDataBlock::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
++impl core::marker::Copy for backhand::traits::block_reader::RawDataBlock
++pub trait backhand::traits::block_reader::BlockReaderVersion<'b>
++pub type backhand::traits::block_reader::BlockReaderVersion::DataSize: core::marker::Copy + core::marker::Sync + 'b
++pub type backhand::traits::block_reader::BlockReaderVersion::File: core::marker::Sync + 'b
++pub type backhand::traits::block_reader::BlockReaderVersion::Fragment: core::marker::Sync + 'b
++pub type backhand::traits::block_reader::BlockReaderVersion::System: core::marker::Sync + 'b
++pub fn backhand::traits::block_reader::BlockReaderVersion::block_offset(&Self::File) -> u32
++pub fn backhand::traits::block_reader::BlockReaderVersion::block_size(&Self::System) -> u32
++pub fn backhand::traits::block_reader::BlockReaderVersion::block_sizes(&Self::File) -> &[Self::DataSize]
++pub fn backhand::traits::block_reader::BlockReaderVersion::blocks_start(&Self::File) -> u64
++pub fn backhand::traits::block_reader::BlockReaderVersion::cache(&Self::System) -> &std::sync::poison::rwlock::RwLock<backhand::traits::block_reader::Cache>
++pub fn backhand::traits::block_reader::BlockReaderVersion::compressor(&Self::System) -> core::option::Option<backhand::traits::types::Compressor>
++pub fn backhand::traits::block_reader::BlockReaderVersion::data_size(&Self::DataSize) -> u32
++pub fn backhand::traits::block_reader::BlockReaderVersion::data_uncompressed(&Self::DataSize) -> bool
++pub fn backhand::traits::block_reader::BlockReaderVersion::file_len(&Self::File) -> usize
++pub fn backhand::traits::block_reader::BlockReaderVersion::fragment_of<'a>(&'a Self::System, &'a Self::File) -> core::result::Result<core::option::Option<&'a Self::Fragment>, backhand::error::BackhandError>
++pub fn backhand::traits::block_reader::BlockReaderVersion::fragment_size(&Self::Fragment) -> Self::DataSize
++pub fn backhand::traits::block_reader::BlockReaderVersion::fragment_start(&Self::Fragment) -> u64
++pub fn backhand::traits::block_reader::BlockReaderVersion::kind(&Self::System) -> &backhand::kind::Kind
++pub fn backhand::traits::block_reader::BlockReaderVersion::reader(&Self::System) -> &std::sync::poison::mutex::Mutex<alloc::boxed::Box<(dyn backhand::v4::reader::BufReadSeek + 'b)>>
++impl<'b> backhand::traits::block_reader::BlockReaderVersion<'b> for backhand::v4::filesystem::reader::V4Blocks
++impl<'b> backhand::traits::block_reader::BlockReaderVersion<'b> for backhand::v4::filesystem::reader::V4Blocks
++pub type backhand::v4::filesystem::reader::V4Blocks::DataSize = backhand::v4::data::DataSize
++pub type backhand::v4::filesystem::reader::V4Blocks::DataSize = backhand::v4::data::DataSize
++pub type backhand::v4::filesystem::reader::V4Blocks::File = backhand::v4::filesystem::node::SquashfsFileReader
++pub type backhand::v4::filesystem::reader::V4Blocks::File = backhand::v4::filesystem::node::SquashfsFileReader
++pub type backhand::v4::filesystem::reader::V4Blocks::Fragment = backhand::v4::fragment::Fragment
++pub type backhand::v4::filesystem::reader::V4Blocks::Fragment = backhand::v4::fragment::Fragment
++pub type backhand::v4::filesystem::reader::V4Blocks::System = backhand::v4::filesystem::reader::FilesystemReader<'b>
++pub type backhand::v4::filesystem::reader::V4Blocks::System = backhand::v4::filesystem::reader::FilesystemReader<'b>
++pub fn backhand::v4::filesystem::reader::V4Blocks::block_offset(&Self::File) -> u32
++pub fn backhand::v4::filesystem::reader::V4Blocks::block_offset(&Self::File) -> u32
++pub fn backhand::v4::filesystem::reader::V4Blocks::block_size(&Self::System) -> u32
++pub fn backhand::v4::filesystem::reader::V4Blocks::block_size(&Self::System) -> u32
++pub fn backhand::v4::filesystem::reader::V4Blocks::block_sizes(&Self::File) -> &[Self::DataSize]
++pub fn backhand::v4::filesystem::reader::V4Blocks::block_sizes(&Self::File) -> &[Self::DataSize]
++pub fn backhand::v4::filesystem::reader::V4Blocks::blocks_start(&Self::File) -> u64
++pub fn backhand::v4::filesystem::reader::V4Blocks::blocks_start(&Self::File) -> u64
++pub fn backhand::v4::filesystem::reader::V4Blocks::cache(&Self::System) -> &std::sync::poison::rwlock::RwLock<backhand::traits::block_reader::Cache>
++pub fn backhand::v4::filesystem::reader::V4Blocks::cache(&Self::System) -> &std::sync::poison::rwlock::RwLock<backhand::traits::block_reader::Cache>
++pub fn backhand::v4::filesystem::reader::V4Blocks::compressor(&Self::System) -> core::option::Option<backhand::traits::types::Compressor>
++pub fn backhand::v4::filesystem::reader::V4Blocks::compressor(&Self::System) -> core::option::Option<backhand::traits::types::Compressor>
++pub fn backhand::v4::filesystem::reader::V4Blocks::data_size(&Self::DataSize) -> u32
++pub fn backhand::v4::filesystem::reader::V4Blocks::data_size(&Self::DataSize) -> u32
++pub fn backhand::v4::filesystem::reader::V4Blocks::data_uncompressed(&Self::DataSize) -> bool
++pub fn backhand::v4::filesystem::reader::V4Blocks::data_uncompressed(&Self::DataSize) -> bool
++pub fn backhand::v4::filesystem::reader::V4Blocks::file_len(&Self::File) -> usize
++pub fn backhand::v4::filesystem::reader::V4Blocks::file_len(&Self::File) -> usize
++pub fn backhand::v4::filesystem::reader::V4Blocks::fragment_of<'a>(&'a Self::System, &'a Self::File) -> core::result::Result<core::option::Option<&'a Self::Fragment>, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::V4Blocks::fragment_of<'a>(&'a Self::System, &'a Self::File) -> core::result::Result<core::option::Option<&'a Self::Fragment>, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::V4Blocks::fragment_size(&Self::Fragment) -> Self::DataSize
++pub fn backhand::v4::filesystem::reader::V4Blocks::fragment_size(&Self::Fragment) -> Self::DataSize
++pub fn backhand::v4::filesystem::reader::V4Blocks::fragment_start(&Self::Fragment) -> u64
++pub fn backhand::v4::filesystem::reader::V4Blocks::fragment_start(&Self::Fragment) -> u64
++pub fn backhand::v4::filesystem::reader::V4Blocks::kind(&Self::System) -> &backhand::kind::Kind
++pub fn backhand::v4::filesystem::reader::V4Blocks::kind(&Self::System) -> &backhand::kind::Kind
++pub fn backhand::v4::filesystem::reader::V4Blocks::reader(&Self::System) -> &std::sync::poison::mutex::Mutex<alloc::boxed::Box<(dyn backhand::v4::reader::BufReadSeek + 'b)>>
++pub fn backhand::v4::filesystem::reader::V4Blocks::reader(&Self::System) -> &std::sync::poison::mutex::Mutex<alloc::boxed::Box<(dyn backhand::v4::reader::BufReadSeek + 'b)>>
++pub mod backhand::traits::block_reader_parallel
++pub struct backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>>
++impl<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V>
++pub fn backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V>::decompress(&self, backhand::traits::block_reader::RawDataBlock, &mut alloc::vec::Vec<u8>, &mut alloc::vec::Vec<u8>) -> core::result::Result<(), backhand::error::BackhandError>
++pub fn backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V>::into_reader(self) -> backhand::traits::block_reader_parallel::SquashfsReadFile<'a, 'b, V>
++pub fn backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V>::new(&'a <V as backhand::traits::block_reader::BlockReaderVersion>::System, &'a <V as backhand::traits::block_reader::BlockReaderVersion>::File) -> core::result::Result<Self, backhand::error::BackhandError>
++pub fn backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V>::new_without_fragment(&'a <V as backhand::traits::block_reader::BlockReaderVersion>::System, &'a <V as backhand::traits::block_reader::BlockReaderVersion>::File) -> Self
++pub fn backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, V>::next_block(&mut self, &mut alloc::vec::Vec<u8>) -> core::option::Option<core::result::Result<backhand::traits::block_reader::RawDataBlock, backhand::error::BackhandError>>
++pub struct backhand::traits::block_reader_parallel::SquashfsReadFile<'a, 'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>>
++impl<'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> alloc::io::read::Read for backhand::traits::block_reader_parallel::SquashfsReadFile<'_, 'b, V>
++pub fn backhand::traits::block_reader_parallel::SquashfsReadFile<'_, 'b, V>::read(&mut self, &mut [u8]) -> core::io::error::Result<usize>
++impl<'b, V: backhand::traits::block_reader::BlockReaderVersion<'b>> core::io::seek::Seek for backhand::traits::block_reader_parallel::SquashfsReadFile<'_, 'b, V>
++pub fn backhand::traits::block_reader_parallel::SquashfsReadFile<'_, 'b, V>::seek(&mut self, core::io::seek::SeekFrom) -> core::io::error::Result<u64>
++pub fn backhand::traits::filesystem::FilesystemReaderTrait::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::FilesystemReader<'b>::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::FilesystemReader<'b>::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::FilesystemReader<'b>::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::FilesystemReader<'b>::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub fn backhand::v4::filesystem::reader::FilesystemReader<'b>::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub fn backhand::traits::FilesystemReaderTrait::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub struct backhand::v4::filesystem::reader::V4Blocks
++pub type backhand::v4::filesystem::reader::FilesystemReaderFile<'a, 'b> = backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>
++pub type backhand::v4::filesystem::reader::SquashfsRawData<'a, 'b> = backhand::traits::block_reader_parallel::SquashfsRawData<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>
++pub type backhand::v4::filesystem::reader::SquashfsReadFile<'a, 'b> = backhand::traits::block_reader_parallel::SquashfsReadFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>
++pub struct backhand::v4::squashfs::Cache
++pub fn backhand::FilesystemReaderTrait::file_data_to_writer(&self, &backhand::traits::filesystem::BackhandSquashfsFileReader, &mut dyn core::io::write::Write) -> core::result::Result<u64, backhand::error::BackhandError>
++pub type backhand::FilesystemReaderFile<'a, 'b> = backhand::traits::block_reader::FilesystemReaderFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>
++pub type backhand::SquashfsReadFile<'a, 'b> = backhand::traits::block_reader_parallel::SquashfsReadFile<'a, 'b, backhand::v4::filesystem::reader::V4Blocks>
+```
+
+</details>
 
 ## [v0.25.1] - 2025-02-28
 ### `backhand`

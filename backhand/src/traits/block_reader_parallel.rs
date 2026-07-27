@@ -1,3 +1,5 @@
+//! Parallel file data block reading, shared by all SquashFS versions
+
 use no_std_io2::io::Read;
 use rayon::prelude::*;
 use std::collections::VecDeque;
@@ -5,19 +7,19 @@ use std::io::{Seek, SeekFrom};
 use std::sync::{Arc, Mutex};
 
 use crate::error::BackhandError;
-use crate::v4::filesystem::reader::{BlockFragment, BlockIterator, FilesystemReaderFile};
+use crate::traits::block_reader::{
+    BlockFragment, BlockIterator, BlockReaderVersion, RawDataBlock, decompress, read_raw_data,
+};
 
+/// How many blocks to decompress in one parallel batch
 const PREFETCH_COUNT: usize = 8;
 
-#[derive(Clone, Copy)]
-pub(crate) struct RawDataBlock {
-    pub(crate) fragment: bool,
-    pub(crate) uncompressed: bool,
-}
-
-pub(crate) struct SquashfsRawData<'a, 'b> {
-    pub(crate) file: FilesystemReaderFile<'a, 'b>,
-    current_block: BlockIterator<'a>,
+/// Reads a file's data blocks from the image, without decompressing them
+pub struct SquashfsRawData<'a, 'b, V: BlockReaderVersion<'b>> {
+    pub(crate) system: &'a V::System,
+    pub(crate) file: &'a V::File,
+    current_block: BlockIterator<'a, 'b, V>,
+    /// Offset in the image of the next whole block to read
     pub(crate) pos: u64,
     /// Buffer pool for reusing memory across threads
     buffer_pool: Arc<Mutex<Vec<Vec<u8>>>>,
@@ -26,11 +28,28 @@ pub(crate) struct SquashfsRawData<'a, 'b> {
     num_prefetch: usize,
 }
 
-impl<'a, 'b> SquashfsRawData<'a, 'b> {
-    pub fn new(file: FilesystemReaderFile<'a, 'b>) -> Self {
-        let pos = file.file.blocks_start();
-        let current_block = file.into_iter();
+impl<'a, 'b, V: BlockReaderVersion<'b>> SquashfsRawData<'a, 'b, V> {
+    pub fn new(system: &'a V::System, file: &'a V::File) -> Result<Self, BackhandError> {
+        let pos = V::blocks_start(file);
+        let current_block =
+            BlockIterator { blocks: V::block_sizes(file), fragment: V::fragment_of(system, file)? };
+        Ok(Self {
+            system,
+            file,
+            current_block,
+            pos,
+            buffer_pool: Arc::new(Mutex::new(Vec::new())),
+            prefetched_blocks: VecDeque::new(),
+            num_prefetch: rayon::current_num_threads() / 2,
+        })
+    }
+
+    /// Like [`Self::new`], but reads only the file's whole blocks, ignoring its fragment
+    pub fn new_without_fragment(system: &'a V::System, file: &'a V::File) -> Self {
+        let pos = V::blocks_start(file);
+        let current_block = BlockIterator { blocks: V::block_sizes(file), fragment: None };
         Self {
+            system,
             file,
             current_block,
             pos,
@@ -47,7 +66,13 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
                 Some(block_fragment) => {
                     let mut data = self.buffer_pool.lock().unwrap().pop().unwrap_or_default();
 
-                    let block_info = self.read_raw_data(&mut data, &block_fragment)?;
+                    let block_info = read_raw_data::<V>(
+                        self.system,
+                        self.file,
+                        &mut self.pos,
+                        &mut data,
+                        &block_fragment,
+                    )?;
                     self.prefetched_blocks.push_back((data, block_info));
                 }
                 None => break, // No more blocks
@@ -55,84 +80,6 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         }
 
         Ok(())
-    }
-
-    fn read_raw_data(
-        &mut self,
-        data: &mut Vec<u8>,
-        block: &BlockFragment<'a>,
-    ) -> Result<RawDataBlock, BackhandError> {
-        match block {
-            BlockFragment::Block(block) => {
-                let block_size = block.size() as usize;
-                // sparse file, don't read from reader, just fill with superblock.block size of 0's
-                if block_size == 0 {
-                    *data = vec![0; self.file.system.block_size as usize];
-                    return Ok(RawDataBlock { fragment: false, uncompressed: true });
-                }
-                if block_size > self.file.system.block_size as usize {
-                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-                }
-                data.resize(block_size, 0);
-                //NOTE: storing/restoring the file-pos is not required at the
-                //moment of writing, but in the future, it may.
-                {
-                    let mut reader = self.file.system.reader.lock().unwrap();
-                    reader.seek(SeekFrom::Start(self.pos))?;
-                    reader.read_exact(data)?;
-                    self.pos = reader.stream_position()?;
-                }
-                Ok(RawDataBlock { fragment: false, uncompressed: block.uncompressed() })
-            }
-            BlockFragment::Fragment(fragment) => {
-                // if in the cache, just read from the cache bytes and return the fragment bytes
-                {
-                    let cache = self.file.system.cache.read().unwrap();
-                    if let Some(cache_bytes) = cache.fragment_cache.get(&fragment.start) {
-                        //if in cache, just return the cache, don't read it
-                        let range = self.fragment_range(cache_bytes.len())?;
-                        tracing::trace!("fragment in cache: {:02x}:{range:02x?}", fragment.start);
-                        data.resize(range.end - range.start, 0);
-                        data.copy_from_slice(&cache_bytes[range]);
-
-                        //cache is store uncompressed
-                        return Ok(RawDataBlock { fragment: true, uncompressed: true });
-                    }
-                }
-
-                // if not in the cache, read the entire fragment bytes to store into
-                // the cache. Once that is done, if uncompressed just return the bytes
-                // that were read that are for the file
-                tracing::trace!("fragment: reading from data");
-                let frag_size = fragment.size.size() as usize;
-                if frag_size > self.file.system.block_size as usize {
-                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
-                }
-                data.resize(frag_size, 0);
-                {
-                    let mut reader = self.file.system.reader.lock().unwrap();
-                    reader.seek(SeekFrom::Start(fragment.start))?;
-                    reader.read_exact(data)?;
-                }
-
-                // if already decompressed, store
-                if fragment.size.uncompressed() {
-                    let range = self.fragment_range(data.len())?;
-                    self.file
-                        .system
-                        .cache
-                        .write()
-                        .unwrap()
-                        .fragment_cache
-                        .insert(fragment.start, data.clone());
-
-                    //apply the fragment offset
-                    data.drain(range.end..);
-                    data.drain(..range.start);
-                }
-                Ok(RawDataBlock { fragment: true, uncompressed: fragment.size.uncompressed() })
-            }
-        }
     }
 
     #[inline]
@@ -163,31 +110,13 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         debug_assert!(self.prefetched_blocks.is_empty());
         match self.current_block.next() {
             Some(BlockFragment::Block(block)) => {
-                self.pos += block.size() as u64; // correctly adds 0 for sparse blocks (size == 0)
+                // correctly adds 0 for sparse blocks (size == 0)
+                self.pos += u64::from(V::data_size(block));
                 true
             }
             Some(BlockFragment::Fragment(_)) => true, // fragment is last, just consume it
             None => false,
         }
-    }
-
-    /// Compute the byte range of this file's tail data within the fragment block.
-    #[inline]
-    fn fragment_range(
-        &self,
-        frag_buf_len: usize,
-    ) -> Result<core::ops::Range<usize>, BackhandError> {
-        let block_len = self.file.system.block_size as usize;
-        let block_num = self.file.file.block_sizes().len();
-        let file_size = self.file.file.file_len();
-        let frag_start = self.file.file.block_offset() as usize;
-
-        (|| {
-            let frag_len = file_size.checked_sub(block_num.checked_mul(block_len)?)?;
-            let frag_end = frag_start.checked_add(frag_len)?;
-            (frag_end <= frag_buf_len).then_some(frag_start..frag_end)
-        })()
-        .ok_or(BackhandError::CorruptedOrInvalidSquashfs)
     }
 
     /// Decompress function that can be run in parallel
@@ -197,50 +126,18 @@ impl<'a, 'b> SquashfsRawData<'a, 'b> {
         input_buf: &mut Vec<u8>,
         output_buf: &mut Vec<u8>,
     ) -> Result<(), BackhandError> {
-        // append to the output_buf is not allowed, it need to be empty
-        assert!(output_buf.is_empty());
-        // input is already decompress, so just swap the input/output, so the
-        // output_buf contains the final data.
-        if data.uncompressed {
-            core::mem::swap(input_buf, output_buf);
-        } else {
-            output_buf.reserve(self.file.system.block_size as usize);
-            self.file.system.kind.inner.compressor.decompress(
-                input_buf,
-                output_buf,
-                Some(self.file.system.compressor.into()),
-            )?;
-            // store the cache, so decompression is not duplicated
-            if data.fragment {
-                let fragment = self
-                    .file
-                    .fragment_checked()?
-                    .ok_or(BackhandError::CorruptedOrInvalidSquashfs)?;
-                //apply the fragment offset
-                let range = self.fragment_range(output_buf.len())?;
-                self.file
-                    .system
-                    .cache
-                    .write()
-                    .unwrap()
-                    .fragment_cache
-                    .insert(fragment.start, output_buf.clone());
-
-                output_buf.drain(range.end..);
-                output_buf.drain(..range.start);
-            }
-        }
-        Ok(())
+        decompress::<V>(self.system, self.file, data, input_buf, output_buf)
     }
 
     #[inline]
-    pub fn into_reader(self) -> SquashfsReadFile<'a, 'b> {
+    pub fn into_reader(self) -> SquashfsReadFile<'a, 'b, V> {
         SquashfsReadFile::new(self)
     }
 }
 
-pub struct SquashfsReadFile<'a, 'b> {
-    raw_data: SquashfsRawData<'a, 'b>,
+/// A [`Read`] + [`Seek`] handle over one file's decompressed contents
+pub struct SquashfsReadFile<'a, 'b, V: BlockReaderVersion<'b>> {
+    raw_data: SquashfsRawData<'a, 'b, V>,
     buffer_pool: Arc<Mutex<Vec<Vec<u8>>>>,
     decompressed_blocks: VecDeque<Vec<u8>>,
     current_block_position: usize,
@@ -248,8 +145,8 @@ pub struct SquashfsReadFile<'a, 'b> {
     prefetch_count: usize,
 }
 
-impl<'a, 'b> SquashfsReadFile<'a, 'b> {
-    fn new(raw_data: SquashfsRawData<'a, 'b>) -> Self {
+impl<'a, 'b, V: BlockReaderVersion<'b>> SquashfsReadFile<'a, 'b, V> {
+    fn new(raw_data: SquashfsRawData<'a, 'b, V>) -> Self {
         let buffer_pool = Arc::new(Mutex::new(Vec::new()));
         Self {
             raw_data,
@@ -263,7 +160,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
 
     #[inline]
     fn file_len64(&self) -> u64 {
-        self.raw_data.file.file.file_len() as u64
+        V::file_len(self.raw_data.file) as u64
     }
 
     /// Fill the decompressed blocks queue with data
@@ -365,7 +262,7 @@ impl<'a, 'b> SquashfsReadFile<'a, 'b> {
     }
 }
 
-impl Read for SquashfsReadFile<'_, '_> {
+impl<'b, V: BlockReaderVersion<'b>> Read for SquashfsReadFile<'_, 'b, V> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // Check if we're at the end of the file
@@ -388,7 +285,7 @@ impl Read for SquashfsReadFile<'_, '_> {
     }
 }
 
-impl Seek for SquashfsReadFile<'_, '_> {
+impl<'b, V: BlockReaderVersion<'b>> Seek for SquashfsReadFile<'_, 'b, V> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         let file_len = self.file_len64();
         let new_pos = u64::try_from(match pos {
@@ -414,14 +311,15 @@ impl Seek for SquashfsReadFile<'_, '_> {
         }
 
         // reset to initial start-of-file state and then skip forward
-        self.raw_data = self.raw_data.file.raw_data_reader();
+        self.raw_data = SquashfsRawData::new(self.raw_data.system, self.raw_data.file)
+            .map_err(std::io::Error::other)?;
         self.decompressed_blocks.clear();
         self.current_block_position = 0;
         self.cursor_pos = 0;
 
         if new_pos < file_len {
             // skip full blocks without decompressing them
-            let block_size = self.raw_data.file.system.block_size as u64;
+            let block_size = u64::from(V::block_size(self.raw_data.system));
             while new_pos >= self.cursor_pos + block_size {
                 let _skipped = self.raw_data.skip_block();
                 debug_assert!(_skipped);

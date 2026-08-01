@@ -8,8 +8,10 @@ use deku::prelude::*;
 use flate2::read::ZlibEncoder;
 #[cfg(feature = "gzip")]
 use flate2::{Compress, Compression};
+#[cfg(feature = "gzip")]
+use flate2::{Decompress, FlushDecompress, Status};
 #[cfg(feature = "xz")]
-use liblzma::read::{XzDecoder, XzEncoder};
+use liblzma::read::XzEncoder;
 #[cfg(feature = "xz")]
 use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 use tracing::trace;
@@ -148,6 +150,89 @@ pub struct Zstd {
 #[derive(Copy, Clone)]
 pub struct DefaultCompressor;
 
+/// The maximum size of one decompressed block.
+#[cfg(any(feature = "xz", feature = "gzip"))]
+const MAX_DECOMPRESSED_SIZE: usize = 4 * super::squashfs::MAX_BLOCK_SIZE as usize;
+
+/// Decompress a complete xz stream in one call. The data is added to `out`.
+#[cfg(feature = "xz")]
+fn xz_decode_buffer(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), BackhandError> {
+    if out.capacity() == out.len() {
+        out.reserve(bytes.len().max(8 * 1024));
+    }
+
+    loop {
+        let start = out.len();
+        let spare = out.capacity() - start;
+        let mut memlimit = u64::MAX;
+        let mut in_pos = 0usize;
+        let mut out_pos = 0usize;
+
+        // SAFETY: `input`/`in_size` and `out`/`out_size` point to valid memory
+        // areas that do not overlap. liblzma writes a maximum of `out_size`
+        // bytes into the spare capacity after `start`. It gives the number of
+        // bytes in `out_pos`. The code increases the length only across the
+        // bytes that liblzma wrote.
+        let ret = unsafe {
+            liblzma_sys::lzma_stream_buffer_decode(
+                &mut memlimit,
+                0,
+                std::ptr::null(),
+                bytes.as_ptr(),
+                &mut in_pos,
+                bytes.len(),
+                out.as_mut_ptr().add(start),
+                &mut out_pos,
+                spare,
+            )
+        };
+
+        match ret {
+            liblzma_sys::LZMA_OK => {
+                // SAFETY: liblzma wrote `out_pos` bytes after `start`.
+                unsafe { out.set_len(start + out_pos) };
+                return Ok(());
+            }
+            // The output did not fit. Increase the buffer and decode again from
+            // the start.
+            liblzma_sys::LZMA_BUF_ERROR => {
+                if spare >= MAX_DECOMPRESSED_SIZE {
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
+                out.reserve(spare.max(8 * 1024) * 2);
+            }
+            _ => return Err(BackhandError::CorruptedOrInvalidSquashfs),
+        }
+    }
+}
+
+/// Decompress a complete zlib stream in one call. The data is added to `out`.
+#[cfg(feature = "gzip")]
+fn gzip_decode_buffer(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), BackhandError> {
+    let start = out.len();
+    let mut spare = out.capacity() - start;
+    loop {
+        if spare < 8 * 1024 {
+            out.reserve(8 * 1024);
+            spare = out.capacity() - start;
+        }
+
+        out.truncate(start);
+        match Decompress::new(true).decompress_vec(bytes, out, FlushDecompress::Finish) {
+            Ok(Status::StreamEnd) => return Ok(()),
+            // The output did not fit. Increase the buffer and decode again.
+            Ok(_) => {
+                if spare >= MAX_DECOMPRESSED_SIZE {
+                    return Err(BackhandError::CorruptedOrInvalidSquashfs);
+                }
+                out.reserve(spare * 2);
+                spare = out.capacity() - start;
+            }
+            Err(_) => return Err(BackhandError::CorruptedOrInvalidSquashfs),
+        }
+    }
+}
+
 impl CompressionAction for DefaultCompressor {
     type Compressor = Compressor;
     type FilesystemCompressor = FilesystemCompressor;
@@ -163,15 +248,9 @@ impl CompressionAction for DefaultCompressor {
         match compressor {
             Compressor::Uncompressed => out.extend_from_slice(bytes),
             #[cfg(feature = "gzip")]
-            Compressor::Gzip => {
-                let mut decoder = flate2::read::ZlibDecoder::new(bytes);
-                decoder.read_to_end(out)?;
-            }
+            Compressor::Gzip => gzip_decode_buffer(bytes, out)?,
             #[cfg(feature = "xz")]
-            Compressor::Xz => {
-                let mut decoder = XzDecoder::new(bytes);
-                decoder.read_to_end(out)?;
-            }
+            Compressor::Xz => xz_decode_buffer(bytes, out)?,
             #[cfg(feature = "lzo")]
             Compressor::Lzo => {
                 out.resize(out.capacity(), 0);

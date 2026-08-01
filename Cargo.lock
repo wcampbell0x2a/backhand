@@ -122,6 +122,7 @@ dependencies = [
  "flate2",
  "libdeflater",
  "liblzma",
+ "liblzma-sys",
  "lz4_flex",
  "lzma-adaptive-sys",
  "lzma-rust2",

@@ -1,8 +1,8 @@
 [env]
-# Always remove debug asserts
+# Always remove the debug assertions
 CFLAGS = "-D NDEBUG=1"
 
-# Restore liblzma's fast decoder on x86_64.
+# Make the fast decoder of liblzma available on x86_64.
 CFLAGS_x86_64_unknown_linux_gnu = "-D NDEBUG=1 -D TUKLIB_FAST_UNALIGNED_ACCESS=1 -D HAVE_IMMINTRIN_H=1 -D HAVE_CPUID_H=1 -D HAVE_USABLE_CLMUL=1"
 CFLAGS_x86_64_unknown_linux_musl = "-D NDEBUG=1 -D TUKLIB_FAST_UNALIGNED_ACCESS=1 -D HAVE_IMMINTRIN_H=1 -D HAVE_CPUID_H=1 -D HAVE_USABLE_CLMUL=1"
 

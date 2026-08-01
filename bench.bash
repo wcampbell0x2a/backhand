@@ -11,7 +11,6 @@ BACKHAND="./target/dist/unsquashfs-backhand"
 BACKHAND_MUSL="./target/x86_64-unknown-linux-musl/dist/unsquashfs-backhand"
 UNSQUASHFS="/usr/bin/unsquashfs"
 
-# Using dynamic linked xz for perf reasons and matching unsquashfs in this testing
 FLAGS="--bins --locked --profile=dist --no-default-features --features xz --features zstd --features gzip --features parallel"
 
 bench () {

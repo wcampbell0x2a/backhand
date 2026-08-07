@@ -12,8 +12,7 @@ use backhand::V3;
 use backhand::kind::Kind;
 use backhand::traits::filesystem::{BackhandInnerNode, BackhandNode, BackhandNodeHeader};
 use backhand::{
-    BufReadSeek, DEFAULT_BLOCK_SIZE, FilesystemReaderTrait, SquashfsVersion, V4,
-    create_squashfs_from_kind,
+    DEFAULT_BLOCK_SIZE, FilesystemReaderTrait, SquashfsVersion, V4, create_squashfs_from_kind,
 };
 use backhand_cli::after_help;
 use clap::builder::PossibleValuesParser;
@@ -456,9 +455,8 @@ fn stat_v4(args: Args, mut file: BufReader<File>, kind: Kind) {
         eprintln!("Failed to seek to offset: {e}");
         return;
     }
-    let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, compression_options) =
-        match V4::superblock_and_compression_options(&mut reader, &kind) {
+        match V4::superblock_and_compression_options(&mut file, &kind) {
             Ok(result) => result,
             Err(e) => {
                 eprintln!("Failed to read superblock: {e}");
@@ -516,9 +514,8 @@ fn stat_v3(args: Args, mut file: BufReader<File>, kind: Kind) {
         eprintln!("Failed to seek to offset: {e}");
         return;
     }
-    let mut reader: Box<dyn BufReadSeek> = Box::new(file);
     let (superblock, _compression_options) =
-        match V3::superblock_and_compression_options(&mut reader, &kind) {
+        match V3::superblock_and_compression_options(&mut file, &kind) {
             Ok(result) => result,
             Err(e) => {
                 eprintln!("Failed to read superblock: {e}");

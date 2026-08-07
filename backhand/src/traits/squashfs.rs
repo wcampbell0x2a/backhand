@@ -16,8 +16,8 @@ pub trait SquashfsVersion<'b> {
     type FilesystemReader;
 
     /// Read superblock and compression options
-    fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek + 'b>,
+    fn superblock_and_compression_options<R: BufReadSeek + 'b>(
+        reader: &mut R,
         kind: &Kind,
     ) -> Result<(Self::SuperBlock, Option<Self::CompressionOptions>), crate::error::BackhandError>;
 
@@ -62,8 +62,8 @@ impl<'b, V: SquashfsVersion<'b>> GenericSquashfs<'b, V> {
     /// and dirs
     ///
     /// Used for unsquashfs (extraction and --stat)
-    pub fn superblock_and_compression_options(
-        reader: &mut Box<dyn BufReadSeek + 'b>,
+    pub fn superblock_and_compression_options<R: BufReadSeek + 'b>(
+        reader: &mut R,
         kind: &Kind,
     ) -> Result<(V::SuperBlock, Option<V::CompressionOptions>), crate::error::BackhandError> {
         V::superblock_and_compression_options(reader, kind)

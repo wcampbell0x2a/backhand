@@ -66,9 +66,14 @@ tempfile = "3.14.0"
 criterion = "0.8"
 libdeflater = "1.22.0"
 toml = "1.0"
+gungraun = "0.19.4"
 
 [[bench]]
 name = "benchmark"
+harness = false
+
+[[bench]]
+name = "gungraun_benchmark"
 harness = false
 
 [lib]

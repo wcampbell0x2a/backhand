@@ -1,4 +1,3 @@
-use std::fs;
 use std::process::Command;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -9,7 +8,7 @@ use test_assets_ureq::{TestAsset, dl_test_files_backoff};
 
 static TEST_ASSETS: OnceLock<TestAsset> = OnceLock::new();
 
-/// Get the parsed test assets from the TOML file
+/// Get the parsed testm the TOML file, TestAsset
 pub fn get_test_assets() -> &'static TestAsset {
     TEST_ASSETS.get_or_init(|| {
         let mut config_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -28,7 +27,7 @@ pub fn download_asset(asset_key: &str) {
         .unwrap_or_else(|| panic!("Asset '{}' not found in test-assets.toml", asset_key));
 
     // Download to current directory (tests run from workspace root)
-    let _ = dl_test_files_backoff(&[asset.clone()], ".", Duration::from_secs(60));
+    let _ = dl_test_files_backoff(std::slice::from_ref(asset), ".", Duration::from_secs(60));
 }
 
 /// Download multiple test assets by keys
@@ -76,7 +75,7 @@ pub fn test_squashfs_tools_unsquashfs(
     if assert_success {
         cmd.assert().code(&[0] as &[i32]);
     } else {
-        cmd.assert();
+        let _ = cmd.assert();
     }
 
     let new_dir = tempdir_in(".").unwrap();
@@ -95,7 +94,7 @@ pub fn test_squashfs_tools_unsquashfs(
     if assert_success {
         cmd.assert().code(&[0] as &[i32]);
     } else {
-        cmd.assert();
+        let _ = cmd.assert();
     }
 
     let d = dir_diff::is_different(
@@ -128,6 +127,7 @@ pub fn test_bin_unsquashfs_with_kind(
     run_squashfs_tools_unsquashfs: bool,
     kind: Option<String>,
 ) {
+    let _ = assert_success;
     let kind = kind.unwrap_or("le_v4_0".to_string());
     let tmp_dir = tempdir_in(".").unwrap();
     // Run "our" unsquashfs against the control
@@ -168,7 +168,7 @@ pub fn test_bin_unsquashfs_with_kind(
             if assert_success {
                 cmd.assert().code(&[0] as &[i32]);
             } else {
-                cmd.assert();
+                let _ = cmd.assert();
             }
             tracing::info!("{:?}", cmd);
 

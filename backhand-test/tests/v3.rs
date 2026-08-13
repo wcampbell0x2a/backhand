@@ -11,11 +11,11 @@ use test_log::test;
 use tracing::info;
 
 fn only_read(kind: Kind, og_path: &str, offset: u64, kind_str: &str) {
-    let file = BufReader::new(File::open(&og_path).unwrap());
+    let file = BufReader::new(File::open(og_path).unwrap());
     info!("calling from_reader");
     let _ = FilesystemReader::from_reader_with_offset_and_kind(file, offset, kind).unwrap();
 
-    test_bin_unsquashfs_with_kind(&og_path, Some(offset), true, false, Some(kind_str.to_string()));
+    test_bin_unsquashfs_with_kind(og_path, Some(offset), true, false, Some(kind_str.to_string()));
 }
 
 #[test]

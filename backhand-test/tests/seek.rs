@@ -86,14 +86,14 @@ mod v4 {
         assert_eq!(len, (DEFAULT_BLOCK_SIZE * 3 + 2) as u64);
 
         assert_eq!(r.seek(SeekFrom::Start(100)).unwrap(), 100);
-        assert_eq!(r.seek(SeekFrom::Current(0)).unwrap(), 100);
+        assert_eq!(r.stream_position().unwrap(), 100);
         assert_eq!(r.seek(SeekFrom::Current(-100)).unwrap(), 0);
         assert_eq!(r.seek(SeekFrom::End(-ilen + 1)).unwrap(), 1);
         assert_eq!(r.seek(SeekFrom::End(-ilen)).unwrap(), 0);
         assert!(r.seek(SeekFrom::End(-ilen - 1)).is_err());
         assert_eq!(r.seek(SeekFrom::Start(superhuge)).unwrap(), superhuge);
         assert_eq!(r.seek(SeekFrom::End(superhuge as i64)).unwrap(), len + superhuge);
-        assert_eq!(r.seek(SeekFrom::Current(0)).unwrap(), len + superhuge);
+        assert_eq!(r.stream_position().unwrap(), len + superhuge);
         assert_eq!(r.seek(SeekFrom::Current(1)).unwrap(), len + superhuge + 1);
         assert_eq!(r.seek(SeekFrom::Current(-isuperhuge)).unwrap(), len + 1);
         assert!(r.seek(SeekFrom::Current(-isuperhuge)).is_err());
@@ -155,9 +155,9 @@ mod v3 {
         assert_eq!(r.seek(SeekFrom::Current(-1)).unwrap(), 999_999_999);
         assert_eq!(r.seek(SeekFrom::Current(-999_999_999)).unwrap(), 0);
         assert!(r.seek(SeekFrom::Current(-1)).is_err());
-        assert_eq!(r.seek(SeekFrom::Current(0)).unwrap(), 0);
+        assert_eq!(r.stream_position().unwrap(), 0);
         assert!(r.seek(SeekFrom::End(-(file_len as i64) - 1)).is_err());
         assert_eq!(r.seek(SeekFrom::End(-(file_len as i64) + 1)).unwrap(), 1);
-        assert_eq!(r.seek(SeekFrom::Current(0)).unwrap(), 1);
+        assert_eq!(r.stream_position().unwrap(), 1);
     }
 }

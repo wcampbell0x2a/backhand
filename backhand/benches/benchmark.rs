@@ -1,4 +1,4 @@
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::{BufReader, Cursor};
 use std::process::Command;
 use std::sync::OnceLock;
@@ -31,7 +31,7 @@ fn download_asset(asset_key: &str) -> String {
         .unwrap_or_else(|| panic!("Asset '{}' not found in test-assets.toml", asset_key));
 
     // Download to current directory (tests run from workspace root)
-    let _ = dl_test_files_backoff(&[asset.clone()], ".", Duration::from_secs(60));
+    let _ = dl_test_files_backoff(std::slice::from_ref(asset), ".", Duration::from_secs(60));
 
     asset.filepath.clone()
 }

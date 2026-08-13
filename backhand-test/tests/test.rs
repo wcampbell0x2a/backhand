@@ -3,7 +3,8 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 
 use backhand::{FilesystemReader, FilesystemWriter};
-use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
+use common::test_bin_unsquashfs;
+use common::test_squashfs_tools_unsquashfs;
 use test_log::test;
 use tracing::{info, trace};
 
@@ -52,7 +53,7 @@ fn full_test_inner(
     let dir = path.parent().unwrap();
     let new_path = dir.join("bytes.squashfs");
     let new_path = new_path.to_str().unwrap();
-    let file = BufReader::new(File::open(&og_path).unwrap());
+    let file = BufReader::new(File::open(og_path).unwrap());
     info!("calling from_reader");
     let og_filesystem = FilesystemReader::from_reader_with_offset(file, offset).unwrap();
     let og_comp_opts = og_filesystem.compression_options;
@@ -60,7 +61,7 @@ fn full_test_inner(
 
     // convert to bytes
     info!("calling to_bytes");
-    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let mut output = BufWriter::new(File::create(new_path).unwrap());
     new_filesystem.write_with_offset(&mut output, offset).unwrap();
     info!("done with writing to bytes");
 
@@ -69,7 +70,7 @@ fn full_test_inner(
 
     // assert that our library can at least read the output, use unsquashfs to really assert this
     info!("calling from_reader");
-    let created_file = BufReader::new(File::open(&new_path).unwrap());
+    let created_file = BufReader::new(File::open(new_path).unwrap());
     let written_new_filesystem =
         FilesystemReader::from_reader_with_offset(created_file, offset).unwrap();
 
@@ -84,24 +85,19 @@ fn full_test_inner(
                 #[cfg(feature = "__test_unsquashfs")]
                 {
                     info!("starting squashfs-tools/unsquashfs test");
-                    test_squashfs_tools_unsquashfs(
-                        &og_path,
-                        &new_path,
-                        Some(offset),
-                        assert_success,
-                    );
+                    test_squashfs_tools_unsquashfs(og_path, new_path, Some(offset), assert_success);
                 }
             }
             info!("starting backhand/unsquashfs original test");
             test_bin_unsquashfs(
-                &og_path,
+                og_path,
                 Some(offset),
                 assert_success,
                 run_squashfs_tools_unsquashfs,
             );
             info!("starting backhand/unsquashfs created test");
             test_bin_unsquashfs(
-                &new_path,
+                new_path,
                 Some(offset),
                 assert_success,
                 run_squashfs_tools_unsquashfs,

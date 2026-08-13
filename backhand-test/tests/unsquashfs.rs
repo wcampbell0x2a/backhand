@@ -12,7 +12,7 @@ fn test_unsquashfs_cli() {
     // single file
     let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
-        .args(["--path-filter", r#"/usr/bin/wget"#, "-l", "--quiet", &image_path])
+        .args(["--path-filter", r#"/usr/bin/wget"#, "-l", "--quiet", image_path])
         .unwrap();
     cmd.assert().stdout(
         r#"/
@@ -25,7 +25,7 @@ fn test_unsquashfs_cli() {
     // multiple file
     let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
-        .args(["--path-filter", r#"/www/webpages/data"#, "-l", "--quiet", &image_path])
+        .args(["--path-filter", r#"/www/webpages/data"#, "-l", "--quiet", image_path])
         .unwrap();
     cmd.assert().stdout(
         r#"/
@@ -59,7 +59,7 @@ fn test_unsquashfs_cli() {
     // Number of xattr ids 0
     let cmd = common::get_base_command("unsquashfs-backhand")
         .env("RUST_LOG", "none")
-        .args(["-s", "--quiet", "--kind", "le_v4_0", &image_path])
+        .args(["-s", "--quiet", "--kind", "le_v4_0", image_path])
         .unwrap();
     cmd.assert().stdout(
         r#"SuperBlock {
@@ -113,7 +113,7 @@ fn test_unsquashfs_cli_auto_offset() {
                 "le_v4_0",
                 "-d",
                 tmp_dir.path().join("squashfs-root-c").to_str().unwrap(),
-                &image_path,
+                image_path,
             ])
             .unwrap();
         cmd.assert().code(&[0] as &[i32]);

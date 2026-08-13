@@ -6,6 +6,7 @@ test *args: build
 quick-test *args: build
     cargo nextest run --release --features v3,v3_lzma -E 'not (test(large_files) | test(/slow/))' {{args}}
 bench:
+    cargo build --bins --release --workspace
     cargo bench
 lint:
     cargo fmt

@@ -18,7 +18,7 @@ fn test_replace() {
             "--path-filter",
             r#"/b/c/d"#,
             "-i",
-            &image_path,
+            image_path,
             "-d",
             tmp_dir.path().join("squashfs-root-rust").to_str().unwrap(),
         ])
@@ -34,7 +34,7 @@ fn test_replace() {
     let cmd = common::get_base_command("replace-backhand")
         .env("RUST_LOG", "none")
         .args([
-            &image_path,
+            image_path,
             tmp_dir.path().join("squashfs-root-rust/b/c/d").to_str().unwrap(),
             "/b/c/d",
             tmp_dir.path().join("replaced").to_str().unwrap(),

@@ -589,15 +589,13 @@ fn set_attributes(
     //
     // NOTE: In squashfs-tools/unsquashfs they remove the write bits for user and group?
     // I don't know if there is a reason for that but I keep the permissions the same if possible
-    if let Err(e) = fs::set_permissions(path, Permissions::from_mode(mode)) {
-        if e.kind() == std::io::ErrorKind::PermissionDenied {
-            // try without sticky bit
-            if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err()
-                && !args.quiet
-            {
-                let line = format!("{} : could not set permissions", path.display());
-                failed(pb, &line);
-            }
+    if let Err(e) = fs::set_permissions(path, Permissions::from_mode(mode))
+        && e.kind() == std::io::ErrorKind::PermissionDenied
+    {
+        // try without sticky bit
+        if fs::set_permissions(path, Permissions::from_mode(mode & !1000)).is_err() && !args.quiet {
+            let line = format!("{} : could not set permissions", path.display());
+            failed(pb, &line);
         }
     }
 }
@@ -704,11 +702,11 @@ fn extract_all(
                         return;
                     }
                 }
-                if let Err(e) = writer.flush() {
-                    if !args.quiet {
-                        let line = format!("{} : flush failed: {e}", filepath.display());
-                        failed(&pb, &line);
-                    }
+                if let Err(e) = writer.flush()
+                    && !args.quiet
+                {
+                    let line = format!("{} : flush failed: {e}", filepath.display());
+                    failed(&pb, &line);
                 }
             }
             BackhandInnerNode::Symlink { link } => {
@@ -772,11 +770,10 @@ fn extract_all(
                     &timespec,
                     &timespec,
                     UtimensatFlags::NoFollowSymlink,
-                ) {
-                    if !args.quiet {
-                        let line = format!("{} : could not set times: {e}", filepath.display());
-                        failed(&pb, &line);
-                    }
+                ) && !args.quiet
+                {
+                    let line = format!("{} : could not set times: {e}", filepath.display());
+                    failed(&pb, &line);
                 }
             }
             BackhandInnerNode::Dir => {

@@ -21,6 +21,9 @@ categories = ["filesystem", "parsing"]
 debug = true
 strip = false
 
+[profile.bench.package.deku]
+opt-level = 0
+
 [profile.release]
 overflow-checks = true
 

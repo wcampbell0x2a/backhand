@@ -18,21 +18,21 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 deku = { version = "0.20.1", default-features = false, features = ["std", "bits", "descriptive-errors"] }
 tracing = { version = "0.1.40" }
-thiserror = "2.0.1"
+thiserror = "2.0.20"
 flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }
-liblzma = { version = "0.4.1", optional = true, default-features = false, features = ["static", "parallel"] }
-liblzma-sys = { version = "0.4.5", optional = true, default-features = false, features = ["static"] }
+liblzma = { version = "0.4.8", optional = true, default-features = false, features = ["static", "parallel"] }
+liblzma-sys = { version = "0.4.8", optional = true, default-features = false, features = ["static"] }
 lzma-adaptive-sys = { version = "0.1.0", optional = true }
-lzma-rust2 = { version = "0.16.0", optional = true, features = ["xz", "encoder", "optimization"] }
+lzma-rust2 = { version = "0.18.1", optional = true, features = ["xz", "encoder", "optimization"] }
 rust-lzo = { version = "0.6.2", optional = true }
 zstd = { version = "0.13.2", optional = true }
 zstd-safe = { version = "7.2.1", optional = true }
 document-features = { version = "0.2.10", optional = true }
-xxhash-rust = { version = "0.8.12", features = ["xxh64"] }
+xxhash-rust = { version = "0.8.18", features = ["xxh64"] }
 solana-nohash-hasher = "0.2.1"
-lz4_flex = { version = "0.12.0", optional = true, default-features = false }
-rayon = { version = "1.10.0", optional = true, default-features = false }
-no_std_io2 = "0.9.0"
+lz4_flex = { version = "0.14.0", optional = true, default-features = false, features = ["alloc"] }
+rayon = { version = "1.12.0", optional = true, default-features = false }
+no_std_io2 = "0.9.4"
 
 [features]
 default = ["xz", "gzip", "zstd", "lz4", "parallel"]
@@ -58,14 +58,14 @@ any-gzip = []
 parallel = ["dep:rayon"]
 
 [dev-dependencies]
-test-log = { version = "0.2.16", features = ["trace"] }
-test-assets-ureq = "0.6.0"
-assert_cmd = { version = "2.0.16", features = ["color", "color-auto"] }
+test-log = { version = "0.2.21", features = ["trace"] }
+test-assets-ureq = "0.6.2"
+assert_cmd = { version = "2.2.2", features = ["color", "color-auto"] }
 dir-diff = { git  = "https://github.com/wcampbell0x2a/dir-diff", branch = "add-checking-permissions" }
-tempfile = "3.14.0"
+tempfile = "3.27.0"
 criterion = "0.8"
 libdeflater = "1.22.0"
-toml = "1.0"
+toml = "1.1"
 gungraun = "0.19.4"
 
 [[bench]]

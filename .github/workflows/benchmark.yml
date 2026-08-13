@@ -12,7 +12,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: wcampbell0x2a/rust-bench-compare-action@dev
+      - uses: wcampbell0x2a/rust-bench-compare-action@e484f60a4475960c83050e442ac4bfcea53dff90 # v1.0.0
         with:
           harness: criterion
           benchName: benchmark
@@ -20,7 +20,7 @@ jobs:
           before: "cargo build --bins --release --locked --workspace"
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: gungraun/setup-gungraun@v1
-      - uses: wcampbell0x2a/rust-bench-compare-action@dev
+      - uses: wcampbell0x2a/rust-bench-compare-action@e484f60a4475960c83050e442ac4bfcea53dff90 # v1.0.0
         with:
           harness: gungraun
           benchName: gungraun_benchmark

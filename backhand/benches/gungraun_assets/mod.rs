@@ -22,7 +22,7 @@ pub fn download_asset(asset_key: &str) -> String {
         .get(asset_key)
         .unwrap_or_else(|| panic!("Asset '{}' not found in test-assets.toml", asset_key));
 
-    let _ = dl_test_files_backoff(&[asset.clone()], ".", Duration::from_secs(60));
+    let _ = dl_test_files_backoff(std::slice::from_ref(asset), ".", Duration::from_secs(60));
 
     asset.filepath.clone()
 }

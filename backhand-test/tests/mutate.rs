@@ -38,7 +38,7 @@ fn test_add_00() {
     let og_path = "test-assets/test_add_00/out.squashfs";
     let new_path = std::path::Path::new(&og_path).parent().unwrap().join("bytes.squashfs");
     let new_path = new_path.to_str().unwrap();
-    let file = BufReader::new(File::open(&og_path).unwrap());
+    let file = BufReader::new(File::open(og_path).unwrap());
     let og_filesystem = FilesystemReader::from_reader(file).unwrap();
     let mut new_filesystem = FilesystemWriter::from_fs_reader(&og_filesystem).unwrap();
 
@@ -65,7 +65,7 @@ fn test_add_00() {
 
     // create the modified squashfs
     {
-        let mut output = BufWriter::new(File::create(&new_path).unwrap());
+        let mut output = BufWriter::new(File::create(new_path).unwrap());
         new_filesystem.write(&mut output).unwrap();
     }
     // force output to drop, so buffer is written
@@ -74,8 +74,8 @@ fn test_add_00() {
     #[cfg(feature = "__test_unsquashfs")]
     {
         let control_new_path = "test-assets/test_add_00/control.squashfs";
-        test_squashfs_tools_unsquashfs(&new_path, &control_new_path, None, true);
-        test_bin_unsquashfs(&og_path, None, true, true);
-        test_bin_unsquashfs(&new_path, None, true, true);
+        test_squashfs_tools_unsquashfs(new_path, control_new_path, None, true);
+        test_bin_unsquashfs(og_path, None, true, true);
+        test_bin_unsquashfs(new_path, None, true, true);
     }
 }

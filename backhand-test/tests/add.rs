@@ -1,7 +1,8 @@
 mod common;
 
-use assert_cmd::prelude::*;
 use std::process::Command;
+
+use assert_cmd::prelude::*;
 use tempfile::tempdir;
 use test_log::test;
 
@@ -25,7 +26,7 @@ fn test_add() {
     let cmd = common::get_base_command("add-backhand")
         .env("RUST_LOG", "none")
         .args([
-            &image_path,
+            image_path,
             "/test",
             tmp_dir.path().join("out").to_str().unwrap(),
             "--dir",
@@ -130,7 +131,7 @@ fn test_dont_emit_compression_options() {
     let cmd = common::get_base_command("add-backhand")
         .env("RUST_LOG", "none")
         .args([
-            &image_path,
+            image_path,
             "/new",
             &out_image,
             "--file",
@@ -152,7 +153,7 @@ fn test_dont_emit_compression_options() {
     let cmd = common::get_base_command("add-backhand")
         .env("RUST_LOG", "none")
         .args([
-            &image_path,
+            image_path,
             "/new",
             &out_image,
             "--file",

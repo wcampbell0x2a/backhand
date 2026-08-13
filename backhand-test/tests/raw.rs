@@ -57,7 +57,7 @@ fn test_raw_00() {
     fs.push_file(Cursor::new(vec![0x0f; 0xff]), "this/is/a/file", header).unwrap();
 
     // create the modified squashfs
-    let mut output = BufWriter::new(File::create(&new_path).unwrap());
+    let mut output = BufWriter::new(File::create(new_path).unwrap());
     let (superblock, bytes_written) = fs.write(&mut output).unwrap();
 
     // 8KiB
@@ -90,7 +90,7 @@ fn test_raw_00() {
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        let output = Command::new("unsquashfs").args(["-lln", "-UTC", &new_path]).output().unwrap();
+        let output = Command::new("unsquashfs").args(["-lln", "-UTC", new_path]).output().unwrap();
         let expected = r#"drwxrwxrwx 1000/1000                38 1970-01-01 00:00 squashfs-root
 drwxrw-rw- 1000/1000                25 1970-01-01 00:00 squashfs-root/this
 drwxrw-rw- 1000/1000                24 1970-01-01 00:00 squashfs-root/this/is
@@ -104,12 +104,12 @@ drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
         // using contains here, the output of squashfs varies between versions
         assert_eq!(std::str::from_utf8(&output.stdout).unwrap(), expected);
 
-        test_squashfs_tools_unsquashfs(&new_path, &control_path, None, true);
-        test_bin_unsquashfs(&new_path, None, true, true);
+        test_squashfs_tools_unsquashfs(new_path, control_path, None, true);
+        test_bin_unsquashfs(new_path, None, true, true);
     }
 
     // Test downing the compression level
-    let file = BufReader::new(File::open(&new_path).unwrap());
+    let file = BufReader::new(File::open(new_path).unwrap());
     let fs = FilesystemReader::from_reader(file).unwrap();
     let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
     let mut xz_extra = ExtraXz::default();
@@ -122,18 +122,18 @@ drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
     // create the modified squashfs
     let new_path2 = dir.join("bytes_less_xz.squashfs");
     let new_path2 = new_path2.to_str().unwrap();
-    let mut output = BufWriter::new(File::create(&new_path2).unwrap());
+    let mut output = BufWriter::new(File::create(new_path2).unwrap());
     let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        test_squashfs_tools_unsquashfs(&new_path2, &control_path, None, true);
-        test_bin_unsquashfs(&new_path2, None, true, true);
+        test_squashfs_tools_unsquashfs(new_path2, control_path, None, true);
+        test_bin_unsquashfs(new_path2, None, true, true);
     }
 
     // Test picking a different compression
-    let file = BufReader::new(File::open(&new_path2).unwrap());
+    let file = BufReader::new(File::open(new_path2).unwrap());
     let fs = FilesystemReader::from_reader(file).unwrap();
     let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
     let compressor = FilesystemCompressor::new(Compressor::Gzip, None).unwrap();
@@ -142,18 +142,18 @@ drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
     // create the modified squashfs
     let new_path3 = dir.join("bytes_gzip.squashfs");
     let new_path3 = new_path3.to_str().unwrap();
-    let mut output = BufWriter::new(File::create(&new_path3).unwrap());
+    let mut output = BufWriter::new(File::create(new_path3).unwrap());
     let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        test_squashfs_tools_unsquashfs(&new_path3, &control_path, None, true);
-        test_bin_unsquashfs(&new_path3, None, true, true);
+        test_squashfs_tools_unsquashfs(new_path3, control_path, None, true);
+        test_bin_unsquashfs(new_path3, None, true, true);
     }
 
     // Test changing block size
-    let file = BufReader::new(File::open(&new_path3).unwrap());
+    let file = BufReader::new(File::open(new_path3).unwrap());
     let fs = FilesystemReader::from_reader(file).unwrap();
     let mut fs = FilesystemWriter::from_fs_reader(&fs).unwrap();
     fs.set_block_size(DEFAULT_BLOCK_SIZE * 2);
@@ -161,13 +161,13 @@ drwxrw-rw- 1000/1000                27 1970-01-01 00:00 squashfs-root/usr/bin
     // create the modified squashfs
     let new_path4 = dir.join("bytes_bigger_blocks.squashfs");
     let new_path4 = new_path4.to_str().unwrap();
-    let mut output = BufWriter::new(File::create(&new_path4).unwrap());
+    let mut output = BufWriter::new(File::create(new_path4).unwrap());
     let (_superblock, _bytes_written) = fs.write(&mut output).unwrap();
 
     // compare
     #[cfg(feature = "__test_unsquashfs")]
     {
-        test_squashfs_tools_unsquashfs(&new_path4, &control_path, None, true);
-        test_bin_unsquashfs(&new_path4, None, true, true);
+        test_squashfs_tools_unsquashfs(new_path4, control_path, None, true);
+        test_bin_unsquashfs(new_path4, None, true, true);
     }
 }

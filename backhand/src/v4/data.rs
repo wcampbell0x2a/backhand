@@ -253,13 +253,13 @@ impl<'a> DataWriter<'a> {
         let mut block_sizes = vec![];
 
         // If duplicate file checking is enabled, use the old data position as this file if it hashes the same
-        if let Some(dup_cache) = &self.dup_cache {
-            if let Some(c) = dup_cache.get(&(chunk.len() as u64)) {
-                let hash = xxh64(chunk, 0);
-                if let Some(res) = c.get(&hash) {
-                    trace!("duplicate file data found");
-                    return Ok(res.clone());
-                }
+        if let Some(dup_cache) = &self.dup_cache
+            && let Some(c) = dup_cache.get(&(chunk.len() as u64))
+        {
+            let hash = xxh64(chunk, 0);
+            if let Some(res) = c.get(&hash) {
+                trace!("duplicate file data found");
+                return Ok(res.clone());
             }
         }
 

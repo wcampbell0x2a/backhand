@@ -85,10 +85,10 @@ impl<'a, 'b, V: BlockReaderVersion<'b>> SquashfsRawData<'a, 'b, V> {
     #[inline]
     pub fn next_block(&mut self, buf: &mut Vec<u8>) -> Option<Result<RawDataBlock, BackhandError>> {
         // If no prefetched blocks are available, try to prefetch
-        if self.prefetched_blocks.is_empty() {
-            if let Err(e) = self.prefetch_blocks() {
-                return Some(Err(e));
-            }
+        if self.prefetched_blocks.is_empty()
+            && let Err(e) = self.prefetch_blocks()
+        {
+            return Some(Err(e));
         }
 
         // Return a prefetched block if available

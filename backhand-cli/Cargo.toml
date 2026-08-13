@@ -12,13 +12,13 @@ description = "Binaries for the reading, creating, and modification of SquashFS 
 readme = "../README.md"
 
 [dependencies]
-nix = { version = "0.30.0", default-features = false, features = ["fs"] }
-clap = { version = "4.5.13", features = ["derive", "wrap_help"] }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt"] }
-clap_complete = "4.5.13"
-indicatif = "0.18.3"
-console = "0.16.1"
-rayon = "1.10.0"
+nix = { version = "0.31.3", default-features = false, features = ["fs"] }
+clap = { version = "4.6.6", features = ["derive", "wrap_help"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+clap_complete = "4.6.9"
+indicatif = "0.18.6"
+console = "0.16.4"
+rayon = "1.12.0"
 backhand = { path = "../backhand", default-features = false, version = "0.25.1" }
 tracing = "0.1.40"
 color-print = "0.3.6"
@@ -68,5 +68,5 @@ path = "src/bin/replace.rs"
 bench = false
 
 [dev-dependencies]
-test-assets-ureq = "0.6.0"
-toml = "1.0"
+test-assets-ureq = "0.6.2"
+toml = "1.1"

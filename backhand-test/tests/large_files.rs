@@ -106,7 +106,7 @@ fn write_squashfs_image(
         let cursor = Cursor::new(data);
         fs_writer
             .push_file(cursor, &file.name, default_header)
-            .expect(&format!("Failed to add file {}", file.name));
+            .unwrap_or_else(|_| panic!("Failed to add file {}", file.name));
     }
 
     // Write to squashfs image
@@ -140,7 +140,7 @@ fn verify_squashfs_image(
         let file_node = fs_reader
             .files()
             .find(|node| node.fullpath.to_string_lossy() == file.name.as_str())
-            .expect(&format!("File {} not found in image", file.name));
+            .unwrap_or_else(|| panic!("File {} not found in image", file.name));
 
         // Extract file data from the node
         let computed_hash = match &file_node.inner {
@@ -160,8 +160,9 @@ fn verify_squashfs_image(
             _ => panic!("Node {} is not a file", file.name),
         };
 
-        let expected_hash =
-            expected_hashes.get(&file.name).expect(&format!("No expected hash for {}", file.name));
+        let expected_hash = expected_hashes
+            .get(&file.name)
+            .unwrap_or_else(|| panic!("No expected hash for {}", file.name));
 
         assert_eq!(
             &computed_hash, expected_hash,

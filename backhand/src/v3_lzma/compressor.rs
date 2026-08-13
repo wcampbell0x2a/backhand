@@ -44,16 +44,16 @@ impl CompressionAction for LzmaAdaptiveCompressor {
         }
 
         // Check if we have cached parameters
-        if let Ok(cache) = LZMA_CACHE.lock() {
-            if let Some(params) = *cache {
-                drop(cache); // Release lock before attempting decompression
-                if let Ok(result) = self.try_lzma_with_params(bytes, params) {
-                    tracing::trace!("LZMA decompression successful with cached parameters");
-                    out.extend_from_slice(&result);
-                    return Ok(());
-                }
-                tracing::trace!("Cached parameters failed, falling back to brute force");
+        if let Ok(cache) = LZMA_CACHE.lock()
+            && let Some(params) = *cache
+        {
+            drop(cache); // Release lock before attempting decompression
+            if let Ok(result) = self.try_lzma_with_params(bytes, params) {
+                tracing::trace!("LZMA decompression successful with cached parameters");
+                out.extend_from_slice(&result);
+                return Ok(());
             }
+            tracing::trace!("Cached parameters failed, falling back to brute force");
         }
 
         // Brute force parameter discovery

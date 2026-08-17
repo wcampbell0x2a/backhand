@@ -1,6 +1,7 @@
 //! Read from on-disk image
 
 use no_std_io2::io::Seek;
+use std::collections::HashSet;
 use std::ffi::OsString;
 use std::io::{Cursor, SeekFrom};
 use std::path::PathBuf;
@@ -494,7 +495,15 @@ impl<'b> Squashfs<'b> {
         root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
         id_table: &[Id],
+        visited_inodes: &mut HashSet<u32>,
     ) -> Result<(), BackhandError> {
+        // A corrupted image can point a dir entry back at a dir that is already being read,
+        // and following that would recurse until the stack is gone
+        if !visited_inodes.insert(dir_inode.header.inode_number) {
+            error!("self referential dir to already read inode");
+            return Err(BackhandError::UnexpectedInode);
+        }
+
         let dirs = match &dir_inode.inner {
             InodeInner::BasicDirectory(basic_dir) => {
                 trace!("BASIC_DIR inodes: {:02x?}", basic_dir);
@@ -532,11 +541,13 @@ impl<'b> Squashfs<'b> {
                         // BasicDirectory, ExtendedDirectory
                         InodeId::BasicDirectory | InodeId::ExtendedDirectory => {
                             // its a dir, extract all children inodes
-                            if *found_inode == dir_inode {
-                                error!("self referential dir to already read inode");
-                                return Err(BackhandError::UnexpectedInode);
-                            }
-                            self.extract_dir(fullpath, root, found_inode, &self.id)?;
+                            self.extract_dir(
+                                fullpath,
+                                root,
+                                found_inode,
+                                &self.id,
+                                visited_inodes,
+                            )?;
                             InnerNode::Dir(SquashfsDir::default())
                         }
                         // BasicFile
@@ -630,7 +641,14 @@ impl<'b> Squashfs<'b> {
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
         let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id)?);
-        self.extract_dir(&mut PathBuf::from("/"), &mut root, &self.root_inode, &self.id)?;
+        let mut visited_inodes = HashSet::new();
+        self.extract_dir(
+            &mut PathBuf::from("/"),
+            &mut root,
+            &self.root_inode,
+            &self.id,
+            &mut visited_inodes,
+        )?;
         root.nodes.sort();
 
         info!("created fs tree");

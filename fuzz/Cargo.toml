@@ -8,7 +8,7 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = { git = "https://github.com/AFLplusplus/LibAFL.git", rev = "c59e61e", package = "libafl_libfuzzer" }
+libfuzzer-sys = { git = "https://github.com/AFLplusplus/LibAFL.git", rev = "eab2dab784c3d6adcea2e980edfe610e11f708ce", package = "libafl_libfuzzer" }
 
 [dependencies.backhand]
 path = "../backhand"

@@ -38,10 +38,9 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 ## Library
 *Compiler support: requires rustc 1.90+*
 
-Add the following to your `Cargo.toml` file:
-```toml
-[dependencies]
-backhand = "0.25.0"
+Add the library to your project:
+```sh
+$ cargo add backhand
 ```
 
 #### Target Support

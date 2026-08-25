@@ -1,0 +1,154 @@
+name: release-plz
+
+on:
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+env:
+  BINS: "add-backhand unsquashfs-backhand replace-backhand"
+
+jobs:
+  # Publish the crates, create the tag, and create the draft GitHub release.
+  release-plz-release:
+    name: release-plz release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      # Necessary for crates.io trusted publishing.
+      id-token: write
+    outputs:
+      releases: ${{ steps.release-plz.outputs.releases }}
+      releases_created: ${{ steps.release-plz.outputs.releases_created }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Run release-plz
+        id: release-plz
+        uses: release-plz/action@1a0c5beec2fe4e91727549b5d2d0715ed28684bb # v0.5.131
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Open or update the release pull request with the version and changelog changes.
+  release-plz-pr:
+    name: release-plz pr
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Run release-plz
+        uses: release-plz/action@1a0c5beec2fe4e91727549b5d2d0715ed28684bb # v0.5.131
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Attach the binaries to the draft release that release-plz created.
+  release-bins:
+    name: attach binaries
+    needs: release-plz-release
+    if: needs.release-plz-release.outputs.releases_created == 'true'
+    runs-on: ${{ matrix.job.os }}
+    permissions:
+      contents: write
+    env:
+      RUSTFLAGS: "-C target-feature=+crt-static"
+      BUILD_CMD: cargo
+      TAG: ${{ fromJSON(needs.release-plz-release.outputs.releases)[0].tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { target: x86_64-unknown-linux-musl,    os: ubuntu-24.04, use-cross: true }
+          - { target: aarch64-unknown-linux-musl,   os: ubuntu-24.04, use-cross: true }
+          - { target: arm-unknown-linux-musleabi,   os: ubuntu-24.04, use-cross: true }
+          - { target: armv7-unknown-linux-musleabi, os: ubuntu-24.04, use-cross: true }
+          - { target: x86_64-apple-darwin,          os: macos-14                       }
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Build the released commit, not the most recent commit on master.
+          ref: ${{ env.TAG }}
+      - name: Populate cache
+        uses: ./.github/workflows/cache
+
+      - name: Overwrite build command env variable
+        if: matrix.job.use-cross
+        shell: bash
+        run: |
+          echo "BUILD_CMD=cross" >> $GITHUB_ENV
+          RUSTFLAGS="-C target-feature=-crt-static" cargo install cross --git https://github.com/cross-rs/cross
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: ${{ matrix.job.target }}
+
+      - name: Build {add,replace}-backhand (Linux with v3, Mac/Windows without)
+        shell: bash
+        run: |
+          if [[ "${{ matrix.job.target }}" == *"darwin"* || "${{ matrix.job.target }}" == *"windows"* ]]; then
+            # without v3_lzma
+            $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --no-default-features --features xz-static,gzip,zstd,lz4,parallel,v3 --locked --target ${{ matrix.job.target }} --profile=dist
+          else
+            $BUILD_CMD build -p backhand-cli --bin add-backhand --bin replace-backhand --features xz-static --locked --target ${{ matrix.job.target }} --profile=dist
+          fi
+
+      - name: Build unsquashfs-backhand (Linux with v3, Mac/Windows without)
+        shell: bash
+        run: |
+          if [[ "${{ matrix.job.target }}" == *"darwin"* || "${{ matrix.job.target }}" == *"windows"* ]]; then
+            $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip,parallel,v3
+          else
+            $BUILD_CMD build -p backhand-cli --bin unsquashfs-backhand --locked --target ${{ matrix.job.target }} --profile=dist --no-default-features --features zstd,xz-static,gzip,parallel,v3,v3_lzma
+          fi
+
+      - name: archive
+        run: |
+          tar -czvf backhand-${{ matrix.job.target }}.tar.gz \
+              -C target/${{ matrix.job.target }}/dist/ $BINS
+
+      - name: Upload binary to release
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2.11.5
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: backhand-${{ matrix.job.target }}.tar.gz
+          asset_name: backhand-${{ env.TAG }}-${{ matrix.job.target }}.tar.gz
+          tag: ${{ env.TAG }}
+          overwrite: true
+
+  # Make the release visible now that it has all of its binaries.
+  publish-release:
+    name: publish release
+    needs: [release-plz-release, release-bins]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Remove the draft flag from the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ fromJSON(needs.release-plz-release.outputs.releases)[0].tag }}
+        run: gh release edit "$TAG" --draft=false

@@ -2,10 +2,9 @@
 //! of [SquashFS](https://en.wikipedia.org/wiki/SquashFS) file systems.
 //!
 //! ## Library
-//! Add the following to your `Cargo.toml` file:
-//! ```toml
-//! [dependencies]
-//! backhand = "0.25.0"
+//! Add the library to your project:
+//! ```sh
+//! $ cargo add backhand
 //! ```
 //!
 //! ### Reading

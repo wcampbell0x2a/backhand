@@ -1,0 +1,24 @@
+[workspace]
+git_tag_name = "v{{ version }}"
+git_release_draft = true
+git_release_type = "auto"
+semver_check = true
+pr_labels = ["release"]
+
+[[package]]
+name = "backhand"
+version_group = "backhand"
+changelog_path = "./CHANGELOG.md"
+changelog_include = ["backhand-cli"]
+
+[[package]]
+name = "backhand-cli"
+version_group = "backhand"
+git_tag_enable = false
+git_release_enable = false
+changelog_update = false
+
+[[package]]
+name = "tests"
+release = false
+publish = false

@@ -1,7 +1,6 @@
 on:
   push:
     branches: [ master ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ master ]
 
@@ -71,25 +70,3 @@ jobs:
         with:
           name: backhand-${{ matrix.job.target }}.tar.gz
           path: backhand-${{ matrix.job.target }}.tar.gz
-
-      # check semvar before release!
-      - name: Check semver
-        env:
-          # disable static build for this job
-          RUSTFLAGS: ""
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
-        with:
-          package: backhand
-          feature-group: default-features
-
-      - name: Upload binary to release
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2.11.5
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: backhand-${{ matrix.job.target }}.tar.gz
-          asset_name: backhand-${{ github.ref_name }}-${{ matrix.job.target }}.tar.gz
-          tag: ${{ github.ref }}
-          prerelease: true
-          overwrite: true

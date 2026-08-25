@@ -3,7 +3,7 @@
 use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: Vec<u8>| {
+fuzz_target!(|data: &[u8]| {
     let header = NodeHeader { permissions: 0o755, uid: 0, gid: 0, mtime: 0 };
 
     let mut fs = FilesystemWriter::default();
@@ -11,10 +11,10 @@ fuzz_target!(|data: Vec<u8>| {
 
     fs.push_dir("oh", header).unwrap();
     fs.push_dir("oh/my", header).unwrap();
-    fs.push_file(std::io::Cursor::new(&data), "heyo", header).unwrap();
-    fs.push_file(std::io::Cursor::new(&data), "wow", header).unwrap();
+    fs.push_file(std::io::Cursor::new(data), "heyo", header).unwrap();
+    fs.push_file(std::io::Cursor::new(data), "wow", header).unwrap();
     fs.push_dir_all("this/is", header).unwrap();
-    fs.push_file(std::io::Cursor::new(&data), "this/is/extreme", header).unwrap();
+    fs.push_file(std::io::Cursor::new(data), "this/is/extreme", header).unwrap();
 
     let mut output = std::io::Cursor::new(vec![]);
     fs.write(&mut output).unwrap();

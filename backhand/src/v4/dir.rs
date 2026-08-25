@@ -60,7 +60,7 @@ pub struct DirEntry {
     pub(crate) name_size: u16,
     // TODO: CString
     /// The file name of the entry without a trailing null byte. Has name size + 1 bytes.
-    #[deku(count = "*name_size + 1")]
+    #[deku(count = "usize::from(*name_size) + 1")]
     pub(crate) name: Vec<u8>,
 }
 

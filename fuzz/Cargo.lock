@@ -16,11 +16,12 @@ checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
 
 [[package]]
 name = "backhand"
-version = "0.24.1"
+version = "0.25.1"
 dependencies = [
  "deku",
  "flate2",
  "liblzma",
+ "liblzma-sys",
  "lz4_flex",
  "no_std_io2",
  "rayon",

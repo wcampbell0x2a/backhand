@@ -32,7 +32,7 @@ version = "0.5.4"
 
 # These features mirror the backhand features
 [features]
-default = ["xz", "gzip", "zstd"]
+default = ["xz", "gzip", "zstd", "descriptive-errors"]
 ## Enables squashfs v3
 v3 = ["backhand/v3"]
 ## Enables squashfs v3 with LZMA compression
@@ -51,6 +51,8 @@ zstd = ["backhand/zstd"]
 lz4 = ["backhand/lz4"]
 ## Enable backhand parallel decompression
 parallel = ["backhand/parallel"]
+## Include deku descriptive parse-error strings for readable errors
+descriptive-errors = ["backhand/descriptive-errors"]
 
 [[bin]]
 name = "unsquashfs-backhand"

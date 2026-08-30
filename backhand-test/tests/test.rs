@@ -30,10 +30,22 @@ fn only_read(path: &str, offset: u64) {
     // TODO: this should still check our own unsquashfs
 }
 
-fn only_read_kind(path: &str, offset: u64, kind: backhand::kind::Kind) {
+/// Read the image, then extract it with our unsquashfs
+///
+/// The extract step is what exercises the decompressor. Reading alone only
+/// parses the superblock and the inode table.
+fn only_read_kind(path: &str, offset: u64, kind: backhand::kind::Kind, kind_str: &str) {
     let file = BufReader::new(File::open(path).unwrap());
     info!("calling from_reader");
     let _ = FilesystemReader::from_reader_with_offset_and_kind(file, offset, kind).unwrap();
+
+    common::test_bin_unsquashfs_with_kind(
+        path,
+        Some(offset),
+        true,
+        false,
+        Some(kind_str.to_string()),
+    );
 }
 
 /// - Download file
@@ -405,5 +417,6 @@ fn test_v4_le_lzma() {
         "test-assets/squashfs_v4_le_lzma.sqfs",
         0x160000,
         backhand::kind::Kind::from_const(backhand::kind::LE_V4_0_LZMA).unwrap(),
+        "le_v4_0_lzma",
     );
 }

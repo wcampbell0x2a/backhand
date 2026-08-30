@@ -4,7 +4,7 @@ use no_std_io2::io::Seek;
 use std::ffi::OsString;
 use std::io::{Cursor, SeekFrom};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Mutex, RwLock};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
@@ -230,7 +230,7 @@ impl<'b> Squashfs<'b> {
         reader: impl BufReadSeek + 'b,
         offset: u64,
     ) -> Result<Self, BackhandError> {
-        Self::from_reader_with_offset_and_kind(reader, offset, Kind { inner: Arc::new(LE_V4_0) })
+        Self::from_reader_with_offset_and_kind(reader, offset, Kind::from_inner(LE_V4_0))
     }
 
     /// Same as [`Self::from_reader_with_offset`], but including custom `kind`

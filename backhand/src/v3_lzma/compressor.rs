@@ -10,13 +10,20 @@ impl CompressionAction for LzmaAdaptiveCompressor {
     type FilesystemCompressor = crate::v3::compressor::FilesystemCompressor;
     type SuperBlock = crate::v3::squashfs::SuperBlock;
 
+    /// Decompress one block, finding the LZMA parameters by search
+    ///
+    /// The reader does not use this path. It calls through
+    /// [`Kind`](crate::kind::Kind), which holds the parameter cache and the
+    /// block size. This impl exists for callers that use the trait directly, so
+    /// it searches again on every block and assumes the usual block size.
     fn decompress(
         &self,
         bytes: &[u8],
         out: &mut Vec<u8>,
         _compressor: Self::Compressor,
     ) -> Result<(), Self::Error> {
-        crate::lzma::decompress_adaptive(bytes, out)
+        let cache = crate::lzma::LzmaCache::new();
+        crate::lzma::decompress_adaptive(bytes, out, &cache, crate::lzma::DEFAULT_BLOCK_SIZE)
     }
 
     fn compress(

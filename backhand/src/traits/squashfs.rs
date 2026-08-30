@@ -81,8 +81,8 @@ impl<'b, V: SquashfsVersion<'b>> GenericSquashfs<'b, V> {
     ) -> Result<Self, crate::error::BackhandError> {
         // Default to v4 kind for now
         use crate::kinds::LE_V4_0;
-        use std::sync::Arc;
-        let default_kind = Kind { inner: Arc::new(LE_V4_0) };
+
+        let default_kind = Kind::from_inner(LE_V4_0);
         V::from_reader_with_offset_and_kind(reader, offset, default_kind)
     }
 

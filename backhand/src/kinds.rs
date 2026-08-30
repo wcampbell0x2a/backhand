@@ -134,6 +134,52 @@ pub struct InnerKind {
 pub struct Kind {
     /// "Easier for the eyes" type for the real Kind
     pub(crate) inner: Arc<InnerKind>,
+    /// What the LZMA blocks of this image need, found when the first block is
+    /// read
+    ///
+    /// This belongs to the `Kind` and not to [`InnerKind`], because the kind
+    /// constants are `const` and a `const` is copied at each use. A cache in a
+    /// `const` would give each copy its own, which hides the sharing this needs.
+    /// Cloning a `Kind` shares the cache, so all readers of one image share what
+    /// the first block found.
+    #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+    pub(crate) lzma_cache: Arc<crate::lzma::LzmaCache>,
+}
+
+impl Kind {
+    /// Build a kind from its parts, with an empty LZMA parameter cache
+    pub(crate) fn from_inner(inner: InnerKind) -> Self {
+        Self {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        }
+    }
+
+    /// Decompress one block with this kind's compressor
+    ///
+    /// `max_out` is the largest size the block can decompress to. The LZMA
+    /// compressors need it, and the kind holds the parameter cache they use, so
+    /// this dispatch happens here and not in [`VersionedCompressor`].
+    pub(crate) fn decompress(
+        &self,
+        bytes: &[u8],
+        out: &mut Vec<u8>,
+        compressor: Option<crate::traits::types::Compressor>,
+        #[allow(unused_variables)] max_out: usize,
+    ) -> Result<(), crate::BackhandError> {
+        match &self.inner.compressor {
+            #[cfg(feature = "v3_lzma")]
+            VersionedCompressor::V3Lzma(_) => {
+                crate::lzma::decompress_adaptive(bytes, out, &self.lzma_cache, max_out)
+            }
+            #[cfg(feature = "v4_lzma")]
+            VersionedCompressor::V4Lzma(_) => {
+                crate::lzma::decompress_adaptive(bytes, out, &self.lzma_cache, max_out)
+            }
+            other => other.decompress(bytes, out, compressor),
+        }
+    }
 }
 
 impl fmt::Debug for Kind {
@@ -181,6 +227,8 @@ impl Kind {
                 compressor: VersionedCompressor::CustomV4(compression),
                 bit_order: LE_V4_0.bit_order,
             }),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
 
@@ -216,6 +264,8 @@ impl Kind {
                 compressor: VersionedCompressor::CustomV4(compression),
                 bit_order: inner.bit_order,
             }),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
 
@@ -259,7 +309,11 @@ impl Kind {
             _ => return Err("not a valid kind".to_string()),
         };
 
-        Ok(Kind { inner: Arc::new(kind) })
+        Ok(Kind {
+            inner: Arc::new(kind),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        })
     }
 
     /// From a known Squashfs image Kind, return a [`Kind`]
@@ -272,12 +326,16 @@ impl Kind {
     /// let kind = Kind::from_const(kind::LE_V4_0).unwrap();
     /// ```
     pub fn from_const(inner: InnerKind) -> Result<Kind, String> {
-        Ok(Kind { inner: Arc::new(inner) })
+        Ok(Kind {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        })
     }
 
     // TODO: example
     pub fn from_kind(kind: &Kind) -> Kind {
-        Self { inner: kind.inner.clone() }
+        kind.clone()
     }
 
     /// Set magic type at the beginning of the image
@@ -285,7 +343,11 @@ impl Kind {
     pub fn with_magic(self, magic: Magic) -> Self {
         let mut inner = (*self.inner).clone();
         inner.magic = magic.magic();
-        Self { inner: Arc::new(inner) }
+        Self {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        }
     }
 
     pub fn magic(&self) -> [u8; 4] {
@@ -310,7 +372,11 @@ impl Kind {
             Endian::Little => deku::ctx::Endian::Little,
             Endian::Big => deku::ctx::Endian::Big,
         };
-        Self { inner: Arc::new(inner) }
+        Self {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        }
     }
 
     /// Set endian used for Metadata lengths
@@ -321,7 +387,11 @@ impl Kind {
             Endian::Little => deku::ctx::Endian::Little,
             Endian::Big => deku::ctx::Endian::Big,
         };
-        Self { inner: Arc::new(inner) }
+        Self {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        }
     }
 
     /// Set both type and data endian
@@ -338,7 +408,11 @@ impl Kind {
                 inner.data_endian = deku::ctx::Endian::Big;
             }
         }
-        Self { inner: Arc::new(inner) }
+        Self {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        }
     }
 
     /// Set major and minor version
@@ -347,7 +421,11 @@ impl Kind {
         let mut inner = (*self.inner).clone();
         inner.version_major = major;
         inner.version_minor = minor;
-        Self { inner: Arc::new(inner) }
+        Self {
+            inner: Arc::new(inner),
+            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
+        }
     }
 }
 

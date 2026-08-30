@@ -1,5 +1,7 @@
 use no_std_io2::io::Read;
 
+use crate::lzma::MAX_BLOCK_SIZE;
+
 use tracing::trace;
 
 pub use crate::traits::CompressionAction;
@@ -61,10 +63,20 @@ impl CompressionAction for LzmaStandardCompressor {
         let mut stream = liblzma::stream::Stream::new_lzma_decoder(u64::MAX)
             .map_err(|e| crate::BackhandError::UnsupportedCompression(e.to_string()))?;
 
-        let mut output = vec![0u8; 1 << 20];
+        // A SquashFS block never decompresses past the largest block size.
+        let mut output = vec![0u8; MAX_BLOCK_SIZE];
         stream
             .process(&lzma_alone, &mut output, liblzma::stream::Action::Run)
             .map_err(|e| crate::BackhandError::UnsupportedCompression(e.to_string()))?;
+
+        // `process` returns Ok once the output buffer is full, so a short read
+        // looks like success. Compare the input it consumed against the input it
+        // was given, otherwise a block larger than the buffer is silently cut.
+        if (stream.total_in() as usize) < lzma_alone.len() {
+            return Err(crate::BackhandError::UnsupportedCompression(
+                "lzma block decompresses past the largest block size".to_string(),
+            ));
+        }
 
         let produced = stream.total_out() as usize;
         trace!("liblzma decompressed {} bytes", produced);

@@ -153,3 +153,17 @@ fn test_v3_lzma_swap() {
         "le_v3_1_lzma_swap",
     );
 }
+
+#[test]
+#[cfg(feature = "v3_lzma")]
+fn test_v3_lzma_swap_standard() {
+    use backhand::kind::LE_V3_0_LZMA_SWAP_STANDARD;
+
+    common::download_asset("WNR1000v3");
+    only_read(
+        Kind::from_const(LE_V3_0_LZMA_SWAP_STANDARD).unwrap(),
+        "test-assets/WNR1000v3.sqfs",
+        0,
+        "le_v3_0_lzma_swap_standard",
+    );
+}

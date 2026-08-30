@@ -1,10 +1,10 @@
 # Matches build-test-native (plus v3)
 build:
-    cargo build --release --bins --features v3,v3_lzma
+    cargo build --release --bins --features v3,v3_lzma,v4_lzma
 test *args: build
-    cargo nextest run --release --features v3,v3_lzma {{args}}
+    cargo nextest run --release --features v3,v3_lzma,v4_lzma {{args}}
 quick-test *args: build
-    cargo nextest run --release --features v3,v3_lzma -E 'not (test(large_files) | test(/slow/))' {{args}}
+    cargo nextest run --release --features v3,v3_lzma,v4_lzma -E 'not (test(large_files) | test(/slow/))' {{args}}
 bench:
     cargo build --bins --release --workspace
     cargo bench

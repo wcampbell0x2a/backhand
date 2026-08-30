@@ -56,6 +56,10 @@ const AVAILABLE_KINDS: &[&str] = &[
     "le_v3_1_lzma_swap",
     #[cfg(feature = "v3_lzma")]
     "be_v3_1_lzma_swap",
+    #[cfg(feature = "v4_lzma")]
+    "le_v4_0_lzma",
+    #[cfg(feature = "v4_lzma")]
+    "be_v4_0_lzma",
     "avm_be_v4_0",
 ];
 

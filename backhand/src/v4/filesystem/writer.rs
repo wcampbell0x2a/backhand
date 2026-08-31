@@ -79,7 +79,9 @@ pub struct FilesystemWriter<'a, 'b, 'c> {
     pub(crate) root: Nodes<SquashfsFileWriter<'a, 'b, 'c>>,
     /// The log2 of the block size. If the two fields do not agree, the archive is considered corrupted.
     pub(crate) block_log: u16,
-    pub(crate) pad_len: u32,
+    /// In bytes. Wider than the `pad_kib` [`FilesystemWriter::set_kib_padding`] takes, so
+    /// that scaling KiB to bytes cannot overflow.
+    pub(crate) pad_len: u64,
     /// Superblock Flag to remove duplicate flags
     pub(crate) no_duplicate_files: bool,
     pub(crate) emit_compression_options: bool,
@@ -100,7 +102,7 @@ impl Default for FilesystemWriter<'_, '_, '_> {
             kind: Kind { inner: Arc::new(LE_V4_0) },
             root: Nodes::new_root(NodeHeader::default()),
             block_log: block_size.ilog2() as u16,
-            pad_len: DEFAULT_PAD_LEN,
+            pad_len: u64::from(DEFAULT_PAD_LEN),
             no_duplicate_files: true,
             emit_compression_options: true,
         }
@@ -193,7 +195,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     ///
     /// Default: [`DEFAULT_PAD_LEN`]
     pub fn set_kib_padding(&mut self, pad_kib: u32) {
-        self.pad_len = pad_kib * 1024;
+        // u64: `pad_kib * 1024` overflows a u32 for anything from 4194304 KiB up, which
+        // wrapped to *no* padding in release and panicked under debug assertions. The
+        // `--pad-len` flag of backhand-add and backhand-replace reaches this directly.
+        self.pad_len = u64::from(pad_kib) * 1024;
     }
 
     /// Set *no* padding(zero bytes) added to the end of the image after calling [`write`].
@@ -245,7 +250,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             mod_time: reader.mod_time,
             id_table: reader.id_table.clone(),
             root: Nodes { nodes: root },
-            pad_len: DEFAULT_PAD_LEN,
+            pad_len: u64::from(DEFAULT_PAD_LEN),
             no_duplicate_files: reader.no_duplicate_files,
             emit_compression_options: true,
         })
@@ -796,8 +801,8 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         if self.pad_len != 0 {
             // Pad out block_size to 4K
             info!("Writing Padding");
-            let blocks_used: u64 = superblock.bytes_used / (self.pad_len as u64);
-            let total_pad_len = (blocks_used + 1) * (self.pad_len as u64);
+            let blocks_used: u64 = superblock.bytes_used / self.pad_len;
+            let total_pad_len = (blocks_used + 1) * self.pad_len;
             pad_len = total_pad_len - superblock.bytes_used;
 
             // Write 1K at a time

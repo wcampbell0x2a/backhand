@@ -8,7 +8,6 @@ use std::sync::{Mutex, RwLock};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use tracing::{error, info, instrument, trace, warn};
 
 use super::export::Export;
 use super::filesystem::node::{
@@ -330,7 +329,7 @@ impl<'b> Squashfs<'b> {
     /// # Returns
     /// - `Ok(Some(Vec<Dir>))` when found dir
     /// - `Ok(None)`           when empty dir
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "error-strings", tracing::instrument(skip_all))]
     pub(crate) fn dir_from_index(
         &self,
         block_index: u64,
@@ -411,7 +410,7 @@ impl<'b> Squashfs<'b> {
         Ok(Some(dirs))
     }
 
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "error-strings", tracing::instrument(skip_all))]
     fn extract_dir(
         &self,
         current_path: &mut PathBuf,
@@ -553,7 +552,7 @@ impl<'b> Squashfs<'b> {
     ///
     /// # Returns
     /// `Ok(original, link)
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "error-strings", tracing::instrument(skip_all))]
     fn symlink(&self, inode: &Inode) -> Result<PathBuf, BackhandError> {
         if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
             let path = OsString::from_vec(basic_sym.target_path.clone());
@@ -568,7 +567,7 @@ impl<'b> Squashfs<'b> {
     ///
     /// # Returns
     /// `Ok(dev_num)`
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "error-strings", tracing::instrument(skip_all))]
     fn char_device(&self, inode: &Inode) -> Result<u32, BackhandError> {
         if let InodeInner::BasicCharacterDevice(spc_file) = &inode.inner {
             return Ok(spc_file.device_number);
@@ -582,7 +581,7 @@ impl<'b> Squashfs<'b> {
     ///
     /// # Returns
     /// `Ok(dev_num)`
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "error-strings", tracing::instrument(skip_all))]
     fn block_device(&self, inode: &Inode) -> Result<u32, BackhandError> {
         if let InodeInner::BasicBlockDevice(spc_file) = &inode.inner {
             return Ok(spc_file.device_number);
@@ -594,7 +593,7 @@ impl<'b> Squashfs<'b> {
 
     /// Convert into [`FilesystemReader`] by extracting all file bytes and converting into a filesystem
     /// like structure in-memory
-    #[instrument(skip_all)]
+    #[cfg_attr(feature = "error-strings", tracing::instrument(skip_all))]
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
         let mut root = Nodes::new_root({

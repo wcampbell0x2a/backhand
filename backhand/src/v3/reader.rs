@@ -6,7 +6,6 @@ use std::io::{BufRead, Cursor, SeekFrom, Write};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use tracing::{error, trace};
 
 use super::export::Export;
 use super::fragment::Fragment;
@@ -142,8 +141,8 @@ pub trait SquashFsReader: BufReadSeek {
     fn root_inode(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Inode, BackhandError> {
         let root_inode_start = (superblock.root_inode >> 16) as usize;
         let root_inode_offset = (superblock.root_inode & 0xffff) as usize;
-        tracing::info!("root_inode_start:  0x{root_inode_start:02x?}");
-        tracing::info!("root_inode_offset: 0x{root_inode_offset:02x?}");
+        info!("root_inode_start:  0x{root_inode_start:02x?}");
+        info!("root_inode_offset: 0x{root_inode_offset:02x?}");
         if (root_inode_start as u64) > superblock.bytes_used {
             error!("root_inode_offset > bytes_used");
             return Err(BackhandError::CorruptedOrInvalidSquashfs);
@@ -171,7 +170,7 @@ pub trait SquashFsReader: BufReadSeek {
                 kind.inner.bit_order.unwrap(),
             ),
         ) {
-            tracing::info!("ROOT: {:?}", inode);
+            info!("ROOT: {:?}", inode);
             return Ok(inode);
         }
 

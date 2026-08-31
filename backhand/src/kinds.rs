@@ -271,6 +271,8 @@ impl Kind {
 
     /// From a string, return a kind
     ///
+    /// With the `error-strings` feature off, the error text is empty.
+    ///
     /// # Example
     /// Get a default [`Kind`]
     /// ```rust
@@ -306,7 +308,7 @@ impl Kind {
             "le_v4_0_lzma" => LE_V4_0_LZMA,
             #[cfg(feature = "v4_lzma")]
             "be_v4_0_lzma" => BE_V4_0_LZMA,
-            _ => return Err("not a valid kind".to_string()),
+            _ => return Err(err_text!("not a valid kind")),
         };
 
         Ok(Kind {
@@ -605,3 +607,26 @@ pub const BE_V4_0_LZMA: InnerKind = InnerKind {
     compressor: VersionedCompressor::V4Lzma(&V4_LZMA_ADAPTIVE_COMPRESSOR),
     bit_order: None,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_target_reads_a_known_name() {
+        assert!(Kind::from_target("le_v4_0").is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "error-strings")]
+    fn from_target_names_the_fault_with_error_strings_on() {
+        assert_eq!(Kind::from_target("not_a_kind").unwrap_err(), "not a valid kind");
+    }
+
+    #[test]
+    #[cfg(not(feature = "error-strings"))]
+    fn from_target_gives_no_text_with_error_strings_off() {
+        // The message must not reach a binary built without the feature.
+        assert!(Kind::from_target("not_a_kind").unwrap_err().is_empty());
+    }
+}

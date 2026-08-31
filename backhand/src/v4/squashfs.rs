@@ -10,7 +10,6 @@ use std::sync::RwLock;
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use tracing::{error, info, trace};
 
 use crate::error::BackhandError;
 use crate::kinds::{Kind, LE_V4_0};
@@ -270,7 +269,7 @@ impl<'b> Squashfs<'b> {
                     }
                 }
                 Err(e) => {
-                    error!("invalid compression options: {e:?}, not using");
+                    error!("invalid compression options: {:?}, not using", e);
                     None
                 }
             }

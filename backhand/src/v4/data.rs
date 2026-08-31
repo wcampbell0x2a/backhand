@@ -5,7 +5,6 @@ use std::collections::HashMap;
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use tracing::trace;
 use xxhash_rust::xxh64::xxh64;
 
 use crate::error::BackhandError;

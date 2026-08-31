@@ -21,11 +21,11 @@ pub fn read_block<R: Read + Seek + ?Sized>(
     if superblock.check_data() {
         let mut check_byte = [0u8; 1];
         reader.read_exact(&mut check_byte)?;
-        tracing::trace!("check_data: skipped check byte 0x{:02x}", check_byte[0]);
+        trace!("check_data: skipped check byte 0x{:02x}", check_byte[0]);
     }
 
     let byte_len = len(metadata_len);
-    tracing::trace!("len: 0x{:02x?}", byte_len);
+    trace!("len: 0x{:02x?}", byte_len);
     if byte_len as usize > METADATA_MAXSIZE {
         return Err(BackhandError::CorruptedOrInvalidSquashfs);
     }
@@ -41,11 +41,11 @@ pub fn read_block<R: Read + Seek + ?Sized>(
         kind.decompress(&buf, &mut out, None, METADATA_MAXSIZE)?;
         out
     } else {
-        tracing::trace!("uncompressed (superblock flag or block flag)");
+        trace!("uncompressed (superblock flag or block flag)");
         buf
     };
 
-    tracing::trace!("uncompressed size: 0x{:02x?}", bytes.len());
+    trace!("uncompressed size: 0x{:02x?}", bytes.len());
     Ok(bytes)
 }
 

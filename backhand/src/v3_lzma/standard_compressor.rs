@@ -2,8 +2,6 @@ use no_std_io2::io::Read;
 
 use crate::lzma::MAX_BLOCK_SIZE;
 
-use tracing::trace;
-
 pub use crate::traits::CompressionAction;
 pub use crate::traits::types::Compressor;
 
@@ -44,9 +42,9 @@ impl CompressionAction for LzmaStandardCompressor {
         // SquashFS LZMA blocks use props(1) + dict_size(4) without the 8-byte
         // uncompressed size field. Insert -1 (unknown) to form a valid header.
         if bytes.len() < 5 {
-            return Err(crate::BackhandError::UnsupportedCompression(
-                "lzma data too short".to_string(),
-            ));
+            return Err(crate::BackhandError::UnsupportedCompression(err_text!(
+                "lzma data too short"
+            )));
         }
 
         trace!(
@@ -61,21 +59,21 @@ impl CompressionAction for LzmaStandardCompressor {
         lzma_alone.extend_from_slice(&bytes[5..]);
 
         let mut stream = liblzma::stream::Stream::new_lzma_decoder(u64::MAX)
-            .map_err(|e| crate::BackhandError::UnsupportedCompression(e.to_string()))?;
+            .map_err(|e| crate::BackhandError::UnsupportedCompression(err_text!("{e}")))?;
 
         // A SquashFS block never decompresses past the largest block size.
         let mut output = vec![0u8; MAX_BLOCK_SIZE];
         stream
             .process(&lzma_alone, &mut output, liblzma::stream::Action::Run)
-            .map_err(|e| crate::BackhandError::UnsupportedCompression(e.to_string()))?;
+            .map_err(|e| crate::BackhandError::UnsupportedCompression(err_text!("{e}")))?;
 
         // `process` returns Ok once the output buffer is full, so a short read
         // looks like success. Compare the input it consumed against the input it
         // was given, otherwise a block larger than the buffer is silently cut.
         if (stream.total_in() as usize) < lzma_alone.len() {
-            return Err(crate::BackhandError::UnsupportedCompression(
-                "lzma block decompresses past the largest block size".to_string(),
-            ));
+            return Err(crate::BackhandError::UnsupportedCompression(err_text!(
+                "lzma block decompresses past the largest block size"
+            )));
         }
 
         let produced = stream.total_out() as usize;

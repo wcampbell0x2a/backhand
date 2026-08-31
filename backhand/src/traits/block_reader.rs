@@ -209,7 +209,7 @@ pub(crate) fn read_raw_data<'a, 'b, V: BlockReaderVersion<'b>>(
                 if let Some(cache_bytes) = cache.fragment_cache.get(&frag_start) {
                     //if in cache, just return the cache, don't read it
                     let range = fragment_range::<V>(system, file, cache_bytes.len())?;
-                    tracing::trace!("fragment in cache: {:02x}:{range:02x?}", frag_start);
+                    trace!("fragment in cache: {:02x}:{range:02x?}", frag_start);
                     data.resize(range.end - range.start, 0);
                     data.copy_from_slice(&cache_bytes[range]);
 
@@ -221,7 +221,7 @@ pub(crate) fn read_raw_data<'a, 'b, V: BlockReaderVersion<'b>>(
             // if not in the cache, read the entire fragment bytes to store into
             // the cache. Once that is done, if uncompressed just return the bytes
             // that were read that are for the file
-            tracing::trace!("fragment: reading from data");
+            trace!("fragment: reading from data");
             let frag_len = V::data_size(&frag_data_size) as usize;
             if frag_len > block_size {
                 return Err(BackhandError::CorruptedOrInvalidSquashfs);

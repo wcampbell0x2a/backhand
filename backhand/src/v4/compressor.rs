@@ -14,7 +14,6 @@ use flate2::{Decompress, FlushDecompress, Status};
 use liblzma::read::XzEncoder;
 #[cfg(feature = "xz")]
 use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
-use tracing::trace;
 
 use crate::error::BackhandError;
 use crate::traits::CompressionAction;
@@ -264,7 +263,7 @@ impl CompressionAction for DefaultCompressor {
             #[cfg(feature = "zstd")]
             Compressor::Zstd => {
                 let mut decoder = zstd::bulk::Decompressor::new().map_err(|e| {
-                    BackhandError::CompressionInit(format!("zstd decompressor: {}", e))
+                    BackhandError::CompressionInit(err_text!("zstd decompressor: {}", e))
                 })?;
                 decoder.decompress_to_buffer(bytes, out)?;
             }
@@ -273,11 +272,11 @@ impl CompressionAction for DefaultCompressor {
                 out.resize(out.capacity(), 0u8);
                 let out_size =
                     lz4_flex::decompress_into(bytes, out.as_mut_slice()).map_err(|e| {
-                        BackhandError::CompressionInit(format!("lz4 decompression: {}", e))
+                        BackhandError::CompressionInit(err_text!("lz4 decompression: {}", e))
                     })?;
                 out.truncate(out_size);
             }
-            _ => return Err(BackhandError::UnsupportedCompression(format!("{:?}", compressor))),
+            _ => return Err(BackhandError::UnsupportedCompression(err_text!("{:?}", compressor))),
         }
         Ok(())
     }
@@ -311,7 +310,7 @@ impl CompressionAction for DefaultCompressor {
                 };
                 let check = Check::Crc32;
                 let mut opts = LzmaOptions::new_preset(level)
-                    .map_err(|e| BackhandError::CompressionInit(format!("xz options: {}", e)))?;
+                    .map_err(|e| BackhandError::CompressionInit(err_text!("xz options: {}", e)))?;
                 opts.dict_size(dict_size);
 
                 let mut filters = Filters::new();
@@ -342,7 +341,7 @@ impl CompressionAction for DefaultCompressor {
                     .filters(filters)
                     .check(check)
                     .encoder()
-                    .map_err(|e| BackhandError::CompressionInit(format!("xz encoder: {}", e)))?;
+                    .map_err(|e| BackhandError::CompressionInit(err_text!("xz encoder: {}", e)))?;
 
                 let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
                 let mut buf = vec![];
@@ -392,7 +391,7 @@ impl CompressionAction for DefaultCompressor {
             }
             #[cfg(feature = "lz4")]
             (Compressor::Lz4, _option, _) => Ok(lz4_flex::compress(bytes)),
-            _ => Err(BackhandError::UnsupportedCompression(format!("{:?}", fc.id))),
+            _ => Err(BackhandError::UnsupportedCompression(err_text!("{:?}", fc.id))),
         }
     }
 

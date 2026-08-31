@@ -69,14 +69,14 @@ impl<'a> Entry<'a> {
                 InodeInner::ExtendedDirectory(ExtendedDirectory {
                     link_count: 2 + u32::try_from(children_num).map_err(
                         |e: std::num::TryFromIntError| {
-                            BackhandError::NumericConversion(format!(
+                            BackhandError::NumericConversion(err_text!(
                                 "ExtendedDirectory link_count from children_num: {}",
                                 e
                             ))
                         },
                     )?,
                     file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(format!(
+                        BackhandError::NumericConversion(err_text!(
                             "ExtendedDirectory file_size: {}",
                             e
                         ))
@@ -100,14 +100,17 @@ impl<'a> Entry<'a> {
                     block_index,
                     link_count: 2 + u32::try_from(children_num).map_err(
                         |e: std::num::TryFromIntError| {
-                            BackhandError::NumericConversion(format!(
+                            BackhandError::NumericConversion(err_text!(
                                 "BasicDirectory link_count from children_num: {}",
                                 e
                             ))
                         },
                     )?,
                     file_size: file_size.try_into().map_err(|e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(format!("BasicDirectory file_size: {}", e))
+                        BackhandError::NumericConversion(err_text!(
+                            "BasicDirectory file_size: {}",
+                            e
+                        ))
                     })?, // u16
                     block_offset,
                     parent_inode,
@@ -202,7 +205,7 @@ impl<'a> Entry<'a> {
                         block_offset: *block_offset,
                         file_size: file_size.try_into().map_err(
                             |e: std::num::TryFromIntError| {
-                                BackhandError::NumericConversion(format!(
+                                BackhandError::NumericConversion(err_text!(
                                     "BasicFile file_size from fragment: {}",
                                     e
                                 ))
@@ -245,7 +248,7 @@ impl<'a> Entry<'a> {
             InodeInner::BasicSymlink(BasicSymlink {
                 link_count: 0x1,
                 target_size: link.len().try_into().map_err(|e: std::num::TryFromIntError| {
-                    BackhandError::NumericConversion(format!("Symlink target_size: {}", e))
+                    BackhandError::NumericConversion(err_text!("Symlink target_size: {}", e))
                 })?,
                 target_path: link.to_vec(),
             }),
@@ -401,10 +404,10 @@ impl Entry<'_> {
         let mut dir = Dir::new(lowest_inode);
 
         dir.count = creating_dir.len().try_into().map_err(|e: std::num::TryFromIntError| {
-            BackhandError::NumericConversion(format!("Dir count: {}", e))
+            BackhandError::NumericConversion(err_text!("Dir count: {}", e))
         })?;
         if dir.count >= 256 {
-            return Err(BackhandError::InternalState(format!("dir.count({}) >= 256", dir.count)));
+            return Err(BackhandError::InternalState(err_text!("dir.count({}) >= 256", dir.count)));
         }
 
         dir.start = start;
@@ -414,7 +417,7 @@ impl Entry<'_> {
                 offset: e.offset,
                 inode_offset: (inode - lowest_inode).try_into().map_err(
                     |e: std::num::TryFromIntError| {
-                        BackhandError::NumericConversion(format!("DirEntry inode_offset: {}", e))
+                        BackhandError::NumericConversion(err_text!("DirEntry inode_offset: {}", e))
                     },
                 )?,
                 t: e.t.into_base_type(),

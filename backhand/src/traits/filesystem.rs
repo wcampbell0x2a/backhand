@@ -274,7 +274,7 @@ impl BackhandSquashfsFileReader {
             } => crate::v4::filesystem::node::SquashfsFileReader::Basic(
                 crate::v4::inode::BasicFile {
                     blocks_start: (*blocks_start).try_into().map_err(|e| {
-                        BackhandError::NumericConversion(format!("BasicFile blocks_start: {e}"))
+                        BackhandError::NumericConversion(err_text!("BasicFile blocks_start: {}", e))
                     })?,
                     frag_index: *frag_index,
                     block_offset: *block_offset,

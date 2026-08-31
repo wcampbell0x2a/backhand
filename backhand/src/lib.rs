@@ -56,6 +56,8 @@
 #[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();
 
+#[macro_use]
+mod log;
 pub mod error;
 mod kinds;
 #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]

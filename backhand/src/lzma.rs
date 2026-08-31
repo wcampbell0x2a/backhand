@@ -9,7 +9,6 @@
 use std::sync::Mutex;
 
 use no_std_io2::io::Read;
-use tracing::trace;
 
 use crate::error::BackhandError;
 
@@ -146,9 +145,9 @@ pub(crate) fn decompress_adaptive(
         // A block that no candidate decompressed means the image does not match
         // this kind. Searching again for every later block only wastes time.
         LzmaFormat::Undecodable => {
-            return Err(BackhandError::UnsupportedCompression(
-                "no LZMA parameters decompress this image".to_string(),
-            ));
+            return Err(BackhandError::UnsupportedCompression(err_text!(
+                "no LZMA parameters decompress this image"
+            )));
         }
         LzmaFormat::Unknown => {}
     }
@@ -169,9 +168,9 @@ pub(crate) fn decompress_adaptive(
     }
 
     cache.set(LzmaFormat::Undecodable);
-    Err(BackhandError::UnsupportedCompression(
-        "no LZMA parameters decompress this image".to_string(),
-    ))
+    Err(BackhandError::UnsupportedCompression(err_text!(
+        "no LZMA parameters decompress this image"
+    )))
 }
 
 /// Decompress a standard LZMA stream, which records its own parameters
@@ -195,7 +194,7 @@ fn try_lzma_with_params(
     max_out: usize,
 ) -> Result<Vec<u8>, BackhandError> {
     if params.offset >= bytes.len() {
-        return Err(BackhandError::UnsupportedCompression("invalid offset".to_string()));
+        return Err(BackhandError::UnsupportedCompression(err_text!("invalid offset")));
     }
 
     let dict_size = if params.dict_size == 0xFFFFFFFF || params.dict_size == 0 {
@@ -214,7 +213,7 @@ fn try_lzma_with_params(
         max_out,
     )
     .map_err(|code| {
-        BackhandError::UnsupportedCompression(format!("LZMA decompression failed: {code}"))
+        BackhandError::UnsupportedCompression(err_text!("LZMA decompression failed: {code}"))
     })
 }
 

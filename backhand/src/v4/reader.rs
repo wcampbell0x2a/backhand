@@ -6,7 +6,6 @@ use std::io::{BufRead, Cursor, SeekFrom};
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use tracing::{error, trace};
 
 use crate::error::BackhandError;
 use crate::kinds::Kind;

@@ -3,7 +3,6 @@ use std::collections::VecDeque;
 use std::io;
 
 use deku::prelude::*;
-use tracing::trace;
 
 use crate::error::BackhandError;
 use crate::kinds::Kind;
@@ -145,7 +144,7 @@ pub fn read_block<R: Read + Seek>(
     let metadata_len = u16::from_reader_with_ctx(&mut deku_reader, kind.inner.data_endian)?;
 
     let byte_len = len(metadata_len);
-    tracing::trace!("len: 0x{:02x?}", byte_len);
+    trace!("len: 0x{:02x?}", byte_len);
     if byte_len as usize > METADATA_MAXSIZE {
         return Err(BackhandError::CorruptedOrInvalidSquashfs);
     }
@@ -153,16 +152,16 @@ pub fn read_block<R: Read + Seek>(
     reader.read_exact(&mut buf)?;
 
     let bytes = if is_compressed(metadata_len) {
-        tracing::trace!("compressed");
+        trace!("compressed");
         let mut out = Vec::with_capacity(8 * 1024);
         kind.decompress(&buf, &mut out, Some(superblock.compressor.into()), METADATA_MAXSIZE)?;
         out
     } else {
-        tracing::trace!("uncompressed");
+        trace!("uncompressed");
         buf
     };
 
-    tracing::trace!("uncompressed size: 0x{:02x?}", bytes.len());
+    trace!("uncompressed size: 0x{:02x?}", bytes.len());
     Ok(bytes)
 }
 

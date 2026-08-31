@@ -8,10 +8,16 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = { git = "https://github.com/AFLplusplus/LibAFL.git", rev = "bd1dda4818e1d3d67efe02bf48aa253a3f1fafb2", package = "libafl_libfuzzer" }
+# `arbitrary-derive` is forwarded to libfuzzer-sys, for the structured write_read_write target
+libfuzzer-sys = { git = "https://github.com/AFLplusplus/LibAFL.git", rev = "bd1dda4818e1d3d67efe02bf48aa253a3f1fafb2", package = "libafl_libfuzzer", features = [
+    "arbitrary-derive",
+] }
 
 [dependencies.backhand]
 path = "../backhand"
+# v3/v3_lzma are off by default, so nothing reaches those readers unless the fuzz crate
+# asks for them: the `kind` target is what exercises them.
+features = ["v3", "v3_lzma"]
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -38,5 +44,37 @@ path = "fuzz_targets/raw.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "write_read_write"
+path = "fuzz_targets/write_read_write.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "write_read_extract"
+path = "fuzz_targets/write_read_extract.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "modify"
+path = "fuzz_targets/modify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "extract"
+path = "fuzz_targets/extract.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "kind"
+path = "fuzz_targets/kind.rs"
+test = false
+doc = false
+
 [features]
 xz-static = ["backhand/xz-static"]
+# Assert that write -> read -> write is byte-identical, see write_read_write.rs
+strict-roundtrip = []

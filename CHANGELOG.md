@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.25.2](https://github.com/wcampbell0x2a/backhand/compare/v0.25.1...v0.25.2) - 2026-08-31
+
+### Other
+
+- Add error-strings feature
+- Report an error when an LZMA block is too large to decompress
+- Scope LZMA parameter cache per image and bound the search
+- Add SquashFS v4 with adaptive LZMA compression
+- Add v3 standard-LZMA kinds with swapped magic
+- Move adaptive LZMA decompression to a shared module
+- Merge pull request #734 from wcampbell0x2a/renovate/all-minor-patch
+- Merge pull request #807 from wcampbell0x2a/enable-deku-descriptive-errors-for-backhand-cli
+- Merge pull request #802 from wcampbell0x2a/fix-fuzzer-crashes
+- Add release-plz workflow
+- All the updates
+- Apply clippy lint fixes
+- Update MSRV to 1.90
+- Add Gungraun bench
+- Remove Box<dyn BufReadSeek> from superblock reader
+- Use One-Shot decompression for speed
+- Combine all block readers into single impl
+- Merge pull request #790 from wcampbell0x2a/reject-invaid-metadata-size
+- Reject wrong sizes and indices in the block reader
+- Merge pull request #773 from wcampbell0x2a/renovate/toml-1.x
+- Merge pull request #787 from wcampbell0x2a/fix-v3-block-size-calculation
+- Fix clippy
+- Update kinds in README
+- Enable deku:descriptive-errors only for backhand-cli
+- Remove unrequired bin gungraun
+- Update Rust crate toml to v1
 ### `backhand`
 - Reject wrong sizes and indices in the block reader
 - Add combined block reader logic and remove all duplicated code between the v3

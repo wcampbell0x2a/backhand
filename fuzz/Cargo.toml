@@ -38,5 +38,13 @@ path = "fuzz_targets/raw.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "lzma"
+path = "fuzz_targets/lzma.rs"
+test = false
+doc = false
+required-features = ["v4_lzma"]
+
 [features]
 xz-static = ["backhand/xz-static"]
+v4_lzma = ["backhand/v4_lzma"]

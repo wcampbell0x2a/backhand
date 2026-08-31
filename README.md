@@ -33,6 +33,10 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 | `netgear_be_v3_0_lzma_standard`        | ✓       |        | `v3_lzma`  |
 | `be_v3_0_lzma_swap`                    | ✓       |        | `v3_lzma`  |
 | `le_v3_0_lzma_swap`                    | ✓       |        | `v3_lzma`  |
+| `le_v3_0_lzma_swap_standard`           | ✓       |        | `v3_lzma`  |
+| `be_v3_0_lzma_swap_standard`           | ✓       |        | `v3_lzma`  |
+| `le_v4_0_lzma`                         | ✓       |        | `v4_lzma`  |
+| `be_v4_0_lzma`                         | ✓       |        | `v4_lzma`  |
 
 
 ## Library

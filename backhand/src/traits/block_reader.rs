@@ -263,12 +263,9 @@ pub(crate) fn decompress<'b, V: BlockReaderVersion<'b>>(
     if data.uncompressed {
         std::mem::swap(input_buf, output_buf);
     } else {
-        output_buf.reserve(V::block_size(system) as usize);
-        V::kind(system).inner.compressor.decompress(
-            input_buf,
-            output_buf,
-            V::compressor(system),
-        )?;
+        let block_size = V::block_size(system) as usize;
+        output_buf.reserve(block_size);
+        V::kind(system).decompress(input_buf, output_buf, V::compressor(system), block_size)?;
         // store the cache, so decompression is not duplicated
         if data.fragment {
             let fragment =

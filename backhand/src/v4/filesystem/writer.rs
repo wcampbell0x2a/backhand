@@ -97,7 +97,7 @@ impl Default for FilesystemWriter<'_, '_, '_> {
             mod_time: 0,
             id_table: Id::root(),
             fs_compressor: FilesystemCompressor::default(),
-            kind: Kind { inner: Arc::new(LE_V4_0) },
+            kind: Kind::from_inner(LE_V4_0),
             root: Nodes::new_root(NodeHeader::default()),
             block_log: block_size.ilog2() as u16,
             pad_len: DEFAULT_PAD_LEN,
@@ -235,7 +235,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
             .collect();
         root.sort();
         Ok(Self {
-            kind: Kind { inner: reader.kind.inner.clone() },
+            kind: reader.kind.clone(),
             block_size: reader.block_size,
             block_log: reader.block_log,
             fs_compressor: FilesystemCompressor::new(
@@ -675,8 +675,7 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     /// # Returns
     /// (written populated [`SuperBlock`], total amount of bytes written including padding)
     pub fn write<W: Write + Seek>(&mut self, mut w: W) -> Result<(SuperBlock, u64), BackhandError> {
-        let mut superblock =
-            SuperBlock::new(self.fs_compressor.id, Kind { inner: self.kind.inner.clone() });
+        let mut superblock = SuperBlock::new(self.fs_compressor.id, self.kind.clone());
 
         if self.no_duplicate_files {
             superblock.flags |= Flags::DataHasBeenDeduplicated as u16;

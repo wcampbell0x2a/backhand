@@ -231,6 +231,15 @@ impl<'a> DataWriter<'a> {
         // read entire chunk (file)
         let mut chunk = chunk_reader.read_chunk()?;
 
+        // an empty file must carry no fragment reference: a zero-byte
+        // fragment entry makes the kernel squashfs driver reject the inode
+        // with EINVAL on stat/open (Added::Data with no blocks encodes
+        // frag_index 0xffffffff, matching mksquashfs)
+        if chunk.is_empty() {
+            let blocks_start = writer.stream_position()?;
+            return Ok((0, Added::Data { blocks_start, block_sizes: vec![] }));
+        }
+
         // chunk size not exactly the size of the block
         if chunk.len() != self.block_size as usize {
             // if this doesn't fit in the current fragment bytes

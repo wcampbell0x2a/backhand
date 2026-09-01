@@ -44,6 +44,9 @@ lz4 = ["backhand/lz4"]
 name = "add"
 
 [[test]]
+name = "empty_file"
+
+[[test]]
 name = "issues"
 
 [[test]]

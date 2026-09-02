@@ -45,3 +45,42 @@ impl CompressionAction for DefaultCompressor {
         unimplemented!();
     }
 }
+
+/// LZMA, for the AVM/Freetz v2 variant
+///
+/// The blocks are plain LZMA streams. The shared engine finds their parameters,
+/// so this only forwards to it.
+#[cfg(feature = "v2_lzma")]
+#[derive(Copy, Clone)]
+pub struct V2LzmaCompressor;
+
+#[cfg(feature = "v2_lzma")]
+impl CompressionAction for V2LzmaCompressor {
+    type Error = crate::error::BackhandError;
+    type Compressor = Option<Compressor>;
+    type FilesystemCompressor = FilesystemCompressor;
+    type SuperBlock = super::squashfs::SuperBlock;
+
+    fn decompress(
+        &self,
+        bytes: &[u8],
+        out: &mut Vec<u8>,
+        _compressor: Self::Compressor,
+    ) -> Result<(), Self::Error> {
+        crate::lzma::decompress_adaptive(
+            bytes,
+            out,
+            &crate::lzma::LzmaCache::new(),
+            crate::lzma::DEFAULT_BLOCK_SIZE,
+        )
+    }
+
+    fn compress(
+        &self,
+        _bytes: &[u8],
+        _fc: Self::FilesystemCompressor,
+        _block_size: u32,
+    ) -> Result<Vec<u8>, Self::Error> {
+        unimplemented!();
+    }
+}

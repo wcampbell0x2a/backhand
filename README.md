@@ -37,6 +37,16 @@ This is controlled from `unsquashfs-backhand` through the use of the `--kind` op
 | `be_v3_0_lzma_swap_standard`           | ✓       |        | `v3_lzma`  |
 | `le_v4_0_lzma`                         | ✓       |        | `v4_lzma`  |
 | `be_v4_0_lzma`                         | ✓       |        | `v4_lzma`  |
+| `be_v2_0`                              | ✓       |        | `v2`       |
+| `le_v2_0`                              | ✓       |        | `v2`       |
+| `avm_be_v2_lzma`                       | ✓       |        | `v2_lzma`  |
+| `avm_le_v2_lzma`                       | ✓       |        | `v2_lzma`  |
+| `be_v1_0`                              | ✓       |        | `v1`       |
+| `le_v1_0`                              | ✓       |        | `v1`       |
+
+The v2 kinds read minor versions 0 and 1, which have the same layout. The
+`avm_*_v2_lzma` kinds read the AVM/Freetz variant, which minor version 76
+marks and which uses LZMA in place of gzip.
 
 
 ## Library

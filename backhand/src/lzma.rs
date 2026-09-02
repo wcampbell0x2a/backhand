@@ -83,6 +83,8 @@ impl Default for LzmaCache {
 }
 
 /// Largest block size SquashFS allows, so the most a block can decompress to
+/// Only the v3 standard-LZMA compressor sizes a buffer with this.
+#[cfg(feature = "v3_lzma")]
 pub(crate) const MAX_BLOCK_SIZE: usize = 1 << 20;
 
 /// Block size to assume when the caller does not know the image's real one

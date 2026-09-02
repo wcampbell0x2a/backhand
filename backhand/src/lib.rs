@@ -102,7 +102,13 @@ pub use crate::traits::{FilesystemReaderTrait, GenericSquashfs, SquashfsVersion}
 
 /// Support the wonderful world of vendor formats
 pub mod kind {
+    #[cfg(feature = "v2_lzma")]
+    pub use crate::kinds::{AVM_BE_V2_LZMA, AVM_LE_V2_LZMA};
     pub use crate::kinds::{AVM_BE_V4_0, BE_V4_0, Endian, Kind, LE_V4_0, Magic};
+    #[cfg(feature = "v1")]
+    pub use crate::kinds::{BE_V1_0, LE_V1_0};
+    #[cfg(feature = "v2")]
+    pub use crate::kinds::{BE_V2_0, LE_V2_0};
     #[cfg(feature = "v3")]
     pub use crate::kinds::{BE_V3_0, LE_V3_0};
     #[cfg(feature = "v3_lzma")]

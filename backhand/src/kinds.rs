@@ -13,8 +13,14 @@ use crate::v3_lzma::standard_compressor::LzmaStandardCompressor as V3LzmaStandar
 use crate::v4::compressor::DefaultCompressor as V4DefaultCompressor;
 #[cfg(feature = "v4_lzma")]
 use crate::v4_lzma::compressor::V4LzmaAdaptiveCompressor;
+#[cfg(any(feature = "v1", feature = "v2"))]
+use crate::v12::compressor::DefaultCompressor as V12DefaultCompressor;
+#[cfg(feature = "v2_lzma")]
+use crate::v12::compressor::V2LzmaCompressor;
 
 // Static instances of compressors
+#[cfg(feature = "v2_lzma")]
+static V2_LZMA_COMPRESSOR: V2LzmaCompressor = V2LzmaCompressor;
 #[cfg(feature = "v3_lzma")]
 static V3_LZMA_STANDARD_COMPRESSOR: V3LzmaStandardCompressor = V3LzmaStandardCompressor;
 #[cfg(feature = "v4_lzma")]
@@ -49,6 +55,10 @@ pub enum Endian {
 /// Version-specific compressor types
 #[derive(Clone)]
 pub enum VersionedCompressor {
+    #[cfg(any(feature = "v1", feature = "v2"))]
+    V12(&'static V12DefaultCompressor),
+    #[cfg(feature = "v2_lzma")]
+    V2Lzma(&'static V2LzmaCompressor),
     #[cfg(feature = "v3")]
     V3(&'static V3DefaultCompressor),
     #[cfg(feature = "v3_lzma")]
@@ -81,6 +91,10 @@ impl VersionedCompressor {
         compressor: Option<crate::traits::types::Compressor>,
     ) -> Result<(), crate::BackhandError> {
         match self {
+            #[cfg(any(feature = "v1", feature = "v2"))]
+            VersionedCompressor::V12(comp) => comp.decompress(bytes, out, None),
+            #[cfg(feature = "v2_lzma")]
+            VersionedCompressor::V2Lzma(comp) => comp.decompress(bytes, out, None),
             #[cfg(feature = "v3")]
             VersionedCompressor::V3(comp) => comp.decompress(bytes, out, None),
             #[cfg(feature = "v3_lzma")]
@@ -169,6 +183,10 @@ impl Kind {
         #[allow(unused_variables)] max_out: usize,
     ) -> Result<(), crate::BackhandError> {
         match &self.inner.compressor {
+            #[cfg(feature = "v2_lzma")]
+            VersionedCompressor::V2Lzma(_) => {
+                crate::lzma::decompress_adaptive(bytes, out, &self.lzma_cache, max_out)
+            }
             #[cfg(feature = "v3_lzma")]
             VersionedCompressor::V3Lzma(_) => {
                 crate::lzma::decompress_adaptive(bytes, out, &self.lzma_cache, max_out)
@@ -284,6 +302,18 @@ impl Kind {
             "be_v4_0" => BE_V4_0,
             "le_v4_0" => LE_V4_0,
             "avm_be_v4_0" => AVM_BE_V4_0,
+            #[cfg(feature = "v1")]
+            "le_v1_0" => LE_V1_0,
+            #[cfg(feature = "v1")]
+            "be_v1_0" => BE_V1_0,
+            #[cfg(feature = "v2")]
+            "le_v2_0" => LE_V2_0,
+            #[cfg(feature = "v2")]
+            "be_v2_0" => BE_V2_0,
+            #[cfg(feature = "v2_lzma")]
+            "avm_le_v2_lzma" => AVM_LE_V2_LZMA,
+            #[cfg(feature = "v2_lzma")]
+            "avm_be_v2_lzma" => AVM_BE_V2_LZMA,
             #[cfg(feature = "v3")]
             "be_v3_0" => BE_V3_0,
             #[cfg(feature = "v3")]
@@ -462,6 +492,86 @@ pub const AVM_BE_V4_0: InnerKind = InnerKind {
     version_minor: 0,
     compressor: VersionedCompressor::V4(&V4DefaultCompressor),
     bit_order: None,
+};
+
+/// SquashFS v1.0 Little-Endian
+///
+/// One kind covers v1.0 entirely: the version has no minor variants.
+#[cfg(feature = "v1")]
+pub const LE_V1_0: InnerKind = InnerKind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 1,
+    version_minor: 0,
+    compressor: VersionedCompressor::V12(&V12DefaultCompressor),
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// SquashFS v1.0 Big-Endian
+#[cfg(feature = "v1")]
+pub const BE_V1_0: InnerKind = InnerKind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 1,
+    version_minor: 0,
+    compressor: VersionedCompressor::V12(&V12DefaultCompressor),
+    bit_order: Some(deku::ctx::Order::Msb0),
+};
+
+/// SquashFS v2 Little-Endian
+///
+/// Reads both minor versions. 2.0 and 2.1 differ only in whether the writer
+/// sorted the directory entries, which does not change the layout.
+#[cfg(feature = "v2")]
+pub const LE_V2_0: InnerKind = InnerKind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 2,
+    version_minor: 0,
+    compressor: VersionedCompressor::V12(&V12DefaultCompressor),
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// SquashFS v2 Big-Endian
+#[cfg(feature = "v2")]
+pub const BE_V2_0: InnerKind = InnerKind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 2,
+    version_minor: 0,
+    compressor: VersionedCompressor::V12(&V12DefaultCompressor),
+    bit_order: Some(deku::ctx::Order::Msb0),
+};
+
+/// AVM Fritz!OS SquashFS v2 with LZMA, Little-Endian
+///
+/// Minor version 76 (`'L'`) marks this variant. Tested with images from the
+/// Freetz `mksquashfs2-lzma` tool.
+#[cfg(feature = "v2_lzma")]
+pub const AVM_LE_V2_LZMA: InnerKind = InnerKind {
+    magic: *b"hsqs",
+    type_endian: deku::ctx::Endian::Little,
+    data_endian: deku::ctx::Endian::Little,
+    version_major: 2,
+    version_minor: 76,
+    compressor: VersionedCompressor::V2Lzma(&V2_LZMA_COMPRESSOR),
+    bit_order: Some(deku::ctx::Order::Lsb0),
+};
+
+/// AVM Fritz!OS SquashFS v2 with LZMA, Big-Endian
+#[cfg(feature = "v2_lzma")]
+pub const AVM_BE_V2_LZMA: InnerKind = InnerKind {
+    magic: *b"sqsh",
+    type_endian: deku::ctx::Endian::Big,
+    data_endian: deku::ctx::Endian::Big,
+    version_major: 2,
+    version_minor: 76,
+    compressor: VersionedCompressor::V2Lzma(&V2_LZMA_COMPRESSOR),
+    bit_order: Some(deku::ctx::Order::Msb0),
 };
 
 /// Default `Kind` for SquashFS v3.0 Little-Endian

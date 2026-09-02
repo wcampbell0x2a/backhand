@@ -55,7 +55,16 @@ impl<'b> SquashfsVersion<'b> for V3 {
             dir_blocks: v3_squashfs.dir_blocks,
             fragments: v3_squashfs.fragments,
             export: v3_squashfs.export,
-            id: v3_squashfs.id.unwrap_or_default(),
+            // v3 records owners in its own uid table, so surface that as the
+            // version-neutral id table rather than dropping it.
+            id: v3_squashfs
+                .uid
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .copied()
+                .map(id::Id::new)
+                .collect(),
             file: v3_squashfs.file,
         })
     }
@@ -71,9 +80,12 @@ impl<'b> SquashfsVersion<'b> for V3 {
             dir_blocks: squashfs.dir_blocks,
             fragments: squashfs.fragments,
             export: squashfs.export,
-            id: Some(squashfs.id),
-            uid: None,  // v3 compatibility: not used
-            guid: None, // v3 compatibility: not used
+            id: Some(squashfs.id.clone()),
+            uid: Some(squashfs.id.iter().map(|id| id.num).collect()),
+            // v3 keeps groups in a separate table that the version-neutral
+            // form has no slot for. Only the uid table is used when resolving
+            // a node's ids, so an empty one changes nothing.
+            guid: Some(vec![]),
             file: squashfs.file,
         };
 

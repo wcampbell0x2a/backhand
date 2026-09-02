@@ -601,10 +601,8 @@ impl<'b> Squashfs<'b> {
         info!("creating fs tree");
         let mut root = Nodes::new_root({
             // Create temporary combined id table for v3 compatibility
-            let mut id_table = Vec::new();
-            for &uid in self.uid.as_ref().unwrap() {
-                id_table.push(Id::new(uid));
-            }
+            let id_table: Vec<Id> =
+                self.uid.as_deref().unwrap_or_default().iter().copied().map(Id::new).collect();
             NodeHeader::from_inode(self.root_inode.header, &id_table)?
         });
         let mut visited_inodes = std::collections::HashSet::new();
@@ -612,8 +610,8 @@ impl<'b> Squashfs<'b> {
             &mut PathBuf::from("/"),
             &mut root,
             &self.root_inode,
-            self.uid.as_ref().unwrap(),
-            self.guid.as_ref().unwrap(),
+            self.uid.as_deref().unwrap_or_default(),
+            self.guid.as_deref().unwrap_or_default(),
             &mut visited_inodes,
         )?;
         root.nodes.sort();
@@ -630,16 +628,14 @@ impl<'b> Squashfs<'b> {
             block_log: self.superblock.block_log,
             compressor: None,
             mod_time: self.superblock.mkfs_time,
-            id_table: {
-                // Convert v3 uid table to unified id table format
-                let mut id_table = Vec::new();
-                if let Some(ref uid_table) = self.uid {
-                    for &uid in uid_table {
-                        id_table.push(Id::new(uid));
-                    }
-                }
-                id_table
-            },
+            id_table: self
+                .uid
+                .as_deref()
+                .unwrap_or_default()
+                .iter()
+                .copied()
+                .map(Id::new)
+                .collect(),
             fragments: self.fragments,
             root,
             reader: Mutex::new(Box::new(self.file)),

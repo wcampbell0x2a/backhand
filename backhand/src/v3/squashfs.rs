@@ -174,9 +174,9 @@ pub struct Squashfs<'b> {
     /// Id Lookup Table V4
     pub id: Option<Vec<Id>>,
     /// Uid Lookup Table V3
-    pub uid: Option<Vec<u16>>,
+    pub uid: Option<Vec<u32>>,
     /// Gid Lookup Table V3
-    pub guid: Option<Vec<u16>>,
+    pub guid: Option<Vec<u32>>,
     //file reader
     pub file: Box<dyn BufReadSeek + 'b>,
 }
@@ -419,8 +419,8 @@ impl<'b> Squashfs<'b> {
         current_path: &mut PathBuf,
         root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
-        _uid_table: &[u16],
-        _guid_table: &[u16],
+        _uid_table: &[u32],
+        _guid_table: &[u32],
         visited_inodes: &mut std::collections::HashSet<u32>,
     ) -> Result<(), BackhandError> {
         let current_inode_num = dir_inode.header.inode_number;
@@ -603,7 +603,7 @@ impl<'b> Squashfs<'b> {
             // Create temporary combined id table for v3 compatibility
             let mut id_table = Vec::new();
             for &uid in self.uid.as_ref().unwrap() {
-                id_table.push(Id::new(uid as u32));
+                id_table.push(Id::new(uid));
             }
             NodeHeader::from_inode(self.root_inode.header, &id_table)?
         });
@@ -635,7 +635,7 @@ impl<'b> Squashfs<'b> {
                 let mut id_table = Vec::new();
                 if let Some(ref uid_table) = self.uid {
                     for &uid in uid_table {
-                        id_table.push(Id::new(uid as u32));
+                        id_table.push(Id::new(uid));
                     }
                 }
                 id_table

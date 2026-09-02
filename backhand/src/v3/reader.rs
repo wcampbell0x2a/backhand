@@ -249,20 +249,23 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse UID Table
-    fn uid(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Vec<u16>, BackhandError> {
+    ///
+    /// Entries are 32 bits wide. Reading them as 16 would take each value from
+    /// half of the previous entry.
+    fn uid(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Vec<u32>, BackhandError> {
         let ptr = superblock.uid_start;
         let count = superblock.no_uids as u64;
         self.seek(SeekFrom::Start(ptr))?;
 
         // I wish self was Read here, but this works
-        let mut buf = vec![0u8; count as usize * core::mem::size_of::<u16>()];
+        let mut buf = vec![0u8; count as usize * core::mem::size_of::<u32>()];
         self.read_exact(&mut buf)?;
 
         let mut cursor = Cursor::new(buf);
         let mut deku_reader = Reader::new(&mut cursor);
         let mut table = Vec::with_capacity(count as usize);
         for _ in 0..count {
-            let v = u16::from_reader_with_ctx(
+            let v = u32::from_reader_with_ctx(
                 &mut deku_reader,
                 (kind.inner.type_endian, kind.inner.bit_order.unwrap()),
             )?;
@@ -273,20 +276,20 @@ pub trait SquashFsReader: BufReadSeek {
     }
 
     /// Parse GUID Table
-    fn guid(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Vec<u16>, BackhandError> {
+    fn guid(&mut self, superblock: &SuperBlock, kind: &Kind) -> Result<Vec<u32>, BackhandError> {
         let ptr = superblock.guid_start;
         let count = superblock.no_guids as u64;
         self.seek(SeekFrom::Start(ptr))?;
 
         // I wish self was Read here, but this works
-        let mut buf = vec![0u8; count as usize * core::mem::size_of::<u16>()];
+        let mut buf = vec![0u8; count as usize * core::mem::size_of::<u32>()];
         self.read_exact(&mut buf)?;
 
         let mut cursor = Cursor::new(buf);
         let mut deku_reader = Reader::new(&mut cursor);
         let mut table = Vec::with_capacity(count as usize);
         for _ in 0..count {
-            let v = u16::from_reader_with_ctx(
+            let v = u32::from_reader_with_ctx(
                 &mut deku_reader,
                 (kind.inner.type_endian, kind.inner.bit_order.unwrap()),
             )?;
@@ -430,5 +433,67 @@ pub trait SquashFsReader: BufReadSeek {
         }
 
         Ok(ret_vec)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+    use crate::kinds::{BE_V3_0, LE_V3_0};
+
+    /// A superblock that names an id table of `count` entries at `start`
+    fn superblock_with_ids(start: u64, count: u8) -> SuperBlock {
+        let mut superblock = SuperBlock::new(Kind::from_const(LE_V3_0).unwrap());
+        superblock.uid_start = start;
+        superblock.guid_start = start;
+        superblock.no_uids = count;
+        superblock.no_guids = count;
+        superblock
+    }
+
+    #[test]
+    fn the_uid_table_is_read_as_32_bit_entries() {
+        // Reading these as 16 bits would take each value from half of the one
+        // before it, so only a table of a single small id would look right.
+        let ids: [u32; 4] = [0, 1000, 65_600, 4_294_967_295];
+        let mut image = vec![0u8; 8];
+        for id in ids {
+            image.extend_from_slice(&id.to_le_bytes());
+        }
+
+        let mut reader = Cursor::new(image);
+        let superblock = superblock_with_ids(8, ids.len() as u8);
+        let kind = Kind::from_const(LE_V3_0).unwrap();
+
+        assert_eq!(reader.uid(&superblock, &kind).unwrap(), ids);
+        assert_eq!(reader.guid(&superblock, &kind).unwrap(), ids);
+    }
+
+    #[test]
+    fn the_uid_table_follows_the_kind_endianness() {
+        let ids: [u32; 3] = [0, 1000, 70_000];
+        let mut image = vec![0u8; 8];
+        for id in ids {
+            image.extend_from_slice(&id.to_be_bytes());
+        }
+
+        let mut reader = Cursor::new(image);
+        let mut superblock = superblock_with_ids(8, ids.len() as u8);
+        superblock.magic = *b"sqsh";
+        let kind = Kind::from_const(BE_V3_0).unwrap();
+
+        assert_eq!(reader.uid(&superblock, &kind).unwrap(), ids);
+    }
+
+    #[test]
+    fn an_empty_id_table_reads_as_empty() {
+        let mut reader = Cursor::new(vec![0u8; 8]);
+        let superblock = superblock_with_ids(8, 0);
+        let kind = Kind::from_const(LE_V3_0).unwrap();
+
+        assert!(reader.uid(&superblock, &kind).unwrap().is_empty());
+        assert!(reader.guid(&superblock, &kind).unwrap().is_empty());
     }
 }

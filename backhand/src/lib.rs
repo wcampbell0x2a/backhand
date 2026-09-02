@@ -63,6 +63,8 @@ mod kinds;
 #[cfg(feature = "any-lzma")]
 mod lzma;
 pub mod traits;
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub mod v12;
 #[cfg(feature = "v3")]
 pub mod v3;
 #[cfg(feature = "v3_lzma")]

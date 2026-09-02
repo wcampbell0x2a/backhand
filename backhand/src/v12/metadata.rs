@@ -1,0 +1,60 @@
+use no_std_io2::io::{Read, Seek};
+
+use deku::prelude::*;
+
+use super::squashfs::SuperBlock;
+use crate::error::BackhandError;
+use crate::kinds::Kind;
+
+pub const METADATA_MAXSIZE: usize = 0x2000;
+
+const METDATA_UNCOMPRESSED: u16 = 1 << 15;
+
+pub fn read_block<R: Read + Seek + ?Sized>(
+    reader: &mut R,
+    superblock: &SuperBlock,
+    kind: &Kind,
+) -> Result<Vec<u8>, BackhandError> {
+    let mut deku_reader = Reader::new(&mut *reader);
+    let metadata_len = u16::from_reader_with_ctx(&mut deku_reader, kind.inner.data_endian)?;
+
+    if superblock.check_data() {
+        let mut check_byte = [0u8; 1];
+        reader.read_exact(&mut check_byte)?;
+        trace!("check_data: skipped check byte 0x{:02x}", check_byte[0]);
+    }
+
+    let byte_len = len(metadata_len);
+    trace!("len: 0x{:02x?}", byte_len);
+    if byte_len as usize > METADATA_MAXSIZE {
+        return Err(BackhandError::CorruptedOrInvalidSquashfs);
+    }
+    let mut buf = vec![0u8; byte_len as usize];
+    reader.read_exact(&mut buf)?;
+
+    // The superblock's "inodes uncompressed" flag is deliberately ignored, as
+    // in v3: some images set it and still compress each block. The per-block
+    // bit is the one that governs.
+    let is_block_compressed = is_compressed(metadata_len);
+    let bytes = if is_block_compressed {
+        let mut out = Vec::with_capacity(8 * 1024);
+        kind.decompress(&buf, &mut out, None, METADATA_MAXSIZE)?;
+        out
+    } else {
+        trace!("uncompressed (superblock flag or block flag)");
+        buf
+    };
+
+    trace!("uncompressed size: 0x{:02x?}", bytes.len());
+    Ok(bytes)
+}
+
+/// Check is_compressed bit within raw `len`
+pub fn is_compressed(len: u16) -> bool {
+    len & METDATA_UNCOMPRESSED == 0
+}
+
+/// Get actual length of `data` following `len` from unedited `len`
+pub fn len(len: u16) -> u16 {
+    len & !(METDATA_UNCOMPRESSED)
+}

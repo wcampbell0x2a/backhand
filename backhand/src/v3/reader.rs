@@ -211,7 +211,9 @@ pub trait SquashFsReader: BufReadSeek {
         let mut block_map = IntMap::default();
         let mut dir_data = Vec::new();
 
-        while self.stream_position()? != end_ptr {
+        // Stop at or past the end, not on an exact match: a block that ends
+        // past `end_ptr` would otherwise read until the reader itself fails.
+        while self.stream_position()? < end_ptr {
             let metadata_start = self.stream_position()?;
             let bytes = metadata::read_block(self, superblock, kind)?;
             let compressed_offset = metadata_start - seek;

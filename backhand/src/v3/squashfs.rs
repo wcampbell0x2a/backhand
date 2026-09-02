@@ -52,7 +52,10 @@ pub struct SuperBlock {
     pub guid_start_2: u32,
     pub inode_table_start_2: u32,
     pub directory_table_start_2: u32,
+    #[deku(assert_eq = "ctx_version_major")]
     pub version_major: u16,
+    /// Not asserted against the kind. v3.0 and v3.1 have the same layout, so one
+    /// kind reads both, and several test images are v3.1 read with a v3.0 kind.
     pub version_minor: u16,
     pub block_size_1: u16,
     pub block_log: u16,

@@ -167,3 +167,43 @@ fn test_v3_lzma_swap_standard() {
         "le_v3_0_lzma_swap_standard",
     );
 }
+
+/// The plain entry point must open a v3 image. It defaulted to a v4 kind once,
+/// which no v3 image can match, so this path never worked.
+#[test]
+#[cfg(feature = "v3")]
+fn test_v3_from_reader_uses_a_v3_kind_by_default() {
+    common::download_asset("v3_le");
+
+    let file = BufReader::new(File::open("test-assets/test_v3_le/squashfs_v3_le.bin").unwrap());
+    let fs = FilesystemReader::from_reader(file).unwrap();
+    assert!(fs.files().count() > 1);
+}
+
+/// Reading through the version-neutral path must give the same tree as the v3
+/// one. It used to panic, because that path left the uid table empty and the
+/// reader unwrapped it.
+#[test]
+#[cfg(feature = "v3")]
+fn test_v3_reads_the_same_through_the_version_neutral_path() {
+    common::download_asset("v3_le");
+    let path = "test-assets/test_v3_le/squashfs_v3_le.bin";
+
+    let file = BufReader::new(File::open(path).unwrap());
+    let direct = FilesystemReader::from_reader_with_offset_and_kind(
+        file,
+        0,
+        Kind::from_const(LE_V3_0).unwrap(),
+    )
+    .unwrap();
+    let direct: Vec<String> =
+        direct.files().map(|node| node.fullpath.display().to_string()).collect();
+
+    let file = BufReader::new(File::open(path).unwrap());
+    let generic =
+        backhand::create_squashfs_from_kind(file, 0, Kind::from_const(LE_V3_0).unwrap()).unwrap();
+    let generic: Vec<String> =
+        generic.files().map(|node| node.fullpath.display().to_string()).collect();
+
+    assert_eq!(direct, generic);
+}

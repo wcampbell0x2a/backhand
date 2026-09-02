@@ -107,7 +107,7 @@ pub struct FilesystemReader<'b> {
 impl<'b> FilesystemReader<'b> {
     /// Call [`Squashfs::from_reader`], then [`Squashfs::into_filesystem_reader`]
     ///
-    /// With default kind: [`crate::kind::LE_V4_0`] and offset `0`.
+    /// With default kind: [`crate::kind::LE_V3_0`] and offset `0`.
     pub fn from_reader<R>(reader: R) -> Result<Self, BackhandError>
     where
         R: BufReadSeek + 'b,

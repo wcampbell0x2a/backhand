@@ -18,7 +18,7 @@ use super::filesystem::reader::FilesystemReader;
 use super::id::Id;
 use crate::Flags;
 use crate::error::BackhandError;
-use crate::kinds::{Kind, LE_V4_0};
+use crate::kinds::{Kind, LE_V3_0};
 use crate::v3::dir::{Dir, DirInodeId};
 use crate::v3::fragment::Fragment;
 use crate::v3::inode::{Inode, InodeInner};
@@ -227,12 +227,13 @@ impl<'b> Squashfs<'b> {
 
     /// Same as [`Self::from_reader`], but seek'ing to `offset` in `reader` before Reading
     ///
-    /// Uses default [`Kind`]: [`LE_V4_0`]
+    /// Uses default [`Kind`]: [`LE_V3_0`]. A v4 kind was used here once, which
+    /// no v3 image can match.
     pub fn from_reader_with_offset(
         reader: impl BufReadSeek + 'b,
         offset: u64,
     ) -> Result<Self, BackhandError> {
-        Self::from_reader_with_offset_and_kind(reader, offset, Kind::from_inner(LE_V4_0))
+        Self::from_reader_with_offset_and_kind(reader, offset, Kind::from_inner(LE_V3_0))
     }
 
     /// Same as [`Self::from_reader_with_offset`], but including custom `kind`

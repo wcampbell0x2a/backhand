@@ -6,7 +6,24 @@ use crate::error::BackhandError;
 use crate::kinds::Kind;
 use crate::v4::reader::BufReadSeek;
 use crate::v12::inode::Layout;
+use core::fmt::Debug;
+use std::collections::HashSet;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
+use no_std_io2::io::Cursor;
+
+use crate::v4::id::Id;
+use crate::v4::unix_string::OsStrExt;
+use crate::v12::dir::{Dir, DirEntry};
+use crate::v12::filesystem::node::{
+    InnerNode, Node, NodeHeader, Nodes, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
+    SquashfsFileReader, SquashfsSymlink,
+};
+use crate::v12::filesystem::normalize_squashfs_path;
+use crate::v12::fragment::Fragment;
+use crate::v12::inode::{Directory, Inode, InodeInner};
+use crate::v12::reader::{MetadataTable, SquashFsReader};
 
 /// Minor version that marks the AVM/Freetz LZMA variant of v2
 pub const MINOR_LZMA: u16 = 76;
@@ -192,6 +209,155 @@ pub fn superblock<R: BufReadSeek + ?Sized>(
     }
 
     Ok((superblock, layout))
+}
+
+/// An opened v1 or v2 image, with its tables read
+pub struct Squashfs {
+    pub kind: Kind,
+    pub superblock: SuperBlock,
+    pub layout: Layout,
+    pub inodes: MetadataTable,
+    pub dirs: MetadataTable,
+    pub uid: Vec<Id>,
+    pub guid: Vec<Id>,
+    pub fragments: Option<Vec<Fragment>>,
+}
+
+impl Squashfs {
+    /// Read the superblock and every table of an image
+    pub fn from_reader<R: BufReadSeek + ?Sized>(
+        mut reader: &mut R,
+        kind: Kind,
+    ) -> Result<Self, BackhandError> {
+        let (superblock, layout) = self::superblock(&mut reader, &kind)?;
+
+        let inodes = reader.inode_table(&superblock, &kind)?;
+        let dirs = reader.dir_table(&superblock, layout, &kind)?;
+        let uid = reader.uid_table(&superblock, &kind)?;
+        let guid = reader.guid_table(&superblock, &kind)?;
+        let fragments = reader.fragment_table(&superblock, layout, &kind)?;
+
+        Ok(Self { kind, superblock, layout, inodes, dirs, uid, guid, fragments })
+    }
+
+    /// Read the inode at an on-disk reference
+    fn inode_at(&self, block: u32, offset: u16) -> Result<Inode, BackhandError> {
+        let pos =
+            self.inodes.position(block, offset).ok_or(BackhandError::CorruptedOrInvalidSquashfs)?;
+        Inode::from_table(&self.inodes.data, pos, self.layout, &self.superblock, &self.kind)
+    }
+
+    /// The image's root inode
+    pub fn root_inode(&self) -> Result<Inode, BackhandError> {
+        let (block, offset) = inode_block_and_offset(self.superblock.root_inode);
+        self.inode_at(block, offset)
+    }
+
+    /// Walk the whole tree, from the root down
+    pub fn nodes(&self) -> Result<Nodes<SquashfsFileReader>, BackhandError> {
+        let root_inode = self.root_inode()?;
+        let root_header = NodeHeader::from_inode(root_inode.header, &self.uid, &self.guid)?;
+        let mut nodes = Nodes::new_root(root_header);
+
+        let InodeInner::Directory(root_dir) = root_inode.inner else {
+            error!("root inode is not a directory");
+            return Err(BackhandError::UnexpectedInode);
+        };
+
+        // An image may name the same directory twice, directly or through a
+        // cycle. Track what has been entered so a malformed image cannot make
+        // the walk run forever.
+        let mut visited = HashSet::new();
+        self.walk_dir(&root_dir, Path::new("/"), &mut nodes, &mut visited)?;
+
+        nodes.sort();
+        Ok(nodes)
+    }
+
+    fn walk_dir(
+        &self,
+        dir: &Directory,
+        path: &Path,
+        nodes: &mut Nodes<SquashfsFileReader>,
+        visited: &mut HashSet<(u32, u16)>,
+    ) -> Result<(), BackhandError> {
+        if !visited.insert((dir.start_block, dir.offset)) {
+            trace!("already entered directory {:?}, not recursing", path);
+            return Ok(());
+        }
+
+        for entry in self.listing(dir)? {
+            let (entry, block) = entry;
+            let name = entry.name()?;
+            let fullpath = normalize_squashfs_path(&path.join(name))?;
+
+            let inode = self.inode_at(block, entry.offset)?;
+            let header = NodeHeader::from_inode(inode.header, &self.uid, &self.guid)?;
+
+            // The entry's own type field is three bits, too narrow to hold the
+            // extended-directory type, so the inode's type is what decides.
+            let inner = match inode.inner {
+                InodeInner::Directory(child) => {
+                    nodes.push(Node {
+                        fullpath: fullpath.clone(),
+                        header,
+                        inner: InnerNode::Dir(SquashfsDir::default()),
+                    });
+                    self.walk_dir(&child, &fullpath, nodes, visited)?;
+                    continue;
+                }
+                InodeInner::File(file) => InnerNode::File(SquashfsFileReader(file)),
+                InodeInner::Symlink(target) => InnerNode::Symlink(SquashfsSymlink {
+                    link: PathBuf::from(OsStr::from_bytes(&target)),
+                }),
+                InodeInner::BlockDevice(rdev) => {
+                    InnerNode::BlockDevice(SquashfsBlockDevice { device_number: u32::from(rdev) })
+                }
+                InodeInner::CharacterDevice(rdev) => {
+                    InnerNode::CharacterDevice(SquashfsCharacterDevice {
+                        device_number: u32::from(rdev),
+                    })
+                }
+                InodeInner::NamedPipe => InnerNode::NamedPipe,
+                InodeInner::Socket => InnerNode::Socket,
+            };
+
+            nodes.push(Node { fullpath, header, inner });
+        }
+
+        Ok(())
+    }
+
+    /// Read one directory's listing
+    ///
+    /// Each entry comes back with the inode metadata block its header names, so
+    /// the caller can resolve it. v1 and v2 use the listing size as recorded;
+    /// only v3 and v4 store it three bytes long.
+    fn listing(&self, dir: &Directory) -> Result<Vec<(DirEntry, u32)>, BackhandError> {
+        let start = self
+            .dirs
+            .position(dir.start_block, dir.offset)
+            .ok_or(BackhandError::CorruptedOrInvalidSquashfs)?;
+        let end = start
+            .checked_add(dir.file_size as usize)
+            .filter(|end| *end <= self.dirs.data.len())
+            .ok_or(BackhandError::CorruptedOrInvalidSquashfs)?;
+
+        let order = self.kind.inner.bit_order.unwrap_or(deku::ctx::Order::Lsb0);
+        let mut cursor = Cursor::new(&self.dirs.data[start..end]);
+        let mut entries = vec![];
+
+        while (cursor.position() as usize) < end - start {
+            let mut deku_reader = Reader::new(&mut cursor);
+            let header =
+                Dir::from_reader_with_ctx(&mut deku_reader, (self.kind.inner.type_endian, order))?;
+            for entry in header.dir_entries {
+                entries.push((entry, header.start));
+            }
+        }
+
+        Ok(entries)
+    }
 }
 
 #[cfg(test)]

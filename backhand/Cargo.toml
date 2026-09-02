@@ -39,9 +39,9 @@ default = ["xz", "gzip", "zstd", "lz4", "parallel", "error-strings"]
 ## Enables squashfs v3
 v3 = ["gzip"]
 ## Enables squashfs v3 with LZMA compression
-v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:lzma-rust2", "dep:liblzma"]
+v3_lzma = ["v3", "any-lzma", "dep:lzma-adaptive-sys", "dep:lzma-rust2", "dep:liblzma"]
 ## Enables squashfs v4 with adaptive LZMA compression
-v4_lzma = ["dep:lzma-adaptive-sys", "dep:lzma-rust2"]
+v4_lzma = ["any-lzma", "dep:lzma-adaptive-sys", "dep:lzma-rust2"]
 ## Enables xz compression inside library and binaries
 xz = ["dep:liblzma", "dep:liblzma-sys"]
 ## Enables xz compression and forces static build inside library and binaries
@@ -56,6 +56,8 @@ zstd = ["dep:zstd", "dep:zstd-safe"]
 lz4 = ["dep:lz4_flex"]
 ## Internal only
 any-gzip = []
+## Internal only: any kind that needs the shared LZMA engine
+any-lzma = []
 ## Enable parallel decompression
 parallel = ["dep:rayon"]
 ## Include deku descriptive parse-error strings.

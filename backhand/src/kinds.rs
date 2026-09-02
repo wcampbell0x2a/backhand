@@ -142,7 +142,7 @@ pub struct Kind {
     /// `const` would give each copy its own, which hides the sharing this needs.
     /// Cloning a `Kind` shares the cache, so all readers of one image share what
     /// the first block found.
-    #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+    #[cfg(feature = "any-lzma")]
     pub(crate) lzma_cache: Arc<crate::lzma::LzmaCache>,
 }
 
@@ -151,7 +151,7 @@ impl Kind {
     pub(crate) fn from_inner(inner: InnerKind) -> Self {
         Self {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -227,7 +227,7 @@ impl Kind {
                 compressor: VersionedCompressor::CustomV4(compression),
                 bit_order: LE_V4_0.bit_order,
             }),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -264,7 +264,7 @@ impl Kind {
                 compressor: VersionedCompressor::CustomV4(compression),
                 bit_order: inner.bit_order,
             }),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -313,7 +313,7 @@ impl Kind {
 
         Ok(Kind {
             inner: Arc::new(kind),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         })
     }
@@ -330,7 +330,7 @@ impl Kind {
     pub fn from_const(inner: InnerKind) -> Result<Kind, String> {
         Ok(Kind {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         })
     }
@@ -347,7 +347,7 @@ impl Kind {
         inner.magic = magic.magic();
         Self {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -376,7 +376,7 @@ impl Kind {
         };
         Self {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -391,7 +391,7 @@ impl Kind {
         };
         Self {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -412,7 +412,7 @@ impl Kind {
         }
         Self {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }
@@ -425,7 +425,7 @@ impl Kind {
         inner.version_minor = minor;
         Self {
             inner: Arc::new(inner),
-            #[cfg(any(feature = "v3_lzma", feature = "v4_lzma"))]
+            #[cfg(feature = "any-lzma")]
             lzma_cache: Arc::new(crate::lzma::LzmaCache::new()),
         }
     }

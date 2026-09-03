@@ -1,3 +1,7 @@
+// Every test binary compiles this module separately, so a helper used by
+// only some of them looks unused in the others.
+#![allow(dead_code)]
+
 use std::process::Command;
 use std::sync::OnceLock;
 use std::time::Duration;

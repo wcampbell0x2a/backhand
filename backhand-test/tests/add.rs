@@ -1,5 +1,6 @@
 mod common;
 
+#[cfg(feature = "__test_unsquashfs")]
 use std::process::Command;
 
 use assert_cmd::prelude::*;

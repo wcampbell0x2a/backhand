@@ -2,6 +2,7 @@ mod common;
 
 use std::fs::File;
 use std::io::{BufWriter, Cursor};
+#[cfg(feature = "__test_unsquashfs")]
 use std::process::Command;
 
 use backhand::compression::Compressor;

@@ -1,6 +1,9 @@
 //! Types of supported compression algorithms
 
-use no_std_io2::io::{Read, Write};
+// Only the xz and gzip encoders read through this trait.
+#[cfg(any(feature = "xz", feature = "any-gzip"))]
+use no_std_io2::io::Read;
+use no_std_io2::io::Write;
 use std::io::Cursor;
 
 use deku::prelude::*;
@@ -17,7 +20,9 @@ use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
 
 use crate::error::BackhandError;
 use crate::traits::CompressionAction;
-use crate::v4::filesystem::writer::{CompressionExtra, FilesystemCompressor};
+#[cfg(feature = "xz")]
+use crate::v4::filesystem::writer::CompressionExtra;
+use crate::v4::filesystem::writer::FilesystemCompressor;
 use crate::v4::metadata::MetadataWriter;
 use crate::v4::squashfs::Flags;
 
@@ -105,7 +110,11 @@ impl XzFilter {
     pub fn new(filter: u32) -> Self {
         Self(filter)
     }
+}
 
+/// Only the xz compressor reads these flags.
+#[cfg(feature = "xz")]
+impl XzFilter {
     fn x86(&self) -> bool {
         self.0 & 0x0001 == 0x0001
     }
@@ -286,7 +295,7 @@ impl CompressionAction for DefaultCompressor {
         &self,
         bytes: &[u8],
         fc: Self::FilesystemCompressor,
-        block_size: u32,
+        #[cfg_attr(not(feature = "xz"), allow(unused_variables))] block_size: u32,
     ) -> Result<Vec<u8>, Self::Error> {
         match (fc.id, fc.options, fc.extra) {
             (Compressor::Uncompressed, None, _) => Ok(bytes.to_vec()),

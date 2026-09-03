@@ -4,6 +4,7 @@ use std::io::{BufReader, BufWriter};
 
 use backhand::{FilesystemReader, FilesystemWriter};
 use common::test_bin_unsquashfs;
+#[cfg(feature = "__test_unsquashfs")]
 use common::test_squashfs_tools_unsquashfs;
 use test_log::test;
 use tracing::{info, trace};

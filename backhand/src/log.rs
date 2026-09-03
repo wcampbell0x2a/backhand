@@ -78,9 +78,11 @@ macro_rules! err_text {
 
 #[cfg(not(feature = "error-strings"))]
 macro_rules! err_text {
-    ($fmt:literal $(,)?) => {{ ::std::string::String::new() }};
-    ($fmt:literal, $($arg:expr),+ $(,)?) => {{
-        $( let _ = &$arg; )+
+    ($($arg:tt)*) => {{
+        // Consume the arguments so a caller that captures inline, as in
+        // `err_text!("{e}")`, does not warn that `e` is unused. `format_args!`
+        // reads them without allocating, and the result is dropped here.
+        let _ = ::core::format_args!($($arg)*);
         ::std::string::String::new()
     }};
 }

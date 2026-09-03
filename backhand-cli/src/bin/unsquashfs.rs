@@ -61,6 +61,18 @@ const AVAILABLE_KINDS: &[&str] = &[
     #[cfg(feature = "v4_lzma")]
     "be_v4_0_lzma",
     "avm_be_v4_0",
+    #[cfg(feature = "v2")]
+    "le_v2_0",
+    #[cfg(feature = "v2")]
+    "be_v2_0",
+    #[cfg(feature = "v2_lzma")]
+    "avm_le_v2_lzma",
+    #[cfg(feature = "v2_lzma")]
+    "avm_be_v2_lzma",
+    #[cfg(feature = "v1")]
+    "le_v1_0",
+    #[cfg(feature = "v1")]
+    "be_v1_0",
 ];
 
 pub fn required_root(a: &str) -> Result<PathBuf, String> {
@@ -535,11 +547,25 @@ fn stat_v3(args: Args, mut file: BufReader<File>, kind: Kind) {
     println!("{superblock:#08x?}");
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
+fn stat_v12(args: Args, mut file: BufReader<File>, kind: Kind) {
+    if let Err(e) = file.seek(SeekFrom::Start(args.offset)) {
+        eprintln!("Failed to seek to offset: {e}");
+        return;
+    }
+    match backhand::v12::squashfs::superblock(&mut file, &kind) {
+        Ok((superblock, _layout)) => println!("{superblock:#08x?}"),
+        Err(e) => eprintln!("Failed to read superblock: {e}"),
+    }
+}
+
 fn stat(args: Args, file: BufReader<File>, kind: Kind, pb: &ProgressBar) {
     match (kind.version_major(), kind.version_minor()) {
         (4, 0) => stat_v4(args, file, kind),
         #[cfg(feature = "v3")]
-        (3, 0) => stat_v3(args, file, kind),
+        (3, 0) | (3, 1) => stat_v3(args, file, kind),
+        #[cfg(any(feature = "v1", feature = "v2"))]
+        (1, 0) | (2, 0) | (2, 1) | (2, 76) => stat_v12(args, file, kind),
         _ => {
             error(
                 pb,

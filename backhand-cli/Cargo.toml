@@ -34,6 +34,9 @@ version = "0.5.4"
 [features]
 default = ["xz", "gzip", "zstd", "descriptive-errors", "error-strings"]
 ## Enables squashfs v3
+v1 = ["backhand/v1"]
+v2 = ["backhand/v2"]
+v2_lzma = ["backhand/v2_lzma"]
 v3 = ["backhand/v3"]
 ## Enables squashfs v3 with LZMA compression
 v3_lzma = ["backhand/v3", "backhand/v3_lzma"]

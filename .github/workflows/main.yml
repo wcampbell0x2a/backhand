@@ -33,8 +33,11 @@ jobs:
           - --no-default-features --features lz4
           - --no-default-features --features parallel
           - --no-default-features --features v3
+          - --no-default-features --features v1
+          - --no-default-features --features v2
           # LZMA does not build on windows
           # - --no-default-features --features v3_lzma
+          # - --no-default-features --features v2_lzma
           # NO using default features
           # -
 
@@ -163,6 +166,9 @@ jobs:
           - --no-default-features --features v3
           - --no-default-features --features v3_lzma
           - --no-default-features --features v4_lzma
+          - --no-default-features --features v1
+          - --no-default-features --features v2
+          - --no-default-features --features v2_lzma
           # default features
           -
 

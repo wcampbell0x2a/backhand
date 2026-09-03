@@ -228,3 +228,41 @@ url = "https://wcampbell.dev/squashfs/testing/squashfs_v4_le_lzma_swap.sqfs"
 filepath = "test-assets/WNR1000v3.sqfs"
 hash = "b557bfeffd9c54a9e159fc75c31ba72f7fe30b4374c0c32dc4f97a6da07a7541"
 url = "https://wcampbell.dev/squashfs/testing/WNR1000v3.sqfs"
+
+# SquashFS v1 and v2, from backhand-test/generate-v1-v2-images.sh
+# Assets from backhand-test/tests/v12.rs
+[test_assets.v1_le]
+filepath = "test-assets/squashfs_v1_le.sqfs"
+hash = "09f718a9e9e4885a0d3e6c8e6c1b4e2daf09796057825d6fa6b091ad7b5ba84c"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v1_le.sqfs"
+
+[test_assets.v2_le]
+filepath = "test-assets/squashfs_v2_le.sqfs"
+hash = "94e6dddbe9266787270d48f03e9977e23023ccfe249f27b100f41053cf570086"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v2_le.sqfs"
+
+[test_assets.v2_be]
+filepath = "test-assets/squashfs_v2_be.sqfs"
+hash = "5f6c16906381c9845f3c7d87903e18bd90585d25ad0f149e8773a8dcc255b08f"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v2_be.sqfs"
+
+[test_assets.v2_0_le]
+filepath = "test-assets/squashfs_v2_0_le.sqfs"
+hash = "7dcbae0f8ed2f6bd847fa533624581ae5797d166335e444f9f5e58617d27725f"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v2_0_le.sqfs"
+
+[test_assets.v2_0_be]
+filepath = "test-assets/squashfs_v2_0_be.sqfs"
+hash = "faa5dffc8c9a37a1fadf44040e90bb89d32640393f1528f1d2580d0fa6d50df5"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v2_0_be.sqfs"
+
+[test_assets.v2_lzma_le]
+filepath = "test-assets/squashfs_v2_lzma_le.sqfs"
+hash = "4a2eefff53bfe5755d9156f1ff846cd9ec2b74d77b5d5ee030642cbbf1708fde"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v2_lzma_le.sqfs"
+
+[test_assets.v2_lzma_be]
+filepath = "test-assets/squashfs_v2_lzma_be.sqfs"
+hash = "83815084523d7d74f4666740676f18a545dc32bd79956a98fc5719838b40db6b"
+url = "https://wcampbell.dev/squashfs/testing/squashfs_v2_lzma_be.sqfs"
+

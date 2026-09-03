@@ -399,3 +399,121 @@ impl<'b> FilesystemReaderTrait for crate::v3::filesystem::reader::FilesystemRead
         Ok(std::io::copy(&mut reader, writer)?)
     }
 }
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl From<crate::v12::filesystem::node::NodeHeader> for BackhandNodeHeader {
+    fn from(header: crate::v12::filesystem::node::NodeHeader) -> Self {
+        Self {
+            permissions: header.permissions,
+            uid: header.uid,
+            gid: header.gid,
+            mtime: header.mtime,
+        }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl From<crate::v12::data::DataSize> for BackhandDataSize {
+    fn from(size: crate::v12::data::DataSize) -> Self {
+        Self { size: size.size(), uncompressed: size.uncompressed() }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl BackhandDataSize {
+    fn to_v12_datasize(self) -> crate::v12::data::DataSize {
+        crate::v12::data::DataSize::new(self.size, self.uncompressed)
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl From<&crate::v12::filesystem::node::SquashfsFileReader> for BackhandSquashfsFileReader {
+    fn from(file: &crate::v12::filesystem::node::SquashfsFileReader) -> Self {
+        // v1 and v2 have no extended file inode, so this is always the basic form.
+        Self::Basic {
+            blocks_start: file.blocks_start(),
+            frag_index: file.frag_index() as u32,
+            block_offset: file.block_offset(),
+            file_size: file.file_len() as u32,
+            block_sizes: file.block_sizes().iter().map(|&size| size.into()).collect(),
+        }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl BackhandSquashfsFileReader {
+    /// Convert back into the file inode the v1/v2 reader expects
+    fn to_v12_file(
+        &self,
+    ) -> Result<crate::v12::filesystem::node::SquashfsFileReader, BackhandError> {
+        match self {
+            Self::Basic { blocks_start, frag_index, block_offset, file_size, block_sizes } => {
+                Ok(crate::v12::filesystem::node::SquashfsFileReader(crate::v12::inode::File {
+                    start_block: u32::try_from(*blocks_start)
+                        .map_err(|_| BackhandError::CorruptedOrInvalidSquashfs)?,
+                    fragment: *frag_index,
+                    offset: *block_offset,
+                    file_size: *file_size,
+                    block_sizes: block_sizes.iter().map(|&s| s.to_v12_datasize()).collect(),
+                }))
+            }
+            // Nothing produces an extended file for v1 or v2, so reaching here
+            // means the caller mixed a file from another version's reader.
+            Self::Extended { .. } => Err(BackhandError::UnexpectedInode),
+        }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl From<&crate::v12::filesystem::node::Node<crate::v12::filesystem::node::SquashfsFileReader>>
+    for BackhandNode
+{
+    fn from(
+        node: &crate::v12::filesystem::node::Node<crate::v12::filesystem::node::SquashfsFileReader>,
+    ) -> Self {
+        use crate::v12::filesystem::node::InnerNode;
+
+        let inner = match &node.inner {
+            InnerNode::File(file) => BackhandInnerNode::File(file.into()),
+            InnerNode::Symlink(symlink) => {
+                BackhandInnerNode::Symlink { link: symlink.link.clone() }
+            }
+            InnerNode::Dir(_) => BackhandInnerNode::Dir,
+            InnerNode::CharacterDevice(dev) => {
+                BackhandInnerNode::CharacterDevice { device_number: dev.device_number }
+            }
+            InnerNode::BlockDevice(dev) => {
+                BackhandInnerNode::BlockDevice { device_number: dev.device_number }
+            }
+            InnerNode::NamedPipe => BackhandInnerNode::NamedPipe,
+            InnerNode::Socket => BackhandInnerNode::Socket,
+        };
+
+        Self { fullpath: node.fullpath.clone(), header: node.header.into(), inner }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+impl<'b> FilesystemReaderTrait for crate::v12::filesystem::reader::FilesystemReader<'b> {
+    fn files(&self) -> Box<dyn Iterator<Item = BackhandNode> + '_> {
+        Box::new(self.files().map(|node| node.into()))
+    }
+
+    fn file_data(&self, file: &BackhandSquashfsFileReader) -> Result<Vec<u8>, BackhandError> {
+        let file = file.to_v12_file()?;
+        let mut reader = self.file(&file).reader_checked()?;
+        let mut data = Vec::new();
+        std::io::Read::read_to_end(&mut reader, &mut data)?;
+        Ok(data)
+    }
+
+    fn file_data_to_writer(
+        &self,
+        file: &BackhandSquashfsFileReader,
+        writer: &mut dyn std::io::Write,
+    ) -> Result<u64, BackhandError> {
+        let file = file.to_v12_file()?;
+        let mut reader = self.file(&file).reader_checked()?;
+        Ok(std::io::copy(&mut reader, writer)?)
+    }
+}

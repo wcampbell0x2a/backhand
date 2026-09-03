@@ -121,6 +121,30 @@ pub fn create_squashfs_from_kind<'b>(
 ) -> Result<Box<dyn FilesystemReaderTrait + 'b>, crate::error::BackhandError> {
     let (major, minor) = (kind.version_major(), kind.version_minor());
     match (major, minor) {
+        #[cfg(feature = "v1")]
+        (1, 0) => {
+            let filesystem =
+                crate::v12::filesystem::reader::FilesystemReader::from_reader_with_offset_and_kind(
+                    reader, offset, kind,
+                )?;
+            Ok(Box::new(filesystem) as Box<dyn FilesystemReaderTrait + 'b>)
+        }
+        #[cfg(not(feature = "v1"))]
+        (1, 0) => Err(crate::error::BackhandError::UnsupportedSquashfsVersion(1, 0)),
+        // 2.0 and 2.1 are the stock minor versions; 76 is the AVM/Freetz LZMA
+        // variant, which the kind's compressor tells apart.
+        #[cfg(feature = "v2")]
+        (2, 0) | (2, 1) | (2, 76) => {
+            let filesystem =
+                crate::v12::filesystem::reader::FilesystemReader::from_reader_with_offset_and_kind(
+                    reader, offset, kind,
+                )?;
+            Ok(Box::new(filesystem) as Box<dyn FilesystemReaderTrait + 'b>)
+        }
+        #[cfg(not(feature = "v2"))]
+        (2, 0) | (2, 1) | (2, 76) => {
+            Err(crate::error::BackhandError::UnsupportedSquashfsVersion(2, 0))
+        }
         #[cfg(feature = "v3")]
         (3, 0) | (3, 1) => {
             let squashfs = crate::v3::squashfs::Squashfs::from_reader_with_offset_and_kind(

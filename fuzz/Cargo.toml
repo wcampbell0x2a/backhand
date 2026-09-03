@@ -45,6 +45,14 @@ test = false
 doc = false
 required-features = ["v4_lzma"]
 
+[[bin]]
+name = "v12"
+path = "fuzz_targets/v12.rs"
+test = false
+doc = false
+required-features = ["v12"]
+
 [features]
 xz-static = ["backhand/xz-static"]
 v4_lzma = ["backhand/v4_lzma"]
+v12 = ["backhand/v1", "backhand/v2"]

@@ -74,5 +74,5 @@ path = "src/bin/replace.rs"
 bench = false
 
 [dev-dependencies]
-test-assets-ureq = "0.6.2"
+test-assets-ureq = "0.7.0"
 toml = "1.1"

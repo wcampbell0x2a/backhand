@@ -2031,9 +2031,9 @@ checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "test-assets-ureq"
-version = "0.6.2"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6476e497f504ad6833b361414409283de4eb129549cf5fd6c28ecbbc2bae2ce7"
+checksum = "da39b86a0e7e5e989ca4f714e2f5357fb4269de17c9a42c96b48cfaed0df8be3"
 dependencies = [
  "backon",
  "clap",

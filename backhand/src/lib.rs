@@ -33,9 +33,9 @@
 //! let bytes = Cursor::new(b"Fear is the mind-killer.");
 //! write_filesystem.push_file(bytes, "a/d/e/new_file", d);
 //!
-//! // add file with data from file
-//! let new_file = File::open("dune").unwrap();
-//! write_filesystem.push_file(new_file, "/root/dune", d);
+//! // add file with data from a file on disk. The file is opened during write(), so an image
+//! // can contain more files than the limit of open file descriptors of the process.
+//! write_filesystem.push_file_from_path("dune", "/root/dune", d);
 //!
 //! // replace a existing file
 //! let bytes = Cursor::new(b"The sleeper must awaken.\n");
@@ -77,8 +77,8 @@ pub use crate::v4::V4;
 pub use crate::v4::data::DataSize;
 pub use crate::v4::export::Export;
 pub use crate::v4::filesystem::node::{
-    InnerNode, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice, SquashfsDir,
-    SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
+    InnerNode, LazyFile, Node, NodeHeader, SquashfsBlockDevice, SquashfsCharacterDevice,
+    SquashfsDir, SquashfsFileReader, SquashfsFileWriter, SquashfsSymlink,
 };
 pub use crate::v4::filesystem::reader::SquashfsReadFile;
 pub use crate::v4::filesystem::reader::{FilesystemReader, FilesystemReaderFile};

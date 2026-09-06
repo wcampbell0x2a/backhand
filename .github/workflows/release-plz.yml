@@ -11,7 +11,7 @@ env:
   BINS: "add-backhand unsquashfs-backhand replace-backhand"
 
 jobs:
-  # Publish the crates, create the tag, and create the draft GitHub release.
+  # Publish the crates, create the tag, and create the GitHub release.
   release-plz-release:
     name: release-plz release
     runs-on: ubuntu-24.04
@@ -63,7 +63,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Attach the binaries to the draft release that release-plz created.
+  # Attach the binaries to the release that release-plz created. The release is
+  # not a draft, so this action can find it by tag and will not make a new one.
   release-bins:
     name: attach binaries
     needs: release-plz-release
@@ -137,18 +138,3 @@ jobs:
           asset_name: backhand-${{ env.TAG }}-${{ matrix.job.target }}.tar.gz
           tag: ${{ env.TAG }}
           overwrite: true
-
-  # Make the release visible now that it has all of its binaries.
-  publish-release:
-    name: publish release
-    needs: [release-plz-release, release-bins]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Remove the draft flag from the release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ fromJSON(needs.release-plz-release.outputs.releases)[0].tag }}
-        run: gh release edit "$TAG" --draft=false

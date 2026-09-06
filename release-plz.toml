@@ -1,6 +1,6 @@
 [workspace]
 git_tag_name = "v{{ version }}"
-git_release_draft = true
+git_release_draft = false
 git_release_type = "auto"
 semver_check = true
 pr_labels = ["release"]

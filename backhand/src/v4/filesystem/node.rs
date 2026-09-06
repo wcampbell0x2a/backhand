@@ -1,6 +1,8 @@
 use core::fmt;
 use core::num::NonZeroUsize;
 use no_std_io2::io::Read;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -134,9 +136,37 @@ impl SquashfsFileReader {
     }
 }
 
+/// File on disk that is opened only when the image is written
+///
+/// A [`FilesystemWriter`](crate::FilesystemWriter) can contain many thousands of files. If each
+/// one held an open [`File`], the image build could go over the limit of open file descriptors of
+/// the process. This holds the path instead and opens the file during the write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LazyFile {
+    path: PathBuf,
+}
+
+impl LazyFile {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
+    }
+
+    /// Path of the file on disk
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Open the file for the write of the image
+    pub(crate) fn open(&self) -> Result<BufReader<File>, BackhandError> {
+        Ok(BufReader::new(File::open(&self.path)?))
+    }
+}
+
 /// Read file from other SquashfsFile or an user file
 pub enum SquashfsFileWriter<'a, 'b, 'c> {
     UserDefined(Arc<Mutex<dyn Read + 'c>>),
+    /// File on disk, opened only when the image is written
+    LazyFile(LazyFile),
     SquashfsFile(FilesystemReaderFile<'a, 'b>),
     Consumed(usize, Added),
 }

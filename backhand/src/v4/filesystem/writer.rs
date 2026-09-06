@@ -16,7 +16,7 @@ use crate::v4::compressor::{CompressionOptions, Compressor};
 use crate::v4::data::DataWriter;
 use crate::v4::entry::Entry;
 use crate::v4::filesystem::node::SquashfsSymlink;
-use crate::v4::filesystem::node::{InnerNode, Nodes};
+use crate::v4::filesystem::node::{InnerNode, LazyFile, Nodes};
 use crate::v4::filesystem::normalize_squashfs_path;
 use crate::v4::fragment;
 use crate::v4::id::Id;
@@ -282,6 +282,10 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
 
     /// Insert `reader` into filesystem with `path` and metadata `header`.
     ///
+    /// The reader is kept until [`Self::write`] is called. For a file on disk, use
+    /// [`Self::push_file_from_path`] instead, which keeps only the path and thus does not use an
+    /// open file descriptor for each file.
+    ///
     /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
     pub fn push_file<P>(
         &mut self,
@@ -294,6 +298,29 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
     {
         let reader = Arc::new(Mutex::new(reader));
         let new_file = InnerNode::File(SquashfsFileWriter::UserDefined(reader));
+        self.insert_node(path, header, new_file)?;
+        Ok(())
+    }
+
+    /// Insert the file at `source` into filesystem with `path` and metadata `header`.
+    ///
+    /// The file is opened when [`Self::write`] is called, not now. Use this instead of
+    /// [`Self::push_file`] for files on disk: [`Self::push_file`] holds the reader, and thus an
+    /// open file descriptor, until the write. The `source` file must still exist at the time of
+    /// the write.
+    ///
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
+    pub fn push_file_from_path<S, P>(
+        &mut self,
+        source: S,
+        path: P,
+        header: NodeHeader,
+    ) -> Result<(), BackhandError>
+    where
+        S: Into<PathBuf>,
+        P: AsRef<Path>,
+    {
+        let new_file = InnerNode::File(SquashfsFileWriter::LazyFile(LazyFile::new(source)));
         self.insert_node(path, header, new_file)?;
         Ok(())
     }
@@ -320,6 +347,23 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         let file = self.mut_file(find_path).ok_or(BackhandError::FileNotFound)?;
         let reader = Arc::new(Mutex::new(reader));
         *file = SquashfsFileWriter::UserDefined(reader);
+        Ok(())
+    }
+
+    /// Replace an existing file with the file at `source`, which is opened at write time
+    ///
+    /// See [`Self::push_file_from_path`].
+    pub fn replace_file_from_path<S, P>(
+        &mut self,
+        find_path: S,
+        source: P,
+    ) -> Result<(), BackhandError>
+    where
+        S: AsRef<Path>,
+        P: Into<PathBuf>,
+    {
+        let file = self.mut_file(find_path).ok_or(BackhandError::FileNotFound)?;
+        *file = SquashfsFileWriter::LazyFile(LazyFile::new(source));
         Ok(())
     }
 
@@ -476,6 +520,11 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     let mut file_lock =
                         file_ptr.lock().map_err(|_| BackhandError::MutexPoisoned)?;
                     data_writer.add_bytes(&mut *file_lock, &mut writer)?
+                }
+                SquashfsFileWriter::LazyFile(lazy) => {
+                    // the file descriptor lives only for this file, not for the whole write
+                    let mut reader = lazy.open()?;
+                    data_writer.add_bytes(&mut reader, &mut writer)?
                 }
                 SquashfsFileWriter::SquashfsFile(file) => {
                     // if the source file and the destination files are both

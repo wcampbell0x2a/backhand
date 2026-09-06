@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.3](https://github.com/wcampbell0x2a/backhand/compare/v0.25.2...v0.25.3) - 2026-09-06
+
+### `backhand`
+
+Add two functions to facilitate creating images above the normal fd
+limits of a system:
+- `fs.push_file_from_path(source_path, "path/in/image", header)?;`
+- `fs.replace_file_from_path("path/in/image", source_path)?;`
+
+
 ## [0.25.2](https://github.com/wcampbell0x2a/backhand/compare/v0.25.1...v0.25.2) - 2026-09-06
 
 ### `backhand`

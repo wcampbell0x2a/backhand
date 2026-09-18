@@ -549,8 +549,8 @@ impl<'b> Squashfs<'b> {
                             )?;
                             InnerNode::Dir(SquashfsDir::default())
                         }
-                        // BasicFile
-                        InodeId::BasicFile => {
+                        // Basic or Extended File
+                        InodeId::BasicFile | InodeId::ExtendedFile => {
                             let inner = match &found_inode.inner {
                                 InodeInner::BasicFile(file) => {
                                     SquashfsFileReader::Basic(file.clone())
@@ -562,24 +562,25 @@ impl<'b> Squashfs<'b> {
                             };
                             InnerNode::File(inner)
                         }
-                        // Basic Symlink
-                        InodeId::BasicSymlink => {
+                        // Basic or Extended Symlink
+                        InodeId::BasicSymlink | InodeId::ExtendedSymlink => {
                             let link = self.symlink_target_path(found_inode)?;
                             InnerNode::Symlink(SquashfsSymlink { link })
                         }
-                        // Basic CharacterDevice
-                        InodeId::BasicCharacterDevice => {
+                        // Basic or Extended CharacterDevice
+                        InodeId::BasicCharacterDevice | InodeId::ExtendedCharacterDevice => {
                             let device_number = Self::char_device_number(found_inode)?;
                             InnerNode::CharacterDevice(SquashfsCharacterDevice { device_number })
                         }
-                        // Basic CharacterDevice
-                        InodeId::BasicBlockDevice => {
+                        // Basic or Extended BlockDevice
+                        InodeId::BasicBlockDevice | InodeId::ExtendedBlockDevice => {
                             let device_number = Self::block_device_number(found_inode)?;
                             InnerNode::BlockDevice(SquashfsBlockDevice { device_number })
                         }
-                        InodeId::BasicNamedPipe => InnerNode::NamedPipe,
-                        InodeId::BasicSocket => InnerNode::Socket,
-                        InodeId::ExtendedFile => return Err(BackhandError::UnsupportedInode),
+                        InodeId::BasicNamedPipe | InodeId::ExtendedNamedPipe => {
+                            InnerNode::NamedPipe
+                        }
+                        InodeId::BasicSocket | InodeId::ExtendedSocket => InnerNode::Socket,
                     };
                     let node = Node::new(
                         fullpath.clone(),
@@ -600,8 +601,13 @@ impl<'b> Squashfs<'b> {
     /// # Returns
     /// `Ok(target_path)`
     fn symlink_target_path(&self, inode: &Inode) -> Result<PathBuf, BackhandError> {
-        if let InodeInner::BasicSymlink(basic_sym) = &inode.inner {
-            let path = OsString::from_vec(basic_sym.target_path.clone());
+        let target_path = match &inode.inner {
+            InodeInner::BasicSymlink(basic_sym) => Some(&basic_sym.target_path),
+            InodeInner::ExtendedSymlink(ext_sym) => Some(&ext_sym.target_path),
+            _ => None,
+        };
+        if let Some(target_path) = target_path {
+            let path = OsString::from_vec(target_path.to_vec());
             return Ok(PathBuf::from(path));
         }
 
@@ -614,8 +620,10 @@ impl<'b> Squashfs<'b> {
     /// # Returns
     /// `Ok(dev_num)`
     fn char_device_number(inode: &Inode) -> Result<u32, BackhandError> {
-        if let InodeInner::BasicCharacterDevice(spc_file) = &inode.inner {
-            return Ok(spc_file.device_number);
+        match &inode.inner {
+            InodeInner::BasicCharacterDevice(spc_file) => return Ok(spc_file.device_number),
+            InodeInner::ExtendedCharacterDevice(spc_file) => return Ok(spc_file.device_number),
+            _ => {}
         }
 
         error!("char dev not found");
@@ -627,8 +635,10 @@ impl<'b> Squashfs<'b> {
     /// # Returns
     /// `Ok(dev_num)`
     fn block_device_number(inode: &Inode) -> Result<u32, BackhandError> {
-        if let InodeInner::BasicBlockDevice(spc_file) = &inode.inner {
-            return Ok(spc_file.device_number);
+        match &inode.inner {
+            InodeInner::BasicBlockDevice(spc_file) => return Ok(spc_file.device_number),
+            InodeInner::ExtendedBlockDevice(spc_file) => return Ok(spc_file.device_number),
+            _ => {}
         }
 
         error!("block dev not found");

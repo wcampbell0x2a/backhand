@@ -225,13 +225,17 @@ impl fmt::Debug for BasicSymlink {
         f.debug_struct("BasicSymlink")
             .field("link_count", &self.link_count)
             .field("target_size", &self.target_size)
-            .field("target_path", &self.target())
+            .field("target_path", &self.target_ref())
             .finish()
     }
 }
 impl BasicSymlink {
+    fn target_ref(&self) -> &str {
+        core::str::from_utf8(&self.target_path).unwrap()
+    }
+
     pub fn target(&self) -> String {
-        core::str::from_utf8(&self.target_path).unwrap().to_string()
+        self.target_ref().to_owned()
     }
 }
 

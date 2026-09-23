@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.4](https://github.com/wcampbell0x2a/backhand/compare/v0.25.3...v0.25.4) - 2026-09-23
+
+### Other
+
+- Add basic support for extended inodes
+- Avoid allocating in BasicSymlink's Debug impl
+
 ## [0.25.3](https://github.com/wcampbell0x2a/backhand/compare/v0.25.2...v0.25.3) - 2026-09-06
 
 ### `backhand`

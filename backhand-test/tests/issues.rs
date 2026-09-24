@@ -37,3 +37,38 @@ fn issue_363() {
         Ok(_) => panic!("Invalid result"),
     };
 }
+
+/// https://github.com/wcampbell0x2a/backhand/issues/803
+///
+/// An empty file must have no fragment, or the kernel returns EINVAL on stat and open
+#[test]
+#[cfg(feature = "xz")]
+fn issue_803() {
+    use backhand::{FilesystemReader, FilesystemWriter, InnerNode, SquashfsFileReader};
+    use std::io::Cursor;
+
+    fn assert_no_fragment(image: &[u8]) {
+        let reader = FilesystemReader::from_reader(Cursor::new(image)).unwrap();
+        let node = reader.files().find(|node| node.fullpath.ends_with("empty")).unwrap();
+        let InnerNode::File(SquashfsFileReader::Basic(file)) = &node.inner else {
+            panic!("expected a basic file: {:?}", node.inner);
+        };
+        assert_eq!(file.file_size, 0);
+        assert_eq!(file.frag_index, 0xffffffff);
+        assert!(file.block_sizes.is_empty());
+    }
+
+    let mut fs = FilesystemWriter::default();
+    fs.push_file(Cursor::new(vec![]), "empty", backhand::NodeHeader::default()).unwrap();
+    // A small file before the empty file, so that the fragment table is not empty
+    fs.push_file(Cursor::new(vec![1; 10]), "small", backhand::NodeHeader::default()).unwrap();
+    let mut image = Cursor::new(vec![]);
+    fs.write(&mut image).unwrap();
+    let image = image.into_inner();
+    assert_no_fragment(&image);
+
+    let reader = FilesystemReader::from_reader(Cursor::new(&image)).unwrap();
+    let mut copy = Cursor::new(vec![]);
+    FilesystemWriter::from_fs_reader(&reader).unwrap().write(&mut copy).unwrap();
+    assert_no_fragment(&copy.into_inner());
+}

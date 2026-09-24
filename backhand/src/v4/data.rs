@@ -167,6 +167,10 @@ impl<'a> DataWriter<'a> {
         // if the first block is not full (fragment), store only a fragment
         // otherwise processed to store blocks
         let blocks_start = writer.stream_position()?;
+        // Older backhand versions gave an empty file a fragment, do not copy that
+        if source.file_len() == 0 {
+            return Ok((0, Added::Data { blocks_start, block_sizes: vec![], sparse: 0 }));
+        }
         let first_block = match reader.next_block(&mut read_buf) {
             Some(Ok(first_block)) => first_block,
             Some(Err(x)) => return Err(x),

@@ -121,6 +121,14 @@ impl SquashfsFileReader {
         }
     }
 
+    /// Bytes of the file stored as holes. A basic inode has no such field, thus 0.
+    pub fn sparse(&self) -> u64 {
+        match self {
+            SquashfsFileReader::Basic(_) => 0,
+            SquashfsFileReader::Extended(extended) => extended.sparse,
+        }
+    }
+
     pub fn blocks_start(&self) -> u64 {
         match self {
             SquashfsFileReader::Basic(basic) => basic.blocks_start as u64,

@@ -43,6 +43,12 @@ impl DataSize {
         Self::new(size, true)
     }
 
+    /// A block of all zeros, with no bytes stored in the image
+    #[inline]
+    pub const fn hole() -> Self {
+        Self(0)
+    }
+
     #[inline]
     pub fn uncompressed(&self) -> bool {
         self.0 & DATA_STORED_UNCOMPRESSED != 0
@@ -66,8 +72,8 @@ impl DataSize {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Added {
-    // Only Data was added
-    Data { blocks_start: u64, block_sizes: Vec<DataSize> },
+    // Only Data was added. `sparse` is the number of bytes stored as holes.
+    Data { blocks_start: u64, block_sizes: Vec<DataSize>, sparse: u64 },
     // Only Fragment was added
     Fragment { frag_index: u32, block_offset: u32 },
 }
@@ -152,7 +158,9 @@ impl<'a> DataWriter<'a> {
         mut writer: W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
-        let mut block_sizes = reader.file.block_sizes().to_vec();
+        let source = reader.file;
+        let mut block_sizes = source.block_sizes().to_vec();
+        let sparse = source.sparse();
         let mut read_buf = vec![];
         let mut decompress_buf = vec![];
 
@@ -162,7 +170,7 @@ impl<'a> DataWriter<'a> {
         let first_block = match reader.next_block(&mut read_buf) {
             Some(Ok(first_block)) => first_block,
             Some(Err(x)) => return Err(x),
-            None => return Ok((0, Added::Data { blocks_start, block_sizes })),
+            None => return Ok((0, Added::Data { blocks_start, block_sizes, sparse })),
         };
 
         // write and early return if fragment
@@ -181,8 +189,16 @@ impl<'a> DataWriter<'a> {
             return Ok((decompress_buf.len(), Added::Fragment { frag_index, block_offset }));
         }
 
-        //if is a block, just copy it
-        writer.write_all(&read_buf)?;
+        // The reader gives a hole as a block of zeros, but a hole has no bytes in the image
+        let mut is_hole = source.block_sizes().iter().map(|size| size.size() == 0);
+        let mut copy_block = |writer: &mut W, raw: &[u8]| -> Result<(), BackhandError> {
+            if is_hole.next() != Some(true) {
+                writer.write_all(raw)?;
+            }
+            Ok(())
+        };
+
+        copy_block(&mut writer, &read_buf)?;
         while let Some(block) = reader.next_block(&mut read_buf) {
             let block = block?;
             if block.fragment {
@@ -204,12 +220,11 @@ impl<'a> DataWriter<'a> {
                     writer.write_all(&cb)?;
                 }
             } else {
-                //if is a block, just copy it
-                writer.write_all(&read_buf)?;
+                copy_block(&mut writer, &read_buf)?;
             }
         }
-        let file_size = reader.file.file_len();
-        Ok((file_size, Added::Data { blocks_start, block_sizes }))
+        let file_size = source.file_len();
+        Ok((file_size, Added::Data { blocks_start, block_sizes, sparse }))
     }
 
     /// Add to data writer, either a Data or Fragment
@@ -237,7 +252,7 @@ impl<'a> DataWriter<'a> {
         // frag_index 0xffffffff, matching mksquashfs)
         if chunk.is_empty() {
             let blocks_start = writer.stream_position()?;
-            return Ok((0, Added::Data { blocks_start, block_sizes: vec![] }));
+            return Ok((0, Added::Data { blocks_start, block_sizes: vec![], sparse: 0 }));
         }
 
         // chunk size not exactly the size of the block
@@ -275,24 +290,31 @@ impl<'a> DataWriter<'a> {
         let chunk_len = chunk.len();
         let hash = xxh64(chunk, 0);
 
+        let mut sparse = 0;
         while !chunk.is_empty() {
-            let cb = self.compressor.compress(chunk, self.fs_compressor, self.block_size)?;
-
-            // compression didn't reduce size
-            if cb.len() > chunk.len() {
-                // store uncompressed
-                block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
-                writer.write_all(chunk)?;
+            if chunk.iter().all(|byte| *byte == 0) {
+                // like mksquashfs, store a block of zeros as a hole
+                block_sizes.push(DataSize::hole());
+                sparse += chunk.len() as u64;
             } else {
-                // store compressed
-                block_sizes.push(DataSize::new_compressed(cb.len() as u32));
-                writer.write_all(&cb)?;
+                let cb = self.compressor.compress(chunk, self.fs_compressor, self.block_size)?;
+
+                // compression didn't reduce size
+                if cb.len() > chunk.len() {
+                    // store uncompressed
+                    block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
+                    writer.write_all(chunk)?;
+                } else {
+                    // store compressed
+                    block_sizes.push(DataSize::new_compressed(cb.len() as u32));
+                    writer.write_all(&cb)?;
+                }
             }
             chunk = chunk_reader.read_chunk()?;
         }
 
         // Add to duplicate information cache
-        let added = (chunk_reader.file_len, Added::Data { blocks_start, block_sizes });
+        let added = (chunk_reader.file_len, Added::Data { blocks_start, block_sizes, sparse });
 
         // If duplicate files checking is enbaled, then add this to it's memory
         if let Some(dup_cache) = &mut self.dup_cache {

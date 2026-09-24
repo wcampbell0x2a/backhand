@@ -145,55 +145,47 @@ impl<'a> Entry<'a> {
         };
 
         match added {
-            Added::Data { blocks_start, block_sizes } => {
-                match (
-                    <usize as TryInto<u32>>::try_into(file_size),
-                    <u64 as TryInto<u32>>::try_into(*blocks_start),
-                ) {
-                    (Ok(file_size), Ok(blocks_start)) => {
-                        let file_inode = Inode::new(
-                            InodeId::BasicFile,
-                            header,
-                            InodeInner::BasicFile(BasicFile {
-                                blocks_start,
-                                frag_index: 0xffffffff, // <- no fragment
-                                block_offset: 0x0,      // <- no fragment
-                                file_size,
-                                block_sizes: block_sizes.to_vec(),
-                            }),
-                        );
-
-                        Ok(file_inode.to_bytes(
-                            node_path.as_bytes(),
-                            inode_writer,
-                            superblock,
-                            kind,
-                        ))
-                    }
-                    (_, _) => {
-                        let file_inode = Inode::new(
+            Added::Data { blocks_start, block_sizes, sparse } => {
+                // A basic inode has no `sparse` field, thus a file with holes needs an extended
+                // inode. This is the same as mksquashfs.
+                let basic = match *sparse {
+                    0 => u32::try_from(file_size).ok().zip(u32::try_from(*blocks_start).ok()),
+                    _ => None,
+                };
+                let inode = match basic {
+                    Some((file_size, blocks_start)) => Inode::new(
+                        InodeId::BasicFile,
+                        header,
+                        InodeInner::BasicFile(BasicFile {
+                            blocks_start,
+                            frag_index: 0xffffffff, // <- no fragment
+                            block_offset: 0x0,      // <- no fragment
+                            file_size,
+                            block_sizes: block_sizes.to_vec(),
+                        }),
+                    ),
+                    None => {
+                        let file_size = file_size as u64;
+                        Inode::new(
                             InodeId::ExtendedFile,
                             header,
                             InodeInner::ExtendedFile(ExtendedFile {
                                 blocks_start: *blocks_start,
                                 frag_index: 0xffffffff, // <- no fragment
                                 block_offset: 0x0,      // <- no fragment
-                                file_size: file_size as u64,
-                                sparse: 0,
+                                file_size,
+                                // The kernel sets st_blocks from `file_size - sparse`. Keep at
+                                // least 1 byte, the same as mksquashfs.
+                                sparse: (*sparse).min(file_size.saturating_sub(1)),
                                 block_sizes: block_sizes.to_vec(),
-                                link_count: 0,
+                                link_count: 1,
                                 xattr_index: 0xffffffff, // <- no xattr
                             }),
-                        );
-
-                        Ok(file_inode.to_bytes(
-                            node_path.as_bytes(),
-                            inode_writer,
-                            superblock,
-                            kind,
-                        ))
+                        )
                     }
-                }
+                };
+
+                Ok(inode.to_bytes(node_path.as_bytes(), inode_writer, superblock, kind))
             }
             Added::Fragment { frag_index, block_offset } => {
                 let file_inode = Inode::new(

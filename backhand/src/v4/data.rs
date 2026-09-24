@@ -1,11 +1,12 @@
 //! File Data
 
-use no_std_io2::io::{Read, Seek, Write};
+use no_std_io2::io::{Read, Seek, SeekFrom, Write};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use xxhash_rust::xxh64::xxh64;
+use xxhash_rust::xxh64::Xxh64;
 
 use crate::error::BackhandError;
 use crate::v4::filesystem::writer::FilesystemCompressor;
@@ -117,7 +118,7 @@ pub(crate) struct DataWriter<'a> {
         ),
     block_size: u32,
     fs_compressor: FilesystemCompressor,
-    /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
+    /// If some, cache of HashMap<file_len, HashMap<hash of whole file, (file_len, Added)>>
     #[allow(clippy::type_complexity)]
     dup_cache: Option<IntMap<u64, IntMap<u64, (usize, Added)>>>,
     /// Un-written fragment_bytes
@@ -279,21 +280,7 @@ impl<'a> DataWriter<'a> {
         let blocks_start = writer.stream_position()?;
         let mut block_sizes = vec![];
 
-        // If duplicate file checking is enabled, use the old data position as this file if it hashes the same
-        if let Some(dup_cache) = &self.dup_cache
-            && let Some(c) = dup_cache.get(&(chunk.len() as u64))
-        {
-            let hash = xxh64(chunk, 0);
-            if let Some(res) = c.get(&hash) {
-                trace!("duplicate file data found");
-                return Ok(res.clone());
-            }
-        }
-
-        // Save information needed to add to duplicate_cache later
-        let chunk_len = chunk.len();
-        let hash = xxh64(chunk, 0);
-
+        let mut hasher = Xxh64::new(0);
         let mut sparse = 0;
         while !chunk.is_empty() {
             if chunk.iter().all(|byte| *byte == 0) {
@@ -314,23 +301,26 @@ impl<'a> DataWriter<'a> {
                     writer.write_all(&cb)?;
                 }
             }
+            hasher.update(chunk);
             chunk = chunk_reader.read_chunk()?;
         }
 
-        // Add to duplicate information cache
         let added = (chunk_reader.file_len, Added::Data { blocks_start, block_sizes, sparse });
+        let Some(dup_cache) = &mut self.dup_cache else {
+            return Ok(added);
+        };
 
-        // If duplicate files checking is enbaled, then add this to it's memory
-        if let Some(dup_cache) = &mut self.dup_cache {
-            if let Some(entry) = dup_cache.get_mut(&(chunk_len as u64)) {
-                entry.insert(hash, added.clone());
-            } else {
-                let mut hashmap = IntMap::default();
-                hashmap.insert(hash, added.clone());
-                dup_cache.insert(chunk_len as u64, hashmap);
+        // The hash is known only after the whole file is read. Thus, like mksquashfs, write the
+        // data first, then seek back so that the next data writes over a duplicate.
+        let files_with_len = dup_cache.entry(chunk_reader.file_len as u64).or_default();
+        match files_with_len.entry(hasher.digest()) {
+            Entry::Occupied(original) => {
+                trace!("duplicate file data found");
+                writer.seek(SeekFrom::Start(blocks_start))?;
+                Ok(original.get().clone())
             }
+            Entry::Vacant(entry) => Ok(entry.insert(added).clone()),
         }
-        Ok(added)
     }
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear

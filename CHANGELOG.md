@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.5](https://github.com/wcampbell0x2a/backhand/compare/v0.25.4...v0.25.5) - 2026-09-26
+
+### Other
+
+- Compare the whole file to find duplicate files
+- Do not copy the fragment of an empty file
+- Write sparse files with holes, as mksquashfs does
+- Fix zero-length files written with dangling fragment reference
+
 ## [0.25.4](https://github.com/wcampbell0x2a/backhand/compare/v0.25.3...v0.25.4) - 2026-09-23
 
 ### Other

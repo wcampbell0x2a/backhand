@@ -18,5 +18,7 @@ runs:
           # contains package information of crates installed via `cargo install`.
           ~/.cargo/.crates.toml
           ~/.cargo/.crates2.json
-        key: ${{ runner.os }}-rsadsb-${{ hashFiles('**/Cargo.lock') }}
+          # Add test-assets
+          backhand-test/test-assets
+        key: ${{ runner.os }}-backhand-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-rsadsb

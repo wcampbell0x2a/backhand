@@ -1,11 +1,12 @@
 //! File Data
 
-use no_std_io2::io::{Read, Seek, Write};
+use no_std_io2::io::{Read, Seek, SeekFrom, Write};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use deku::prelude::*;
 use solana_nohash_hasher::IntMap;
-use xxhash_rust::xxh64::xxh64;
+use xxhash_rust::xxh64::Xxh64;
 
 use crate::error::BackhandError;
 use crate::v4::filesystem::writer::FilesystemCompressor;
@@ -43,6 +44,12 @@ impl DataSize {
         Self::new(size, true)
     }
 
+    /// A block of all zeros, with no bytes stored in the image
+    #[inline]
+    pub const fn hole() -> Self {
+        Self(0)
+    }
+
     #[inline]
     pub fn uncompressed(&self) -> bool {
         self.0 & DATA_STORED_UNCOMPRESSED != 0
@@ -66,8 +73,8 @@ impl DataSize {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Added {
-    // Only Data was added
-    Data { blocks_start: u64, block_sizes: Vec<DataSize> },
+    // Only Data was added. `sparse` is the number of bytes stored as holes.
+    Data { blocks_start: u64, block_sizes: Vec<DataSize>, sparse: u64 },
     // Only Fragment was added
     Fragment { frag_index: u32, block_offset: u32 },
 }
@@ -111,7 +118,7 @@ pub(crate) struct DataWriter<'a> {
         ),
     block_size: u32,
     fs_compressor: FilesystemCompressor,
-    /// If some, cache of HashMap<file_len, HashMap<hash, (file_len, Added)>>
+    /// If some, cache of HashMap<file_len, HashMap<hash of whole file, (file_len, Added)>>
     #[allow(clippy::type_complexity)]
     dup_cache: Option<IntMap<u64, IntMap<u64, (usize, Added)>>>,
     /// Un-written fragment_bytes
@@ -152,17 +159,23 @@ impl<'a> DataWriter<'a> {
         mut writer: W,
     ) -> Result<(usize, Added), BackhandError> {
         //just clone it, because block sizes where never modified, just copy it
-        let mut block_sizes = reader.file.block_sizes().to_vec();
+        let source = reader.file;
+        let mut block_sizes = source.block_sizes().to_vec();
+        let sparse = source.sparse();
         let mut read_buf = vec![];
         let mut decompress_buf = vec![];
 
         // if the first block is not full (fragment), store only a fragment
         // otherwise processed to store blocks
         let blocks_start = writer.stream_position()?;
+        // Older backhand versions gave an empty file a fragment, do not copy that
+        if source.file_len() == 0 {
+            return Ok((0, Added::Data { blocks_start, block_sizes: vec![], sparse: 0 }));
+        }
         let first_block = match reader.next_block(&mut read_buf) {
             Some(Ok(first_block)) => first_block,
             Some(Err(x)) => return Err(x),
-            None => return Ok((0, Added::Data { blocks_start, block_sizes })),
+            None => return Ok((0, Added::Data { blocks_start, block_sizes, sparse })),
         };
 
         // write and early return if fragment
@@ -181,8 +194,16 @@ impl<'a> DataWriter<'a> {
             return Ok((decompress_buf.len(), Added::Fragment { frag_index, block_offset }));
         }
 
-        //if is a block, just copy it
-        writer.write_all(&read_buf)?;
+        // The reader gives a hole as a block of zeros, but a hole has no bytes in the image
+        let mut is_hole = source.block_sizes().iter().map(|size| size.size() == 0);
+        let mut copy_block = |writer: &mut W, raw: &[u8]| -> Result<(), BackhandError> {
+            if is_hole.next() != Some(true) {
+                writer.write_all(raw)?;
+            }
+            Ok(())
+        };
+
+        copy_block(&mut writer, &read_buf)?;
         while let Some(block) = reader.next_block(&mut read_buf) {
             let block = block?;
             if block.fragment {
@@ -204,12 +225,11 @@ impl<'a> DataWriter<'a> {
                     writer.write_all(&cb)?;
                 }
             } else {
-                //if is a block, just copy it
-                writer.write_all(&read_buf)?;
+                copy_block(&mut writer, &read_buf)?;
             }
         }
-        let file_size = reader.file.file_len();
-        Ok((file_size, Added::Data { blocks_start, block_sizes }))
+        let file_size = source.file_len();
+        Ok((file_size, Added::Data { blocks_start, block_sizes, sparse }))
     }
 
     /// Add to data writer, either a Data or Fragment
@@ -231,6 +251,15 @@ impl<'a> DataWriter<'a> {
         // read entire chunk (file)
         let mut chunk = chunk_reader.read_chunk()?;
 
+        // an empty file must carry no fragment reference: a zero-byte
+        // fragment entry makes the kernel squashfs driver reject the inode
+        // with EINVAL on stat/open (Added::Data with no blocks encodes
+        // frag_index 0xffffffff, matching mksquashfs)
+        if chunk.is_empty() {
+            let blocks_start = writer.stream_position()?;
+            return Ok((0, Added::Data { blocks_start, block_sizes: vec![], sparse: 0 }));
+        }
+
         // chunk size not exactly the size of the block
         if chunk.len() != self.block_size as usize {
             // if this doesn't fit in the current fragment bytes
@@ -251,51 +280,47 @@ impl<'a> DataWriter<'a> {
         let blocks_start = writer.stream_position()?;
         let mut block_sizes = vec![];
 
-        // If duplicate file checking is enabled, use the old data position as this file if it hashes the same
-        if let Some(dup_cache) = &self.dup_cache
-            && let Some(c) = dup_cache.get(&(chunk.len() as u64))
-        {
-            let hash = xxh64(chunk, 0);
-            if let Some(res) = c.get(&hash) {
-                trace!("duplicate file data found");
-                return Ok(res.clone());
-            }
-        }
-
-        // Save information needed to add to duplicate_cache later
-        let chunk_len = chunk.len();
-        let hash = xxh64(chunk, 0);
-
+        let mut hasher = Xxh64::new(0);
+        let mut sparse = 0;
         while !chunk.is_empty() {
-            let cb = self.compressor.compress(chunk, self.fs_compressor, self.block_size)?;
-
-            // compression didn't reduce size
-            if cb.len() > chunk.len() {
-                // store uncompressed
-                block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
-                writer.write_all(chunk)?;
+            if chunk.iter().all(|byte| *byte == 0) {
+                // like mksquashfs, store a block of zeros as a hole
+                block_sizes.push(DataSize::hole());
+                sparse += chunk.len() as u64;
             } else {
-                // store compressed
-                block_sizes.push(DataSize::new_compressed(cb.len() as u32));
-                writer.write_all(&cb)?;
+                let cb = self.compressor.compress(chunk, self.fs_compressor, self.block_size)?;
+
+                // compression didn't reduce size
+                if cb.len() > chunk.len() {
+                    // store uncompressed
+                    block_sizes.push(DataSize::new_uncompressed(chunk.len() as u32));
+                    writer.write_all(chunk)?;
+                } else {
+                    // store compressed
+                    block_sizes.push(DataSize::new_compressed(cb.len() as u32));
+                    writer.write_all(&cb)?;
+                }
             }
+            hasher.update(chunk);
             chunk = chunk_reader.read_chunk()?;
         }
 
-        // Add to duplicate information cache
-        let added = (chunk_reader.file_len, Added::Data { blocks_start, block_sizes });
+        let added = (chunk_reader.file_len, Added::Data { blocks_start, block_sizes, sparse });
+        let Some(dup_cache) = &mut self.dup_cache else {
+            return Ok(added);
+        };
 
-        // If duplicate files checking is enbaled, then add this to it's memory
-        if let Some(dup_cache) = &mut self.dup_cache {
-            if let Some(entry) = dup_cache.get_mut(&(chunk_len as u64)) {
-                entry.insert(hash, added.clone());
-            } else {
-                let mut hashmap = IntMap::default();
-                hashmap.insert(hash, added.clone());
-                dup_cache.insert(chunk_len as u64, hashmap);
+        // The hash is known only after the whole file is read. Thus, like mksquashfs, write the
+        // data first, then seek back so that the next data writes over a duplicate.
+        let files_with_len = dup_cache.entry(chunk_reader.file_len as u64).or_default();
+        match files_with_len.entry(hasher.digest()) {
+            Entry::Occupied(original) => {
+                trace!("duplicate file data found");
+                writer.seek(SeekFrom::Start(blocks_start))?;
+                Ok(original.get().clone())
             }
+            Entry::Vacant(entry) => Ok(entry.insert(added).clone()),
         }
-        Ok(added)
     }
 
     /// Compress the fragments that were under length, write to data, add to fragment table, clear

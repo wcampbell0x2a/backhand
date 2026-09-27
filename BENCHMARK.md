@@ -80,79 +80,79 @@ This uses the latest `dl` binary from https://github.com/wcampbell0x2a/test-asse
 $ ./bench.bash
 ```
 
-## Wall time: `backhand/unsquashfs` vs `squashfs-tools/unsquashfs-4.6.1`
+## Wall time: `backhand/unsquashfs` vs `squashfs-tools/unsquashfs-4.7.5`
 ### `openwrt-22.03.2-ath79-generic-tplink_archer-a7-v5-squashfs-factory.bin`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 34.0 ± 1.7 | 30.7 | 39.6 | 1.31 ± 0.10 |
-| `backhand-dist-musl` | 28.8 ± 1.2 | 26.7 | 31.3 | 1.11 ± 0.08 |
-| `backhand-dist-musl-native` | 29.5 ± 1.3 | 27.0 | 32.5 | 1.13 ± 0.09 |
-| `backhand-dist-gnu` | 26.6 ± 1.3 | 24.2 | 29.2 | 1.02 ± 0.08 |
-| `backhand-dist-gnu-native` | 26.0 ± 1.6 | 21.9 | 29.6 | 1.00 |
-| `squashfs-tools` | 57.5 ± 4.5 | 48.3 | 64.8 | 2.21 ± 0.22 |
+| `backhand-dist-v0.24.1-musl` | 32.8 ± 1.8 | 29.2 | 37.5 | 1.24 ± 0.09 |
+| `backhand-dist-musl` | 28.3 ± 1.2 | 25.6 | 30.5 | 1.07 ± 0.07 |
+| `backhand-dist-musl-native` | 29.1 ± 1.1 | 27.3 | 31.4 | 1.10 ± 0.07 |
+| `backhand-dist-gnu` | 27.3 ± 1.2 | 25.4 | 30.7 | 1.03 ± 0.07 |
+| `backhand-dist-gnu-native` | 26.4 ± 1.2 | 24.5 | 28.7 | 1.00 |
+| `squashfs-tools` | 46.2 ± 5.2 | 36.6 | 56.9 | 1.75 ± 0.21 |
 ### `openwrt-22.03.2-ipq40xx-generic-netgear_ex6100v2-squashfs-factory.img`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 35.0 ± 1.8 | 30.9 | 39.9 | 1.32 ± 0.09 |
-| `backhand-dist-musl` | 30.0 ± 1.5 | 26.4 | 32.8 | 1.13 ± 0.08 |
-| `backhand-dist-musl-native` | 29.4 ± 1.3 | 26.4 | 32.0 | 1.11 ± 0.08 |
-| `backhand-dist-gnu` | 26.8 ± 1.5 | 24.2 | 31.4 | 1.01 ± 0.08 |
-| `backhand-dist-gnu-native` | 26.5 ± 1.3 | 22.8 | 29.5 | 1.00 |
-| `squashfs-tools` | 55.7 ± 5.4 | 43.4 | 68.2 | 2.10 ± 0.23 |
+| `backhand-dist-v0.24.1-musl` | 33.5 ± 2.0 | 30.0 | 38.6 | 1.26 ± 0.09 |
+| `backhand-dist-musl` | 28.5 ± 1.4 | 26.5 | 31.9 | 1.07 ± 0.07 |
+| `backhand-dist-musl-native` | 28.8 ± 1.5 | 26.4 | 34.3 | 1.09 ± 0.07 |
+| `backhand-dist-gnu` | 27.1 ± 1.0 | 25.1 | 29.9 | 1.02 ± 0.06 |
+| `backhand-dist-gnu-native` | 26.5 ± 1.1 | 24.4 | 29.3 | 1.00 |
+| `squashfs-tools` | 47.4 ± 5.6 | 38.8 | 59.1 | 1.79 ± 0.22 |
 ### `870D97.squashfs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 94.5 ± 2.6 | 90.3 | 98.7 | 1.37 ± 0.13 |
-| `backhand-dist-musl` | 77.2 ± 1.7 | 74.0 | 81.1 | 1.12 ± 0.11 |
-| `backhand-dist-musl-native` | 77.1 ± 1.9 | 74.6 | 80.8 | 1.12 ± 0.11 |
-| `backhand-dist-gnu` | 72.0 ± 2.0 | 68.5 | 76.7 | 1.05 ± 0.10 |
-| `backhand-dist-gnu-native` | 70.5 ± 1.6 | 67.7 | 74.1 | 1.02 ± 0.10 |
-| `squashfs-tools` | 68.8 ± 6.5 | 58.4 | 80.5 | 1.00 |
+| `backhand-dist-v0.24.1-musl` | 92.0 ± 2.2 | 88.9 | 96.3 | 1.34 ± 0.10 |
+| `backhand-dist-musl` | 76.6 ± 2.2 | 73.2 | 79.6 | 1.11 ± 0.08 |
+| `backhand-dist-musl-native` | 75.5 ± 1.1 | 73.3 | 77.8 | 1.10 ± 0.08 |
+| `backhand-dist-gnu` | 70.7 ± 2.0 | 67.1 | 74.6 | 1.03 ± 0.08 |
+| `backhand-dist-gnu-native` | 70.0 ± 1.3 | 67.1 | 72.8 | 1.02 ± 0.07 |
+| `squashfs-tools` | 68.9 ± 4.8 | 61.6 | 79.2 | 1.00 |
 ### `img-1571203182_vol-ubi_rootfs.ubifs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 108.7 ± 3.1 | 103.8 | 114.0 | 1.29 ± 0.06 |
-| `backhand-dist-musl` | 88.3 ± 3.4 | 82.5 | 97.2 | 1.05 ± 0.06 |
-| `backhand-dist-musl-native` | 87.3 ± 4.2 | 81.2 | 100.6 | 1.03 ± 0.07 |
-| `backhand-dist-gnu` | 85.2 ± 4.5 | 80.4 | 99.4 | 1.01 ± 0.07 |
-| `backhand-dist-gnu-native` | 84.4 ± 3.5 | 77.8 | 95.5 | 1.00 |
-| `squashfs-tools` | 116.0 ± 6.7 | 99.1 | 128.3 | 1.37 ± 0.10 |
+| `backhand-dist-v0.24.1-musl` | 106.6 ± 3.9 | 100.5 | 114.3 | 1.27 ± 0.07 |
+| `backhand-dist-musl` | 84.7 ± 1.6 | 81.8 | 87.4 | 1.01 ± 0.05 |
+| `backhand-dist-musl-native` | 86.3 ± 3.0 | 82.5 | 92.1 | 1.03 ± 0.06 |
+| `backhand-dist-gnu` | 84.6 ± 3.2 | 81.0 | 91.5 | 1.01 ± 0.06 |
+| `backhand-dist-gnu-native` | 83.7 ± 3.7 | 79.5 | 93.2 | 1.00 |
+| `squashfs-tools` | 98.7 ± 4.0 | 91.8 | 104.0 | 1.18 ± 0.07 |
 ### `2611E3.squashfs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 61.7 ± 3.5 | 56.7 | 69.2 | 1.31 ± 0.09 |
-| `backhand-dist-musl` | 52.0 ± 2.3 | 47.8 | 58.6 | 1.10 ± 0.06 |
-| `backhand-dist-musl-native` | 51.2 ± 1.9 | 47.1 | 55.1 | 1.09 ± 0.06 |
-| `backhand-dist-gnu` | 47.2 ± 1.7 | 43.9 | 52.0 | 1.00 |
-| `backhand-dist-gnu-native` | 47.4 ± 2.7 | 41.3 | 52.2 | 1.00 ± 0.07 |
-| `squashfs-tools` | 90.5 ± 6.1 | 82.5 | 103.3 | 1.92 ± 0.15 |
+| `backhand-dist-v0.24.1-musl` | 60.4 ± 2.9 | 55.9 | 67.4 | 1.28 ± 0.10 |
+| `backhand-dist-musl` | 50.4 ± 2.1 | 46.0 | 56.2 | 1.07 ± 0.08 |
+| `backhand-dist-musl-native` | 50.4 ± 1.3 | 48.2 | 53.4 | 1.07 ± 0.07 |
+| `backhand-dist-gnu` | 47.2 ± 1.8 | 43.7 | 51.5 | 1.00 ± 0.07 |
+| `backhand-dist-gnu-native` | 47.1 ± 2.9 | 44.1 | 55.6 | 1.00 |
+| `squashfs-tools` | 72.0 ± 4.3 | 63.4 | 80.9 | 1.53 ± 0.13 |
 ### `Plexamp-4.6.1.AppImage`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 135.5 ± 2.4 | 129.1 | 139.5 | 1.93 ± 0.08 |
-| `backhand-dist-musl` | 129.0 ± 2.2 | 125.1 | 133.5 | 1.84 ± 0.07 |
-| `backhand-dist-musl-native` | 130.7 ± 2.6 | 126.4 | 136.8 | 1.86 ± 0.08 |
-| `backhand-dist-gnu` | 111.1 ± 2.7 | 107.4 | 117.3 | 1.58 ± 0.07 |
-| `backhand-dist-gnu-native` | 110.8 ± 1.9 | 108.6 | 114.4 | 1.58 ± 0.06 |
-| `squashfs-tools` | 70.2 ± 2.5 | 65.4 | 75.0 | 1.00 |
+| `backhand-dist-v0.24.1-musl` | 143.5 ± 2.4 | 140.7 | 148.0 | 1.83 ± 0.16 |
+| `backhand-dist-musl` | 150.5 ± 2.0 | 146.7 | 154.2 | 1.91 ± 0.17 |
+| `backhand-dist-musl-native` | 138.1 ± 2.1 | 134.5 | 142.6 | 1.76 ± 0.16 |
+| `backhand-dist-gnu` | 131.8 ± 1.6 | 129.5 | 134.6 | 1.68 ± 0.15 |
+| `backhand-dist-gnu-native` | 119.9 ± 2.4 | 116.3 | 125.3 | 1.53 ± 0.14 |
+| `squashfs-tools` | 78.6 ± 7.0 | 70.1 | 92.2 | 1.00 |
 ### `crates-io.squashfs`
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 6.7 ± 0.7 | 4.2 | 7.8 | 1.32 ± 0.22 |
-| `backhand-dist-musl` | 5.9 ± 0.6 | 4.1 | 6.9 | 1.16 ± 0.19 |
-| `backhand-dist-musl-native` | 5.7 ± 0.7 | 3.4 | 6.8 | 1.12 ± 0.20 |
-| `backhand-dist-gnu` | 5.5 ± 0.8 | 2.9 | 6.4 | 1.08 ± 0.21 |
-| `backhand-dist-gnu-native` | 5.1 ± 0.7 | 2.5 | 5.8 | 1.00 |
-| `squashfs-tools` | 7.0 ± 1.0 | 3.5 | 8.0 | 1.38 ± 0.27 |
+| `backhand-dist-v0.24.1-musl` | 5.7 ± 0.2 | 5.4 | 6.4 | 1.04 ± 0.04 |
+| `backhand-dist-musl` | 5.8 ± 0.1 | 5.5 | 6.1 | 1.04 ± 0.04 |
+| `backhand-dist-musl-native` | 5.5 ± 0.1 | 5.3 | 5.9 | 1.00 |
+| `backhand-dist-gnu` | 6.4 ± 0.1 | 6.1 | 6.7 | 1.16 ± 0.03 |
+| `backhand-dist-gnu-native` | 5.9 ± 0.1 | 5.6 | 6.3 | 1.07 ± 0.03 |
+| `squashfs-tools` | 7.8 ± 0.1 | 7.3 | 8.0 | 1.41 ± 0.04 |
 ### `airootfs.sfs`
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
-| `backhand-dist-v0.24.1-musl` | 1.183 ± 0.049 | 1.150 | 1.318 | 1.26 ± 0.06 |
-| `backhand-dist-musl` | 0.956 ± 0.018 | 0.930 | 0.990 | 1.02 ± 0.03 |
-| `backhand-dist-musl-native` | 0.965 ± 0.019 | 0.944 | 1.006 | 1.03 ± 0.03 |
-| `backhand-dist-gnu` | 0.955 ± 0.064 | 0.912 | 1.132 | 1.02 ± 0.07 |
-| `backhand-dist-gnu-native` | 0.939 ± 0.021 | 0.909 | 0.973 | 1.00 |
-| `squashfs-tools` | 1.249 ± 0.006 | 1.241 | 1.262 | 1.33 ± 0.03 |
+| `backhand-dist-v0.24.1-musl` | 1.172 ± 0.024 | 1.137 | 1.227 | 1.28 ± 0.04 |
+| `backhand-dist-musl` | 0.946 ± 0.014 | 0.928 | 0.972 | 1.03 ± 0.03 |
+| `backhand-dist-musl-native` | 0.949 ± 0.015 | 0.927 | 0.973 | 1.03 ± 0.03 |
+| `backhand-dist-gnu` | 0.958 ± 0.088 | 0.902 | 1.129 | 1.04 ± 0.10 |
+| `backhand-dist-gnu-native` | 0.918 ± 0.018 | 0.894 | 0.957 | 1.00 |
+| `squashfs-tools` | 1.249 ± 0.005 | 1.237 | 1.254 | 1.36 ± 0.03 |
 
 ## Heap Usage: `backhand/unsquashfs` vs `squashfs-tools/unsquashfs-4.6.1`
 ```

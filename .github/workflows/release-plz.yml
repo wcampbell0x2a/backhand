@@ -14,7 +14,7 @@ jobs:
   # Publish the crates, create the tag, and create the GitHub release.
   release-plz-release:
     name: release-plz release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       # Necessary for crates.io trusted publishing.
@@ -41,7 +41,7 @@ jobs:
   # Open or update the release pull request with the version and changelog changes.
   release-plz-pr:
     name: release-plz pr
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write

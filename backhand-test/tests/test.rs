@@ -396,7 +396,7 @@ fn no_qemu_test_crates_zstd() {
 fn test_slow_sparse_data_issue_623() {
     common::download_asset("sparse_data_issue_623");
     full_test(
-        "test-assets/test_sparse_data_issue_623/aosc-os_buildkit_20251206_amd64.squashfs",
+        "test-assets/aosc-os/aosc-os_buildkit_20251206_amd64.squashfs",
         0,
         Verify::Extract,
         true,

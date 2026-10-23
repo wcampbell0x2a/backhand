@@ -150,7 +150,7 @@ fn test_01() {
 
 /// mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_02() {
     common::download_asset("test_02");
     full_test("test-assets/test_02/out.squashfs", 0, Verify::Extract, true);
@@ -158,21 +158,21 @@ fn test_02() {
 
 /// mksquashfs ./target/release/squashfs-deku Cargo.toml out.squashfs -comp xz
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_03() {
     common::download_asset("test_03");
     full_test("test-assets/test_03/out.squashfs", 0, Verify::Extract, true);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_04() {
     common::download_asset("test_04");
     full_test("test-assets/test_04/out.squashfs", 0, Verify::Extract, true);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_05() {
     common::download_asset("test_05");
     full_test("test-assets/test_05/out.squashfs", 0, Verify::Extract, true);
@@ -204,28 +204,28 @@ fn test_07() {
 
 // mksquashfs ./target/release/squashfs-deku out.squashfs -comp xz -Xbcj arm
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_08() {
     common::download_asset("test_08");
     full_test("test-assets/test_08/out.squashfs", 0, Verify::Extract, true);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_19() {
     common::download_asset("test_19");
     full_test("test-assets/test_19/out.squashfs", 0, Verify::Extract, true);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_20() {
     common::download_asset("test_20");
     full_test("test-assets/test_20/out.squashfs", 0, Verify::Extract, true);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_openwrt_tplink_archera7v5() {
     common::download_asset("openwrt_tplink_archera7v5");
     full_test(
@@ -237,7 +237,7 @@ fn test_openwrt_tplink_archera7v5() {
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_openwrt_netgear_ex6100v2() {
     common::download_asset("netgear_ex6100v2");
     full_test(
@@ -286,7 +286,7 @@ fn test_appimage_firefox() {
 /// Archer\ AX1800\(US\)_V3_221016.zip from https://www.tp-link.com/us/support/download/archer-ax1800/#Firmware
 /// (after ubi_extract_image)
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_tplink_ax1800() {
     common::download_asset("tplink_ax1800");
     full_test(
@@ -299,28 +299,28 @@ fn test_tplink_ax1800() {
 
 /// one /console char device
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_21() {
     common::download_asset("test_21");
     full_test("test-assets/test_21/out.squashfs", 0, Verify::Extract, false);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_er605() {
     common::download_asset("er605");
     full_test("test-assets/test_er605_v2_2/2611E3.squashfs", 0, Verify::Extract, false);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_re815xe() {
     common::download_asset("re815xe");
     full_test("test-assets/test_re815_xev160/870D97.squashfs", 0, Verify::Extract, false);
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_slow_archlinux_iso_rootfs() {
     common::download_asset("archlinux_iso_rootfs");
     full_test("test-assets/test_archlinux_iso_rootfs/airootfs.sfs", 0, Verify::Extract, true);
@@ -391,11 +391,11 @@ fn no_qemu_test_crates_zstd() {
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_slow_sparse_data_issue_623() {
     common::download_asset("sparse_data_issue_623");
     full_test(
-        "test-assets/test_sparse_data_issue_623/aosc-os_buildkit_20251206_amd64.squashfs",
+        "test-assets/aosc-os/aosc-os_buildkit_20251206_amd64.squashfs",
         0,
         Verify::Extract,
         true,

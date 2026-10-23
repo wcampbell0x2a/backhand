@@ -11,7 +11,7 @@ fn read_at(reader: &mut (impl Read + Seek), pos: u64, len: usize) -> Vec<u8> {
     buf
 }
 
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 mod v4 {
     use super::*;
     use backhand::{FilesystemReader, FilesystemWriter, InnerNode, NodeHeader};

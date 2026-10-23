@@ -30,7 +30,7 @@ use test_log::test;
 /// ├── ptr -> a/b/c/d/dude
 /// └── root_file (added)
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_add_00() {
     common::download_asset("add_00_out");
     common::download_asset("add_00_new");

@@ -4,7 +4,7 @@
 //! The `sparse` field of the inode holds the number of hole bytes. The kernel uses it for
 //! `st_blocks`, and squashfs-tools/unsquashfs uses it to write holes on extract.
 
-#![cfg(feature = "xz")]
+#![cfg(feature = "any-xz")]
 
 use std::fs::File;
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};

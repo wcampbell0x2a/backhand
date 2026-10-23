@@ -20,7 +20,7 @@ deku = { version = "0.20.1", default-features = false, features = ["std", "bits"
 tracing = { version = "0.1.40", optional = true }
 thiserror = "2.0.20"
 flate2 = { version = "1.1.0", optional = true, default-features = false, features = ["zlib-rs"] }
-liblzma = { version = "0.4.8", optional = true, default-features = false, features = ["static", "parallel"] }
+liblzma = { version = "0.4.8", optional = true, default-features = false, features = ["static"] }
 liblzma-sys = { version = "0.4.8", optional = true, default-features = false, features = ["static"] }
 lzma-adaptive-sys = { version = "0.1.0", optional = true }
 lzma-rust2 = { version = "0.20.0", optional = true, features = ["xz", "encoder", "optimization"] }
@@ -42,10 +42,14 @@ v3 = ["gzip"]
 v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:lzma-rust2", "dep:liblzma"]
 ## Enables squashfs v4 with adaptive LZMA compression
 v4_lzma = ["dep:lzma-adaptive-sys", "dep:lzma-rust2"]
-## Enables xz compression inside library and binaries
-xz = ["dep:liblzma", "dep:liblzma-sys"]
+## Enables xz compression inside library and binaries using the liblzma C library
+## Cannot be used with the `xz-rust` feature
+xz = ["any-xz", "dep:liblzma", "dep:liblzma-sys", "liblzma?/parallel"]
 ## Enables xz compression and forces static build inside library and binaries
-xz-static = ["dep:liblzma", "dep:liblzma-sys", "liblzma?/static"]
+xz-static = ["xz", "liblzma?/static"]
+## Enables xz compression inside library and binaries using the pure-Rust lzma-rust2 library
+## Cannot be used with the `xz` feature
+xz-rust = ["any-xz", "dep:lzma-rust2"]
 ## Enables gzip compression inside library and binaries using flate2 library with zlib-rs
 gzip = ["any-gzip", "dep:flate2"]
 ## This library is licensed GPL and thus disabled by default
@@ -56,6 +60,8 @@ zstd = ["dep:zstd", "dep:zstd-safe"]
 lz4 = ["dep:lz4_flex"]
 ## Internal only
 any-gzip = []
+## Internal only
+any-xz = []
 ## Enable parallel decompression
 parallel = ["dep:rayon"]
 ## Include deku descriptive parse-error strings.
@@ -75,6 +81,7 @@ criterion = "0.8"
 libdeflater = "1.22.0"
 toml = "1.1"
 gungraun = "0.19.4"
+proptest = "1.12.0"
 
 [[bench]]
 name = "benchmark"

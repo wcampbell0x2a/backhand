@@ -7,7 +7,7 @@ use tempfile::tempdir;
 use test_log::test;
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_add() {
     use std::fs::File;
     use std::io::Write;
@@ -114,7 +114,7 @@ dr----x--t 2/4242                   42 1970-01-01 00:01 squashfs-root/test
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_dont_emit_compression_options() {
     use std::fs::File;
     use std::io::Write;

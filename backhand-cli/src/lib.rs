@@ -22,7 +22,7 @@ pub fn after_help(rayon_env: bool) -> String {
     #[cfg(feature = "any-gzip")]
     s.push_str(color_print::cstr!("  <cyan, bold>gzip\n"));
 
-    #[cfg(feature = "xz")]
+    #[cfg(feature = "any-xz")]
     s.push_str(color_print::cstr!("  <cyan, bold>xz\n"));
 
     #[cfg(feature = "lzo")]

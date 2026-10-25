@@ -229,7 +229,12 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     InnerNode::NamedPipe => InnerNode::NamedPipe,
                     InnerNode::Socket => InnerNode::Socket,
                 };
-                Node { fullpath: node.fullpath.clone(), header: node.header, inner }
+                Node {
+                    fullpath: node.fullpath.clone(),
+                    header: node.header,
+                    inner,
+                    inode_number: node.inode_number,
+                }
             })
             .collect();
         root.sort();

@@ -48,6 +48,9 @@ pub struct Node<T> {
     pub fullpath: PathBuf,
     pub header: NodeHeader,
     pub inner: InnerNode<T>,
+    /// Inode number in the image this node was read from, `None` for a node added to a
+    /// [`FilesystemWriter`](crate::FilesystemWriter). Nodes with the same number are hard links.
+    pub inode_number: Option<u32>,
 }
 
 impl<T> PartialEq for Node<T> {
@@ -69,13 +72,13 @@ impl<T> Ord for Node<T> {
 
 impl<T> Node<T> {
     pub(crate) fn new(fullpath: PathBuf, header: NodeHeader, inner: InnerNode<T>) -> Self {
-        Self { fullpath, header, inner }
+        Self { fullpath, header, inner, inode_number: None }
     }
 
     pub fn new_root(header: NodeHeader) -> Self {
         let fullpath = PathBuf::from("/");
         let inner = InnerNode::Dir(SquashfsDir::default());
-        Self { fullpath, header, inner }
+        Self { fullpath, header, inner, inode_number: None }
     }
 }
 

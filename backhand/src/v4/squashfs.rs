@@ -582,11 +582,12 @@ impl<'b> Squashfs<'b> {
                         }
                         InodeId::BasicSocket | InodeId::ExtendedSocket => InnerNode::Socket,
                     };
-                    let node = Node::new(
+                    let mut node = Node::new(
                         fullpath.clone(),
                         NodeHeader::from_inode(header, id_table)?,
                         inner,
                     );
+                    node.inode_number = Some(header.inode_number);
                     root.nodes.push(node);
                     fullpath.pop();
                 }
@@ -650,6 +651,7 @@ impl<'b> Squashfs<'b> {
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
         let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id)?);
+        root.nodes[0].inode_number = Some(self.root_inode.header.inode_number);
         let mut visited_inodes = HashSet::new();
         self.extract_dir(
             &mut PathBuf::from("/"),

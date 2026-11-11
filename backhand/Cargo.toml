@@ -44,7 +44,7 @@ v3_lzma = ["v3", "dep:lzma-adaptive-sys", "dep:lzma-rust2", "dep:liblzma"]
 v4_lzma = ["dep:lzma-adaptive-sys", "dep:lzma-rust2"]
 ## Enables xz compression inside library and binaries using the liblzma C library
 ## Cannot be used with the `xz-rust` feature
-xz = ["any-xz", "dep:liblzma", "dep:liblzma-sys", "liblzma?/parallel"]
+xz = ["any-xz", "dep:liblzma", "dep:liblzma-sys"]
 ## Enables xz compression and forces static build inside library and binaries
 xz-static = ["xz", "liblzma?/static"]
 ## Enables xz compression inside library and binaries using the pure-Rust lzma-rust2 library

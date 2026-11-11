@@ -157,10 +157,9 @@ const MAX_DECOMPRESSED_SIZE: usize = 4 * super::squashfs::MAX_BLOCK_SIZE as usiz
 /// xz with the liblzma C library.
 #[cfg(feature = "xz")]
 mod xz {
-    use liblzma::read::XzEncoder;
-    use liblzma::stream::{Check, Filters, LzmaOptions, MtStreamBuilder};
+    use liblzma_sys::{lzma_filter, lzma_options_lzma, lzma_vli};
 
-    use super::{BcjFilter, Cursor, MAX_DECOMPRESSED_SIZE, Read, XzFilter};
+    use super::{BcjFilter, MAX_DECOMPRESSED_SIZE, XzFilter};
     use crate::error::BackhandError;
 
     /// Decompress a complete xz stream in one call. The data is added to `out`.
@@ -222,34 +221,72 @@ mod xz {
         dict_size: u32,
         filter: Option<XzFilter>,
     ) -> Result<Vec<u8>, BackhandError> {
-        let mut opts = LzmaOptions::new_preset(level)
-            .map_err(|e| BackhandError::CompressionInit(err_text!("xz options: {}", e)))?;
-        opts.dict_size(dict_size);
-
-        let mut filters = Filters::new();
-        for bcj in filter.into_iter().flat_map(XzFilter::bcj_filters) {
-            match bcj {
-                BcjFilter::X86 => filters.x86(),
-                BcjFilter::PowerPc => filters.powerpc(),
-                BcjFilter::Ia64 => filters.ia64(),
-                BcjFilter::Arm => filters.arm(),
-                BcjFilter::ArmThumb => filters.arm_thumb(),
-                BcjFilter::Sparc => filters.sparc(),
-            };
+        // SAFETY: `lzma_options_lzma` has only integers, enums and pointers. Zero is a
+        // valid value for all of them, and `lzma_lzma_preset` sets all the fields.
+        let mut opts: lzma_options_lzma = unsafe { core::mem::zeroed() };
+        // SAFETY: `opts` is a valid `lzma_options_lzma`.
+        if unsafe { liblzma_sys::lzma_lzma_preset(&mut opts, level) } != 0 {
+            return Err(BackhandError::CompressionInit(err_text!(
+                "xz options: preset {} is not supported",
+                level
+            )));
         }
-        filters.lzma2(&opts);
+        opts.dict_size = dict_size;
 
-        let stream = MtStreamBuilder::new()
-            .threads(2)
-            .filters(filters)
-            .check(Check::Crc32)
-            .encoder()
-            .map_err(|e| BackhandError::CompressionInit(err_text!("xz encoder: {}", e)))?;
+        let mut filters: Vec<lzma_filter> = filter
+            .into_iter()
+            .flat_map(XzFilter::bcj_filters)
+            .map(|bcj| lzma_filter { id: bcj_filter_id(bcj), options: core::ptr::null_mut() })
+            .collect();
+        filters.push(lzma_filter {
+            id: liblzma_sys::LZMA_FILTER_LZMA2,
+            options: (&raw mut opts).cast(),
+        });
+        filters.push(lzma_filter {
+            id: liblzma_sys::LZMA_VLI_UNKNOWN,
+            options: core::ptr::null_mut(),
+        });
 
-        let mut encoder = XzEncoder::new_stream(Cursor::new(bytes), stream);
-        let mut buf = vec![];
-        encoder.read_to_end(&mut buf)?;
+        // The one-call encoder does not start threads, thus it uses the same
+        // instructions on each run. It writes the same bytes as the multi-threaded
+        // encoder, because both put the block sizes in the block header.
+        // SAFETY: `lzma_stream_buffer_bound` has no preconditions.
+        let out_size = unsafe { liblzma_sys::lzma_stream_buffer_bound(bytes.len()) };
+        let mut buf = Vec::with_capacity(out_size);
+        let mut out_pos = 0usize;
+        // SAFETY: `filters` ends with `LZMA_VLI_UNKNOWN`, and `opts` lives until the
+        // call returns. `input`/`in_size` and `out`/`out_size` point to valid memory
+        // areas that do not overlap. liblzma writes a maximum of `out_size` bytes and
+        // gives the number of bytes in `out_pos`.
+        let ret = unsafe {
+            liblzma_sys::lzma_stream_buffer_encode(
+                filters.as_mut_ptr(),
+                liblzma_sys::LZMA_CHECK_CRC32,
+                core::ptr::null(),
+                bytes.as_ptr(),
+                bytes.len(),
+                buf.as_mut_ptr(),
+                &mut out_pos,
+                out_size,
+            )
+        };
+        if ret != liblzma_sys::LZMA_OK {
+            return Err(BackhandError::CompressionInit(err_text!("xz encoder: error {}", ret)));
+        }
+        // SAFETY: liblzma wrote `out_pos` bytes from the start of `buf`.
+        unsafe { buf.set_len(out_pos) };
         Ok(buf)
+    }
+
+    fn bcj_filter_id(bcj: BcjFilter) -> lzma_vli {
+        match bcj {
+            BcjFilter::X86 => liblzma_sys::LZMA_FILTER_X86,
+            BcjFilter::PowerPc => liblzma_sys::LZMA_FILTER_POWERPC,
+            BcjFilter::Ia64 => liblzma_sys::LZMA_FILTER_IA64,
+            BcjFilter::Arm => liblzma_sys::LZMA_FILTER_ARM,
+            BcjFilter::ArmThumb => liblzma_sys::LZMA_FILTER_ARMTHUMB,
+            BcjFilter::Sparc => liblzma_sys::LZMA_FILTER_SPARC,
+        }
     }
 }
 
@@ -573,6 +610,13 @@ mod xz_tests {
     fn more_than_three_bcj_filters_is_an_error() {
         let fc = xz_compressor(Some(0b1111));
         let result = DefaultCompressor.compress(&sample_data(64), fc, BLOCK_SIZE);
+        assert!(matches!(result, Err(BackhandError::CompressionInit(_))));
+    }
+
+    #[test]
+    #[cfg(feature = "xz")]
+    fn unsupported_preset_is_an_error() {
+        let result = xz::encode(&sample_data(64), 10, BLOCK_SIZE, None);
         assert!(matches!(result, Err(BackhandError::CompressionInit(_))));
     }
 

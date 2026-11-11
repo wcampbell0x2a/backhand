@@ -2,7 +2,8 @@
 set -ex
 
 QUICK_MODE=false
-LAST_RELEASE="v0.24.1"
+LAST_RELEASE_URL=$(curl -sSfLo /dev/null -w '%{url_effective}' https://github.com/wcampbell0x2a/backhand/releases/latest)
+LAST_RELEASE="${LAST_RELEASE_URL##*/}"
 
 BACKHAND_LAST_RELEASE="./last-release/unsquashfs-backhand"
 BACKHAND_NATIVE_GNU="./native-gnu/dist/unsquashfs-backhand"

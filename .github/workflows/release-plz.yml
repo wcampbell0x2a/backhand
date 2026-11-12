@@ -84,7 +84,7 @@ jobs:
           - { target: aarch64-unknown-linux-musl,   os: ubuntu-24.04, use-cross: true }
           - { target: arm-unknown-linux-musleabi,   os: ubuntu-24.04, use-cross: true }
           - { target: armv7-unknown-linux-musleabi, os: ubuntu-24.04, use-cross: true }
-          - { target: x86_64-apple-darwin,          os: macos-14                       }
+          - { target: x86_64-apple-darwin,          os: macos-15                       }
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

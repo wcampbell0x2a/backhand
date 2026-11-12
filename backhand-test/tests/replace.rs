@@ -5,7 +5,7 @@ use tempfile::tempdir;
 use test_log::test;
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_replace() {
     common::download_asset("test_05");
     let image_path = "test-assets/test_05/out.squashfs";

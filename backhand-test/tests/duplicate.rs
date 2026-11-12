@@ -3,7 +3,7 @@
 //! A file with the same content as an earlier file uses the data of that file. The writer must
 //! compare the whole file, not only the first block.
 
-#![cfg(feature = "xz")]
+#![cfg(feature = "any-xz")]
 
 use std::io::{Cursor, Read};
 use std::process::Command;

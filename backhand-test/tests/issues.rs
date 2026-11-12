@@ -1,6 +1,6 @@
 /// https://github.com/wcampbell0x2a/backhand/issues/275
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn issue_275() {
     let mut writer = std::io::Cursor::new(vec![]);
     let mut fs = backhand::FilesystemWriter::default();
@@ -9,7 +9,7 @@ fn issue_275() {
 
 /// https://github.com/wcampbell0x2a/backhand/issues/359
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn issue_359() {
     let mut writer = std::io::Cursor::new(vec![]);
     let mut fs = backhand::FilesystemWriter::default();
@@ -20,7 +20,7 @@ fn issue_359() {
 
 /// https://github.com/wcampbell0x2a/backhand/issues/363
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn issue_363() {
     let dummy_file = std::io::Cursor::new(&[]);
     let dummy_header = backhand::NodeHeader::default();
@@ -42,7 +42,7 @@ fn issue_363() {
 ///
 /// An empty file must have no fragment, or the kernel returns EINVAL on stat and open
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn issue_803() {
     use backhand::{FilesystemReader, FilesystemWriter, InnerNode, SquashfsFileReader};
     use std::io::Cursor;

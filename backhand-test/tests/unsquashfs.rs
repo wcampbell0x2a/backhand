@@ -3,7 +3,7 @@ mod common;
 use assert_cmd::prelude::*;
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 #[cfg(feature = "__test_unsquashfs")]
 fn test_unsquashfs_cli() {
     common::download_asset("re815xe");
@@ -96,7 +96,7 @@ flag: nfs export table exists
 }
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_unsquashfs_cli_auto_offset() {
     use tempfile::tempdir;
 

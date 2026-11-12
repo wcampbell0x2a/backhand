@@ -30,6 +30,8 @@ jobs:
           - --no-default-features --features gzip,xz
           - --no-default-features --features gzip,xz,parallel
           - --no-default-features --features xz-static
+          - --no-default-features --features xz-rust
+          - --no-default-features --features gzip,xz-rust,parallel
           - --no-default-features --features lz4
           - --no-default-features --features parallel
           - --no-default-features --features v3
@@ -112,7 +114,7 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          - { target: x86_64-apple-darwin,          os: macos-14,                     }
+          - { target: x86_64-apple-darwin,          os: macos-15,                     }
         toolchain:
           - stable
             # msrv of backhand-cli
@@ -159,6 +161,8 @@ jobs:
           - --no-default-features --features gzip
           - --no-default-features --features gzip,xz
           - --no-default-features --features xz-static
+          - --no-default-features --features xz-rust
+          - --no-default-features --features gzip,xz-rust
           - --no-default-features --features lz4
           - --no-default-features --features v3
           - --no-default-features --features v3_lzma

@@ -13,7 +13,7 @@ use backhand::{
 use common::{test_bin_unsquashfs, test_squashfs_tools_unsquashfs};
 
 #[test]
-#[cfg(all(feature = "xz", feature = "gzip"))]
+#[cfg(all(feature = "any-xz", feature = "gzip"))]
 fn test_raw_00() {
     use std::io::BufReader;
 
@@ -60,6 +60,14 @@ fn test_raw_00() {
     let mut output = BufWriter::new(File::create(new_path).unwrap());
     let (superblock, bytes_written) = fs.write(&mut output).unwrap();
 
+    // The lzma-rust2 encoder writes 4 fewer bytes for each xz block than liblzma.
+    #[cfg(feature = "xz")]
+    let (bytes_used, id_table, inode_table, dir_table, frag_table) =
+        (0x1f4, 0x1ec, 0xac, 0x13a, 0x1da);
+    #[cfg(feature = "xz-rust")]
+    let (bytes_used, id_table, inode_table, dir_table, frag_table) =
+        (0x1e8, 0x1e0, 0xa8, 0x132, 0x1ce);
+
     // 8KiB
     assert_eq!(bytes_written, 0x2000);
     assert_eq!(
@@ -77,12 +85,12 @@ fn test_raw_00() {
             version_major: 0x4,
             version_minor: 0x0,
             root_inode: 0xe0,
-            bytes_used: 0x1f4,
-            id_table: 0x1ec,
+            bytes_used,
+            id_table,
             xattr_table: 0xffffffffffffffff,
-            inode_table: 0xac,
-            dir_table: 0x13a,
-            frag_table: 0x1da,
+            inode_table,
+            dir_table,
+            frag_table,
             export_table: 0xffffffffffffffff,
         }
     );

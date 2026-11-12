@@ -1,7 +1,6 @@
 //! Read from on-disk image
 
 use no_std_io2::io::Seek;
-use std::collections::HashSet;
 use std::ffi::OsString;
 use std::io::{Cursor, SeekFrom};
 use std::path::PathBuf;
@@ -9,7 +8,7 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 
 use deku::prelude::*;
-use solana_nohash_hasher::IntMap;
+use solana_nohash_hasher::{IntMap, IntSet};
 
 use crate::error::BackhandError;
 use crate::kinds::{Kind, LE_V4_0};
@@ -494,7 +493,7 @@ impl<'b> Squashfs<'b> {
         root: &mut Nodes<SquashfsFileReader>,
         dir_inode: &Inode,
         id_table: &[Id],
-        visited_inodes: &mut HashSet<u32>,
+        visited_inodes: &mut IntSet<u32>,
     ) -> Result<(), BackhandError> {
         // A corrupted image can point a dir entry back at a dir that is already being read,
         // and following that would recurse until the stack is gone
@@ -650,7 +649,7 @@ impl<'b> Squashfs<'b> {
     pub fn into_filesystem_reader(self) -> Result<FilesystemReader<'b>, BackhandError> {
         info!("creating fs tree");
         let mut root = Nodes::new_root(NodeHeader::from_inode(self.root_inode.header, &self.id)?);
-        let mut visited_inodes = HashSet::new();
+        let mut visited_inodes = IntSet::default();
         self.extract_dir(
             &mut PathBuf::from("/"),
             &mut root,

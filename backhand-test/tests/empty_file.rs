@@ -10,7 +10,7 @@ use backhand::{FilesystemReader, FilesystemWriter, NodeHeader};
 use test_log::test;
 
 #[test]
-#[cfg(feature = "xz")]
+#[cfg(feature = "any-xz")]
 fn test_empty_file_has_no_fragment_ref() {
     let mut fs = FilesystemWriter::default();
     fs.push_file(Cursor::new(vec![]), "empty", NodeHeader::default()).unwrap();

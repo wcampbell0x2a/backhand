@@ -56,6 +56,9 @@
 #[doc = include_str!("../../README.md")]
 type _ReadmeTest = ();
 
+#[cfg(all(not(docsrs), feature = "xz", feature = "xz-rust"))]
+compile_error!("xz and xz-rust are mutually exclusive and cannot be enabled together");
+
 #[macro_use]
 mod log;
 pub mod error;

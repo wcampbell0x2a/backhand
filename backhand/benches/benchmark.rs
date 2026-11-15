@@ -22,6 +22,22 @@ fn get_test_assets() -> &'static TestAsset {
     })
 }
 
+/// Find the backhand-cli binary `name` in a parent directory of the bench executable.
+///
+/// Workaround for <https://github.com/assert-rs/assert_cmd/issues/332>.
+fn cargo_bin(name: &str) -> std::path::PathBuf {
+    let bench_exe = std::env::current_exe().expect("cannot get the path of the bench executable");
+    let file_name = format!("{name}{}", std::env::consts::EXE_SUFFIX);
+    bench_exe
+        .ancestors()
+        .skip(1)
+        .map(|dir| dir.join(&file_name))
+        .find(|path| path.is_file())
+        .unwrap_or_else(|| {
+            panic!("{file_name} is not in a parent directory of {}", bench_exe.display())
+        })
+}
+
 /// Download a specific test asset by key
 fn download_asset(asset_key: &str) -> String {
     let assets = get_test_assets();
@@ -103,12 +119,13 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
     let mut group = c.benchmark_group("unsquashfs");
 
     let path = download_asset("netgear_ex6100v2");
+    let unsquashfs = cargo_bin("unsquashfs-backhand");
 
     let tmp_dir = tempdir().unwrap();
 
     group.bench_function("full", |b| {
         b.iter(|| {
-            let cmd = Command::new(assert_cmd::cargo::cargo_bin("unsquashfs-backhand"))
+            let cmd = Command::new(&unsquashfs)
                 .env("RUST_LOG", "none")
                 .args([
                     "--auto-offset",
@@ -127,7 +144,7 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
     // 38 nodes
     group.bench_function("full-path-filter", |b| {
         b.iter(|| {
-            let cmd = Command::new(assert_cmd::cargo::cargo_bin("unsquashfs-backhand"))
+            let cmd = Command::new(&unsquashfs)
                 .env("RUST_LOG", "none")
                 .args([
                     "--auto-offset",
@@ -147,7 +164,7 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
 
     group.bench_function("list", |b| {
         b.iter(|| {
-            let cmd = Command::new(assert_cmd::cargo::cargo_bin("unsquashfs-backhand"))
+            let cmd = Command::new(&unsquashfs)
                 .env("RUST_LOG", "none")
                 .args(["--auto-offset", "--kind", "le_v4_0", "-l", &path])
                 .unwrap();
@@ -157,7 +174,7 @@ pub fn bench_unsquashfs_extract(c: &mut Criterion) {
 
     group.bench_function("list-path-filter", |b| {
         b.iter(|| {
-            let cmd = Command::new(assert_cmd::cargo::cargo_bin("unsquashfs-backhand"))
+            let cmd = Command::new(&unsquashfs)
                 .env("RUST_LOG", "none")
                 .args([
                     "--auto-offset",

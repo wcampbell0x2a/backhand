@@ -162,6 +162,10 @@ mod xz {
     use super::{BcjFilter, MAX_DECOMPRESSED_SIZE, XzFilter};
     use crate::error::BackhandError;
 
+    /// Maximum number of filters in an xz filter chain. liblzma-sys exports this
+    /// constant only when it runs bindgen.
+    const LZMA_FILTERS_MAX: usize = 4;
+
     /// Decompress a complete xz stream in one call. The data is added to `out`.
     pub(super) fn decode_buffer(bytes: &[u8], out: &mut Vec<u8>) -> Result<(), BackhandError> {
         if out.capacity() == out.len() {
@@ -242,6 +246,16 @@ mod xz {
             id: liblzma_sys::LZMA_FILTER_LZMA2,
             options: (&raw mut opts).cast(),
         });
+        // The one-call encoder writes no block for empty input, and then it does
+        // not examine the filter chain. Examine it here, so that all inputs give
+        // the same result.
+        if filters.len() > LZMA_FILTERS_MAX {
+            return Err(BackhandError::CompressionInit(err_text!(
+                "xz filters: {} filters is more than the maximum of {}",
+                filters.len(),
+                LZMA_FILTERS_MAX
+            )));
+        }
         filters.push(lzma_filter {
             id: liblzma_sys::LZMA_VLI_UNKNOWN,
             options: core::ptr::null_mut(),
@@ -610,6 +624,9 @@ mod xz_tests {
     fn more_than_three_bcj_filters_is_an_error() {
         let fc = xz_compressor(Some(0b1111));
         let result = DefaultCompressor.compress(&sample_data(64), fc, BLOCK_SIZE);
+        assert!(matches!(result, Err(BackhandError::CompressionInit(_))));
+
+        let result = DefaultCompressor.compress(&[], fc, BLOCK_SIZE);
         assert!(matches!(result, Err(BackhandError::CompressionInit(_))));
     }
 

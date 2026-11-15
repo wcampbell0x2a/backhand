@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -192,9 +193,25 @@ fn find_runner() -> Option<String> {
     None
 }
 
+/// Find the backhand-cli binary `name` in a parent directory of the test executable.
+///
+/// Workaround for <https://github.com/assert-rs/assert_cmd/issues/332>.
+fn cargo_bin(name: &str) -> PathBuf {
+    let test_exe = std::env::current_exe().expect("cannot get the path of the test executable");
+    let file_name = format!("{name}{}", std::env::consts::EXE_SUFFIX);
+    test_exe
+        .ancestors()
+        .skip(1)
+        .map(|dir| dir.join(&file_name))
+        .find(|path| path.is_file())
+        .unwrap_or_else(|| {
+            panic!("{file_name} is not in a parent directory of {}", test_exe.display())
+        })
+}
+
 /// Under cargo cross (qemu), find runner
 pub fn get_base_command(base: &str) -> Command {
-    let path = assert_cmd::cargo::cargo_bin(base);
+    let path = cargo_bin(base);
 
     let mut cmd;
     if let Some(runner) = find_runner() {

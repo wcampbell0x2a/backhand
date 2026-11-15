@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.6](https://github.com/wcampbell0x2a/backhand/compare/v0.25.5...v0.25.6) - 2026-11-15
+
+### Other
+
+- Find unsquashfs-backhand in parent directories in bench
+- Check xz filter count before the one-call encoder
+- Use one-call liblzma encoder for xz compression
+- Use IntSet for visited inodes in v4 reader
+- Add xz-rust feature to use lzma-rust2 for xz
+- Update Rust crate zstd-safe to v8
+
 ## [0.25.5](https://github.com/wcampbell0x2a/backhand/compare/v0.25.4...v0.25.5) - 2026-09-26
 
 ### Other

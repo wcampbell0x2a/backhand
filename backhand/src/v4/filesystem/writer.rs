@@ -13,7 +13,7 @@ use crate::error::BackhandError;
 use crate::kinds::Kind;
 use crate::kinds::LE_V4_0;
 use crate::v4::compressor::{CompressionOptions, Compressor};
-use crate::v4::data::DataWriter;
+use crate::v4::data::{Added, DataSize, DataWriter};
 use crate::v4::entry::Entry;
 use crate::v4::filesystem::node::SquashfsSymlink;
 use crate::v4::filesystem::node::{InnerNode, LazyFile, Nodes};
@@ -325,6 +325,27 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
         Ok(())
     }
 
+    /// Insert a file of `size` bytes that consists entirely of a hole at `path` with metadata
+    /// `header`.
+    ///
+    /// No data is read, hashed or written: the file is stored as a list of hole blocks, and reads
+    /// return zeros. This is much faster than [`Self::push_file`] with a reader of zeros.
+    ///
+    /// The `uid` and `gid` in `header` are added to FilesystemWriters id's
+    pub fn push_sparse_file<P>(
+        &mut self,
+        path: P,
+        size: u64,
+        header: NodeHeader,
+    ) -> Result<(), BackhandError>
+    where
+        P: AsRef<Path>,
+    {
+        let new_file = InnerNode::File(SquashfsFileWriter::Hole(size));
+        self.insert_node(path, header, new_file)?;
+        Ok(())
+    }
+
     /// Take a mutable reference to existing file at `find_path`
     pub fn mut_file<S>(&mut self, find_path: S) -> Option<&mut SquashfsFileWriter<'a, 'b, 'c>>
     where
@@ -540,6 +561,18 @@ impl<'a, 'b, 'c> FilesystemWriter<'a, 'b, 'c> {
                     } else {
                         data_writer.add_bytes(file.reader(), &mut writer)?
                     }
+                }
+                SquashfsFileWriter::Hole(size) => {
+                    // nothing to read: the whole file is a list of hole blocks
+                    let blocks_start = writer.stream_position()?;
+                    let blocks = size.div_ceil(u64::from(block_size)) as usize;
+                    let sparse = if blocks == 0 { 0 } else { *size };
+                    let added = Added::Data {
+                        blocks_start,
+                        block_sizes: vec![DataSize::hole(); blocks],
+                        sparse,
+                    };
+                    (*size as usize, added)
                 }
                 SquashfsFileWriter::Consumed(_, _) => unreachable!(),
             };

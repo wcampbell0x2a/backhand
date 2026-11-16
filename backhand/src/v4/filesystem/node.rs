@@ -176,6 +176,8 @@ pub enum SquashfsFileWriter<'a, 'b, 'c> {
     /// File on disk, opened only when the image is written
     LazyFile(LazyFile),
     SquashfsFile(FilesystemReaderFile<'a, 'b>),
+    /// File of the given size that consists entirely of a hole: no data is read or written
+    Hole(u64),
     Consumed(usize, Added),
 }
 
